@@ -1,12 +1,16 @@
+import type { Metadata } from "next";
 import {
   PublicFinancialForm,
   PublicFinancialFormStatus,
 } from "@/components/public/public-financial-form";
+import { buildNoIndexMetadata } from "@/lib/seo/metadata";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { getInviteFormContextByToken } from "@/services/accounting/student-financial-adjustment.service";
 
 /** Per-invite financial form; must not inherit parent marketing force-static. */
 export const dynamic = "force-dynamic";
+
+export const metadata: Metadata = buildNoIndexMetadata("Financial form");
 
 type PublicFinancialFormPageProps = {
   params: Promise<{ token: string }>;

@@ -15,6 +15,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { EmptyState } from "@/components/ui/empty-state";
 import {
   Dialog,
   DialogContent,
@@ -34,7 +35,7 @@ import type {
   DeleteStudentPaymentScheduleActionState,
   ManagerStudentPaymentScheduleRow,
 } from "@/types/manager-student-payment-schedule";
-import { PencilIcon, PlusIcon, Trash2Icon } from "lucide-react";
+import { CalendarIcon, PencilIcon, PlusIcon, Trash2Icon } from "lucide-react";
 import { format } from "date-fns";
 import {
   Tooltip,
@@ -308,30 +309,30 @@ export function PaymentScheduleSection({
           </div>
         </CardHeader>
         <CardContent className="px-0 pb-0">
-          <div className="overflow-x-auto">
-            <table className="w-full min-w-[880px] text-sm">
-              <thead>
-                <tr className="border-b bg-muted/40 text-left">
-                  <th className="px-4 py-3 font-medium">Due date</th>
-                  <th className="px-4 py-3 font-medium">Label</th>
-                  <th className="px-4 py-3 font-medium text-right">Amount</th>
-                  <th className="px-4 py-3 font-medium">Status</th>
-                  <th className="px-4 py-3 font-medium">Notes</th>
-                  <th className="px-4 py-3 font-medium text-right">Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {schedules.length === 0 ? (
-                  <tr>
-                    <td
-                      colSpan={6}
-                      className="px-4 py-10 text-center text-muted-foreground"
-                    >
-                      No schedule rows yet.
-                    </td>
+          {schedules.length === 0 ? (
+            <div className="px-4 py-4">
+              <EmptyState
+                size="sm"
+                icon={CalendarIcon}
+                title="No schedule rows yet"
+                description="Add payment schedule rows for this assignment."
+              />
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full min-w-[880px] text-sm">
+                <thead>
+                  <tr className="border-b bg-muted/40 text-left">
+                    <th className="px-4 py-3 font-medium">Due date</th>
+                    <th className="px-4 py-3 font-medium">Label</th>
+                    <th className="px-4 py-3 font-medium text-right">Amount</th>
+                    <th className="px-4 py-3 font-medium">Status</th>
+                    <th className="px-4 py-3 font-medium">Notes</th>
+                    <th className="px-4 py-3 font-medium text-right">Actions</th>
                   </tr>
-                ) : (
-                  schedules.map((schedule) => (
+                </thead>
+                <tbody>
+                  {schedules.map((schedule) => (
                     <tr
                       key={schedule.id}
                       className="border-b last:border-b-0 hover:bg-muted/30"
@@ -388,11 +389,11 @@ export function PaymentScheduleSection({
                         </div>
                       </td>
                     </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
-          </div>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
         </CardContent>
       </Card>
     </>

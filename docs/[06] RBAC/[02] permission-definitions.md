@@ -5,7 +5,7 @@
 **Roles co-manager:** empty seed (zero grants) — see `[08] role-seeded-permissions.md`.  
 **Role supervisor:** empty `/supervisor` panel; seeded allow-list: workshops + subjects (categories/exercises) + students + classes tree + instructor schedules + academic analysis (see `[08]`). Uses full manager nav filtered by grants — RBAC extras unlock UI/routes. No new permission keys.  
 **Role CRM:** empty `/crm` panel; seeded with all `guests.*` + all `teams.*` + full `registrations.*` for shared `/manager/guests*` and dossier/details (see `[08]`). No new permission keys.  
-**Role teacher:** class-tree grants only; own-class scoping in services (see `[08]`).  
+**Role teacher:** narrow teaching grants (sessions/attendance/tasks + class view/status + grades.view); own-class read/write scoping in services via `class_teacher` (see `[08]`).  
 **Role student:** `students.view_own` + class/session/task reads + `accounting.view` / `accounting.clearances.view` / `payment_schedules.view` for own SPPs + `equipment.view_own_borrows` (see `[08]`).
 
 ---
@@ -66,7 +66,7 @@ Format: `key` — label — access
 |-----|-------|--------|
 | `students.view` | View students | read |
 | `students.view_own` | View own student profile (student panel) | read |
-| `students.update_own` | Edit own username, name, birth date, phone, and password (student panel) | write |
+| `students.update_own` | Change own password (student panel); personal info is admin-managed | write |
 | `students.create` | Create student | write |
 | `students.update` | Edit student | write |
 | `students.change_status` | Activate / inactivate student (optional class leave + payment-free open SPP delete) | write |
@@ -160,6 +160,7 @@ Format: `key` — label — access
 | `classes.assign_teacher` | Assign teacher | write |
 | `classes.unassign_teacher` | Unassign teacher | write |
 | `classes.add_student` | Add student to class | write |
+| `classes.copy_students_from_class` | Copy students from another class | write |
 | `classes.remove_student` | Remove student from class | write |
 | `classes.view_analytics` | View class analytics | read |
 
@@ -487,6 +488,7 @@ classes.change_status
 classes.assign_teacher
 classes.unassign_teacher
 classes.add_student
+classes.copy_students_from_class
 classes.remove_student
 classes.view_analytics
 sessions.view

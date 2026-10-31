@@ -21,7 +21,7 @@ export function SubjectCollapsibleSection({
   const panelId = useId();
 
   return (
-    <section className="min-w-0 overflow-hidden rounded-xl ring-1 ring-foreground/10">
+    <section className="min-w-0 overflow-hidden rounded-xl border border-foreground/10">
       <button
         type="button"
         aria-expanded={open}
@@ -29,7 +29,7 @@ export function SubjectCollapsibleSection({
         onClick={() => setOpen((current) => !current)}
         className={cn(
           "flex w-full items-center gap-3 bg-muted/50 px-4 py-3 text-left transition-colors duration-200",
-          open && "border-b",
+          open && "border-b border-foreground/10",
           "rounded-t-xl",
           !open && "rounded-b-xl",
           "hover:bg-muted/65 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50 focus-visible:ring-inset"

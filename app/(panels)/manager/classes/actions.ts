@@ -17,6 +17,7 @@ import {
 import { appendQueryParam } from "@/lib/url/append-query-param";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { parseAddStudentsToClassFormData } from "@/lib/validators/manager/add-student-to-class";
+import { parseCopyStudentsFromClassFormData } from "@/lib/validators/manager/copy-students-from-class";
 import {
   parseAssignClassTeacherFormData,
   parseUnassignClassTeacherFormData,
@@ -46,14 +47,17 @@ import {
 import {
   addStudentsToClassForManager,
   assignTeacherToClassForManager,
+  copyStudentsFromClassForManager,
   createClassForManager,
   createClassSessionForManager,
   createFinalExamForManager,
   getClassCreateDialogDataForManager,
+  listActiveStudentDiffFromClass,
   listAvailableStudentsForClass,
   listClassesPageForManager,
   listClassTeacherOptionsForManager,
   listClassTransferOptionsForManager,
+  listSameSemesterClassesForCopy,
   transferStudentBetweenClassesForManager,
   unassignTeacherFromClassForManager,
   updateClassForManager,
@@ -155,6 +159,48 @@ export async function loadAvailableStudentsForClassAction(
       adminClient,
       actor.userId,
       classId
+    );
+  } catch {
+    return [];
+  }
+}
+
+export async function loadSameSemesterClassesForCopyAction(
+  targetClassId: string
+): Promise<Array<{ id: string; name: string; status: string }>> {
+  const actor = await getSessionAuditActor();
+  if (!actor.userId) {
+    return [];
+  }
+
+  const adminClient = createSupabaseAdminClient();
+  try {
+    return await listSameSemesterClassesForCopy(
+      adminClient,
+      actor.userId,
+      targetClassId
+    );
+  } catch {
+    return [];
+  }
+}
+
+export async function loadActiveStudentDiffFromClassAction(
+  targetClassId: string,
+  sourceClassId: string
+): Promise<ManagerStudentRow[]> {
+  const actor = await getSessionAuditActor();
+  if (!actor.userId) {
+    return [];
+  }
+
+  const adminClient = createSupabaseAdminClient();
+  try {
+    return await listActiveStudentDiffFromClass(
+      adminClient,
+      actor.userId,
+      targetClassId,
+      sourceClassId
     );
   } catch {
     return [];
@@ -421,6 +467,30 @@ export async function addStudentToClassAction(
     parse: parseAddStudentsToClassFormData,
     mutate: ({ adminClient, actor, data }) =>
       addStudentsToClassForManager(adminClient, actor.userId, actor, data),
+    mapSuccess: (result) => ({
+      success: true,
+      message: result.message,
+      warning: result.warning,
+      students: result.students,
+      student: result.students[0],
+      studentGrades: result.studentGrades,
+      studentGrade: result.studentGrades[0],
+      classRow: result.classRow,
+      autoAssignedPhase: result.autoAssignedPhase,
+      optionalPaymentPhases: result.optionalPaymentPhases,
+    }),
+  });
+}
+
+export async function copyStudentsFromClassAction(
+  _prevState: AddStudentToClassActionState,
+  formData: FormData
+): Promise<AddStudentToClassActionState> {
+  return runManagerAction({
+    formData,
+    parse: parseCopyStudentsFromClassFormData,
+    mutate: ({ adminClient, actor, data }) =>
+      copyStudentsFromClassForManager(adminClient, actor.userId, actor, data),
     mapSuccess: (result) => ({
       success: true,
       message: result.message,
@@ -804,7 +874,7 @@ export async function updateStudentTaskAction(
       const taskId = result.studentTask.task_id;
       revalidatePath(getManagerClassDetailRoute(result.classId));
       revalidatePath(getManagerClassTaskDetailRoute(result.classId, taskId));
-      revalidatePath(getTeacherClassDetailRoute(result.classId));
+      // Teacher grades on the task page; skip full class-detail RSC reload.
       revalidatePath(getTeacherClassTaskDetailRoute(result.classId, taskId));
     },
     mapSuccess: (result) => ({
@@ -884,7 +954,12 @@ export async function getStudentTaskUploadSignedUrlAction(
     formData,
     parse: parseStudentTaskUploadSignedUrlFormData,
     mutate: ({ adminClient, actor, data }) =>
-      getStudentTaskUploadSignedUrlForManager(adminClient, actor.userId, data),
+      getStudentTaskUploadSignedUrlForManager(
+        adminClient,
+        actor.userId,
+        actor,
+        data
+      ),
     mapSuccess: (result) => ({
       success: true,
       signedUrl: result.signedUrl,

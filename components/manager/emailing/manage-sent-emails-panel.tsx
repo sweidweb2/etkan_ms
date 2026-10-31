@@ -7,6 +7,7 @@ import { format } from "date-fns";
 import {
   ChevronLeftIcon,
   ChevronRightIcon,
+  MailIcon,
   SearchIcon,
   SendIcon,
   SparklesIcon,
@@ -19,6 +20,7 @@ import {
 import { UserStatCard } from "@/components/manager/users/user-stat-card";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { EmptyState } from "@/components/ui/empty-state";
 import { Input } from "@/components/ui/input";
 import { PERMISSIONS } from "@/lib/constants/permissions";
 import {
@@ -194,35 +196,40 @@ export function ManageSentEmailsPanel({
             </div>
           </div>
 
-          <div className="overflow-x-auto">
-            <table className="w-full min-w-[720px] text-sm">
-              <thead className="border-b bg-muted/40 text-left text-muted-foreground">
-                <tr>
-                  <th className="px-4 py-3 font-medium">Reference</th>
-                  <th className="px-4 py-3 font-medium">Title</th>
-                  <th className="px-4 py-3 font-medium">Template</th>
-                  <th className="px-4 py-3 font-medium">Language</th>
-                  <th className="px-4 py-3 font-medium">Recipients</th>
-                  <th className="px-4 py-3 font-medium">Sent at</th>
-                  <th className="w-28 px-4 py-3 text-center font-medium">
-                    Actions
-                  </th>
-                </tr>
-              </thead>
-              <tbody>
-                {paginatedEmails.length === 0 ? (
+          {paginatedEmails.length === 0 ? (
+            <EmptyState
+              size="sm"
+              className="m-4"
+              icon={initialEmails.length === 0 ? MailIcon : SearchIcon}
+              title={
+                initialEmails.length === 0
+                  ? "No sent emails yet"
+                  : "No emails match your search"
+              }
+              description={
+                initialEmails.length === 0
+                  ? "Sent circulars will appear here."
+                  : "Try a different search term."
+              }
+            />
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full min-w-[720px] text-sm">
+                <thead className="border-b bg-muted/40 text-left text-muted-foreground">
                   <tr>
-                    <td
-                      colSpan={7}
-                      className="px-4 py-10 text-center text-muted-foreground"
-                    >
-                      {initialEmails.length === 0
-                        ? "No sent emails yet."
-                        : "No emails match your search."}
-                    </td>
+                    <th className="px-4 py-3 font-medium">Reference</th>
+                    <th className="px-4 py-3 font-medium">Title</th>
+                    <th className="px-4 py-3 font-medium">Template</th>
+                    <th className="px-4 py-3 font-medium">Language</th>
+                    <th className="px-4 py-3 font-medium">Recipients</th>
+                    <th className="px-4 py-3 font-medium">Sent at</th>
+                    <th className="w-28 px-4 py-3 text-center font-medium">
+                      Actions
+                    </th>
                   </tr>
-                ) : (
-                  paginatedEmails.map((email) => (
+                </thead>
+                <tbody>
+                  {paginatedEmails.map((email) => (
                     <tr
                       key={email.id}
                       role="button"
@@ -271,11 +278,11 @@ export function ManageSentEmailsPanel({
                         </Can>
                       </td>
                     </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
-          </div>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
 
           <div className="flex flex-col gap-3 border-t px-4 pt-2 pb-3 sm:flex-row sm:items-center sm:justify-between">
             <p className="text-sm text-muted-foreground">

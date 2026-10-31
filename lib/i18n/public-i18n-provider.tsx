@@ -50,6 +50,13 @@ export function PublicI18nProvider({
   useEffect(() => {
     const root = document.documentElement;
     const className = "locale-ar";
+    const nextDir = getDir(locale);
+
+    // Keep <html lang/dir> in sync for a11y + client tools. Crawl default stays
+    // `lang="en"` in root layout (cookie locales are not separate URLs).
+    root.lang = locale;
+    root.dir = nextDir;
+
     if (locale === "ar") {
       root.classList.add(className);
     } else {
@@ -57,6 +64,8 @@ export function PublicI18nProvider({
     }
     return () => {
       root.classList.remove(className);
+      root.lang = DEFAULT_LOCALE;
+      root.dir = getDir(DEFAULT_LOCALE);
     };
   }, [locale]);
 

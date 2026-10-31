@@ -97,13 +97,63 @@ export function HorizontalScrollCarousel({
       return;
     }
 
-    if (initialScrollPosition === "end") {
-      node.scrollLeft = node.scrollWidth;
-    } else {
-      node.scrollLeft = 0;
+    let cancelled = false;
+    let settleTimer: number | undefined;
+
+    const applyInitialScroll = () => {
+      if (cancelled) {
+        return;
+      }
+
+      if (initialScrollPosition === "end") {
+        // Instant jump — `scroll-smooth` would race layout/collapsible open.
+        node.scrollTo({
+          left: node.scrollWidth - node.clientWidth,
+          behavior: "instant",
+        });
+      } else {
+        node.scrollTo({ left: 0, behavior: "instant" });
+      }
+
+      updateScrollEdges();
+    };
+
+    applyInitialScroll();
+
+    // Collapsible sections animate (~300ms); content width often lands late.
+    const frame = requestAnimationFrame(() => {
+      applyInitialScroll();
+      requestAnimationFrame(applyInitialScroll);
+    });
+    const earlyTimer = window.setTimeout(applyInitialScroll, 50);
+    const lateTimer = window.setTimeout(applyInitialScroll, 350);
+
+    const resizeObserver = new ResizeObserver(() => {
+      applyInitialScroll();
+      window.clearTimeout(settleTimer);
+      settleTimer = window.setTimeout(() => {
+        resizeObserver.disconnect();
+      }, 100);
+    });
+    resizeObserver.observe(node);
+    if (node.firstElementChild) {
+      resizeObserver.observe(node.firstElementChild);
     }
 
-    updateScrollEdges();
+    // Stop correcting once layout has had time to settle so user scroll isn't fought.
+    const stopTimer = window.setTimeout(() => {
+      resizeObserver.disconnect();
+    }, 500);
+
+    return () => {
+      cancelled = true;
+      cancelAnimationFrame(frame);
+      window.clearTimeout(earlyTimer);
+      window.clearTimeout(lateTimer);
+      window.clearTimeout(stopTimer);
+      window.clearTimeout(settleTimer);
+      resizeObserver.disconnect();
+    };
   }, [children, initialScrollPosition, resetScrollKey, updateScrollEdges]);
 
   useEffect(() => {

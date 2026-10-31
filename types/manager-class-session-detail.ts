@@ -30,13 +30,10 @@ export interface ManagerSessionAttendeeRow {
   student_id: string;
   full_name: string;
   email: string;
-  note: string | null;
   /** Matches `attendee.status` (present|absent|late|excused). */
   status: AttendeeStatusValue;
   created_at: string;
 }
-
-export type SessionDetailsTabValue = "tasks" | "attendee";
 
 /** student_tasks row joined with student profile for task detail. */
 export interface ManagerStudentTaskRow {
@@ -53,11 +50,10 @@ export interface ManagerStudentTaskRow {
   graded_at: string | null;
 }
 
-/** student_task_uploads row for manager task detail. */
+/** student_task_uploads row for manager/teacher task detail (no storage_path). */
 export interface ManagerStudentTaskUploadRow {
   id: string;
   student_task_id: string;
-  storage_path: string;
   file_name: string;
   mime_type: string;
   file_size: number;

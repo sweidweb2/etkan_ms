@@ -74,16 +74,16 @@ They share infrastructure (metadata, schema, content quality, Core Web Vitals). 
 
 | Capability | Status |
 |------------|--------|
-| `app/sitemap.ts` / `sitemap.xml` | Absent |
-| `app/robots.ts` / `robots.txt` | Absent |
-| JSON-LD / schema.org | Absent |
-| `alternates.canonical` / hreflang | Absent |
-| Per-page metadata (home, about, careers, projects, gallery, register, blogs index) | Absent (inherit root) |
-| Panel / private URL `robots: noindex` | Absent |
-| `manifest.webmanifest` | Absent |
-| `llms.txt` / AI crawler guidance | Absent |
-| Search Console / Bing / analytics wiring in app | Not found |
-| FAQ / HowTo / Course / Breadcrumb structured data | Absent |
+| `app/sitemap.ts` / `sitemap.xml` | ✅ Done (`app/sitemap.ts`) |
+| `app/robots.ts` / `robots.txt` | ✅ Done (`app/robots.ts` + AI bot rules) |
+| JSON-LD / schema.org | ✅ Done (Organization, WebSite, BlogPosting, BreadcrumbList) |
+| `alternates.canonical` / hreflang | ✅ Canonical done via `buildPageMetadata`; hreflang skipped (no path locales) |
+| Per-page metadata (home, about, careers, projects, gallery, register, blogs index) | ✅ Done (+ careers roadmap + blog detail) |
+| Panel / private URL `robots: noindex` | ✅ Done (panels, auth, life, maintenance, guest invite, `/f/[token]`) |
+| `manifest.webmanifest` | ✅ Done (`app/manifest.ts`) |
+| `llms.txt` / AI crawler guidance | ✅ Done (`public/llms.txt` + AI agents in `robots.ts`) |
+| Search Console / Bing / analytics wiring in app | ⏭️ Skipped (external accounts / ops — not in-app code) |
+| FAQ / HowTo / Course / Breadcrumb structured data | ✅ BreadcrumbList done; FAQ / HowTo / Course skipped (would need new public FAQ/content pages) |
 
 ### 3.3 Indexable vs non-indexable surfaces
 
@@ -416,34 +416,34 @@ Keep panel brand (`Etkan MS`) out of public meta. Public brand remains **Etkan**
 
 ### P0 — Foundation (do first)
 
-- [ ] **P0.1** `app/robots.ts` — allow public marketing; disallow `/admin`, `/manager`, `/co-manager`, `/ceo`, `/supervisor`, `/crm`, `/teacher`, `/student`, `/auth`, `/f/`, `/register/guest`, `/life`, `/api`
-- [ ] **P0.2** `app/sitemap.ts` — `/`, `/about`, `/careers`, roadmap IDs, `/projects`, `/gallery`, `/blogs`, published blog slugs, `/register`
-- [ ] **P0.3** Panel + private `robots: { index: false, follow: false }`
-- [ ] **P0.4** `lib/seo/metadata.ts` + page-level metadata for all indexable routes
-- [ ] **P0.5** Fix blog metadata (canonical, article, dates, no double title suffix)
-- [ ] **P0.6** Rewrite public `SITE` / home description for Etkan brand (not only “School management system”)
-- [ ] **P0.7** Remove or noindex `/life` footer entry
-- [ ] **P0.8** Verify `NEXT_PUBLIC_SITE_URL` in prod; submit sitemap to GSC/Bing
+- [x] ✅ **P0.1** `app/robots.ts` — allow public marketing; disallow `/admin`, `/manager`, `/co-manager`, `/ceo`, `/supervisor`, `/crm`, `/teacher`, `/student`, `/auth`, `/f/`, `/register/guest`, `/life`, `/api`
+- [x] ✅ **P0.2** `app/sitemap.ts` — `/`, `/about`, `/careers`, roadmap IDs, `/projects`, `/gallery`, `/blogs`, published blog slugs, `/register`
+- [x] ✅ **P0.3** Panel + private `robots: { index: false, follow: false }`
+- [x] ✅ **P0.4** `lib/seo/metadata.ts` + page-level metadata for all indexable routes
+- [x] ✅ **P0.5** Fix blog metadata (canonical, article, dates, no double title suffix)
+- [x] ✅ **P0.6** Rewrite public `SITE` / home description for Etkan brand (not only “School management system”)
+- [x] ✅ **P0.7** noindex `/life` + removed from public footer
+- [ ] ⏭️ **P0.8** Google Search Console / Bing submit — skipped (no console access). Local `/robots.txt` + `/sitemap.xml` verified; prod `NEXT_PUBLIC_SITE_URL` already documented in env/deploy docs
 
 ### P1 — Answers, entities, AI readiness
 
-- [ ] **P1.1** JSON-LD: Organization, WebSite, BlogPosting, BreadcrumbList
-- [ ] **P1.2** FAQ sections + FAQPage schema on about, careers, register
-- [ ] **P1.3** `public/llms.txt`
-- [ ] **P1.4** Register HowTo summary + schema
-- [ ] **P1.5** Blog TL;DR pattern + publish SEO checklist for managers
-- [ ] **P1.6** Explicit AI crawler allow/deny policy in robots (product decision)
-- [ ] **P1.7** Align CTAs with register vs disabled public signup
+- [x] ✅ **P1.1** JSON-LD: Organization, WebSite, BlogPosting, BreadcrumbList
+- [ ] ⏭️ **P1.2** FAQ sections + FAQPage schema on about, careers, register — skipped (new public FAQ content)
+- [x] ✅ **P1.3** `public/llms.txt`
+- [ ] ⏭️ **P1.4** Register HowTo summary + schema — skipped (new public HowTo content)
+- [x] ✅ **P1.5** Blog TL;DR / key-takeaway + manager publish SEO checklist
+- [x] ✅ **P1.6** Explicit AI crawler allow/deny policy in robots (allowed with same private disallow)
+- [x] ✅ **P1.7** Align CTAs with `/register` (not disabled public signup)
 
 ### P2 — Depth & multilingual
 
-- [ ] **P2.1** Locale architecture decision (cookie vs path) + optional hreflang
-- [ ] **P2.2** Server-driven `html lang` / `dir`
-- [ ] **P2.3** Per-page OG images for home/about/careers
-- [ ] **P2.4** Optional Course/EducationalOrganization schema (only if accurate)
-- [ ] **P2.5** Web manifest + richer brand icons if PWA/share targets matter
-- [ ] **P2.6** Off-site entity consistency (social sameAs, business profiles)
-- [ ] **P2.7** CWV pass on home/blog/register (fonts, LCP images)
+- [x] ✅ **P2.1** Locale decision: cookie-only (no path/hreflang) — see `[02] locale-seo-decision.md`
+- [x] ✅ **P2.2** Client sync of `html lang` / `dir` via `PublicI18nProvider` (ISR keeps server default `en`)
+- [x] ✅ **P2.3** Per-page OG: home uses root `opengraph-image.png`; about/careers use `opengraph-image.tsx`
+- [ ] ⏭️ **P2.4** Optional Course/EducationalOrganization schema — skipped (no new Course pages / claims)
+- [x] ✅ **P2.5** Web manifest (`app/manifest.ts`)
+- [x] ✅ **P2.6** Organization contactPoint + `SITE.sameAs` hook (fill when social profiles exist)
+- [x] ✅ **P2.7** CWV: Tajawal via `next/font`; removed render-blocking Google Fonts CSS; hero LCP priority already on first card
 
 ---
 
@@ -464,8 +464,8 @@ Keep panel brand (`Etkan MS`) out of public meta. Public brand remains **Etkan**
 
 1. **Brand positioning in meta:** Public Etkan (education/community) vs Etkan MS (ops product). Recommendation: public meta = Etkan education brand; never advertise panel software on marketing SERPs unless you intentionally sell MS.
 2. **AI training crawlers:** Allow (more GEO exposure, less control) vs block (more control). Record the choice in `robots.ts` comments and this doc when decided.
-3. **Arabic SEO:** Without separate URLs, Arabic will not get proper bilingual SEO. Decide if AR is a ranking target or UI-only.
-4. **`/life`:** Publish for real or remove from public IA — do not leave half-gated.
+3. **Arabic SEO:** Decided UI-only via cookie (see `[02] locale-seo-decision.md`). Revisit if AR becomes a ranking market.
+4. **`/life`:** Removed from public footer; remains admin-gated + noindex.
 5. **Claims accuracy:** Schema and GEO copy must match legal/marketing truth (accreditation, outcomes, locations).
 
 ---
@@ -506,3 +506,5 @@ You can consider the five pillars “covered” when all of the following are tr
 | Date | Change |
 |------|--------|
 | 2026-10-24 | Initial full SEO / AEO / GEO / AIO / SXO audit for Etkan public surface |
+| 2026-10-24 | Implemented §3.2 crawl/metadata/JSON-LD/manifest/llms (skipped FAQ/HowTo/Course pages + GSC/analytics ops); marked ✅ in §3.2 + backlog |
+| 2026-10-25 | P1.5–P1.7 + P2.1–P2.3/P2.6–P2.7; GSC skipped; locale decision doc; CTA/footer/TL;DR/OG/fonts |

@@ -9,7 +9,6 @@ export const SESSION_TASK_TABLE_LIMITS = {
 export const SESSION_ATTENDEE_TABLE_LIMITS = {
   fullName: 32,
   email: 40,
-  note: 40,
 } as const;
 
 export const SESSION_STUDENT_TASK_TABLE_LIMITS = {

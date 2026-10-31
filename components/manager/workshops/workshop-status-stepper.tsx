@@ -25,6 +25,7 @@ import {
   CircleCheckIcon,
   FileBadgeIcon,
   FilePenLineIcon,
+  FileTextIcon,
   TimerIcon,
 } from "lucide-react";
 import {
@@ -36,6 +37,7 @@ import { usePermissions } from "@/components/auth/permissions-provider";
 import { FieldLabel } from "@/components/auth/field-label";
 import { InlineSpinner } from "@/components/loaders/inline-spinner";
 import { Button } from "@/components/ui/button";
+import { EmptyState } from "@/components/ui/empty-state";
 import {
   Dialog,
   DialogContent,
@@ -645,11 +647,18 @@ export function WorkshopStatusStepper({
             <Can
               permission={PERMISSIONS.WORKSHOPS_UPDATE}
               fallback={
-                <p className="whitespace-pre-wrap rounded-lg border bg-muted/30 px-3 py-2 text-sm text-foreground">
-                  {workshop.proposal_notes?.trim()
-                    ? workshop.proposal_notes
-                    : "No proposal notes yet."}
-                </p>
+                workshop.proposal_notes?.trim() ? (
+                  <p className="whitespace-pre-wrap rounded-lg border bg-muted/30 px-3 py-2 text-sm text-foreground">
+                    {workshop.proposal_notes}
+                  </p>
+                ) : (
+                  <EmptyState
+                    size="sm"
+                    icon={FileTextIcon}
+                    title="No proposal notes yet"
+                    description="Proposal notes will appear here when added."
+                  />
+                )
               }
             >
               <textarea

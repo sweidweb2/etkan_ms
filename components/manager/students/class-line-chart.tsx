@@ -1,5 +1,6 @@
 "use client";
 
+import { ChartLineIcon } from "lucide-react";
 import {
   CartesianGrid,
   Legend,
@@ -10,6 +11,7 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
+import { EmptyState } from "@/components/ui/empty-state";
 import { cn } from "@/lib/utils";
 
 type ClassLineChartSeries = {
@@ -81,14 +83,12 @@ export function ClassLineChart({
 
   if (data.length === 0 || !hasPlottableValues) {
     return (
-      <div
-        className={cn(
-          "flex h-[18rem] w-full min-w-0 items-center justify-center rounded-lg border border-dashed px-4 text-center text-sm text-muted-foreground",
-          className
-        )}
-      >
-        {emptyMessage}
-      </div>
+      <EmptyState
+        className={cn("h-[18rem] w-full min-w-0 justify-center", className)}
+        size="sm"
+        icon={ChartLineIcon}
+        title={emptyMessage}
+      />
     );
   }
 

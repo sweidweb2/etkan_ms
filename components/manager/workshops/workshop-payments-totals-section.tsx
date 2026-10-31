@@ -6,6 +6,7 @@ import {
   ArrowUpRightIcon,
   ChevronLeftIcon,
   ChevronRightIcon,
+  CreditCardIcon,
   LandmarkIcon,
   ReceiptIcon,
   ScaleIcon,
@@ -13,6 +14,7 @@ import {
 import Link from "next/link";
 import { format } from "date-fns";
 import { Button, buttonVariants } from "@/components/ui/button";
+import { EmptyState } from "@/components/ui/empty-state";
 import {
   WORKSHOP_PAYMENT_METHOD_LABELS,
   WORKSHOP_PAYMENT_TYPE_LABELS,
@@ -146,9 +148,12 @@ export function WorkshopPaymentsTotalsSection({
         </div>
         <div className="px-4 py-4">
           {totalCount === 0 ? (
-            <p className="text-sm text-muted-foreground">
-              No payments recorded across workshops yet.
-            </p>
+            <EmptyState
+              size="sm"
+              icon={CreditCardIcon}
+              title="No payments recorded across workshops yet"
+              description="Workshop payment records will appear here once added."
+            />
           ) : (
             <div className="flex flex-col gap-4">
               <div className="overflow-x-auto">

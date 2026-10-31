@@ -22,6 +22,7 @@ import {
   PencilIcon,
   ArrowRightLeftIcon,
   SearchIcon,
+  UsersIcon,
 } from "lucide-react";
 import { cancelPaymentPhaseAction } from "@/app/manager/accounting/actions";
 import { Can } from "@/components/auth/can";
@@ -45,6 +46,7 @@ import {
   BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb";
 import { Button } from "@/components/ui/button";
+import { EmptyState } from "@/components/ui/empty-state";
 import {
   Card,
   CardAction,
@@ -669,38 +671,48 @@ export function PaymentPhaseDetailsPanel({
               </Select>
             </div>
 
-            <div className="overflow-x-auto">
-              <table className="w-full min-w-[1040px] text-sm">
-                <thead>
-                  <tr className="border-b bg-muted/40 text-left">
-                    <th className="px-4 py-3 font-medium">Student</th>
-                    <th className="px-4 py-3 font-medium">Status</th>
-                    <th className="px-4 py-3 font-medium text-right">Original</th>
-                    <th className="px-4 py-3 font-medium text-right">
-                      Adjustment
-                    </th>
-                    <th className="px-4 py-3 font-medium text-right">Due</th>
-                    <th className="px-4 py-3 font-medium text-right">Paid</th>
-                    <th className="px-4 py-3 font-medium text-right">
-                      Remaining
-                    </th>
-                    <th className="px-4 py-3 font-medium text-right">Actions</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {paginatedSpps.length === 0 ? (
-                    <tr>
-                      <td
-                        colSpan={8}
-                        className="px-4 py-10 text-center text-muted-foreground"
-                      >
-                        {spps.length === 0
-                          ? "No student payment phases assigned yet."
-                          : "No students match your filters."}
-                      </td>
+            {paginatedSpps.length === 0 ? (
+              <div className="px-4 py-4">
+                <EmptyState
+                  size="sm"
+                  icon={spps.length === 0 ? UsersIcon : SearchIcon}
+                  title={
+                    spps.length === 0
+                      ? "No student payment phases assigned yet"
+                      : "No students match your filters"
+                  }
+                  description={
+                    spps.length === 0
+                      ? "Assignments appear when students are billed for this phase."
+                      : "Try a different search or status."
+                  }
+                />
+              </div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full min-w-[1040px] text-sm">
+                  <thead>
+                    <tr className="border-b bg-muted/40 text-left">
+                      <th className="px-4 py-3 font-medium">Student</th>
+                      <th className="px-4 py-3 font-medium">Status</th>
+                      <th className="px-4 py-3 font-medium text-right">
+                        Original
+                      </th>
+                      <th className="px-4 py-3 font-medium text-right">
+                        Adjustment
+                      </th>
+                      <th className="px-4 py-3 font-medium text-right">Due</th>
+                      <th className="px-4 py-3 font-medium text-right">Paid</th>
+                      <th className="px-4 py-3 font-medium text-right">
+                        Remaining
+                      </th>
+                      <th className="px-4 py-3 font-medium text-right">
+                        Actions
+                      </th>
                     </tr>
-                  ) : (
-                    paginatedSpps.map((spp) => (
+                  </thead>
+                  <tbody>
+                    {paginatedSpps.map((spp) => (
                       <tr
                         key={spp.id}
                         className={SPP_ROW_CLASS}
@@ -906,11 +918,11 @@ export function PaymentPhaseDetailsPanel({
                           </div>
                         </td>
                       </tr>
-                    ))
-                  )}
-                </tbody>
-              </table>
-            </div>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
 
             <div className="flex flex-col gap-3 border-t px-4 pt-2 pb-3 sm:flex-row sm:items-center sm:justify-between">
               <div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">

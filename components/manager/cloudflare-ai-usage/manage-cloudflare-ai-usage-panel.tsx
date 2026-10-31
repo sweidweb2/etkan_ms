@@ -9,10 +9,12 @@ import {
   MessageSquareTextIcon,
   RefreshCwIcon,
   SearchIcon,
+  SparklesIcon,
 } from "lucide-react";
 import { CloudflareAiUsageAnalytics } from "@/components/manager/cloudflare-ai-usage/cloudflare-ai-usage-analytics";
 import { CloudflareAiUsageDetailsDialog } from "@/components/manager/cloudflare-ai-usage/cloudflare-ai-usage-details-dialog";
 import { Button } from "@/components/ui/button";
+import { EmptyState } from "@/components/ui/empty-state";
 import { Input } from "@/components/ui/input";
 import {
   Select,
@@ -147,35 +149,39 @@ export function ManageCloudflareAiUsagePanel({
         </Button>
       </div>
 
-      <div className="overflow-hidden rounded-xl ring-1 ring-foreground/10">
-        <div className="overflow-x-auto">
-          <table className="w-full min-w-[52rem] border-collapse text-sm">
-            <thead>
-              <tr className="border-b bg-muted/40 text-left text-muted-foreground">
-                <th className="px-4 py-3 font-medium">When</th>
-                <th className="px-4 py-3 font-medium">User</th>
-                <th className="px-4 py-3 font-medium">Feature</th>
-                <th className="px-4 py-3 font-medium">Status</th>
-                <th className="px-4 py-3 font-medium">Tokens</th>
-                <th className="px-4 py-3 font-medium">
-                  <span className="sr-only">Details</span>
-                </th>
-              </tr>
-            </thead>
-            <tbody>
-              {pageItems.length === 0 ? (
-                <tr>
-                  <td
-                    colSpan={6}
-                    className="px-4 py-10 text-center text-muted-foreground"
-                  >
-                    {initialRecords.length === 0
-                      ? "No AI usage recorded yet."
-                      : "No records match your filters."}
-                  </td>
+      {pageItems.length === 0 ? (
+        <EmptyState
+          size="sm"
+          icon={initialRecords.length === 0 ? SparklesIcon : SearchIcon}
+          title={
+            initialRecords.length === 0
+              ? "No AI usage recorded yet"
+              : "No records match your filters"
+          }
+          description={
+            initialRecords.length === 0
+              ? "Usage events will appear here as AI features are used."
+              : "Try a different search or status filter."
+          }
+        />
+      ) : (
+        <div className="overflow-hidden rounded-xl ring-1 ring-foreground/10">
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[52rem] border-collapse text-sm">
+              <thead>
+                <tr className="border-b bg-muted/40 text-left text-muted-foreground">
+                  <th className="px-4 py-3 font-medium">When</th>
+                  <th className="px-4 py-3 font-medium">User</th>
+                  <th className="px-4 py-3 font-medium">Feature</th>
+                  <th className="px-4 py-3 font-medium">Status</th>
+                  <th className="px-4 py-3 font-medium">Tokens</th>
+                  <th className="px-4 py-3 font-medium">
+                    <span className="sr-only">Details</span>
+                  </th>
                 </tr>
-              ) : (
-                pageItems.map((record) => (
+              </thead>
+              <tbody>
+                {pageItems.map((record) => (
                   <tr
                     key={record.id}
                     className="border-b border-border/60 last:border-0"
@@ -186,9 +192,7 @@ export function ManageCloudflareAiUsagePanel({
                         "MMM d, yyyy h:mm a"
                       )}
                     </td>
-                    <td className="px-4 py-3 align-top">
-                      {record.user_label}
-                    </td>
+                    <td className="px-4 py-3 align-top">{record.user_label}</td>
                     <td className="px-4 py-3 align-top font-mono text-xs">
                       {record.feature}
                     </td>
@@ -221,12 +225,12 @@ export function ManageCloudflareAiUsagePanel({
                       </Button>
                     </td>
                   </tr>
-                ))
-              )}
-            </tbody>
-          </table>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </div>
-      </div>
+      )}
 
       {filtered.length > PAGE_SIZE ? (
         <div className="flex items-center justify-between gap-3">

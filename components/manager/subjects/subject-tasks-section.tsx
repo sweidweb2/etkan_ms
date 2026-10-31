@@ -1,13 +1,14 @@
 "use client";
 
 import { useState } from "react";
-import { PencilIcon, PlusIcon, Trash2Icon } from "lucide-react";
+import { ClipboardListIcon, PencilIcon, PlusIcon, Trash2Icon } from "lucide-react";
 import { deleteSubjectTaskAction } from "@/app/manager/subjects/actions";
 import { Can } from "@/components/auth/can";
 import { SubjectCollapsibleSection } from "@/components/manager/subjects/subject-collapsible-section";
 import { SubjectTaskFormDialog } from "@/components/manager/subjects/subject-task-form-dialog";
 import { Button } from "@/components/ui/button";
 import { ConfirmDestructiveDialog } from "@/components/ui/confirm-destructive-dialog";
+import { EmptyState } from "@/components/ui/empty-state";
 import { useMutationDialogForm } from "@/hooks/use-mutation-dialog-form";
 import { SESSION_TASK_TABLE_LIMITS } from "@/lib/constants/manager-class-session-detail-display";
 import { PERMISSIONS } from "@/lib/constants/permissions";
@@ -154,38 +155,36 @@ export function SubjectTasksSection({
             </div>
           </Can>
 
-          <div className="overflow-x-auto rounded-lg border">
-            <table className="w-full min-w-[640px] text-sm">
-              <thead>
-                <tr className="border-b bg-muted/40 text-left">
-                  <th className="px-4 py-3 font-medium">Title</th>
-                  <th className="px-4 py-3 font-medium">Description</th>
-                  <th className="px-4 py-3 font-medium">Period (days)</th>
-                  <th className="px-4 py-3 font-medium">Max grade</th>
-                  <Can
-                    anyOf={[
-                      PERMISSIONS.SUBJECTS_TASKS_UPDATE,
-                      PERMISSIONS.SUBJECTS_TASKS_DELETE,
-                    ]}
-                  >
-                    <th className="px-4 py-3 text-right font-medium">
-                      Actions
-                    </th>
-                  </Can>
-                </tr>
-              </thead>
-              <tbody>
-                {tasks.length === 0 ? (
-                  <tr>
-                    <td
-                      colSpan={5}
-                      className="px-4 py-10 text-center text-muted-foreground"
+          {tasks.length === 0 ? (
+            <EmptyState
+              size="sm"
+              icon={ClipboardListIcon}
+              title="No tasks yet"
+              description="No tasks defined for this subject yet."
+            />
+          ) : (
+            <div className="overflow-x-auto rounded-lg border">
+              <table className="w-full min-w-[640px] text-sm">
+                <thead>
+                  <tr className="border-b bg-muted/40 text-left">
+                    <th className="px-4 py-3 font-medium">Title</th>
+                    <th className="px-4 py-3 font-medium">Description</th>
+                    <th className="px-4 py-3 font-medium">Period (days)</th>
+                    <th className="px-4 py-3 font-medium">Max grade</th>
+                    <Can
+                      anyOf={[
+                        PERMISSIONS.SUBJECTS_TASKS_UPDATE,
+                        PERMISSIONS.SUBJECTS_TASKS_DELETE,
+                      ]}
                     >
-                      No tasks defined for this subject yet.
-                    </td>
+                      <th className="px-4 py-3 text-right font-medium">
+                        Actions
+                      </th>
+                    </Can>
                   </tr>
-                ) : (
-                  tasks.map((task) => (
+                </thead>
+                <tbody>
+                  {tasks.map((task) => (
                     <tr key={task.id} className="border-b last:border-b-0">
                       <td className="max-w-[14rem] px-4 py-3 font-medium">
                         <span className="block truncate" title={task.title}>
@@ -246,11 +245,11 @@ export function SubjectTasksSection({
                         </td>
                       </Can>
                     </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
-          </div>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
         </div>
       </SubjectCollapsibleSection>
     </>

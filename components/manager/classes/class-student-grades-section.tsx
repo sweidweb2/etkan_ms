@@ -2,7 +2,12 @@
 
 import Link from "next/link";
 import { useMemo, useState } from "react";
-import { EyeIcon, DownloadIcon, MessageSquareTextIcon } from "lucide-react";
+import {
+  DownloadIcon,
+  EyeIcon,
+  MessageSquareTextIcon,
+  UsersIcon,
+} from "lucide-react";
 import { Can } from "@/components/auth/can";
 import { ClassFastCertificatePanel } from "@/components/manager/classes/class-fast-certificate-panel";
 import { CustomizeComputeAllDialog } from "@/components/manager/classes/customize-compute-all-dialog";
@@ -14,6 +19,7 @@ import { StudentGradeMissingDataDialog } from "@/components/manager/classes/stud
 import { ClassTabCollapsibleSection } from "@/components/manager/students/class-tab-collapsible-section";
 import { InlineSpinner } from "@/components/loaders/inline-spinner";
 import { Button, buttonVariants } from "@/components/ui/button";
+import { EmptyState } from "@/components/ui/empty-state";
 import { PERMISSIONS } from "@/lib/constants/permissions";
 
 import {
@@ -701,31 +707,31 @@ export function ClassStudentGradesSection({
           description="Students with all weighted grade data present and ready for computation."
           defaultOpen
         >
-          <div className="overflow-x-auto">
-            <table className="w-full min-w-[900px] text-sm">
-              <thead>
-                <tr className="border-b bg-muted/40 text-left">
-                  <th className="px-4 py-3 font-medium">Student</th>
-                  <th className="px-4 py-3 font-medium">Email</th>
-                  <th className="px-4 py-3 font-medium">Phone</th>
-                  <th className="px-4 py-3 font-medium">Total grade</th>
-                  <th className="px-4 py-3 font-medium">Tasks grade</th>
-                  <th className="px-4 py-3 font-medium">Final exam grade</th>
-                  <th className="px-4 py-3 text-center font-medium">Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {pendingRows.length === 0 ? (
-                  <tr>
-                    <td
-                      colSpan={7}
-                      className="px-4 py-10 text-center text-muted-foreground"
-                    >
-                      No students are ready to compute in this class.
-                    </td>
+          {pendingRows.length === 0 ? (
+            <div className="px-4 py-3">
+              <EmptyState
+                size="sm"
+                icon={UsersIcon}
+                title="No students ready"
+                description="No students are ready to compute in this class."
+              />
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full min-w-[900px] text-sm">
+                <thead>
+                  <tr className="border-b bg-muted/40 text-left">
+                    <th className="px-4 py-3 font-medium">Student</th>
+                    <th className="px-4 py-3 font-medium">Email</th>
+                    <th className="px-4 py-3 font-medium">Phone</th>
+                    <th className="px-4 py-3 font-medium">Total grade</th>
+                    <th className="px-4 py-3 font-medium">Tasks grade</th>
+                    <th className="px-4 py-3 font-medium">Final exam grade</th>
+                    <th className="px-4 py-3 text-center font-medium">Actions</th>
                   </tr>
-                ) : (
-                  pendingRows.map((row) => (
+                </thead>
+                <tbody>
+                  {pendingRows.map((row) => (
                     <tr
                       key={row.student_profile_id}
                       className="border-b last:border-b-0 hover:bg-muted/20"
@@ -785,11 +791,11 @@ export function ClassStudentGradesSection({
                         </div>
                       </td>
                     </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
-          </div>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
         </ClassTabCollapsibleSection>
 
         <ClassTabCollapsibleSection
@@ -798,9 +804,12 @@ export function ClassStudentGradesSection({
         >
           <div className="px-4 pt-2 pb-3">
             {computedRows.length === 0 ? (
-              <div className="rounded-xl border border-dashed px-4 py-8 text-center text-sm text-muted-foreground">
-                No students have been computed yet.
-              </div>
+              <EmptyState
+                size="sm"
+                icon={UsersIcon}
+                title="No computed students"
+                description="No students have been computed yet."
+              />
             ) : (
               <div className="space-y-4">
                 <div className="flex flex-wrap items-center justify-end gap-2">
@@ -962,30 +971,30 @@ export function ClassStudentGradesSection({
           title="Unready students"
           description="Students missing one or more weighted grade inputs, so they cannot be computed yet."
         >
-          <div className="overflow-x-auto">
-            <table className="w-full min-w-[860px] text-sm">
-              <thead>
-                <tr className="border-b bg-muted/40 text-left">
-                  <th className="px-4 py-3 font-medium">Student</th>
-                  <th className="px-4 py-3 font-medium">Email</th>
-                  <th className="px-4 py-3 font-medium">Missing data</th>
-                  <th className="px-4 py-3 font-medium">Tasks</th>
-                  <th className="px-4 py-3 font-medium">Final exam</th>
-                  <th className="px-4 py-3 text-center font-medium">Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {unreadyRows.length === 0 ? (
-                  <tr>
-                    <td
-                      colSpan={6}
-                      className="px-4 py-10 text-center text-muted-foreground"
-                    >
-                      No unready students in this class.
-                    </td>
+          {unreadyRows.length === 0 ? (
+            <div className="px-4 py-3">
+              <EmptyState
+                size="sm"
+                icon={UsersIcon}
+                title="No unready students"
+                description="No unready students in this class."
+              />
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full min-w-[860px] text-sm">
+                <thead>
+                  <tr className="border-b bg-muted/40 text-left">
+                    <th className="px-4 py-3 font-medium">Student</th>
+                    <th className="px-4 py-3 font-medium">Email</th>
+                    <th className="px-4 py-3 font-medium">Missing data</th>
+                    <th className="px-4 py-3 font-medium">Tasks</th>
+                    <th className="px-4 py-3 font-medium">Final exam</th>
+                    <th className="px-4 py-3 text-center font-medium">Actions</th>
                   </tr>
-                ) : (
-                  unreadyRows.map((row) => (
+                </thead>
+                <tbody>
+                  {unreadyRows.map((row) => (
                     <tr
                       key={`unready-${row.student_profile_id}`}
                       className="border-b last:border-b-0 hover:bg-muted/20"
@@ -1023,35 +1032,35 @@ export function ClassStudentGradesSection({
                           ) : null}
                         </div>
                       </td>
-                        <td className="px-4 py-3 tabular-nums">
-                          {formatGrade(row.task_total_grade)}
-                        </td>
-                        <td className="px-4 py-3 tabular-nums">
-                          {formatGrade(row.final_exam_grade)}
-                        </td>
-                        <td className="px-4 py-3">
-                          <div className="flex justify-center">
-                            <Link
-                              href={getManagerClassStudentGradesDetailRoute(
-                                classId,
-                                row.student_profile_id
-                              )}
-                              className={buttonVariants({
-                                variant: "outline",
-                                size: "sm",
-                              })}
-                            >
-                              <EyeIcon data-icon="inline-start" />
-                              View
-                            </Link>
-                          </div>
-                        </td>
-                      </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
-          </div>
+                      <td className="px-4 py-3 tabular-nums">
+                        {formatGrade(row.task_total_grade)}
+                      </td>
+                      <td className="px-4 py-3 tabular-nums">
+                        {formatGrade(row.final_exam_grade)}
+                      </td>
+                      <td className="px-4 py-3">
+                        <div className="flex justify-center">
+                          <Link
+                            href={getManagerClassStudentGradesDetailRoute(
+                              classId,
+                              row.student_profile_id
+                            )}
+                            className={buttonVariants({
+                              variant: "outline",
+                              size: "sm",
+                            })}
+                          >
+                            <EyeIcon data-icon="inline-start" />
+                            View
+                          </Link>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
         </ClassTabCollapsibleSection>
 
       <ClassFastCertificatePanel

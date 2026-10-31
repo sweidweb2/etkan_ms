@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useTransition } from "react";
+import { useActionState, useSyncExternalStore, useTransition } from "react";
 import { useZodForm } from "@/hooks/use-zod-form";
 import { loginAction } from "@/app/(public)/auth/login/actions";
 import { Button } from "@/components/ui/button";
@@ -15,6 +15,7 @@ import { useActionStateToast } from "@/hooks/use-action-state-toast";
 import type { LoginActionState } from "@/types/auth";
 
 const initialState: LoginActionState = {};
+const emptySubscribe = () => () => {};
 
 type LoginFormProps = {
   next?: string;
@@ -22,6 +23,11 @@ type LoginFormProps = {
 
 export function LoginForm({ next }: LoginFormProps) {
   const { t } = usePublicI18n();
+  const hydrated = useSyncExternalStore(
+    emptySubscribe,
+    () => true,
+    () => false
+  );
   const [isTransitionPending, startTransition] = useTransition();
   const [state, formAction, isActionPending] = useActionState(
     loginAction,
@@ -61,6 +67,8 @@ export function LoginForm({ next }: LoginFormProps) {
       onSubmit={handleSubmit(onSubmit)}
       className="flex flex-col gap-4"
       noValidate
+      data-testid="login-form"
+      data-hydrated={hydrated ? "true" : "false"}
     >
       <div className="flex flex-col gap-2">
         <FieldLabel

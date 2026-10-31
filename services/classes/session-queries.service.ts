@@ -166,7 +166,6 @@ export async function getSessionDetailForManager(
         student_id: row.student_id,
         full_name: display?.full_name ?? "Unknown student",
         email: display?.email ?? "",
-        note: row.note,
         status: mapAttendeeStatus(row.status),
         created_at: row.created_at,
       };
@@ -248,7 +247,6 @@ export async function getClassTaskDetailForManager(
   ).map((row) => ({
     id: row.id,
     student_task_id: row.student_task_id,
-    storage_path: row.storage_path,
     file_name: row.file_name,
     mime_type: row.mime_type,
     file_size: row.file_size,
@@ -351,7 +349,6 @@ export async function getSessionTaskDetailForManager(
   ).map((row) => ({
     id: row.id,
     student_task_id: row.student_task_id,
-    storage_path: row.storage_path,
     file_name: row.file_name,
     mime_type: row.mime_type,
     file_size: row.file_size,

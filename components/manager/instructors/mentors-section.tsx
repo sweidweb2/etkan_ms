@@ -7,6 +7,7 @@ import {
   ChevronRightIcon,
   PlusIcon,
   Trash2Icon,
+  UserCheckIcon,
 } from "lucide-react";
 import { removeMentorAction } from "@/app/manager/instructors/actions";
 import { Can } from "@/components/auth/can";
@@ -22,6 +23,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { EmptyState } from "@/components/ui/empty-state";
 import {
   Select,
   SelectContent,
@@ -145,31 +147,30 @@ export function MentorsSection({
       </div>
 
       <div className="overflow-hidden rounded-xl border">
-        <div className="overflow-x-auto">
-          <table className="w-full min-w-[720px] text-sm">
-            <thead>
-              <tr className="border-b bg-muted/40 text-left">
-                <th className="px-4 py-3 font-medium">Username</th>
-                <th className="px-4 py-3 font-medium">Email</th>
-                <th className="px-4 py-3 font-medium">Role</th>
-                <th className="px-4 py-3 font-medium">Added</th>
-                <th className="px-4 py-3 font-medium">
-                  <span className="sr-only">Actions</span>
-                </th>
-              </tr>
-            </thead>
-            <tbody>
-              {paginatedMentors.length === 0 ? (
-                <tr>
-                  <td
-                    colSpan={5}
-                    className="px-4 py-10 text-center text-muted-foreground"
-                  >
-                    No mentors yet. Add users to get started.
-                  </td>
+        {paginatedMentors.length === 0 ? (
+          <EmptyState
+            size="sm"
+            className="m-4"
+            icon={UserCheckIcon}
+            title="No mentors yet"
+            description="Add users to get started."
+          />
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[720px] text-sm">
+              <thead>
+                <tr className="border-b bg-muted/40 text-left">
+                  <th className="px-4 py-3 font-medium">Username</th>
+                  <th className="px-4 py-3 font-medium">Email</th>
+                  <th className="px-4 py-3 font-medium">Role</th>
+                  <th className="px-4 py-3 font-medium">Added</th>
+                  <th className="px-4 py-3 font-medium">
+                    <span className="sr-only">Actions</span>
+                  </th>
                 </tr>
-              ) : (
-                paginatedMentors.map((row) => (
+              </thead>
+              <tbody>
+                {paginatedMentors.map((row) => (
                   <tr
                     key={row.id}
                     className="border-b last:border-b-0 hover:bg-muted/20"
@@ -201,11 +202,11 @@ export function MentorsSection({
                       </Can>
                     </td>
                   </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
 
         <div className="flex flex-col gap-3 border-t px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex items-center gap-2 text-sm text-muted-foreground">

@@ -1,11 +1,13 @@
 "use client";
 
 import type { KeyboardEvent } from "react";
+import { WalletIcon } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { PaymentPhaseStatusBadge } from "@/components/manager/accounting/payment-phase-status-badge";
 import { SppCurrentBadge } from "@/components/manager/accounting/spp-current-badge";
 import { SppStatusBadge } from "@/components/manager/accounting/spp-status-badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { EmptyState } from "@/components/ui/empty-state";
 import {
   Table,
   TableBody,
@@ -59,30 +61,28 @@ export function StudentOpenPaymentsPanel({
         <CardHeader className="border-b py-3">
           <CardTitle>Open payment phases</CardTitle>
         </CardHeader>
-        <CardContent className="px-0 pb-0">
-          <Table className="min-w-[840px]">
-            <TableHeader>
-              <TableRow className="hover:bg-transparent">
-                <TableHead className="px-4">Phase</TableHead>
-                <TableHead className="px-4">Semester</TableHead>
-                <TableHead className="px-4">Status</TableHead>
-                <TableHead className="px-4 text-right">Due</TableHead>
-                <TableHead className="px-4 text-right">Paid</TableHead>
-                <TableHead className="px-4 text-right">Remaining</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {rows.length === 0 ? (
+        <CardContent className={rows.length === 0 ? "p-4" : "px-0 pb-0"}>
+          {rows.length === 0 ? (
+            <EmptyState
+              size="sm"
+              icon={WalletIcon}
+              title="No open payments"
+              description="No open payment phases assigned to you."
+            />
+          ) : (
+            <Table className="min-w-[840px]">
+              <TableHeader>
                 <TableRow className="hover:bg-transparent">
-                  <TableCell
-                    colSpan={6}
-                    className="h-24 px-4 text-center text-muted-foreground whitespace-normal"
-                  >
-                    No open payment phases assigned to you.
-                  </TableCell>
+                  <TableHead className="px-4">Phase</TableHead>
+                  <TableHead className="px-4">Semester</TableHead>
+                  <TableHead className="px-4">Status</TableHead>
+                  <TableHead className="px-4 text-right">Due</TableHead>
+                  <TableHead className="px-4 text-right">Paid</TableHead>
+                  <TableHead className="px-4 text-right">Remaining</TableHead>
                 </TableRow>
-              ) : (
-                rows.map((row) => (
+              </TableHeader>
+              <TableBody>
+                {rows.map((row) => (
                   <TableRow
                     key={row.id}
                     className={cn(OPEN_SPP_ROW_CLASS)}
@@ -140,10 +140,10 @@ export function StudentOpenPaymentsPanel({
                       ) : null}
                     </TableCell>
                   </TableRow>
-                ))
-              )}
-            </TableBody>
-          </Table>
+                ))}
+              </TableBody>
+            </Table>
+          )}
         </CardContent>
       </Card>
     </div>

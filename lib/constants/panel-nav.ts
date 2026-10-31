@@ -272,14 +272,9 @@ export const TEACHER_PANEL_NAVIGATION = withManageWorkshops({
   items: [],
 });
 
-/** Student panel: profile, classes, payments, then locked borrowings last. */
+/** Student panel: classes, payments, borrowings, then profile last. */
 const STUDENT_PANEL_NAVIGATION_BASE = withManageWorkshops({
   items: [
-    {
-      title: "My profile",
-      href: ROUTES.STUDENT_ROOT,
-      icon: "book-open",
-    },
     {
       title: "My classes",
       href: ROUTES.STUDENT_CLASSES,
@@ -301,6 +296,11 @@ export const STUDENT_PANEL_NAVIGATION: PanelNavigation = {
       title: "My borrowings",
       href: ROUTES.STUDENT_BORROWINGS,
       icon: "package",
+    },
+    {
+      title: "My profile",
+      href: ROUTES.STUDENT_ROOT,
+      icon: "book-open",
     },
   ],
 };

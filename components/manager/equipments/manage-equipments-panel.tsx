@@ -8,6 +8,7 @@ import {
   ChevronRightIcon,
   EyeIcon,
   HandHelpingIcon,
+  PackageIcon,
   PencilIcon,
   PlusIcon,
   SearchIcon,
@@ -18,6 +19,7 @@ import { EditEquipmentDialog } from "@/components/manager/equipments/edit-equipm
 import { UserStatCard } from "@/components/manager/users/user-stat-card";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { EmptyState } from "@/components/ui/empty-state";
 import { Input } from "@/components/ui/input";
 import {
   Select,
@@ -308,36 +310,42 @@ export function ManageEquipmentsPanel({
               </div>
             </div>
 
-            <div className="overflow-x-auto">
-              <table className="w-full min-w-[880px] text-sm">
-                <thead>
-                  <tr className="border-b bg-muted/40 text-left">
-                    <th className="px-4 py-3 font-medium">Name</th>
-                    <th className="px-4 py-3 font-medium">Description</th>
-                    <th className="px-4 py-3 font-medium text-right">Quantity</th>
-                    <th className="px-4 py-3 font-medium text-right">Borrowed</th>
-                    <th className="px-4 py-3 font-medium text-right">
-                      Remaining
-                    </th>
-                    <th className="px-4 py-3 font-medium text-right">
-                      Unit price
-                    </th>
-                    <th className="px-4 py-3 font-medium">Added</th>
-                    <th className="px-4 py-3 font-medium text-right">Actions</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {paginatedEquipments.length === 0 ? (
-                    <tr>
-                      <td
-                        colSpan={8}
-                        className="px-4 py-10 text-center text-muted-foreground"
-                      >
-                        No equipment matches your search.
-                      </td>
+            {paginatedEquipments.length === 0 ? (
+              <EmptyState
+                className="m-4"
+                icon={equipments.length === 0 ? PackageIcon : SearchIcon}
+                title={
+                  equipments.length === 0
+                    ? "No equipment yet"
+                    : "No matching equipment"
+                }
+                description={
+                  equipments.length === 0
+                    ? "Add equipment to start tracking inventory."
+                    : "No equipment matches your search."
+                }
+              />
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full min-w-[880px] text-sm">
+                  <thead>
+                    <tr className="border-b bg-muted/40 text-left">
+                      <th className="px-4 py-3 font-medium">Name</th>
+                      <th className="px-4 py-3 font-medium">Description</th>
+                      <th className="px-4 py-3 font-medium text-right">Quantity</th>
+                      <th className="px-4 py-3 font-medium text-right">Borrowed</th>
+                      <th className="px-4 py-3 font-medium text-right">
+                        Remaining
+                      </th>
+                      <th className="px-4 py-3 font-medium text-right">
+                        Unit price
+                      </th>
+                      <th className="px-4 py-3 font-medium">Added</th>
+                      <th className="px-4 py-3 font-medium text-right">Actions</th>
                     </tr>
-                  ) : (
-                    paginatedEquipments.map((equipment) => {
+                  </thead>
+                  <tbody>
+                    {paginatedEquipments.map((equipment) => {
                       const remaining = getEquipmentRemainingQuantity(equipment);
 
                       return (
@@ -366,7 +374,8 @@ export function ManageEquipmentsPanel({
                           <td
                             className={cn(
                               "whitespace-nowrap px-4 py-3 text-right tabular-nums",
-                              remaining === 0 && "text-amber-600 dark:text-amber-400"
+                              remaining === 0 &&
+                                "text-amber-600 dark:text-amber-400"
                             )}
                           >
                             {remaining}
@@ -375,7 +384,10 @@ export function ManageEquipmentsPanel({
                             {formatEquipmentUnitPrice(equipment.unit_price)}
                           </td>
                           <td className="whitespace-nowrap px-4 py-3 text-muted-foreground">
-                            {format(new Date(equipment.created_at), "MMM d, yyyy")}
+                            {format(
+                              new Date(equipment.created_at),
+                              "MMM d, yyyy"
+                            )}
                           </td>
                           <td className="px-4 py-3">
                             <div className="flex items-center justify-end gap-1">
@@ -410,11 +422,11 @@ export function ManageEquipmentsPanel({
                           </td>
                         </tr>
                       );
-                    })
-                  )}
-                </tbody>
-              </table>
-            </div>
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            )}
 
             <div className="flex flex-col gap-3 border-t px-4 pt-2 pb-3 sm:flex-row sm:items-center sm:justify-between">
               <div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">

@@ -26,6 +26,20 @@ export const SESSION_ATTENDEE_STATUS_LABELS: Record<
   excused: "Excused",
 };
 
+/** Selected / active styles for the session attendee status icon control. */
+export const SESSION_ATTENDEE_STATUS_ACTIVE_CLASSES: Record<
+  AttendeeStatusValue,
+  string
+> = {
+  present:
+    "bg-emerald-500/15 text-emerald-700 border border-emerald-500/30 dark:text-emerald-400",
+  absent:
+    "bg-rose-500/15 text-rose-700 border border-rose-500/30 dark:text-rose-400",
+  late: "bg-amber-500/15 text-amber-700 border border-amber-500/30 dark:text-amber-400",
+  excused:
+    "bg-sky-500/15 text-sky-700 border border-sky-500/30 dark:text-sky-400",
+};
+
 /** Statuses that count as attended for analytics rates. */
 export function isAttendeePresentForRate(status: string): boolean {
   return (

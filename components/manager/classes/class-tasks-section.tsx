@@ -17,6 +17,7 @@ import { InlineSpinner } from "@/components/loaders/inline-spinner";
 import { AddClassTaskDialog } from "@/components/manager/classes/add-class-task-dialog";
 import { ClassTabCollapsibleSection } from "@/components/manager/students/class-tab-collapsible-section";
 import { Button } from "@/components/ui/button";
+import { EmptyState } from "@/components/ui/empty-state";
 import { LibraryCard } from "@/components/ui/library-card";
 import {
   Tooltip,
@@ -333,9 +334,12 @@ export function ClassTasksSection({
           </div>
 
           {cappedTasks.length === 0 ? (
-            <p className="rounded-xl border border-border/70 bg-card px-4 py-10 text-center text-sm text-muted-foreground">
-              No tasks linked to this class yet.
-            </p>
+            <EmptyState
+              size="sm"
+              icon={ClipboardListIcon}
+              title="No tasks yet"
+              description="No tasks linked to this class yet."
+            />
           ) : (
             <>
               <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
@@ -443,6 +447,16 @@ export function ClassTasksSection({
           defaultOpen
           action={createActions}
         >
+          {tasks.length === 0 ? (
+            <div className="px-4 py-3">
+              <EmptyState
+                size="sm"
+                icon={ClipboardListIcon}
+                title="No tasks yet"
+                description="No tasks linked to this class yet."
+              />
+            </div>
+          ) : (
           <div className="overflow-x-auto">
             <table className="w-full min-w-[860px] text-sm">
               <thead>
@@ -456,17 +470,7 @@ export function ClassTasksSection({
                 </tr>
               </thead>
               <tbody>
-                {tasks.length === 0 ? (
-                  <tr>
-                    <td
-                      colSpan={6}
-                      className="px-4 py-10 text-center text-muted-foreground"
-                    >
-                      No tasks linked to this class yet.
-                    </td>
-                  </tr>
-                ) : (
-                  tasks.map((task) => (
+                  {tasks.map((task) => (
                     <tr
                       key={task.id}
                       className="border-b last:border-b-0 transition-colors duration-150 hover:bg-primary/8"
@@ -515,11 +519,11 @@ export function ClassTasksSection({
                         {task.max_grade ?? "—"}
                       </td>
                     </tr>
-                  ))
-                )}
+                  ))}
               </tbody>
             </table>
           </div>
+          )}
         </ClassTabCollapsibleSection>
       )}
     </>

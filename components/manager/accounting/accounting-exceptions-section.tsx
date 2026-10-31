@@ -32,9 +32,6 @@ export async function AccountingExceptionsSection({
 
 export function AccountingExceptionsFallback() {
   return (
-    <div
-      className="min-h-[8rem] animate-pulse rounded-xl bg-muted/40 ring-1 ring-foreground/10"
-      aria-hidden
-    />
+    <div className="min-h-[8rem] animate-pulse rounded-lg bg-muted/40" aria-hidden />
   );
 }

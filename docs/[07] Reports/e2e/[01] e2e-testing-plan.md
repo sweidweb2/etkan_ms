@@ -43,7 +43,7 @@ Do **not** E2E every validator edge case — Vitest already covers most of that.
 | Layer | Status |
 |-------|--------|
 | Vitest unit/service tests | Strong (keep growing) |
-| Playwright / Cypress | **Not installed** |
+| Playwright / Cypress | ✅ Phases **0–2** done (auth + public smoke); Phases 3–15 not started |
 | CI for E2E | None yet |
 | Seed scripts | `seed`, `seed:admin`, `seed:manager`, `seed:demo`, `seed:rbac`, etc. |
 | Auth | Supabase email/password + cookies |
@@ -185,6 +185,7 @@ npm run test:e2e:smoke    # grep @smoke
 
 ```bash
 E2E_BASE_URL=http://127.0.0.1:3000
+E2E_SKIP_WEBSERVER=1              # set when Next already runs (Docker or manual)
 E2E_MANAGER_EMAIL=...
 E2E_MANAGER_PASSWORD=...
 E2E_TEACHER_EMAIL=...
@@ -200,6 +201,8 @@ E2E_RESTRICTED_EMAIL=...          # manager-like user with reduced grants
 E2E_ALLOW_EMAIL=0                 # set 1 only with Mailtrap
 E2E_ALLOW_MONEY=0                 # set 1 for @money writes
 ```
+
+**Docker:** Playwright runs on the **host** by default and hits `:3000` whether Next is `npm run dev` or `etkan-local-web`. Local Supabase stays in Docker (`npx supabase start`). See `[03] local-setup.md`.
 
 ---
 
@@ -238,33 +241,33 @@ Coverage columns: leave blank until implemented. Use `S` = smoke (loads), `M` = 
 
 | Route | Page | Coverage |
 |-------|------|----------|
-| `/` | Home | |
-| `/about` | About | |
-| `/careers` | Careers | |
-| `/careers/roadmap/[id]` | Careers roadmap detail | |
-| `/projects` | Public projects | |
-| `/gallery` | Public gallery | |
-| `/blogs` | Blogs list | |
-| `/blogs/[slug]` | Blog detail | |
-| `/life` | Life list | |
-| `/life/[id]` | Life detail | |
-| `/register` | Public registration | |
-| `/register/guest/[token]` | Guest registration (no site chrome) | |
-| `/f/[token]` | Financial form invite (no site chrome) | |
-| `/maintenance` | Maintenance page | |
-| `/auth/login` | Login | |
-| `/auth/signup` | Signup (if `PUBLIC_SIGNUP_ENABLED`) | |
-| `/auth/callback` | OAuth/email callback (usually no direct E2E) | |
+| `/` | Home | ✅ S (Phase 0–2) |
+| `/about` | About | ✅ S (Phase 2) |
+| `/careers` | Careers | ✅ S (Phase 2) |
+| `/careers/roadmap/[id]` | Careers roadmap detail | ✅ S (Phase 2) |
+| `/projects` | Public projects | ✅ S (Phase 2) |
+| `/gallery` | Public gallery | ✅ S (Phase 2) |
+| `/blogs` | Blogs list | ✅ S (Phase 2) |
+| `/blogs/[slug]` | Blog detail | ✅ S (Phase 2; skips if no posts) |
+| `/life` | Life list | ✅ S (Phase 2; unauth → login) |
+| `/life/[id]` | Life detail | ✅ S (Phase 2; unauth → login) |
+| `/register` | Public registration | ✅ S (Phase 2; submit gated) |
+| `/register/guest/[token]` | Guest registration (no site chrome) | ✅ S invalid; seeded optional (`E2E_GUEST_TOKEN`) |
+| `/f/[token]` | Financial form invite (no site chrome) | ✅ S invalid; seeded optional (`E2E_FINANCIAL_TOKEN`) |
+| `/maintenance` | Maintenance page | ✅ S (Phase 2) |
+| `/auth/login` | Login | ✅ S (Phase 1–2) |
+| `/auth/signup` | Signup (if `PUBLIC_SIGNUP_ENABLED`) | ✅ S (Phase 2; disabled → redirects away) |
+| `/auth/callback` | OAuth/email callback (usually no direct E2E) | — skip |
 
 ### 8.2 Auth journeys (cross-cutting)
 
 | Journey | Coverage |
 |---------|----------|
-| Valid login → role home redirect | |
-| Invalid password → error, stay on login | |
-| Logout → public/login | |
-| Unauthenticated access to panel → login redirect | |
-| Authenticated guest-only routes → panel redirect | |
+| Valid login → role home redirect | ✅ S (Phase 1) |
+| Invalid password → error, stay on login | ✅ S (Phase 1) |
+| Logout → public/login | ✅ S (Phase 1) |
+| Unauthenticated access to panel → login redirect | ✅ S (Phase 1) |
+| Authenticated guest-only routes → panel redirect | ✅ S (Phase 1) |
 
 ### 8.3 Manager panel — list / root routes
 
@@ -396,56 +399,56 @@ These are the **happy paths** that must eventually exist (beyond “page loads�
 
 ## 9. Phased rollout
 
-### Phase 0 — Foundation
+### Phase 0 — Foundation ✅ Done
 
 **Goal:** Tooling works; zero product risk.
 
-1. Install `@playwright/test` + browsers.  
-2. Add `playwright.config.ts` (baseURL, CI retries, trace on first retry).  
-3. Add `e2e/` + npm scripts.  
-4. Document env in `.env.example` (names only) + `[03] local-setup.md`.  
-5. Smoke: `e2e/public/marketing.spec.ts` → `/` brand/home content (`@smoke`).  
+1. ✅ Install `@playwright/test` + browsers.  
+2. ✅ Add `playwright.config.ts` (baseURL, CI retries, trace on first retry).  
+3. ✅ Add `e2e/` + npm scripts.  
+4. ✅ Document env in `.env.example` (names only) + `[03] local-setup.md`.  
+5. ✅ Smoke: `e2e/public/marketing.spec.ts` → `/` brand/home content (`@smoke`).  
 6. Optional CI job (do not block merge until Phase 1–3 stable).
 
-**Exit:** `npm run test:e2e` passes home smoke.
+**Exit:** ✅ `npm run test:e2e` passes home smoke.
 
 **Risk:** Low.
 
 ---
 
-### Phase 1 — Auth & session (all roles)
+### Phase 1 — Auth & session (all roles) ✅ Done
 
 **Goal:** Login/logout and role redirect match production.
 
 | Spec | Covers |
 |------|--------|
-| `auth/login.spec.ts` | Manager (+ other seeded roles) → correct home |
-| `auth/login-invalid.spec.ts` | Bad password → error |
-| `auth/logout.spec.ts` | Logout |
-| `auth/redirect-by-role.spec.ts` | Each seeded role lands on `getDashboardRouteForRole` |
-| `auth/panel-guard.spec.ts` | Unauthed `/manager/*` → login |
+| `auth/login.spec.ts` | ✅ Manager (+ other seeded roles) → correct home |
+| `auth/login-invalid.spec.ts` | ✅ Bad password → error |
+| `auth/logout.spec.ts` | ✅ Logout |
+| `auth/redirect-by-role.spec.ts` | ✅ Each seeded role lands on `getDashboardRouteForRole` |
+| `auth/panel-guard.spec.ts` | ✅ Unauthed `/manager/*` → login |
 
-**Fixtures:** `loginAs(role)` + `storageState` files: manager, teacher, student, admin, ceo, crm, supervisor, co-manager (as accounts exist).
+**Fixtures:** ✅ `loginAs(role)` + `storageState` files: manager, teacher, student (required); admin, ceo, crm, supervisor, co-manager optional via `E2E_SETUP_ALL_ROLES=1`.
 
-**Exit:** Manager auth reliable; at least manager + teacher + student storageState; document maintenance mode **off** in E2E env.
+**Exit:** ✅ Manager auth reliable; manager + teacher + student storageState; maintenance mode **off** in E2E env.
 
 **Risk:** Medium (auth flake) — mitigate with storageState + fixed seed users.
 
 ---
 
-### Phase 2 — Public site & invite forms
+### Phase 2 — Public site & invite forms ✅ Done
 
 **Goal:** Full public marketing + registration surfaces.
 
 | Spec | Focus |
 |------|-------|
-| `public/marketing.spec.ts` | `/`, about, careers, projects, gallery, blogs (+ one slug), life (+ one id), careers roadmap detail |
-| `public/register.spec.ts` | Form UI; submit only with Turnstile test keys / env flag |
-| `public/invite-forms.spec.ts` | Seeded guest token + financial `/f/[token]` load (and submit if safe) |
-| `public/maintenance.spec.ts` | Page renders (do not enable maintenance for whole E2E env) |
-| `public/auth-pages.spec.ts` | Login (+ signup if enabled) render |
+| `public/marketing.spec.ts` | ✅ `/`, about, careers, projects, gallery, blogs (+ one slug), life (+ one id), careers roadmap detail |
+| `public/register.spec.ts` | ✅ Form UI; submit gated without `E2E_ALLOW_REGISTER=1` |
+| `public/invite-forms.spec.ts` | ✅ Invalid guest + `/f/[token]` smoke; seeded tokens optional via env |
+| `public/maintenance.spec.ts` | ✅ Page renders (do not enable maintenance for whole E2E env) |
+| `public/auth-pages.spec.ts` | ✅ Login (+ signup disabled path) render |
 
-**Exit:** All §8.1 rows have at least smoke `S` except callback; registration submit gated.
+**Exit:** ✅ All §8.1 rows have at least smoke `S` except callback; registration submit gated.
 
 **Risk:** Low–medium (Turnstile / seeded content).
 
@@ -734,17 +737,18 @@ Debug order: env/seed → selector → toast/action state → service error → 
 
 ## 14. Definition of “integrate it now”
 
-**Now = Phase 0 + start Phase 1.**
+**Now = Phase 3 (manager nav smoke).** Phases 0–2 are ✅ done.
 
-1. [ ] Install Playwright  
-2. [ ] Config + `npm run test:e2e`  
-3. [ ] Home smoke green  
-4. [ ] Manager (+ ideally teacher/student) test users in env  
-5. [ ] Login spec green + `storageState`  
-6. [ ] `[03] local-setup.md`  
-7. [ ] Tick Phase 0–1 in `[02] phase-checklist.md`  
+1. [x] Install Playwright  
+2. [x] Config + `npm run test:e2e`  
+3. [x] Home smoke green  
+4. [x] Manager (+ ideally teacher/student) test users in env  
+5. [x] Login spec green + `storageState`  
+6. [x] `[03] local-setup.md`  
+7. [x] Tick Phase 0–1 in `[02] phase-checklist.md`  
+8. [x] Phase 2 public + invite smokes  
 
-Then Phase 2 → 3, and continue through §9 until §8 tables are complete.
+Next: Phase 3 → continue through §9 until §8 tables are complete.
 
 ---
 

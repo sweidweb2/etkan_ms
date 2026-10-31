@@ -234,15 +234,17 @@ export function getStudentClassDetailRoute(classId: string): string {
   return `/student/classes/${classId}`;
 }
 
+/**
+ * Teacher class detail URL. Tab is client/localStorage only — do not put
+ * `?tab=` here (that re-runs the full RSC page on every switch).
+ * Pass `tab` only so callers can persist preference before navigating.
+ */
 export function getTeacherClassDetailRoute(
   classId: string,
-  tab?: "main" | "sessions" | "tasks" | "analytics"
+  _tab?: "main" | "sessions" | "tasks" | "analytics"
 ): string {
-  const base = `/teacher/classes/${classId}`;
-  if (!tab || tab === "main") {
-    return base;
-  }
-  return `${base}?tab=${tab}`;
+  void _tab;
+  return `/teacher/classes/${classId}`;
 }
 
 export function getTeacherClassTaskDetailRoute(

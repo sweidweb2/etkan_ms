@@ -8,11 +8,6 @@ export const updateAttendeeSchema = z.object({
   status: z.enum(ATTENDEE_STATUS_VALUES, {
     message: "Status is required.",
   }),
-  note: z
-    .string()
-    .trim()
-    .max(500, { message: "Note must be at most 500 characters." })
-    .optional(),
 });
 
 export type UpdateAttendeeInput = z.infer<typeof updateAttendeeSchema>;
@@ -37,7 +32,6 @@ export function parseUpdateAttendeeFormData(formData: FormData):
 
   const parsed = updateAttendeeSchema.safeParse({
     status: formData.get("status"),
-    note: formData.get("note") ?? undefined,
   });
 
   if (!parsed.success) {

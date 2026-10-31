@@ -5,12 +5,19 @@ import {
   useMemo,
   useRef,
   useState,
+  useSyncExternalStore,
   useTransition,
   type ReactNode,
 } from "react";
-import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { format } from "date-fns";
-import { RefreshCwIcon } from "lucide-react";
+import {
+  CalendarDaysIcon,
+  ChartColumnIcon,
+  ClipboardListIcon,
+  LayoutDashboardIcon,
+  MousePointerClickIcon,
+  RefreshCwIcon,
+} from "lucide-react";
 import {
   loadTeacherClassSessionDetailAction,
   type TeacherClassSessionInlineDetail,
@@ -67,15 +74,16 @@ import {
   type ManagerClassSessionRow,
 } from "@/types/manager-class-session";
 import type { ManagerClassTaskRow } from "@/types/manager-class-session-detail";
-import type { ManagerClassRow } from "@/types/manager-class-list";
 import type { ClassStudentRow } from "@/types/class-student";
+import type { TeacherClassDetailRow } from "@/types/class-teaching";
 
 type TeacherClassDetailsPanelProps = {
-  classRow: ManagerClassRow;
+  classRow: TeacherClassDetailRow;
   initialSessions: ManagerClassSessionRow[];
   initialTasks: ManagerClassTaskRow[];
   initialStudents?: ClassStudentRow[];
   hasComputedGrades?: boolean;
+  lockedUserIds?: string[];
   assignedAt: string | null;
   /**
    * Deferred RSC grade-summary shared by Tasks + Analytics tabs.
@@ -86,21 +94,43 @@ type TeacherClassDetailsPanelProps = {
   tasksGradeSummarySlot?: ReactNode;
   /** @deprecated Prefer `gradeSummarySlot` (single shared tree). */
   analyticsGradeSummarySlot?: ReactNode;
-  /** From `?tab=` on the server for first paint without flash. */
-  initialTab?: TeacherClassDetailTab;
 };
 
 const TABS = TEACHER_CLASS_DETAIL_TABS;
+const emptySubscribe = () => () => {};
+
+function useHasMounted() {
+  return useSyncExternalStore(
+    emptySubscribe,
+    () => true,
+    () => false
+  );
+}
+
+/** Browser-only: legacy `?tab=` wins, then localStorage, else main. */
+function resolveTeacherClassDetailTab(classId: string): TeacherClassDetailTab {
+  if (typeof window === "undefined") {
+    return TABS.MAIN;
+  }
+
+  const params = new URLSearchParams(window.location.search);
+  const fromLegacyUrl = parseTeacherClassDetailTab(params.get("tab"));
+  if (fromLegacyUrl) {
+    return fromLegacyUrl;
+  }
+
+  return readTeacherClassDetailTab(classId) ?? TABS.MAIN;
+}
 
 const CLASS_TABS = [
-  { value: TABS.MAIN, label: "Main" },
-  { value: TABS.SESSIONS, label: "Sessions" },
-  { value: TABS.TASKS, label: "Tasks" },
-  { value: TABS.ANALYTICS, label: "Analytics" },
+  { value: TABS.MAIN, label: "Main", icon: LayoutDashboardIcon },
+  { value: TABS.SESSIONS, label: "Sessions", icon: CalendarDaysIcon },
+  { value: TABS.TASKS, label: "Tasks", icon: ClipboardListIcon },
+  { value: TABS.ANALYTICS, label: "Analytics", icon: ChartColumnIcon },
 ] as const;
 
 const TAB_TRIGGER_CLASS =
-  "rounded-md px-3 py-1.5 text-center text-sm font-medium whitespace-nowrap text-muted-foreground outline-none transition-colors duration-150 hover:bg-primary/6 hover:text-foreground focus-visible:ring-3 focus-visible:ring-ring/50 data-[state=active]:bg-primary/12 data-[state=active]:text-primary data-[state=active]:shadow-sm data-[state=active]:ring-1 data-[state=active]:ring-primary/20 data-[state=active]:hover:bg-primary/12 data-[state=active]:hover:text-primary";
+  "inline-flex items-center justify-center gap-1.5 rounded-md border border-transparent px-3 py-1.5 text-center text-sm font-medium whitespace-nowrap text-muted-foreground outline-none transition-colors duration-150 hover:bg-primary/6 hover:text-foreground focus-visible:ring-3 focus-visible:ring-ring/50 data-[state=active]:border-primary/20 data-[state=active]:bg-primary/12 data-[state=active]:text-primary data-[state=active]:shadow-sm data-[state=active]:hover:bg-primary/12 data-[state=active]:hover:text-primary";
 
 export function TeacherClassDetailsPanel({
   classRow: initialClassRow,
@@ -108,23 +138,49 @@ export function TeacherClassDetailsPanel({
   initialTasks,
   initialStudents = [],
   hasComputedGrades = false,
+  lockedUserIds = [],
   assignedAt,
   gradeSummarySlot = null,
   tasksGradeSummarySlot = null,
   analyticsGradeSummarySlot = null,
-  initialTab = TABS.MAIN,
 }: TeacherClassDetailsPanelProps) {
   const sharedGradeSummarySlot =
     gradeSummarySlot ?? tasksGradeSummarySlot ?? analyticsGradeSummarySlot;
-  const router = useRouter();
-  const pathname = usePathname();
-  const searchParams = useSearchParams();
-  const tabFromUrl = parseTeacherClassDetailTab(searchParams.get("tab"));
-  const tab = tabFromUrl ?? initialTab;
+  // Client-only tabs (localStorage). Avoid `?tab=` / router.replace — that
+  // re-runs the full class RSC on every switch.
+  const hasMounted = useHasMounted();
+  const [tab, setTab] = useState<TeacherClassDetailTab>(TABS.MAIN);
   const [visitedTabs, setVisitedTabs] = useState(
-    () => new Set<TeacherClassDetailTab>([tab])
+    () => new Set<TeacherClassDetailTab>([TABS.MAIN])
   );
+  const [hydratedClassId, setHydratedClassId] = useState<string | null>(null);
   const [classRow, setClassRow] = useState(initialClassRow);
+
+  // Restore tab from URL/localStorage after mount (or when class changes).
+  // Adjust during render — avoids setState-in-effect cascading renders.
+  if (hasMounted && hydratedClassId !== classRow.id) {
+    const next = resolveTeacherClassDetailTab(classRow.id);
+    setHydratedClassId(classRow.id);
+    setTab(next);
+    setVisitedTabs(new Set<TeacherClassDetailTab>([TABS.MAIN, next]));
+  }
+
+  // Drop stale `?tab=` bookmarks without App Router navigation (external URL only).
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const fromLegacyUrl = parseTeacherClassDetailTab(params.get("tab"));
+    if (!fromLegacyUrl || !params.has("tab")) {
+      return;
+    }
+
+    writeTeacherClassDetailTab(classRow.id, fromLegacyUrl);
+    params.delete("tab");
+    const query = params.toString();
+    const nextUrl = query
+      ? `${window.location.pathname}?${query}`
+      : window.location.pathname;
+    window.history.replaceState(window.history.state, "", nextUrl);
+  }, [classRow.id]);
 
   if (!visitedTabs.has(tab)) {
     const next = new Set(visitedTabs);
@@ -132,41 +188,6 @@ export function TeacherClassDetailsPanel({
     setVisitedTabs(next);
   }
 
-  function replaceTabInUrl(nextTab: TeacherClassDetailTab) {
-    const params = new URLSearchParams(searchParams.toString());
-    if (nextTab === TABS.MAIN) {
-      params.delete("tab");
-    } else {
-      params.set("tab", nextTab);
-    }
-    const query = params.toString();
-    router.replace(query ? `${pathname}?${query}` : pathname, {
-      scroll: false,
-    });
-  }
-
-  // Persist ?tab=; restore from localStorage when the URL is clean (e.g. nested back).
-  useEffect(() => {
-    if (tabFromUrl) {
-      writeTeacherClassDetailTab(classRow.id, tabFromUrl);
-      return;
-    }
-
-    const stored = readTeacherClassDetailTab(classRow.id);
-    if (!stored || stored === TABS.MAIN) {
-      writeTeacherClassDetailTab(classRow.id, TABS.MAIN);
-      return;
-    }
-
-    writeTeacherClassDetailTab(classRow.id, stored);
-    const params = new URLSearchParams(searchParams.toString());
-    params.set("tab", stored);
-    const query = params.toString();
-    router.replace(query ? `${pathname}?${query}` : pathname, {
-      scroll: false,
-    });
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- sync once per clean URL / class
-  }, [classRow.id, tabFromUrl]);
   const [sessions, setSessions] = useState(() =>
     sortClassSessionsNewestFirst(initialSessions)
   );
@@ -235,7 +256,7 @@ export function TeacherClassDetailsPanel({
   function handleTabChange(nextTab: string) {
     const parsed = parseTeacherClassDetailTab(nextTab) ?? TABS.MAIN;
     writeTeacherClassDetailTab(classRow.id, parsed);
-    replaceTabInUrl(parsed);
+    setTab(parsed);
   }
 
   function handleInlineSessionUpdated(session: ManagerClassSessionRow) {
@@ -270,7 +291,19 @@ export function TeacherClassDetailsPanel({
           open
           onOpenChange={setIsChangeStatusOpen}
           classRow={classRow}
-          onClassUpdated={setClassRow}
+          onClassUpdated={(updated) =>
+            setClassRow((prev) => ({
+              ...prev,
+              id: updated.id,
+              name: updated.name,
+              status: updated.status,
+              subject_name: updated.subject_name || prev.subject_name,
+              semester_name: updated.semester_name ?? prev.semester_name,
+              enrollment_count: updated.enrollment_count,
+              image_url: updated.image_url,
+              card_gradient: updated.card_gradient || prev.card_gradient,
+            }))
+          }
         />
       ) : null}
 
@@ -308,15 +341,19 @@ export function TeacherClassDetailsPanel({
 
       <Tabs value={tab} onValueChange={handleTabChange} className="gap-4">
         <TabsListPrimitive className="grid w-full grid-cols-4 gap-1 self-start rounded-lg border border-border/70 bg-secondary/80 p-1 sm:w-fit sm:min-w-[24rem]">
-          {CLASS_TABS.map((item) => (
-            <TabsTriggerPrimitive
-              key={item.value}
-              value={item.value}
-              className={TAB_TRIGGER_CLASS}
-            >
-              {item.label}
-            </TabsTriggerPrimitive>
-          ))}
+          {CLASS_TABS.map((item) => {
+            const Icon = item.icon;
+            return (
+              <TabsTriggerPrimitive
+                key={item.value}
+                value={item.value}
+                className={TAB_TRIGGER_CLASS}
+              >
+                <Icon data-icon="inline-start" />
+                {item.label}
+              </TabsTriggerPrimitive>
+            );
+          })}
         </TabsListPrimitive>
 
         <TabsContents>
@@ -325,10 +362,10 @@ export function TeacherClassDetailsPanel({
               <>
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
               <Card className="gap-0 border-border/70 bg-card py-0 shadow-[0_10px_28px_-24px_rgba(62,62,117,0.18)]">
-                <CardHeader className="border-b border-border/50 bg-muted/25 py-3">
+                <CardHeader className="border-b border-border/50 bg-muted/25 px-5 py-4">
                   <CardTitle className="text-base">Class</CardTitle>
                 </CardHeader>
-                <CardContent className="space-y-2 py-4 text-sm">
+                <CardContent className="space-y-2 px-5 py-5 text-sm">
                   <div className="flex justify-between gap-3">
                     <span className="text-muted-foreground">Subject</span>
                     <span className="text-right">{classRow.subject_name}</span>
@@ -349,10 +386,10 @@ export function TeacherClassDetailsPanel({
               </Card>
 
               <Card className="gap-0 border-border/70 bg-card py-0 shadow-[0_10px_28px_-24px_rgba(62,62,117,0.18)]">
-                <CardHeader className="border-b border-border/50 bg-muted/25 py-3">
+                <CardHeader className="border-b border-border/50 bg-muted/25 px-5 py-4">
                   <CardTitle className="text-base">Semester</CardTitle>
                 </CardHeader>
-                <CardContent className="space-y-2 py-4 text-sm">
+                <CardContent className="space-y-2 px-5 py-5 text-sm">
                   <div className="flex justify-between gap-3">
                     <span className="text-muted-foreground">Linked semester</span>
                     <span className="text-right font-medium">
@@ -366,10 +403,10 @@ export function TeacherClassDetailsPanel({
               </Card>
 
               <Card className="gap-0 border-border/70 bg-card py-0 shadow-[0_10px_28px_-24px_rgba(62,62,117,0.18)]">
-                <CardHeader className="border-b border-border/50 bg-muted/25 py-3">
+                <CardHeader className="border-b border-border/50 bg-muted/25 px-5 py-4">
                   <CardTitle className="text-base">Overview</CardTitle>
                 </CardHeader>
-                <CardContent className="space-y-2 py-4 text-sm">
+                <CardContent className="space-y-2 px-5 py-5 text-sm">
                   <div className="flex justify-between gap-3">
                     <span className="text-muted-foreground">Sessions</span>
                     <span className="tabular-nums">{sessions.length}</span>
@@ -408,10 +445,14 @@ export function TeacherClassDetailsPanel({
                   className={classRow.name}
                   sessions={sessions}
                   onSessionsChange={setSessions}
-                  onClassUpdated={setClassRow}
+                  onClassUpdated={() => {
+                    // Manager path refreshes list counts; teacher derives
+                    // counts from local sessions/tasks state.
+                  }}
                   hasComputedGrades={hasComputedGrades}
                   selectedSessionId={selectedSessionId}
                   onSessionSelect={handleSessionSelect}
+                  collapsible={false}
                 />
 
                 {selectedSessionId ? (
@@ -423,8 +464,8 @@ export function TeacherClassDetailsPanel({
                         session={sessionDetail.session}
                         classRow={{ id: classRow.id, name: classRow.name }}
                         initialAttendees={sessionDetail.attendees}
-                        hasComputedGrades={sessionDetail.hasComputedGrades}
-                        lockedUserIds={sessionDetail.lockedUserIds}
+                        hasComputedGrades={hasComputedGrades}
+                        lockedUserIds={lockedUserIds}
                         navigation={{
                           classesListHref: ROUTES.TEACHER_CLASSES,
                           classesListLabel: "My classes",
@@ -435,7 +476,6 @@ export function TeacherClassDetailsPanel({
                         }}
                         embedded
                         hidePhase
-                        tabsMode="attendance"
                         onClose={handleCloseSessionDetail}
                         onSessionUpdated={handleInlineSessionUpdated}
                       />
@@ -445,6 +485,25 @@ export function TeacherClassDetailsPanel({
                         Loading session…
                       </div>
                     )}
+                  </div>
+                ) : sessions.length > 0 ? (
+                  <div
+                    role="status"
+                    className="flex flex-col items-center justify-center gap-5 rounded-2xl border border-dashed border-border/80 bg-card/70 px-6 py-16 text-center"
+                  >
+                    <div
+                      className="relative flex size-[4.5rem] items-center justify-center"
+                      aria-hidden
+                    >
+                      <div className="absolute inset-1 rounded-xl border border-border/70 bg-muted/50 shadow-sm" />
+                      <div className="absolute inset-x-3.5 top-3.5 h-1.5 rounded-full bg-muted-foreground/20" />
+                      <div className="absolute inset-x-3.5 top-6.5 h-1.5 w-[45%] rounded-full bg-muted-foreground/12" />
+                      <span className="absolute right-0.5 bottom-0.5 size-9 animate-ping rounded-full bg-primary/15" />
+                      <MousePointerClickIcon className="relative z-10 mt-5 ml-7 size-8 text-primary drop-shadow-sm" />
+                    </div>
+                    <p className="max-w-[18rem] text-sm text-muted-foreground">
+                      Click on a session to see details!
+                    </p>
                   </div>
                 ) : null}
               </>
@@ -464,7 +523,7 @@ export function TeacherClassDetailsPanel({
                   classId={classRow.id}
                   className={classRow.name}
                   tasks={initialTasks}
-                  hasSubject={Boolean(classRow.subject_id)}
+                  hasSubject={classRow.has_subject}
                   hasComputedGrades={hasComputedGrades}
                   layout="cards"
                   getTaskDetailHref={(taskId) =>

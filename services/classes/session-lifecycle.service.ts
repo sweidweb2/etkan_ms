@@ -77,6 +77,15 @@ export async function updateSessionSettingsForManager(
     return { success: false, error: "Session not found." };
   }
 
+  const scope = await assertAssignedTeacherForClassMutation(
+    adminClient,
+    actor,
+    input.class_id
+  );
+  if (!scope.ok) {
+    return { success: false, error: scope.error };
+  }
+
   const patch: {
     semester_id?: string | null;
     group_grade_level?: string | null;
@@ -271,6 +280,15 @@ export async function updateClassSessionForManager(
     return { success: false, error: structureGuard.error };
   }
 
+  const scope = await assertAssignedTeacherForClassMutation(
+    adminClient,
+    actor,
+    input.class_id
+  );
+  if (!scope.ok) {
+    return { success: false, error: scope.error };
+  }
+
   const startsAt = toIsoOrNull(parsed.data.starts_at);
   const endsAt = toIsoOrNull(parsed.data.ends_at);
 
@@ -388,13 +406,6 @@ export async function deleteClassSessionForManager(
 
   if (!structureGuard.ok) {
     return { success: false, error: structureGuard.error };
-  }
-
-  if (session.group_grade_level) {
-    return {
-      success: false,
-      error: "Clear the session difficulty before deleting.",
-    };
   }
 
   const { error: deleteError } = await sessionRepository.deleteSessionById(

@@ -8,14 +8,17 @@ import {
   ArrowRightLeftIcon,
   ChevronLeftIcon,
   ChevronRightIcon,
+  CopyIcon,
   EyeIcon,
   PlusIcon,
   SearchIcon,
   Trash2Icon,
+  UsersIcon,
 } from "lucide-react";
 import { removeStudentFromClassAction } from "@/app/manager/classes/actions";
 import { Can } from "@/components/auth/can";
 import { AddStudentToClassDialog } from "@/components/manager/classes/add-student-to-class-dialog";
+import { CopyStudentsFromClassDialog } from "@/components/manager/classes/copy-students-from-class-dialog";
 import {
   TransferStudentBetweenClassesDialog,
   type ClassTransferOption,
@@ -23,6 +26,7 @@ import {
 import { ClassTabCollapsibleSection } from "@/components/manager/students/class-tab-collapsible-section";
 import { InlineSpinner } from "@/components/loaders/inline-spinner";
 import { Button } from "@/components/ui/button";
+import { EmptyState } from "@/components/ui/empty-state";
 import {
   Dialog,
   DialogContent,
@@ -59,6 +63,7 @@ const initialRemoveState: RemoveStudentFromClassActionState = {};
 type ClassStudentsSectionProps = {
   classId: string;
   className: string;
+  semesterId: string | null;
   initialStudents: ManagerClassStudentRow[];
   availableStudents: ManagerStudentRow[];
   transferClassOptions: ClassTransferOption[];
@@ -149,6 +154,7 @@ function matchesSearch(student: ManagerClassStudentRow, query: string) {
 export function ClassStudentsSection({
   classId,
   className,
+  semesterId,
   initialStudents,
   availableStudents,
   transferClassOptions,
@@ -169,6 +175,7 @@ export function ClassStudentsSection({
 
   const [students, setStudents] = useState(initialStudents);
   const [isAddOpen, setIsAddOpen] = useState(false);
+  const [isCopyOpen, setIsCopyOpen] = useState(false);
   const [transferringStudent, setTransferringStudent] =
     useState<ManagerClassStudentRow | null>(null);
   const [removingStudent, setRemovingStudent] =
@@ -285,6 +292,16 @@ export function ClassStudentsSection({
         />
       ) : null}
 
+      {isCopyOpen ? (
+        <CopyStudentsFromClassDialog
+          open
+          onOpenChange={setIsCopyOpen}
+          classId={classId}
+          className={className}
+          onStudentsAdded={handleStudentsAdded}
+        />
+      ) : null}
+
       <TransferStudentBetweenClassesDialog
         open={transferringStudent !== null}
         onOpenChange={(open) => {
@@ -346,12 +363,26 @@ export function ClassStudentsSection({
         storageKey={COLLAPSIBLE_SECTION_STORAGE_KEYS.CLASS_DETAILS_STUDENTS}
         defaultOpen
         action={
-          <Can permission={PERMISSIONS.CLASSES_ADD_STUDENT}>
-            <Button type="button" onClick={() => setIsAddOpen(true)}>
-              <PlusIcon data-icon="inline-start" />
-              Add student
-            </Button>
-          </Can>
+          <div className="flex flex-wrap items-center gap-2">
+            {semesterId ? (
+              <Can permission={PERMISSIONS.CLASSES_COPY_STUDENTS_FROM_CLASS}>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => setIsCopyOpen(true)}
+                >
+                  <CopyIcon data-icon="inline-start" />
+                  Copy from class
+                </Button>
+              </Can>
+            ) : null}
+            <Can permission={PERMISSIONS.CLASSES_ADD_STUDENT}>
+              <Button type="button" onClick={() => setIsAddOpen(true)}>
+                <PlusIcon data-icon="inline-start" />
+                Add student
+              </Button>
+            </Can>
+          </div>
         }
       >
           <div className="flex flex-col gap-3 border-b px-4 pt-2 pb-3 sm:flex-row sm:items-center">
@@ -367,32 +398,38 @@ export function ClassStudentsSection({
             </div>
           </div>
 
-          <div className="overflow-x-auto">
-            <table className="w-full min-w-[760px] text-sm">
-              <thead>
-                <tr className="border-b bg-muted/40 text-left">
-                  <th className="px-4 py-3 font-medium">Full name</th>
-                  <th className="px-4 py-3 font-medium">Username</th>
-                  <th className="px-4 py-3 font-medium">Email</th>
-                  <th className="px-4 py-3 font-medium">Phone</th>
-                  <th className="px-4 py-3 font-medium">Joined</th>
-                  <th className="px-4 py-3 font-medium text-right">Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {paginatedStudents.length === 0 ? (
-                  <tr>
-                    <td
-                      colSpan={6}
-                      className="px-4 py-10 text-center text-muted-foreground"
-                    >
-                      {students.length === 0
-                        ? "No students in this class yet."
-                        : "No students match your search."}
-                    </td>
+          {paginatedStudents.length === 0 ? (
+            <div className="px-4 py-3">
+              <EmptyState
+                size="sm"
+                icon={students.length === 0 ? UsersIcon : SearchIcon}
+                title={
+                  students.length === 0
+                    ? "No students yet"
+                    : "No matching students"
+                }
+                description={
+                  students.length === 0
+                    ? "No students in this class yet."
+                    : "No students match your search."
+                }
+              />
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full min-w-[760px] text-sm">
+                <thead>
+                  <tr className="border-b bg-muted/40 text-left">
+                    <th className="px-4 py-3 font-medium">Full name</th>
+                    <th className="px-4 py-3 font-medium">Username</th>
+                    <th className="px-4 py-3 font-medium">Email</th>
+                    <th className="px-4 py-3 font-medium">Phone</th>
+                    <th className="px-4 py-3 font-medium">Joined</th>
+                    <th className="px-4 py-3 font-medium text-right">Actions</th>
                   </tr>
-                ) : (
-                  paginatedStudents.map((student) => (
+                </thead>
+                <tbody>
+                  {paginatedStudents.map((student) => (
                     <tr
                       key={student.id}
                       className="border-b last:border-b-0 hover:bg-muted/30"
@@ -460,11 +497,11 @@ export function ClassStudentsSection({
                         </div>
                       </td>
                     </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
-          </div>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
 
           {filteredStudents.length > 0 ? (
             <div className="flex flex-col gap-3 border-t px-4 pt-2 pb-3 sm:flex-row sm:items-center sm:justify-between">

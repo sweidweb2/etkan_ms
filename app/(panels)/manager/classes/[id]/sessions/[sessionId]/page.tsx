@@ -30,7 +30,6 @@ export default async function ManagerClassSessionDetailPage({
       classRow={detail.classRow}
       linkedPhase={detail.linkedPhase}
       phaseOptions={detail.phaseOptions}
-      initialTasks={detail.tasks}
       initialAttendees={detail.attendees}
       hasComputedGrades={computedGradeLock.hasComputedGrades}
       lockedUserIds={computedGradeLock.lockedUserIds}

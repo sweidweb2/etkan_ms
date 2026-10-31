@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { ROLES } from "@/lib/constants/roles";
 import * as authRepository from "@/repositories/auth.repository";
 import * as classRepository from "@/repositories/class.repository";
 import * as finalExamRepository from "@/repositories/final-exam.repository";
@@ -49,6 +50,7 @@ const adminClient = {} as never;
 const actor: AuditActor = {
   userId: "11111111-1111-4111-8111-111111111111",
   userLabel: "Manager",
+  role: ROLES.MANAGER,
 };
 
 const fromClassId = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";

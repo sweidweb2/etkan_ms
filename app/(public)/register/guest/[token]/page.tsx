@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import type { ReactNode } from "react";
 import { LanguageToggle } from "@/components/layout/language-toggle";
 import {
@@ -11,12 +12,15 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { buildNoIndexMetadata } from "@/lib/seo/metadata";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { getGuestRegistrationContextByToken } from "@/services/guests/guest-registration.service";
 import { submitGuestRegistrationByTokenAction } from "./actions";
 
 /** Per-invite; must not inherit parent marketing force-static / ISR. */
 export const dynamic = "force-dynamic";
+
+export const metadata: Metadata = buildNoIndexMetadata("Guest registration");
 
 type RegisterGuestPageProps = {
   params: Promise<{ token: string }>;

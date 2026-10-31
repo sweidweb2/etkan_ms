@@ -7,6 +7,7 @@ import {
   ChevronLeftIcon,
   ChevronRightIcon,
   EyeIcon,
+  FolderKanbanIcon,
   PencilIcon,
   PlusIcon,
   SearchIcon,
@@ -29,6 +30,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { EmptyState } from "@/components/ui/empty-state";
 import { Input } from "@/components/ui/input";
 import {
   Select,
@@ -403,33 +405,38 @@ export function ManageProjectsPanel({
               </div>
             </div>
 
-            <div className="overflow-x-auto">
-              <table className="w-full min-w-[680px] text-sm">
-                <thead>
-                  <tr className="border-b bg-muted/40 text-left">
-                    <th className="px-4 py-3 font-medium">Title</th>
-                    <th className="px-4 py-3 font-medium">Classification</th>
-                    <th className="px-4 py-3 font-medium">Category</th>
-                    <th className="px-4 py-3 font-medium">Updated</th>
-                    <th className="px-4 py-3 text-center font-medium">
-                      Actions
-                    </th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {paginatedProjects.length === 0 ? (
-                    <tr>
-                      <td
-                        colSpan={5}
-                        className="px-4 py-10 text-center text-muted-foreground"
-                      >
-                        {projects.length === 0
-                          ? "No projects yet. Add one to get started."
-                          : "No projects match your search."}
-                      </td>
+            {paginatedProjects.length === 0 ? (
+              <EmptyState
+                size="sm"
+                className="m-4"
+                icon={projects.length === 0 ? FolderKanbanIcon : SearchIcon}
+                title={
+                  projects.length === 0
+                    ? "No projects yet"
+                    : "No projects match your search"
+                }
+                description={
+                  projects.length === 0
+                    ? "Add one to get started."
+                    : "Try a different search term."
+                }
+              />
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full min-w-[680px] text-sm">
+                  <thead>
+                    <tr className="border-b bg-muted/40 text-left">
+                      <th className="px-4 py-3 font-medium">Title</th>
+                      <th className="px-4 py-3 font-medium">Classification</th>
+                      <th className="px-4 py-3 font-medium">Category</th>
+                      <th className="px-4 py-3 font-medium">Updated</th>
+                      <th className="px-4 py-3 text-center font-medium">
+                        Actions
+                      </th>
                     </tr>
-                  ) : (
-                    paginatedProjects.map((project) => (
+                  </thead>
+                  <tbody>
+                    {paginatedProjects.map((project) => (
                       <tr
                         key={project.id}
                         className={PROJECT_ROW_CLASS}
@@ -503,11 +510,11 @@ export function ManageProjectsPanel({
                           </div>
                         </td>
                       </tr>
-                    ))
-                  )}
-                </tbody>
-              </table>
-            </div>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
 
             <div className="flex flex-col gap-3 border-t px-4 pt-2 pb-3 sm:flex-row sm:items-center sm:justify-between">
               <div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">

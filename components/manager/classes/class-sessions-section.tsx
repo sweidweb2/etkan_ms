@@ -1,12 +1,13 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { PlusIcon } from "lucide-react";
+import { CalendarIcon, PlusIcon } from "lucide-react";
 import { Can } from "@/components/auth/can";
 import { AddClassSessionDialog } from "@/components/manager/classes/add-class-session-dialog";
 import { ClassSessionCard } from "@/components/manager/classes/class-session-card";
 import { ClassTabCollapsibleSection } from "@/components/manager/students/class-tab-collapsible-section";
 import { Button } from "@/components/ui/button";
+import { EmptyState } from "@/components/ui/empty-state";
 import {
   Tooltip,
   TooltipContent,
@@ -19,6 +20,7 @@ import { PERMISSIONS } from "@/lib/constants/permissions";
 import { CLASS_COMPUTED_GRADES_STRUCTURE_LOCKED_ERROR } from "@/lib/manager/class-grades-access";
 import {
   sortClassSessionsNewestFirst,
+  sortClassSessionsOldestFirst,
   type ManagerClassSessionRow,
 } from "@/types/manager-class-session";
 import type { ManagerClassRow } from "@/types/manager-class-list";
@@ -35,6 +37,8 @@ type ClassSessionsSectionProps = {
   /** When set, cards select inline instead of navigating. */
   selectedSessionId?: string | null;
   onSessionSelect?: (sessionId: string) => void;
+  /** When false, section stays open with no expand/collapse controls. */
+  collapsible?: boolean;
 };
 
 export function ClassSessionsSection({
@@ -47,11 +51,12 @@ export function ClassSessionsSection({
   getSessionDetailHref,
   selectedSessionId = null,
   onSessionSelect,
+  collapsible = true,
 }: ClassSessionsSectionProps) {
   const [isAddOpen, setIsAddOpen] = useState(false);
 
   const sortedSessions = useMemo(
-    () => sortClassSessionsNewestFirst(sessions),
+    () => sortClassSessionsOldestFirst(sessions),
     [sessions]
   );
 
@@ -94,6 +99,7 @@ export function ClassSessionsSection({
         description={`${sortedSessions.length} planned session${sortedSessions.length === 1 ? "" : "s"} for ${className}.`}
         storageKey={COLLAPSIBLE_SECTION_STORAGE_KEYS.CLASS_DETAILS_SESSIONS}
         defaultOpen
+        collapsible={collapsible}
         action={
           <Can permission={PERMISSIONS.SESSIONS_CREATE}>
             {hasComputedGrades ? (
@@ -121,23 +127,26 @@ export function ClassSessionsSection({
           </Can>
         }
       >
-        <div className="px-4 py-3">
+        <div className="px-5 py-4">
           {sortedSessions.length === 0 ? (
-            <p className="py-8 text-center text-sm text-muted-foreground">
-              No sessions are planned for this class yet.
-            </p>
+            <EmptyState
+              size="sm"
+              icon={CalendarIcon}
+              title="No sessions yet"
+              description="No sessions are planned for this class yet."
+            />
           ) : (
-            <div className="min-w-0 overflow-hidden rounded-xl bg-muted/25 p-2 ring-1 ring-foreground/8">
+            <div className="min-w-0 overflow-hidden rounded-xl border border-foreground/8 bg-muted/25 p-2">
               <HorizontalScrollCarousel
                 ariaLabel={`Sessions for ${className}`}
                 className="rounded-lg"
                 navButtonClassName="size-8 rounded-full text-muted-foreground hover:bg-background/80 hover:text-foreground disabled:opacity-30"
-                initialScrollPosition="start"
+                initialScrollPosition="end"
                 resetScrollKey={sortedSessions
                   .map((session) => session.id)
                   .join("|")}
               >
-                <div className="flex w-max flex-row gap-3 p-1">
+                <div className="flex w-max flex-row items-stretch gap-3 p-1">
                   {sortedSessions.map((session) => (
                     <ClassSessionCard
                       key={session.id}

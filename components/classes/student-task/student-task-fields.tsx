@@ -13,6 +13,7 @@ import {
   STUDENT_TASK_TEXTAREA_CLASS,
 } from "@/components/classes/student-task/student-task-form-utils";
 import { FieldLabel } from "@/components/auth/field-label";
+import { DateTimePicker } from "@/components/ui/datetime-picker";
 import { Input } from "@/components/ui/input";
 import {
   Select,
@@ -161,12 +162,18 @@ export function StudentTaskFields({
           label="Submitted at"
           hint="Optional"
         />
-        <Input
+        <DateTimePicker
           id={`${idPrefix}-submitted-at`}
-          type="datetime-local"
+          value={(watch("submitted_at") as string | undefined) ?? ""}
+          onChange={(next) =>
+            setValue("submitted_at", next, {
+              shouldDirty: true,
+              shouldValidate: true,
+            })
+          }
+          allowClear
           aria-invalid={!!errors.submitted_at}
           disabled={disabled}
-          {...register("submitted_at")}
         />
       </div>
 

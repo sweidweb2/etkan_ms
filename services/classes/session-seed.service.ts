@@ -35,7 +35,7 @@ export async function ensureSessionAttendeesForMembers(
 
 /**
  * When a student joins a class late, create absent attendee rows for every
- * existing session they do not already have, with a late-enrollment note.
+ * existing session they do not already have.
  */
 export async function seedLateJoinAttendeesForStudent(
   adminClient: Supabase,

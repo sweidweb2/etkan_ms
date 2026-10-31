@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { format } from "date-fns";
-import { PencilIcon, PlusIcon, Trash2Icon } from "lucide-react";
+import { CreditCardIcon, PencilIcon, PlusIcon, Trash2Icon } from "lucide-react";
 import {
   deleteWorkshopPaymentAction,
   loadWorkshopPaymentsAction,
@@ -15,6 +15,7 @@ import { UserStatCard } from "@/components/manager/users/user-stat-card";
 import { InlineSpinner } from "@/components/loaders/inline-spinner";
 import { Button } from "@/components/ui/button";
 import { ConfirmDestructiveDialog } from "@/components/ui/confirm-destructive-dialog";
+import { EmptyState } from "@/components/ui/empty-state";
 import {
   WORKSHOP_PAYMENT_METHOD_LABELS,
   WORKSHOP_PAYMENT_TYPE_LABELS,
@@ -279,9 +280,12 @@ export function WorkshopPaymentsSection({
               Loading payments…
             </p>
           ) : payments.length === 0 ? (
-            <p className="text-sm text-muted-foreground">
-              No payments recorded yet.
-            </p>
+            <EmptyState
+              size="sm"
+              icon={CreditCardIcon}
+              title="No payments recorded yet"
+              description="Add a payment to track credits and debits for this workshop."
+            />
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full min-w-[40rem] border-collapse text-sm">

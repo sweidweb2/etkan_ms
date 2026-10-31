@@ -3,10 +3,11 @@
 import { useActionState, useMemo, useState, useTransition } from "react";
 import Link from "next/link";
 import { format } from "date-fns";
-import { EyeIcon, SearchIcon } from "lucide-react";
+import { ClipboardListIcon, EyeIcon, SearchIcon } from "lucide-react";
 import { updateRegistrationStatusAction } from "@/app/(panels)/manager/registrations/actions";
 import { usePermissions } from "@/components/auth/permissions-provider";
 import { InlineSpinner } from "@/components/loaders/inline-spinner";
+import { EmptyState } from "@/components/ui/empty-state";
 import { Input } from "@/components/ui/input";
 import {
   Select,
@@ -168,33 +169,39 @@ export function ManageRegistrationsPanel({
         </Select>
       </div>
 
-      <div className="overflow-hidden rounded-xl ring-1 ring-foreground/10">
-        <div className="overflow-x-auto">
-          <table className="w-full min-w-[52rem] border-collapse text-sm">
-            <thead>
-              <tr className="border-b bg-muted/40 text-left text-muted-foreground">
-                <th className="px-4 py-3 font-medium">When</th>
-                <th className="px-4 py-3 font-medium">Name</th>
-                <th className="px-4 py-3 font-medium">Email</th>
-                <th className="px-4 py-3 font-medium">Program</th>
-                <th className="px-4 py-3 font-medium">Status</th>
-                <th className="px-4 py-3 font-medium">
-                  <span className="sr-only">View</span>
-                </th>
-              </tr>
-            </thead>
-            <tbody>
-              {filtered.length === 0 ? (
-                <tr>
-                  <td
-                    colSpan={6}
-                    className="px-4 py-10 text-center text-muted-foreground"
-                  >
-                    No applications match your filters.
-                  </td>
+      {filtered.length === 0 ? (
+        <EmptyState
+          size="sm"
+          icon={applications.length === 0 ? ClipboardListIcon : SearchIcon}
+          title={
+            applications.length === 0
+              ? "No applications yet"
+              : "No applications match your filters"
+          }
+          description={
+            applications.length === 0
+              ? "Registration applications will appear here."
+              : "Try a different search or status filter."
+          }
+        />
+      ) : (
+        <div className="overflow-hidden rounded-xl ring-1 ring-foreground/10">
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[52rem] border-collapse text-sm">
+              <thead>
+                <tr className="border-b bg-muted/40 text-left text-muted-foreground">
+                  <th className="px-4 py-3 font-medium">When</th>
+                  <th className="px-4 py-3 font-medium">Name</th>
+                  <th className="px-4 py-3 font-medium">Email</th>
+                  <th className="px-4 py-3 font-medium">Program</th>
+                  <th className="px-4 py-3 font-medium">Status</th>
+                  <th className="px-4 py-3 font-medium">
+                    <span className="sr-only">View</span>
+                  </th>
                 </tr>
-              ) : (
-                filtered.map((row) => {
+              </thead>
+              <tbody>
+                {filtered.map((row) => {
                   const rowBusy = isStatusBusy && updatingId === row.id;
                   return (
                     <tr
@@ -280,12 +287,12 @@ export function ManageRegistrationsPanel({
                       </td>
                     </tr>
                   );
-                })
-              )}
-            </tbody>
-          </table>
+                })}
+              </tbody>
+            </table>
+          </div>
         </div>
-      </div>
+      )}
     </div>
   );
 }

@@ -355,6 +355,7 @@ export function ClassDetailsPanel({
       <ClassStudentsSection
         classId={classRow.id}
         className={classRow.name}
+        semesterId={classRow.semester_id}
         initialStudents={students}
         availableStudents={availableStudents}
         transferClassOptions={transferClassOptions}

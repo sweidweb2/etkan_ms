@@ -65,14 +65,39 @@ async function squarePad(source: Buffer, size: number): Promise<Buffer> {
 }
 
 /**
- * One favicon frame on solid white. Re-encoding from raw pixels is required
- * because sharp otherwise drops the alpha channel on a flattened image, and
- * PNG-in-ICO frames must be RGBA.
+ * White circular card with the mark centred. Transparent corners so the
+ * browser-tab favicon reads as a round holder, not a square tile.
+ */
+async function circularWhiteCard(source: Buffer, size: number): Promise<Buffer> {
+  const onWhite = await sharp(source)
+    .flatten({ background: "#ffffff" })
+    .ensureAlpha()
+    .png()
+    .toBuffer();
+
+  const mask = await sharp(
+    Buffer.from(
+      `<svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}">` +
+        `<circle cx="${size / 2}" cy="${size / 2}" r="${size / 2}" fill="#ffffff"/>` +
+        `</svg>`
+    )
+  )
+    .png()
+    .toBuffer();
+
+  return sharp(onWhite)
+    .composite([{ input: mask, blend: "dest-in" }])
+    .png()
+    .toBuffer();
+}
+
+/**
+ * One favicon frame as a circular white card. Re-encoding from raw pixels is
+ * required so PNG-in-ICO frames stay RGBA (transparent corners outside the disc).
  */
 async function icoFrame(source: Buffer, side: number): Promise<Buffer> {
   const pixels = await sharp(source)
     .resize(side, side)
-    .flatten({ background: "#ffffff" })
     .ensureAlpha()
     .raw()
     .toBuffer();
@@ -158,13 +183,11 @@ async function main() {
     await squarePad(await tint(mark, INK_LIGHT), MARK_SIZE)
   );
 
-  // Favicon and touch icon sit on solid white so the navy glyph stays legible
-  // against dark browser and springboard chrome.
+  // Favicon / tab icon: same mark on a circular white card (transparent corners).
+  // Apple touch icon stays a square white tile — iOS applies its own squircle mask.
   const iconMark = await squarePad(mark, 512);
-  await write(
-    path.join(APP_DIR, "icon.png"),
-    await sharp(iconMark).flatten({ background: "#ffffff" }).png().toBuffer()
-  );
+  const circularIcon = await circularWhiteCard(iconMark, 512);
+  await write(path.join(APP_DIR, "icon.png"), circularIcon);
   await write(
     path.join(APP_DIR, "apple-icon.png"),
     await sharp(iconMark)
@@ -177,11 +200,7 @@ async function main() {
   await writeFile(
     path.join(APP_DIR, "favicon.ico"),
     buildIco(
-      await Promise.all(
-        ICO_SIZES.map((side) =>
-          icoFrame(iconMark, side)
-        )
-      )
+      await Promise.all(ICO_SIZES.map((side) => icoFrame(circularIcon, side)))
     )
   );
   console.log("  app/favicon.ico — 16/32/48");

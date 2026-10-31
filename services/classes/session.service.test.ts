@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { ATTENDEE_STATUSES } from "@/lib/constants/manager-attendee-status";
 import { STUDENT_TASK_STATUSES } from "@/lib/constants/manager-student-task-status";
+import { ROLES } from "@/lib/constants/roles";
 import {
   CLASS_COMPUTED_GRADES_STRUCTURE_LOCKED_ERROR,
   STUDENT_COMPUTED_GRADE_RECORD_LOCKED_ERROR,
@@ -77,6 +78,7 @@ const adminClient = {} as never;
 const actor: AuditActor = {
   userId: "11111111-1111-4111-8111-111111111111",
   userLabel: "Manager",
+  role: ROLES.MANAGER,
 };
 
 const classId = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
@@ -180,7 +182,6 @@ describe("getSessionDetailForManager", () => {
           session_id: sessionId,
           student_id: studentA,
           status: ATTENDEE_STATUSES.PRESENT,
-          note: null,
           created_at: "2026-07-10T00:00:00.000Z",
         },
         {
@@ -188,7 +189,6 @@ describe("getSessionDetailForManager", () => {
           session_id: sessionId,
           student_id: studentB,
           status: ATTENDEE_STATUSES.PRESENT,
-          note: null,
           created_at: "2026-07-10T00:00:01.000Z",
         },
       ],
@@ -679,14 +679,13 @@ describe("updateAttendeeForManager", () => {
     mockUnlockedComputedGrades();
   });
 
-  it("updates attendance status and preserves note when omitted", async () => {
+  it("updates attendance status", async () => {
     vi.mocked(attendeeRepository.findAttendeeById).mockResolvedValue({
       data: {
         id: attendeeId,
         session_id: sessionId,
         student_id: studentA,
         status: ATTENDEE_STATUSES.PRESENT,
-        note: "Arrived early",
         created_at: "2026-07-10T00:00:00.000Z",
       },
       error: null,
@@ -701,7 +700,6 @@ describe("updateAttendeeForManager", () => {
         session_id: sessionId,
         student_id: studentA,
         status: ATTENDEE_STATUSES.ABSENT,
-        note: "Arrived early",
         created_at: "2026-07-10T00:00:00.000Z",
       },
       error: null,
@@ -729,7 +727,7 @@ describe("updateAttendeeForManager", () => {
     expect(attendeeRepository.updateAttendee).toHaveBeenCalledWith(
       adminClient,
       attendeeId,
-      { status: ATTENDEE_STATUSES.ABSENT, note: "Arrived early" }
+      { status: ATTENDEE_STATUSES.ABSENT }
     );
     expect(result.success).toBe(true);
   });
@@ -741,7 +739,6 @@ describe("updateAttendeeForManager", () => {
         session_id: sessionId,
         student_id: studentA,
         status: ATTENDEE_STATUSES.PRESENT,
-        note: null,
         created_at: "2026-07-10T00:00:00.000Z",
       },
       error: null,
@@ -1424,29 +1421,6 @@ describe("deleteClassSessionForManager", () => {
     expect(result).toEqual({
       success: false,
       error: CLASS_COMPUTED_GRADES_STRUCTURE_LOCKED_ERROR,
-    });
-    expect(sessionRepository.deleteSessionById).not.toHaveBeenCalled();
-  });
-
-  it("blocks delete when session difficulty is set", async () => {
-    vi.mocked(sessionRepository.findSessionById).mockResolvedValue({
-      data: {
-        ...sessionRecord,
-        group_grade_level: SESSION_GROUP_GRADE_LEVELS.MEDIUM,
-      },
-      error: null,
-    } as never);
-
-    const result = await deleteClassSessionForManager(
-      adminClient,
-      actor.userId,
-      actor,
-      sessionId
-    );
-
-    expect(result).toEqual({
-      success: false,
-      error: "Clear the session difficulty before deleting.",
     });
     expect(sessionRepository.deleteSessionById).not.toHaveBeenCalled();
   });

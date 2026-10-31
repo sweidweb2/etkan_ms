@@ -114,17 +114,33 @@ describe("role-seed-permissions supervisor", () => {
 });
 
 describe("role-seed-permissions teacher", () => {
-  it("seeds the full class tree only", () => {
-    expect(TEACHER_SEED_PERMISSIONS).toEqual(CLASS_TREE_SEED_PERMISSIONS);
+  it("seeds the teaching surface only (not full class tree)", () => {
     expect(ROLE_SEED_PERMISSIONS[ROLES.TEACHER]).toEqual(
       TEACHER_SEED_PERMISSIONS
     );
     expect(TEACHER_SEED_PERMISSIONS).toContain(PERMISSIONS.CLASSES_VIEW);
+    expect(TEACHER_SEED_PERMISSIONS).toContain(
+      PERMISSIONS.CLASSES_CHANGE_STATUS
+    );
     expect(TEACHER_SEED_PERMISSIONS).toContain(PERMISSIONS.SESSIONS_CREATE);
     expect(TEACHER_SEED_PERMISSIONS).toContain(PERMISSIONS.TASKS_UPDATE_STUDENT);
-    expect(TEACHER_SEED_PERMISSIONS).toContain(PERMISSIONS.GRADES_COMPUTE);
+    expect(TEACHER_SEED_PERMISSIONS).toContain(PERMISSIONS.GRADES_VIEW);
+    expect(TEACHER_SEED_PERMISSIONS).not.toContain(PERMISSIONS.CLASSES_CREATE);
+    expect(TEACHER_SEED_PERMISSIONS).not.toContain(
+      PERMISSIONS.CLASSES_ADD_STUDENT
+    );
+    expect(TEACHER_SEED_PERMISSIONS).not.toContain(
+      PERMISSIONS.CLASSES_ASSIGN_TEACHER
+    );
+    expect(TEACHER_SEED_PERMISSIONS).not.toContain(
+      PERMISSIONS.FINAL_EXAMS_VIEW
+    );
+    expect(TEACHER_SEED_PERMISSIONS).not.toContain(PERMISSIONS.GRADES_COMPUTE);
     expect(TEACHER_SEED_PERMISSIONS).not.toContain(PERMISSIONS.WORKSHOPS_VIEW);
     expect(TEACHER_SEED_PERMISSIONS).not.toContain(PERMISSIONS.STUDENTS_VIEW);
+    for (const key of TEACHER_SEED_PERMISSIONS) {
+      expect(CLASS_TREE_SEED_PERMISSIONS).toContain(key);
+    }
   });
 });
 

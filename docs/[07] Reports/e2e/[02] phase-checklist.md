@@ -4,7 +4,7 @@ Track progress against [`[01] e2e-testing-plan.md`](./[01]%20e2e-testing-plan.md
 Tick only when the phase **exit criteria** are met (specs green + Vitest/typecheck/lint green + no unsafe product hacks).  
 Also mark matching rows in the plan’s **§8 inventory** tables.
 
-**Last updated:** 2026-10-24
+**Last updated:** 2026-10-31
 
 ---
 
@@ -12,9 +12,9 @@ Also mark matching rows in the plan’s **§8 inventory** tables.
 
 | Phase | Name | Status | Notes |
 |-------|------|--------|-------|
-| 0 | Foundation (Playwright + home smoke) | [ ] Not started | Integrate tooling first |
-| 1 | Auth & session (all roles) | [ ] Not started | storageState per seeded role |
-| 2 | Public site & invite forms | [ ] Not started | Turnstile / token seeds |
+| 0 | Foundation (Playwright + home smoke) | [x] Done | Docker-aware: reuse :3000 / `E2E_SKIP_WEBSERVER` |
+| 1 | Auth & session (all roles) | [x] Done | setup + storageState; optional roles soft-skip |
+| 2 | Public site & invite forms | [x] Done | `/life` auth-gated asserted; invite invalid-token smoke |
 | 3 | Manager nav smoke (all list routes) | [ ] Not started | Full §8.3 |
 | 4 | Manager people CRUD | [ ] Not started | Users, students, registrations, guests |
 | 5 | Manager academics | [ ] Not started | Subjects, teams, classes, enroll |
@@ -37,27 +37,27 @@ Also mark matching rows in the plan’s **§8 inventory** tables.
 
 ### Phase 0
 
-- [ ] Playwright installed; browsers installed  
-- [ ] `npm run test:e2e` works  
-- [ ] Home smoke passes  
-- [ ] `[03] local-setup.md` written  
-- [ ] No unrelated feature changes  
+- [x] Playwright installed; browsers installed  
+- [x] `npm run test:e2e` works  
+- [x] Home smoke passes  
+- [x] `[03] local-setup.md` written  
+- [x] No unrelated feature changes  
 
 ### Phase 1
 
-- [ ] Manager login passes  
-- [ ] Invalid login shows error (no silent success)  
-- [ ] Logout works  
-- [ ] `storageState` for manager (+ teacher/student when seeded)  
-- [ ] Role redirect checked for each seeded role  
-- [ ] Unauthed panel → login  
+- [x] Manager login passes  
+- [x] Invalid login shows error (no silent success)  
+- [x] Logout works  
+- [x] `storageState` for manager (+ teacher/student when seeded)  
+- [x] Role redirect checked for each seeded role  
+- [x] Unauthed panel → login  
 
 ### Phase 2
 
-- [ ] Public marketing routes smoke (§8.1)  
-- [ ] Login (+ signup if enabled) render  
-- [ ] Registration submit gated/safe  
-- [ ] Guest token + `/f/[token]` smoke (with seeds)  
+- [x] Public marketing routes smoke (§8.1)  
+- [x] Login (+ signup if enabled) render  
+- [x] Registration submit gated/safe  
+- [x] Guest token + `/f/[token]` smoke (with seeds)  
 
 ### Phase 3
 

@@ -1,0 +1,36 @@
+# Etkan
+
+> Etkan is a hands-on educational learning path—workshops, projects, and career tracks that build real technology skills.
+
+## Preferred citations
+
+- Home: /
+- About: /about
+- Careers & learning tracks: /careers
+- Projects: /projects
+- Gallery: /gallery
+- Blogs: /blogs
+- Register: /register
+
+## Career roadmap stages
+
+- /careers/roadmap/stage-1
+- /careers/roadmap/stage-2
+- /careers/roadmap/stage-3
+- /careers/roadmap/stage-4
+- /careers/roadmap/stage-5
+- /careers/roadmap/stage-6
+
+## Do not cite / private
+
+Authenticated management panels (`/admin`, `/manager`, `/teacher`, `/student`, and related role roots), auth utility pages (`/auth/*`), invite-only forms (`/f/*`, `/register/guest/*`), and admin-gated `/life` are not public content.
+
+## Notes
+
+- Public brand name: Etkan
+- Internal product name (panels): Etkan MS
+- Primary language of public HTML: English (Arabic UI via client locale cookie only — not separate URL paths; no hreflang)
+- Contact: WhatsApp +961 76 722 832 (https://wa.me/96176722832)
+- Sitemap: /sitemap.xml
+- Robots: /robots.txt
+- Locale decision: docs/[07] Reports/seo/[02] locale-seo-decision.md

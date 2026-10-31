@@ -12,6 +12,7 @@ import {
   PlusIcon,
   PowerIcon,
   SearchIcon,
+  UsersIcon,
 } from "lucide-react";
 import { loadStudentsPageAction } from "@/app/manager/students/actions";
 import { Can } from "@/components/auth/can";
@@ -24,6 +25,7 @@ import { UserStatCard } from "@/components/manager/users/user-stat-card";
 import { Button } from "@/components/ui/button";
 import { Card, CardAction, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { CopyTextButton } from "@/components/ui/copy-text-button";
+import { EmptyState } from "@/components/ui/empty-state";
 import { Input } from "@/components/ui/input";
 import {
   Select,
@@ -560,32 +562,38 @@ export function ManageStudentsPanel({
               </Select>
             </div>
 
-            <div className="overflow-x-auto">
-              <table className="w-full min-w-[720px] text-sm">
-                <thead>
-                  <tr className="border-b bg-muted/40 text-left">
-                    <th className="px-4 py-3 font-medium">Full name</th>
-                    <th className="px-4 py-3 font-medium">Username</th>
-                    <th className="px-4 py-3 font-medium">Email</th>
-                    <th className="px-4 py-3 font-medium">Phone</th>
-                    <th className="px-4 py-3 font-medium">Birth date</th>
-                    <th className="px-4 py-3 font-medium">Status</th>
-                    <th className="px-4 py-3 font-medium">Joined</th>
-                    <th className="px-4 py-3 font-medium text-right">Actions</th>
-                  </tr>
-                </thead>
-                <tbody className={cn(isLoading && "opacity-60")}>
-                  {students.length === 0 ? (
-                    <tr>
-                      <td
-                        colSpan={8}
-                        className="px-4 py-10 text-center text-muted-foreground"
-                      >
-                        No students match your filters.
-                      </td>
+            {students.length === 0 ? (
+              <EmptyState
+                className={cn("m-4", isLoading && "opacity-60")}
+                icon={stats.total === 0 ? UsersIcon : SearchIcon}
+                title={
+                  stats.total === 0
+                    ? "No students yet"
+                    : "No matching students"
+                }
+                description={
+                  stats.total === 0
+                    ? "Create a student account to get started."
+                    : "No students match your filters."
+                }
+              />
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full min-w-[720px] text-sm">
+                  <thead>
+                    <tr className="border-b bg-muted/40 text-left">
+                      <th className="px-4 py-3 font-medium">Full name</th>
+                      <th className="px-4 py-3 font-medium">Username</th>
+                      <th className="px-4 py-3 font-medium">Email</th>
+                      <th className="px-4 py-3 font-medium">Phone</th>
+                      <th className="px-4 py-3 font-medium">Birth date</th>
+                      <th className="px-4 py-3 font-medium">Status</th>
+                      <th className="px-4 py-3 font-medium">Joined</th>
+                      <th className="px-4 py-3 font-medium text-right">Actions</th>
                     </tr>
-                  ) : (
-                    students.map((student) => (
+                  </thead>
+                  <tbody className={cn(isLoading && "opacity-60")}>
+                    {students.map((student) => (
                       <tr
                         key={student.student_profile_id}
                         className={STUDENT_ROW_CLASS}
@@ -593,7 +601,9 @@ export function ManageStudentsPanel({
                         role="link"
                         aria-label={`View details for ${student.full_name}`}
                         onClick={() => openStudentDetails(student)}
-                        onKeyDown={(event) => handleStudentRowKeyDown(event, student)}
+                        onKeyDown={(event) =>
+                          handleStudentRowKeyDown(event, student)
+                        }
                       >
                         <td className="max-w-[12rem] px-4 py-3">
                           <TruncatedCell
@@ -658,11 +668,11 @@ export function ManageStudentsPanel({
                           </div>
                         </td>
                       </tr>
-                    ))
-                  )}
-                </tbody>
-              </table>
-            </div>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
 
             <div className="flex flex-col gap-3 border-t px-4 pt-2 pb-3 sm:flex-row sm:items-center sm:justify-between">
               <div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">

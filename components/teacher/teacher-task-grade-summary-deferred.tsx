@@ -1,4 +1,6 @@
 import { Suspense } from "react";
+import { ClipboardListIcon } from "lucide-react";
+import { EmptyState } from "@/components/ui/empty-state";
 import { SemiCircularGaugeCard } from "@/components/ui/semi-circular-gauge-card";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { getTeachingClassTaskGradeSummaryForSelf } from "@/services/classes/teacher-class-self.service";
@@ -6,6 +8,8 @@ import { getTeachingClassTaskGradeSummaryForSelf } from "@/services/classes/teac
 type TeacherTaskGradeSummaryDeferredProps = {
   classId: string;
   actorUserId: string | null;
+  /** From the class page bundle — avoids re-listing tasks in this deferred tree. */
+  tasks: Array<{ id: string; max_grade: number | null }>;
   /** When false, show empty-state copy instead of hiding (Analytics tab). */
   showEmptyState?: boolean;
 };
@@ -13,7 +17,7 @@ type TeacherTaskGradeSummaryDeferredProps = {
 function TeacherTaskGradeSummaryFallback() {
   return (
     <div
-      className="min-h-[10rem] max-w-sm animate-pulse rounded-xl bg-muted/40 ring-1 ring-foreground/10"
+      className="min-h-[10rem] max-w-sm animate-pulse rounded-xl border border-foreground/10 bg-muted/40"
       aria-hidden
     />
   );
@@ -22,13 +26,15 @@ function TeacherTaskGradeSummaryFallback() {
 async function TeacherTaskGradeSummarySection({
   classId,
   actorUserId,
+  tasks,
   showEmptyState = false,
 }: TeacherTaskGradeSummaryDeferredProps) {
   const adminClient = createSupabaseAdminClient();
   const summary = await getTeachingClassTaskGradeSummaryForSelf(
     adminClient,
     actorUserId,
-    classId
+    classId,
+    tasks
   );
 
   if (!summary) {
@@ -36,9 +42,12 @@ async function TeacherTaskGradeSummarySection({
       return null;
     }
     return (
-      <p className="rounded-2xl border border-border/70 bg-card px-4 py-10 text-center text-sm text-muted-foreground">
-        No task grade analytics yet for this class.
-      </p>
+      <EmptyState
+        size="sm"
+        icon={ClipboardListIcon}
+        title="No grade analytics yet"
+        description="No task grade analytics yet for this class."
+      />
     );
   }
 

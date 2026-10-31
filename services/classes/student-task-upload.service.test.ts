@@ -1,5 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { STUDENT_COMPUTED_GRADE_RECORD_LOCKED_ERROR } from "@/lib/manager/class-grades-access";
+import { ROLES } from "@/lib/constants/roles";
+import * as classTeacherRepository from "@/repositories/class-teacher.repository";
 import * as studentCourseGradeRepository from "@/repositories/student-course-grade.repository";
 import * as studentTaskRepository from "@/repositories/student-task.repository";
 import * as studentTaskStorageRepository from "@/repositories/student-task-storage.repository";
@@ -12,12 +14,14 @@ import {
   getStudentTaskUploadSignedUrlForManager,
   uploadStudentTaskFileForManager,
 } from "@/services/classes/student-task-upload.service";
+import { TEACHER_CLASS_ASSIGNMENT_REQUIRED_MESSAGE } from "@/services/classes/teacher-class-scope.service";
 
 vi.mock("@/repositories/student-course-grade.repository");
 vi.mock("@/repositories/student-task.repository");
 vi.mock("@/repositories/student-task-storage.repository");
 vi.mock("@/repositories/student-task-upload.repository");
 vi.mock("@/repositories/class-task.repository");
+vi.mock("@/repositories/class-teacher.repository");
 vi.mock("@/services/ops/audit-log.service", () => ({
   recordManagerAuditLog: vi.fn().mockResolvedValue(null),
 }));
@@ -36,6 +40,7 @@ const adminClient = {} as never;
 const actor: AuditActor = {
   userId: "11111111-1111-4111-8111-111111111111",
   userLabel: "Manager",
+  role: ROLES.MANAGER,
 };
 
 const classId = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
@@ -312,6 +317,22 @@ describe("getStudentTaskUploadSignedUrlForManager", () => {
       data: uploadRecord,
       error: null,
     } as never);
+    vi.mocked(studentTaskRepository.findStudentTaskById).mockResolvedValue({
+      data: studentTaskRecord,
+      error: null,
+    } as never);
+    vi.mocked(classTaskRepository.findClassTaskById).mockResolvedValue({
+      data: {
+        id: taskId,
+        class_id: classId,
+        title: "Homework",
+        description: null,
+        due_date: null,
+        max_grade: 20,
+        created_at: "2026-07-01T00:00:00.000Z",
+      },
+      error: null,
+    } as never);
     vi.mocked(
       studentTaskStorageRepository.createStudentTaskUploadSignedUrl
     ).mockResolvedValue({
@@ -324,6 +345,7 @@ describe("getStudentTaskUploadSignedUrlForManager", () => {
     const result = await getStudentTaskUploadSignedUrlForManager(
       adminClient,
       actor.userId,
+      actor,
       { id: uploadId }
     );
 
@@ -331,5 +353,34 @@ describe("getStudentTaskUploadSignedUrlForManager", () => {
       success: true,
       signedUrl: "https://example.com/signed.pdf",
     });
+  });
+
+  it("rejects teachers who are not assigned to the class", async () => {
+    const teacherActor: AuditActor = {
+      ...actor,
+      role: ROLES.TEACHER,
+    };
+
+    vi.mocked(
+      classTeacherRepository.findClassTeacherByTeacherAndClass
+    ).mockResolvedValue({
+      data: null,
+      error: null,
+    } as never);
+
+    const result = await getStudentTaskUploadSignedUrlForManager(
+      adminClient,
+      teacherActor.userId,
+      teacherActor,
+      { id: uploadId }
+    );
+
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(result.error).toBe(TEACHER_CLASS_ASSIGNMENT_REQUIRED_MESSAGE);
+    }
+    expect(
+      studentTaskStorageRepository.createStudentTaskUploadSignedUrl
+    ).not.toHaveBeenCalled();
   });
 });

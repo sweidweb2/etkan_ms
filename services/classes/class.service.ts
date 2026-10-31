@@ -16,9 +16,12 @@ export {
   loadClassStudentRows,
   fetchClassStudentRowForManager,
   listAvailableStudentsForClass,
+  listSameSemesterClassesForCopy,
+  listActiveStudentDiffFromClass,
   getClassFinalExamForManager,
   getClassAnalyticsForManager,
   type ManagerClassCreateDialogData,
+  type ClassCopySourceOption,
 } from "@/services/classes/class-queries.service";
 
 export {
@@ -51,6 +54,7 @@ export {
 export {
   addStudentToClassForManager,
   addStudentsToClassForManager,
+  copyStudentsFromClassForManager,
   removeStudentFromClassForManager,
   transferStudentBetweenClassesForManager,
   type AddStudentToClassResult,

@@ -2,8 +2,9 @@
 
 import { useMemo, useState } from "react";
 import { format } from "date-fns";
-import { SearchIcon } from "lucide-react";
+import { GraduationCapIcon, SearchIcon } from "lucide-react";
 import Link from "next/link";
+import { EmptyState } from "@/components/ui/empty-state";
 import { GradientGlassCard } from "@/components/ui/gradient-glass-card";
 import { Input } from "@/components/ui/input";
 import {
@@ -75,9 +76,11 @@ export function TeacherClassesPanel({ rows }: TeacherClassesPanelProps) {
       </div>
 
       {rows.length === 0 ? (
-        <div className="rounded-xl border border-dashed border-border px-4 py-12 text-center text-sm text-muted-foreground">
-          You are not teaching any classes yet.
-        </div>
+        <EmptyState
+          icon={GraduationCapIcon}
+          title="No classes yet"
+          description="You are not teaching any classes yet."
+        />
       ) : (
         <>
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
@@ -123,11 +126,17 @@ export function TeacherClassesPanel({ rows }: TeacherClassesPanelProps) {
           </div>
 
           {filteredRows.length === 0 ? (
-            <div className="rounded-xl border border-dashed border-border px-4 py-12 text-center text-sm text-muted-foreground">
-              {hasFilters
-                ? "No classes match your filters."
-                : "You are not teaching any classes yet."}
-            </div>
+            <EmptyState
+              icon={hasFilters ? SearchIcon : GraduationCapIcon}
+              title={
+                hasFilters ? "No matching classes" : "No classes yet"
+              }
+              description={
+                hasFilters
+                  ? "No classes match your filters. Try a different search or status."
+                  : "You are not teaching any classes yet."
+              }
+            />
           ) : (
             <div className="grid w-full justify-start gap-4 [grid-template-columns:repeat(auto-fill,minmax(min(100%,16.5rem),16.5rem))]">
               {filteredRows.map((row) => (
@@ -136,7 +145,7 @@ export function TeacherClassesPanel({ rows }: TeacherClassesPanelProps) {
                   href={getTeacherClassDetailRoute(row.id)}
                   prefetch={false}
                   aria-label={`View details for ${row.name}`}
-                  className="block rounded-2xl outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
+                  className="block h-full rounded-2xl outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
                 >
                   <GradientGlassCard
                     id={row.id}

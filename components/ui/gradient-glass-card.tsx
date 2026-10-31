@@ -15,6 +15,8 @@ type GradientGlassCardProps = {
   meta?: ReactNode;
   /** Chip in the content area (e.g. status), beside title/meta. */
   badge?: ReactNode;
+  /** Extra content below meta (progress, actions). */
+  children?: ReactNode;
   className?: string;
   style?: CSSProperties;
 };
@@ -31,6 +33,7 @@ export function GradientGlassCard({
   glassLabel,
   meta,
   badge,
+  children,
   className,
   style,
 }: GradientGlassCardProps) {
@@ -40,8 +43,8 @@ export function GradientGlassCard({
     <article
       id={id}
       className={cn(
-        "group/gradient-glass relative flex flex-col overflow-hidden rounded-2xl",
-        "bg-card text-card-foreground ring-1 ring-foreground/10",
+        "group/gradient-glass relative flex h-full w-full flex-col overflow-hidden rounded-2xl",
+        "border border-foreground/10 bg-card text-card-foreground",
         "shadow-[0_16px_36px_-24px_rgb(42_42_82/0.45)]",
         "transition-[transform,box-shadow] duration-300 ease-out",
         "hover:-translate-y-0.5 hover:shadow-[0_22px_40px_-20px_rgb(42_42_82/0.4)]",
@@ -50,7 +53,7 @@ export function GradientGlassCard({
       )}
       style={style}
     >
-      <div className="relative isolate h-24 w-full overflow-hidden sm:h-28">
+      <div className="relative isolate h-24 w-full shrink-0 overflow-hidden sm:h-28">
         <div
           aria-hidden
           className={cn(
@@ -91,21 +94,25 @@ export function GradientGlassCard({
         </div>
       </div>
 
-      <div className="flex flex-1 flex-col gap-1 px-4 pt-3.5 pb-4">
-        <div className="flex items-start justify-between gap-2">
-          <h2 className="min-w-0 line-clamp-2 text-base font-semibold tracking-tight text-balance">
+      <div className="flex min-h-0 flex-1 flex-col gap-1 px-4 pt-3.5 pb-4">
+        <div className="flex min-h-12 items-start justify-between gap-2">
+          <h2
+            className="min-w-0 line-clamp-2 text-base leading-6 font-semibold tracking-tight text-balance"
+            title={title}
+          >
             {title}
           </h2>
           {badge ? <div className="shrink-0 pt-0.5">{badge}</div> : null}
         </div>
         {description ? (
-          <p className="line-clamp-2 text-sm text-muted-foreground">
+          <p className="line-clamp-2 min-h-10 text-sm leading-5 text-muted-foreground">
             {description}
           </p>
         ) : null}
         {meta ? (
           <div className="mt-auto pt-3 text-xs text-muted-foreground">{meta}</div>
         ) : null}
+        {children}
       </div>
     </article>
   );

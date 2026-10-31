@@ -10,6 +10,7 @@ import { format } from "date-fns";
 import {
   ChevronLeftIcon,
   ChevronRightIcon,
+  HistoryIcon,
   PencilIcon,
   SearchIcon,
 } from "lucide-react";
@@ -28,6 +29,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { EmptyState } from "@/components/ui/empty-state";
 import { Input } from "@/components/ui/input";
 import {
   Select,
@@ -397,33 +399,40 @@ export function BorrowEquipmentHistorySection({
               </Select>
             </div>
 
-            <div className="overflow-x-auto">
-              <table className="w-full min-w-[1040px] text-sm">
-                <thead>
-                  <tr className="border-b bg-muted/40 text-left">
-                    <th className="px-4 py-3 font-medium">Student</th>
-                    <th className="px-4 py-3 font-medium">Equipment</th>
-                    <th className="px-4 py-3 font-medium">Description</th>
-                    <th className="px-4 py-3 font-medium text-right">Qty</th>
-                    <th className="px-4 py-3 font-medium">Borrowed</th>
-                    <th className="px-4 py-3 font-medium">Returned</th>
-                    <th className="px-4 py-3 font-medium">Status</th>
-                    <th className="px-4 py-3 font-medium">Returned?</th>
-                    <th className="px-4 py-3 font-medium text-right">Actions</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {paginatedBorrows.length === 0 ? (
-                    <tr>
-                      <td
-                        colSpan={9}
-                        className="px-4 py-10 text-center text-muted-foreground"
-                      >
-                        No borrowing records match your filters.
-                      </td>
+            {paginatedBorrows.length === 0 ? (
+              <EmptyState
+                className="m-4"
+                size="sm"
+                icon={borrows.length === 0 ? HistoryIcon : SearchIcon}
+                title={
+                  borrows.length === 0
+                    ? "No borrowing records"
+                    : "No matching records"
+                }
+                description={
+                  borrows.length === 0
+                    ? "Borrow history will appear here once equipment is borrowed."
+                    : "No borrowing records match your filters."
+                }
+              />
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full min-w-[1040px] text-sm">
+                  <thead>
+                    <tr className="border-b bg-muted/40 text-left">
+                      <th className="px-4 py-3 font-medium">Student</th>
+                      <th className="px-4 py-3 font-medium">Equipment</th>
+                      <th className="px-4 py-3 font-medium">Description</th>
+                      <th className="px-4 py-3 font-medium text-right">Qty</th>
+                      <th className="px-4 py-3 font-medium">Borrowed</th>
+                      <th className="px-4 py-3 font-medium">Returned</th>
+                      <th className="px-4 py-3 font-medium">Status</th>
+                      <th className="px-4 py-3 font-medium">Returned?</th>
+                      <th className="px-4 py-3 font-medium text-right">Actions</th>
                     </tr>
-                  ) : (
-                    paginatedBorrows.map((row) => {
+                  </thead>
+                  <tbody>
+                    {paginatedBorrows.map((row) => {
                       const isReturned = getRowIsReturned(row);
                       const isTogglePending =
                         isToggleActionPending && pendingToggleId === row.id;
@@ -501,11 +510,11 @@ export function BorrowEquipmentHistorySection({
                           </td>
                         </tr>
                       );
-                    })
-                  )}
-                </tbody>
-              </table>
-            </div>
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            )}
 
             <div className="flex flex-col gap-3 border-t px-4 pt-2 pb-3 sm:flex-row sm:items-center sm:justify-between">
               <span className="text-sm text-muted-foreground">

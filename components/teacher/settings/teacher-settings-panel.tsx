@@ -104,10 +104,10 @@ export function TeacherSettingsPanel({
                   key={item.value}
                   value={item.value}
                   className={cn(
-                    "group relative flex w-full items-start gap-3 overflow-hidden rounded-xl px-3 py-2.5 text-left transition-colors",
+                    "group relative flex w-full items-start gap-3 overflow-hidden rounded-xl border border-transparent px-3 py-2.5 text-left transition-colors",
                     "outline-none focus-visible:ring-3 focus-visible:ring-ring/50",
                     "text-muted-foreground hover:bg-card/80 hover:text-foreground",
-                    "data-[state=active]:bg-background data-[state=active]:text-primary data-[state=active]:shadow-sm data-[state=active]:ring-1 data-[state=active]:ring-border"
+                    "data-[state=active]:border-border data-[state=active]:bg-background data-[state=active]:text-primary data-[state=active]:shadow-sm"
                   )}
                 >
                   <span

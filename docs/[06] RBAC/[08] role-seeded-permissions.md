@@ -81,18 +81,20 @@ Native panel: `/crm` (redirects to guests). Day-to-day UI uses shared `/manager/
 
 ## Teacher
 
-Full **class tree** writes/reads (`TEACHER_SEED_PERMISSIONS` = `CLASS_TREE_SEED_PERMISSIONS`):
+Narrow **teaching** seed (`TEACHER_SEED_PERMISSIONS` — not the full `CLASS_TREE_SEED_PERMISSIONS`):
 
 ```
-classes.*
+classes.view
+classes.change_status
 sessions.*
 attendance.*
-tasks.*
-final_exams.*
-grades.*
+tasks.view / create / update / update_student / delete / export_uploads
+grades.view
 ```
 
-Same action surface as manager **inside** a class (sessions → tasks, attendance, grades, final exams, …). **My classes** (`/teacher/classes`) lists only classes assigned in `class_teacher`. **Row scope** is those assigned classes — enforced in services, not by fewer keys.  
+**Not seeded** (manager/supervisor only unless granted in RBAC UI): `classes.create` / `classes.update` / enroll / assign-teacher, `final_exams.*`, `grades.compute*` / `grades.delete` / certificate exports.
+
+**My classes** (`/teacher/classes`) lists only classes assigned in `class_teacher`. **Row scope** for reads and writes is those assigned classes — enforced in services (`assertTeachingAssignment` / `assertAssignedTeacherForClassMutation`), not by omitting keys alone.  
 No workshop seed package (grant workshop keys on the role matrix when an instructor needs Manage workshops).
 
 ---
@@ -145,7 +147,7 @@ payment_schedules.view
 equipment.view_own_borrows
 ```
 
-Login lands on `/student`. `students.update_own` lets the student edit username, name, birth date, phone, and password. Status stays staff-managed. `accounting.view` / `accounting.clearances.view` / `payment_schedules.view` power **My payments** for the student’s own open-phase SPPs only. Class keys power **My classes** (`/student/classes*` → sessions → tasks) for enrolled classes only (self-scoped services). `equipment.view_own_borrows` powers **My borrowings** (`/student/borrowings`) for that student’s own equipment borrows. No workshop seed package.
+Login lands on `/student`. Personal info (name, phone) is read-only; students contact an admin to change it. `students.update_own` lets the student change their own password. Status stays staff-managed. `accounting.view` / `accounting.clearances.view` / `payment_schedules.view` power **My payments** for the student’s own open-phase SPPs only. Class keys power **My classes** (`/student/classes*` → sessions → tasks) for enrolled classes only (self-scoped services). `equipment.view_own_borrows` powers **My borrowings** (`/student/borrowings`) for that student’s own equipment borrows. No workshop seed package.
 
 ---
 

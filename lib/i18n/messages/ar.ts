@@ -7,7 +7,9 @@ export const ar = {
 
   "nav.home": "الرئيسية",
   "nav.about": "من نحن",
+  "nav.aboutShort": "من نحن",
   "nav.careers": "المسارات المهنية",
+  "nav.careersShort": "المسارات",
   "nav.projects": "المشاريع",
   "nav.gallery": "المعرض",
   "nav.blogs": "المدونة",
@@ -23,13 +25,14 @@ export const ar = {
   "hero.subtitle":
     "الإدارة وشؤون الطلاب في مكان واحد—مصمم لعمل مدرستك اليومي.",
   "hero.ctaLogin": "تسجيل الدخول",
-  "hero.ctaRegister": "إنشاء حساب",
+  /** Points at `/register` (application), not disabled public signup. */
+  "hero.ctaRegister": "التسجيل",
   "hero.ctaDashboard": "الانتقال إلى لوحة التحكم",
   "hero.carouselLabel": "أبرز الصفحة الرئيسية",
   "hero.prev": "الشريحة السابقة",
   "hero.next": "الشريحة التالية",
   "hero.curvedInput.placeholder": "أدخل بريدك الإلكتروني",
-  "hero.curvedInput.button": "ابدأ الآن",
+  "hero.curvedInput.button": "التسجيل",
 
   "hero.topic": "إتقان مسار تربوي تعليمي إنتاجي يعمل على",
 
@@ -396,6 +399,7 @@ export const ar = {
   "blogs.fileUnder": "التصنيفات",
   "blogs.readMinutes": "{minutes} دقائق قراءة",
   "blogs.detail.back": "العودة إلى المدونة",
+  "blogs.detail.tldr": "الخلاصة",
   "blogs.detail.sources": "المصادر",
   "blogs.detail.suggested": "اقرأ أيضاً",
   "blogs.prevPage": "الصفحة السابقة",

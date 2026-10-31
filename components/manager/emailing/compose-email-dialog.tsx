@@ -8,6 +8,7 @@ import { FieldLabel } from "@/components/auth/field-label";
 import { PasswordInput } from "@/components/auth/password-input";
 import { InlineSpinner } from "@/components/loaders/inline-spinner";
 import { Button } from "@/components/ui/button";
+import { DateTimePicker } from "@/components/ui/datetime-picker";
 import {
   Dialog,
   DialogContent,
@@ -401,14 +402,30 @@ export function ComposeEmailDialog({
                 error={fieldError(errors, state, "item_name")}
                 register={register("item_name")}
               />
-              <TextField
-                id="due_at"
-                label="Date / time"
-                type="datetime-local"
-                disabled={isPending}
-                error={fieldError(errors, state, "due_at")}
-                register={register("due_at")}
-              />
+              <div className="flex flex-col gap-2">
+                <FieldLabel
+                  htmlFor="due_at"
+                  label="Date / time"
+                  hint="Required"
+                />
+                <DateTimePicker
+                  id="due_at"
+                  value={(watch("due_at") as string | undefined) ?? ""}
+                  onChange={(next) =>
+                    setValue("due_at", next, {
+                      shouldDirty: true,
+                      shouldValidate: true,
+                    })
+                  }
+                  aria-invalid={!!fieldError(errors, state, "due_at")}
+                  disabled={isPending}
+                />
+                {fieldError(errors, state, "due_at") ? (
+                  <p className="text-sm text-destructive">
+                    {fieldError(errors, state, "due_at")}
+                  </p>
+                ) : null}
+              </div>
               <TextAreaField
                 id="consequence"
                 label="Note"

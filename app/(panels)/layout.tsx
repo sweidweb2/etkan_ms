@@ -25,7 +25,8 @@ import {
 export const dynamic = "force-dynamic";
 
 /** Panels are the Management System — keep the MS brand here.
- * `absolute` blocks the public root template (`%s | Etkan`). */
+ * `absolute` blocks the public root template (`%s | Etkan`).
+ * Always noindex: auth redirects are not a substitute for robots metadata. */
 export const metadata: Metadata = {
   title: {
     absolute: SITE.systemName,
@@ -33,6 +34,14 @@ export const metadata: Metadata = {
     template: `%s | ${SITE.systemName}`,
   },
   applicationName: SITE.systemName,
+  robots: {
+    index: false,
+    follow: false,
+    googleBot: {
+      index: false,
+      follow: false,
+    },
+  },
 };
 
 export default async function PanelsLayout({

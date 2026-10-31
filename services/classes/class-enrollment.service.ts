@@ -5,11 +5,15 @@ import {
   getUnauthorizedError,
   hasPermission,
 } from "@/services/auth/authorization.service";
-import { STUDENT_STATUSES } from "@/lib/constants/manager-student-status";
+import {
+  STUDENT_STATUSES,
+  type StudentStatusValue,
+} from "@/lib/constants/manager-student-status";
 import {
   addStudentToClassSchema,
   addStudentsToClassSchema,
 } from "@/lib/validators/manager/add-student-to-class";
+import { copyStudentsFromClassSchema } from "@/lib/validators/manager/copy-students-from-class";
 import { removeStudentFromClassSchema } from "@/lib/validators/manager/remove-student-from-class";
 import { transferStudentBetweenClassesSchema } from "@/lib/validators/manager/transfer-student-between-classes";
 import { createNavStepTimer } from "@/lib/debug/nav-timing";
@@ -45,6 +49,7 @@ import type {
 } from "@/types/manager-class-final-exam";
 import type { ManagerClassRow } from "@/types/manager-class-list";
 import type { ManagerClassStudentRow } from "@/types/manager-class-student";
+import type { ManagerStudentRow } from "@/types/manager-student";
 import {
   PAYMENT_SYNC_FAILURE_WARNING,
   mapClassDetailRecordToRow,
@@ -53,6 +58,10 @@ import {
   type MutationFailure,
   type Supabase,
 } from "@/services/classes/class-shared";
+import {
+  assertAssignedTeacherForClassIds,
+  assertAssignedTeacherForClassMutation,
+} from "@/services/classes/teacher-class-scope.service";
 
 export type AddStudentToClassResult =
   | {
@@ -89,6 +98,15 @@ export async function addStudentToClassForManager(
     );
     if (unauthorized) {
       return { success: false, error: unauthorized };
+    }
+
+    const scope = await assertAssignedTeacherForClassMutation(
+      adminClient,
+      actor,
+      input.class_id
+    );
+    if (!scope.ok) {
+      return { success: false, error: scope.error };
     }
 
     const parsed = addStudentToClassSchema.safeParse({
@@ -357,41 +375,21 @@ export type AddStudentsToClassResult =
     }
   | MutationFailure;
 
-export async function addStudentsToClassForManager(
+/**
+ * Shared enroll pipeline used by Add student and Copy from class.
+ * Caller must already authorize the actor.
+ */
+async function enrollStudentsInClassCore(
   adminClient: Supabase,
   actorUserId: string | null,
   actor: AuditActor,
   input: {
     class_id: string;
     studentProfileIds: string[];
-  }
+  },
+  timer: ReturnType<typeof createNavStepTimer>
 ): Promise<AddStudentsToClassResult> {
-  const timer = createNavStepTimer("addStudentsToClass");
-  try {
-    const unauthorized = await timer.step("auth", () =>
-      getUnauthorizedError(
-        adminClient,
-        actorUserId,
-        PERMISSIONS.CLASSES_ADD_STUDENT
-      )
-    );
-    if (unauthorized) {
-      return { success: false, error: unauthorized };
-    }
-
-    const parsed = addStudentsToClassSchema.safeParse({
-      studentProfileIds: input.studentProfileIds,
-    });
-
-    if (!parsed.success) {
-      return {
-        success: false,
-        error: "Please fix the errors below.",
-        fieldErrors: parsed.error.flatten().fieldErrors,
-      };
-    }
-
-    const uniqueIds = [...new Set(parsed.data.studentProfileIds)];
+    const uniqueIds = [...new Set(input.studentProfileIds)];
 
     const [
       classResult,
@@ -737,10 +735,282 @@ export async function addStudentsToClassForManager(
       autoAssignedPhase,
       optionalPaymentPhases,
     };
+}
+
+export async function addStudentsToClassForManager(
+  adminClient: Supabase,
+  actorUserId: string | null,
+  actor: AuditActor,
+  input: {
+    class_id: string;
+    studentProfileIds: string[];
+  }
+): Promise<AddStudentsToClassResult> {
+  const timer = createNavStepTimer("addStudentsToClass");
+  try {
+    const unauthorized = await timer.step("auth", () =>
+      getUnauthorizedError(
+        adminClient,
+        actorUserId,
+        PERMISSIONS.CLASSES_ADD_STUDENT
+      )
+    );
+    if (unauthorized) {
+      return { success: false, error: unauthorized };
+    }
+
+    const scope = await assertAssignedTeacherForClassMutation(
+      adminClient,
+      actor,
+      input.class_id
+    );
+    if (!scope.ok) {
+      return { success: false, error: scope.error };
+    }
+
+    const parsed = addStudentsToClassSchema.safeParse({
+      studentProfileIds: input.studentProfileIds,
+    });
+
+    if (!parsed.success) {
+      return {
+        success: false,
+        error: "Please fix the errors below.",
+        fieldErrors: parsed.error.flatten().fieldErrors,
+      };
+    }
+
+    return await enrollStudentsInClassCore(
+      adminClient,
+      actorUserId,
+      actor,
+      {
+        class_id: input.class_id,
+        studentProfileIds: parsed.data.studentProfileIds,
+      },
+      timer
+    );
   } finally {
     timer.end();
   }
 }
+
+async function resolveActiveStudentDiff(
+  adminClient: Supabase,
+  targetClassId: string,
+  sourceClassId: string
+): Promise<
+  | { success: true; students: ManagerStudentRow[] }
+  | { success: false; error: string }
+> {
+  if (targetClassId === sourceClassId) {
+    return {
+      success: false,
+      error: "Choose a different class to copy from.",
+    };
+  }
+
+  const [targetResult, sourceResult] = await Promise.all([
+    classRepository.findClassById(adminClient, targetClassId),
+    classRepository.findClassById(adminClient, sourceClassId),
+  ]);
+
+  if (targetResult.error) {
+    return { success: false, error: targetResult.error.message };
+  }
+  if (sourceResult.error) {
+    return { success: false, error: sourceResult.error.message };
+  }
+  if (!targetResult.data) {
+    return { success: false, error: "Class not found." };
+  }
+  if (!sourceResult.data) {
+    return { success: false, error: "Source class not found." };
+  }
+
+  const targetSemesterId = targetResult.data.semester_id;
+  const sourceSemesterId = sourceResult.data.semester_id;
+
+  if (!targetSemesterId) {
+    return {
+      success: false,
+      error: "This class is not linked to a semester.",
+    };
+  }
+
+  if (!sourceSemesterId || sourceSemesterId !== targetSemesterId) {
+    return {
+      success: false,
+      error: "Source class must belong to the same semester.",
+    };
+  }
+
+  const [sourceMembersResult, targetMembersResult] = await Promise.all([
+    studentClassRepository.listStudentUserIdsByClassId(
+      adminClient,
+      sourceClassId
+    ),
+    studentClassRepository.listStudentUserIdsByClassId(
+      adminClient,
+      targetClassId
+    ),
+  ]);
+
+  if (sourceMembersResult.error) {
+    return { success: false, error: sourceMembersResult.error.message };
+  }
+  if (targetMembersResult.error) {
+    return { success: false, error: targetMembersResult.error.message };
+  }
+
+  const targetUserIds = new Set(
+    (targetMembersResult.data ?? []).map((row) => row.user_id)
+  );
+  const sourceUserIds = [
+    ...new Set(
+      (sourceMembersResult.data ?? [])
+        .map((row) => row.user_id)
+        .filter((userId) => !targetUserIds.has(userId))
+    ),
+  ];
+
+  if (sourceUserIds.length === 0) {
+    return { success: true, students: [] };
+  }
+
+  const [profilesResult, usernamesResult, emailsResult] = await Promise.all([
+    studentProfileRepository.listStudentProfileDetailsByUserIds(
+      adminClient,
+      sourceUserIds
+    ),
+    profileRepository.listProfilesByIds(adminClient, sourceUserIds),
+    authRepository.listAuthEmailsByIds(adminClient, sourceUserIds),
+  ]);
+
+  if (profilesResult.error) {
+    return { success: false, error: profilesResult.error.message };
+  }
+  if (usernamesResult.error) {
+    return { success: false, error: usernamesResult.error.message };
+  }
+  if (emailsResult.error) {
+    return { success: false, error: emailsResult.error.message };
+  }
+
+  const usernameById = new Map(
+    (usernamesResult.data ?? []).map((row) => [row.id, row.username])
+  );
+  const emailById = emailsResult.data;
+
+  const students: ManagerStudentRow[] = (profilesResult.data ?? [])
+    .filter((row) => row.status !== STUDENT_STATUSES.INACTIVE)
+    .map((row) => ({
+      user_id: row.user_id,
+      student_profile_id: row.id,
+      username: usernameById.get(row.user_id) ?? null,
+      email: emailById.get(row.user_id) ?? "",
+      full_name: row.full_name,
+      birth_date: row.birth_date,
+      phone: row.phone,
+      status: row.status as StudentStatusValue,
+      created_at: row.created_at ?? "",
+    }))
+    .sort((a, b) => a.full_name.localeCompare(b.full_name));
+
+  return { success: true, students };
+}
+
+export async function copyStudentsFromClassForManager(
+  adminClient: Supabase,
+  actorUserId: string | null,
+  actor: AuditActor,
+  input: {
+    class_id: string;
+    source_class_id: string;
+    studentProfileIds: string[];
+  }
+): Promise<AddStudentsToClassResult> {
+  const timer = createNavStepTimer("copyStudentsFromClass");
+  try {
+    const unauthorized = await timer.step("auth", () =>
+      getUnauthorizedError(
+        adminClient,
+        actorUserId,
+        PERMISSIONS.CLASSES_COPY_STUDENTS_FROM_CLASS
+      )
+    );
+    if (unauthorized) {
+      return { success: false, error: unauthorized };
+    }
+
+    const scope = await assertAssignedTeacherForClassIds(adminClient, actor, [
+      input.class_id,
+      input.source_class_id,
+    ]);
+    if (!scope.ok) {
+      return { success: false, error: scope.error };
+    }
+
+    const parsed = copyStudentsFromClassSchema.safeParse({
+      source_class_id: input.source_class_id,
+      studentProfileIds: input.studentProfileIds,
+    });
+
+    if (!parsed.success) {
+      return {
+        success: false,
+        error: "Please fix the errors below.",
+        fieldErrors: parsed.error.flatten().fieldErrors,
+      };
+    }
+
+    const diffResult = await timer.step("diff", () =>
+      resolveActiveStudentDiff(
+        adminClient,
+        input.class_id,
+        parsed.data.source_class_id
+      )
+    );
+
+    if (!diffResult.success) {
+      return { success: false, error: diffResult.error };
+    }
+
+    const eligibleIds = new Set(
+      diffResult.students.map((student) => student.student_profile_id)
+    );
+    const selectedIds = [
+      ...new Set(
+        parsed.data.studentProfileIds.filter((id) => eligibleIds.has(id))
+      ),
+    ];
+
+    if (selectedIds.length === 0) {
+      return {
+        success: false,
+        error: "Please select at least one student to copy.",
+        fieldErrors: {
+          studentProfileIds: ["Please select at least one student to copy."],
+        },
+      };
+    }
+
+    return await enrollStudentsInClassCore(
+      adminClient,
+      actorUserId,
+      actor,
+      {
+        class_id: input.class_id,
+        studentProfileIds: selectedIds,
+      },
+      timer
+    );
+  } finally {
+    timer.end();
+  }
+}
+
+export { resolveActiveStudentDiff };
 
 export type RemoveStudentFromClassResult =
   | {
@@ -771,6 +1041,15 @@ export async function removeStudentFromClassForManager(
     );
     if (unauthorized) {
       return { success: false, error: unauthorized };
+    }
+
+    const scope = await assertAssignedTeacherForClassMutation(
+      adminClient,
+      actor,
+      input.class_id
+    );
+    if (!scope.ok) {
+      return { success: false, error: scope.error };
     }
 
     const parsed = removeStudentFromClassSchema.safeParse(input);
@@ -906,6 +1185,14 @@ export async function transferStudentBetweenClassesForManager(
     }
 
     const { student_profile_id, from_class_id, to_class_id } = parsed.data;
+
+    const scope = await assertAssignedTeacherForClassIds(adminClient, actor, [
+      from_class_id,
+      to_class_id,
+    ]);
+    if (!scope.ok) {
+      return { success: false, error: scope.error };
+    }
 
     const [fromClassResult, toClassResult, studentProfileResult] =
       await timer.step("lookups", () =>

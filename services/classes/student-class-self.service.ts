@@ -12,13 +12,10 @@ import type { ManagerStudentClassRow } from "@/types/manager-student-class";
 import type {
   StudentClassDetailForSelf,
   StudentClassTaskDetailForSelf,
-  StudentClassmateRow,
 } from "@/types/student-class";
-import * as profileRepository from "@/repositories/profile.repository";
 import * as sessionRepository from "@/repositories/session.repository";
 import type { SessionRecord } from "@/repositories/session.repository";
 import * as studentClassRepository from "@/repositories/student-class.repository";
-import * as studentProfileRepository from "@/repositories/student-profile.repository";
 import * as studentTaskRepository from "@/repositories/student-task.repository";
 import type { StudentTaskRecord } from "@/repositories/student-task.repository";
 import * as studentTaskUploadRepository from "@/repositories/student-task-upload.repository";
@@ -113,74 +110,7 @@ export async function listJoinedClassesForSelf(
   return listJoinedClassesForStudentSelf(adminClient, actorUserId);
 }
 
-async function listClassmatesForSelf(
-  adminClient: Supabase,
-  classId: string,
-  actorUserId: string
-): Promise<StudentClassmateRow[]> {
-  const { data: enrollments, error } =
-    await studentClassRepository.listStudentClassesByClassId(
-      adminClient,
-      classId
-    );
-
-  if (error) {
-    throw new Error(error.message);
-  }
-
-  const otherUserIds = (enrollments ?? [])
-    .map((row) => row.user_id)
-    .filter((id) => id !== actorUserId);
-
-  if (otherUserIds.length === 0) {
-    return [];
-  }
-
-  const [profilesResult, studentProfilesResult] = await Promise.all([
-    profileRepository.listProfilesByIds(adminClient, otherUserIds),
-    studentProfileRepository.listStudentProfileDetailsByUserIds(
-      adminClient,
-      otherUserIds
-    ),
-  ]);
-
-  if (profilesResult.error) {
-    throw new Error(profilesResult.error.message);
-  }
-  if (studentProfilesResult.error) {
-    throw new Error(studentProfilesResult.error.message);
-  }
-
-  const profileById = new Map(
-    (profilesResult.data ?? []).map((row) => [row.id, row])
-  );
-  const studentProfileByUserId = new Map(
-    (studentProfilesResult.data ?? []).map((row) => [row.user_id, row])
-  );
-
-  const rows: StudentClassmateRow[] = [];
-  for (const userId of otherUserIds) {
-    const studentProfile = studentProfileByUserId.get(userId);
-    const profile = profileById.get(userId);
-    if (!studentProfile) {
-      continue;
-    }
-    rows.push({
-      full_name: studentProfile.full_name,
-      username: profile?.username ?? null,
-    });
-  }
-
-  rows.sort((left, right) =>
-    left.full_name.localeCompare(right.full_name, undefined, {
-      sensitivity: "base",
-    })
-  );
-
-  return rows;
-}
-
-/** Class detail for an enrolled student (sessions, academics, classmates). */
+/** Class detail for an enrolled student (sessions, academics). */
 export async function getStudentClassDetailForSelf(
   adminClient: Supabase,
   actorUserId: string | null,
@@ -206,10 +136,9 @@ export async function getStudentClassDetailForSelf(
     return null;
   }
 
-  const [bundles, sessionsResult, classmates] = await Promise.all([
+  const [bundles, sessionsResult] = await Promise.all([
     listStudentClassAcademicBundlesForSelf(adminClient, userId, [classRow]),
     sessionRepository.listSessionsByClassId(adminClient, classId),
-    listClassmatesForSelf(adminClient, classId, userId),
   ]);
 
   if (sessionsResult.error) {
@@ -239,7 +168,6 @@ export async function getStudentClassDetailForSelf(
     classRow: bundle.classRow,
     sessions,
     detail: bundle.detail,
-    classmates,
     finalExam: bundle.finalExam,
     studentFinalExamGrade: bundle.studentFinalExamGrade,
     uploads: ((uploadResult.data ?? []) as StudentTaskUploadRecord[]).map(

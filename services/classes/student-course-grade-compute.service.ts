@@ -37,6 +37,7 @@ import {
   type ComputeGradeOptions,
   type Supabase,
 } from "@/services/classes/student-course-grade-shared";
+import { assertAssignedTeacherForClassMutation } from "@/services/classes/teacher-class-scope.service";
 import type { ManagerClassStudentGradeRow } from "@/types/manager-class-student-grade";
 import type { ManagerClassStudentRow } from "@/types/manager-class-student";
 
@@ -314,6 +315,16 @@ export async function computeStudentCourseGradeForManager(
   if (unauthorized) {
     return { success: false as const, error: unauthorized };
   }
+
+  const scope = await assertAssignedTeacherForClassMutation(
+    adminClient,
+    actor,
+    classId
+  );
+  if (!scope.ok) {
+    return { success: false as const, error: scope.error };
+  }
+
   const guard = await assertClassGradesUnlockedForManager(
     adminClient,
     actorUserId,
@@ -354,6 +365,16 @@ export async function computeAllStudentCourseGradesForManager(
     if (unauthorized) {
       return { success: false as const, error: unauthorized };
     }
+
+    const scope = await assertAssignedTeacherForClassMutation(
+      adminClient,
+      actor,
+      classId
+    );
+    if (!scope.ok) {
+      return { success: false as const, error: scope.error };
+    }
+
     const guard = await timer.step("gradeLock", () =>
       assertClassGradesUnlockedForManager(adminClient, actorUserId, classId)
     );
@@ -503,6 +524,15 @@ export async function deleteStudentCourseGradeForManager(
   const unauthorized = await getUnauthorizedError(adminClient, actorUserId, PERMISSIONS.GRADES_DELETE);
   if (unauthorized) {
     return { success: false as const, error: unauthorized };
+  }
+
+  const scope = await assertAssignedTeacherForClassMutation(
+    adminClient,
+    actor,
+    classId
+  );
+  if (!scope.ok) {
+    return { success: false as const, error: scope.error };
   }
 
   const [guard, existing] = await Promise.all([

@@ -8,6 +8,7 @@ import {
 import {
   ChevronLeftIcon,
   ChevronRightIcon,
+  GraduationCapIcon,
   PlusIcon,
   SearchIcon,
 } from "lucide-react";
@@ -18,6 +19,7 @@ import { StudentsWithoutActiveClassCard } from "@/components/manager/shared/stud
 import { UserStatCard } from "@/components/manager/users/user-stat-card";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { EmptyState } from "@/components/ui/empty-state";
 import { Input } from "@/components/ui/input";
 import {
   Select,
@@ -428,15 +430,21 @@ export function ManageClassesPanel({
           </div>
 
           {classes.length === 0 ? (
-            <p className="py-10 text-center text-sm text-muted-foreground">
-              {stats.total === 0
-                ? "No classes yet. Create one to get started."
-                : "No classes match your filters."}
-            </p>
+            <EmptyState
+              icon={stats.total === 0 ? GraduationCapIcon : SearchIcon}
+              title={
+                stats.total === 0 ? "No classes yet" : "No matching classes"
+              }
+              description={
+                stats.total === 0
+                  ? "Create one to get started."
+                  : "No classes match your filters."
+              }
+            />
           ) : (
             <div
               className={cn(
-                "grid gap-4 sm:grid-cols-2 xl:grid-cols-3",
+                "grid w-full justify-start gap-4 [grid-template-columns:repeat(auto-fill,minmax(min(100%,16.5rem),16.5rem))]",
                 isLoading && "opacity-60"
               )}
             >

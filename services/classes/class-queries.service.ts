@@ -42,13 +42,17 @@ import type {
   ManagerClassFinalExamRow,
   ManagerStudentFinalExamGradeRow,
 } from "@/types/manager-class-final-exam";
-import { CLASS_STATUS_VALUES } from "@/lib/constants/manager-class-status";
+import {
+  CLASS_STATUS_VALUES,
+  type ClassStatusValue,
+} from "@/lib/constants/manager-class-status";
 import type {
   ManagerClassesListData,
   ManagerClassesListQuery,
   ManagerClassRow,
   ManagerClassStatusCounts,
 } from "@/types/manager-class-list";
+import { resolveActiveStudentDiff } from "@/services/classes/class-enrollment.service";
 import type { ManagerClassSessionRow } from "@/types/manager-class-session";
 import type { ManagerClassStudentRow } from "@/types/manager-class-student";
 import type {
@@ -486,6 +490,15 @@ export async function listClassStudentsForManager(
   return loadClassStudentRows(adminClient, classId);
 }
 
+export type LoadClassStudentRowsOptions = {
+  /**
+   * Resolve Auth Admin emails (N `getUserById` for ≤50 students).
+   * Teacher roster skips this — name/username are enough for search/display.
+   * @default true
+   */
+  includeAuthEmails?: boolean;
+};
+
 /**
  * Same rows as `listClassStudentsForManager` without the permission check.
  * Only for callers that already asserted `CLASSES_VIEW` (and class scope, e.g.
@@ -493,8 +506,10 @@ export async function listClassStudentsForManager(
  */
 export async function loadClassStudentRows(
   adminClient: Supabase,
-  classId: string
+  classId: string,
+  options?: LoadClassStudentRowsOptions
 ): Promise<ManagerClassStudentRow[]> {
+  const includeAuthEmails = options?.includeAuthEmails !== false;
   const timer = createNavStepTimer("class_students");
   try {
     const { data: enrollments, error } = await timer.step("enrollments", () =>
@@ -519,7 +534,12 @@ export async function loadClassStudentRows(
             adminClient,
             userIds
           ),
-          authRepository.listAuthEmailsByIds(adminClient, userIds),
+          includeAuthEmails
+            ? authRepository.listAuthEmailsByIds(adminClient, userIds)
+            : Promise.resolve({
+                data: new Map<string, string>(),
+                error: null as Error | null,
+              }),
         ])
       );
 
@@ -666,6 +686,93 @@ export async function listAvailableStudentsForClass(
   } finally {
     timer.end();
   }
+}
+
+export type ClassCopySourceOption = {
+  id: string;
+  name: string;
+  status: ClassStatusValue;
+};
+
+export async function listSameSemesterClassesForCopy(
+  adminClient: Supabase,
+  actorUserId: string | null,
+  targetClassId: string
+): Promise<ClassCopySourceOption[]> {
+  await assertPermission(
+    adminClient,
+    actorUserId,
+    PERMISSIONS.CLASSES_COPY_STUDENTS_FROM_CLASS
+  );
+
+  if (!isUuid(targetClassId)) {
+    return [];
+  }
+
+  const targetResult = await classRepository.findClassById(
+    adminClient,
+    targetClassId
+  );
+
+  if (targetResult.error) {
+    throw new Error(targetResult.error.message);
+  }
+
+  const semesterId = targetResult.data?.semester_id;
+  if (!semesterId) {
+    return [];
+  }
+
+  const { data, error } = await classRepository.listClassesBySemesterId(
+    adminClient,
+    semesterId
+  );
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  const statusSet = new Set<string>(CLASS_STATUS_VALUES);
+
+  return (data ?? [])
+    .filter((row) => row.id !== targetClassId)
+    .map((row) => ({
+      id: row.id,
+      name: row.name,
+      status: (statusSet.has(row.status ?? "")
+        ? row.status
+        : CLASS_STATUS_VALUES[0]) as ClassStatusValue,
+    }))
+    .sort((a, b) => a.name.localeCompare(b.name));
+}
+
+export async function listActiveStudentDiffFromClass(
+  adminClient: Supabase,
+  actorUserId: string | null,
+  targetClassId: string,
+  sourceClassId: string
+): Promise<ManagerStudentRow[]> {
+  await assertPermission(
+    adminClient,
+    actorUserId,
+    PERMISSIONS.CLASSES_COPY_STUDENTS_FROM_CLASS
+  );
+
+  if (!isUuid(targetClassId) || !isUuid(sourceClassId)) {
+    return [];
+  }
+
+  const result = await resolveActiveStudentDiff(
+    adminClient,
+    targetClassId,
+    sourceClassId
+  );
+
+  if (!result.success) {
+    throw new Error(result.error);
+  }
+
+  return result.students;
 }
 
 export async function getClassFinalExamForManager(

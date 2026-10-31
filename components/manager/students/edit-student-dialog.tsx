@@ -3,6 +3,7 @@
 import { useEffect, useTransition } from "react";
 import { useFormActionState as useActionState } from "@/hooks/use-form-action-state";
 import { updateStudentAction } from "@/app/manager/students/actions";
+import { FieldError } from "@/components/auth/field-error";
 import { FieldLabel } from "@/components/auth/field-label";
 import { InlineSpinner } from "@/components/loaders/inline-spinner";
 import { Button } from "@/components/ui/button";
@@ -146,8 +147,11 @@ export function EditStudentDialog({
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogContent className="sm:max-w-md" showCloseButton={!isPending}>
-        <DialogHeader>
+      <DialogContent
+        className="flex max-h-[min(90vh,40rem)] flex-col gap-0 overflow-hidden sm:max-w-2xl"
+        showCloseButton={!isPending}
+      >
+        <DialogHeader className="shrink-0 pr-8">
           <DialogTitle>Edit student</DialogTitle>
           <DialogDescription>
             Update student profile and account details.
@@ -157,7 +161,7 @@ export function EditStudentDialog({
         <form
           id="edit-student-form"
           onSubmit={handleSubmit(onSubmit)}
-          className="flex max-h-[min(60vh,32rem)] flex-col gap-4 overflow-y-auto px-2"
+          className="grid min-h-0 flex-1 grid-cols-1 gap-4 overflow-y-auto py-4 sm:grid-cols-2"
           noValidate
         >
           <div className="flex flex-col gap-2">
@@ -177,7 +181,7 @@ export function EditStudentDialog({
               {...register("username")}
             />
             {usernameError ? (
-              <p className="text-sm text-destructive">{usernameError}</p>
+              <FieldError>{usernameError}</FieldError>
             ) : null}
           </div>
 
@@ -198,7 +202,7 @@ export function EditStudentDialog({
               {...register("fullName")}
             />
             {fullNameError ? (
-              <p className="text-sm text-destructive">{fullNameError}</p>
+              <FieldError>{fullNameError}</FieldError>
             ) : null}
           </div>
 
@@ -219,26 +223,7 @@ export function EditStudentDialog({
               {...register("email")}
             />
             {emailError ? (
-              <p className="text-sm text-destructive">{emailError}</p>
-            ) : null}
-          </div>
-
-          <div className="flex flex-col gap-2">
-            <FieldLabel
-              htmlFor="edit-student-birth-date"
-              label="Birth date"
-              hint={AUTH_FIELD_HINTS.birthDate}
-            />
-            <Input
-              id="edit-student-birth-date"
-              type="date"
-              max={getLocalIsoDate()}
-              aria-invalid={!!birthDateError}
-              disabled={isPending}
-              {...register("birthDate")}
-            />
-            {birthDateError ? (
-              <p className="text-sm text-destructive">{birthDateError}</p>
+              <FieldError>{emailError}</FieldError>
             ) : null}
           </div>
 
@@ -258,7 +243,26 @@ export function EditStudentDialog({
               {...register("phone")}
             />
             {phoneError ? (
-              <p className="text-sm text-destructive">{phoneError}</p>
+              <FieldError>{phoneError}</FieldError>
+            ) : null}
+          </div>
+
+          <div className="flex flex-col gap-2">
+            <FieldLabel
+              htmlFor="edit-student-birth-date"
+              label="Birth date"
+              hint={AUTH_FIELD_HINTS.birthDate}
+            />
+            <Input
+              id="edit-student-birth-date"
+              type="date"
+              max={getLocalIsoDate()}
+              aria-invalid={!!birthDateError}
+              disabled={isPending}
+              {...register("birthDate")}
+            />
+            {birthDateError ? (
+              <FieldError>{birthDateError}</FieldError>
             ) : null}
           </div>
 
@@ -297,12 +301,12 @@ export function EditStudentDialog({
               </SelectContent>
             </Select>
             {statusError ? (
-              <p className="text-sm text-destructive">{statusError}</p>
+              <FieldError>{statusError}</FieldError>
             ) : null}
           </div>
         </form>
 
-        <DialogFooter className="mt-2 sm:justify-end">
+        <DialogFooter className="mt-0 shrink-0 sm:justify-end">
           <Button
             type="button"
             variant="outline"

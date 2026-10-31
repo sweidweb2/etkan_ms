@@ -8,7 +8,7 @@ import {
   type FormEvent,
 } from "react";
 import { format } from "date-fns";
-import { ExternalLinkIcon, Trash2Icon } from "lucide-react";
+import { ExternalLinkIcon, Trash2Icon, UploadIcon, UsersIcon } from "lucide-react";
 import {
   deleteStudentTaskUploadAction,
   getStudentTaskUploadSignedUrlAction,
@@ -24,6 +24,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { EmptyState } from "@/components/ui/empty-state";
 import {
   Dialog,
   DialogContent,
@@ -332,10 +333,12 @@ export function SessionTaskUploadsSection({
         </CardHeader>
         <CardContent className="flex flex-col gap-4 px-4 py-4">
           {sortedStudents.length === 0 ? (
-            <p className="text-sm text-muted-foreground">
-              No student task rows yet. Uploads appear after students are seeded
-              for this assignment.
-            </p>
+            <EmptyState
+              size="sm"
+              icon={UsersIcon}
+              title="No student tasks yet"
+              description="Uploads appear after students are seeded for this assignment."
+            />
           ) : (
             <>
               <div className="flex flex-col gap-2 sm:max-w-md">
@@ -464,9 +467,12 @@ export function SessionTaskUploadsSection({
               </Can>
 
               {selectedUploads.length === 0 ? (
-                <p className="text-sm text-muted-foreground">
-                  No uploads for this student yet.
-                </p>
+                <EmptyState
+                  size="sm"
+                  icon={UploadIcon}
+                  title="No uploads yet"
+                  description="No uploads for this student yet."
+                />
               ) : (
                 <div className="overflow-x-auto">
                   <table className="w-full min-w-[36rem] border-collapse text-sm">

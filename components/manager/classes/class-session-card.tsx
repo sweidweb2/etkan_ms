@@ -93,9 +93,8 @@ export function ClassSessionCard({
     <TooltipProvider>
       <Card
         className={cn(
-          "group relative w-[17rem] shrink-0 gap-0 py-0 transition-shadow hover:border-emerald-400/45 hover:shadow-[0_12px_32px_rgba(16,185,129,0.18)]",
-          selected &&
-            "border-emerald-500/70 ring-2 ring-emerald-500/25 shadow-[0_12px_32px_rgba(16,185,129,0.2)]",
+          "group relative flex h-full w-[17rem] shrink-0 flex-col gap-0 py-0 shadow-none transition-colors hover:border-emerald-400/55",
+          selected && "border-emerald-500/80",
           className
         )}
       >
@@ -115,13 +114,13 @@ export function ClassSessionCard({
             className="absolute inset-0 z-0 rounded-xl"
           />
         )}
-        <CardHeader className="pointer-events-none relative z-10 gap-2 border-b bg-muted/20 py-3">
-          <div className="flex items-start justify-between gap-2">
+        <CardHeader className="pointer-events-none relative z-10 shrink-0 gap-2 border-b bg-muted/20 py-3">
+          <div className="flex min-h-10 items-start justify-between gap-2">
             <div className="min-w-0">
               <p className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
                 S{session.nb_order}
               </p>
-              <CardTitle className="mt-0.5 text-sm leading-snug">
+              <CardTitle className="mt-0.5 line-clamp-2 min-h-10 text-sm leading-5">
                 <TruncatedText
                   value={session.topic}
                   maxLength={CLASS_SESSION_CARD_LIMITS.topic}
@@ -139,7 +138,7 @@ export function ClassSessionCard({
           </div>
         </CardHeader>
 
-        <CardContent className="pointer-events-none relative z-10 flex flex-col gap-2.5 py-3 text-xs">
+        <CardContent className="pointer-events-none relative z-10 flex flex-1 flex-col gap-2.5 py-3 text-xs">
           <div className="flex items-center gap-2 text-muted-foreground">
             <CalendarIcon className="size-3.5 shrink-0" />
             <span className="text-foreground">
@@ -152,14 +151,18 @@ export function ClassSessionCard({
               {format(startsAt, "h:mm a")} – {format(endsAt, "h:mm a")}
             </span>
           </div>
-          {spansMultipleDays ? (
-            <div className="text-muted-foreground">
-              <span className="shrink-0">Ends </span>
-              <span className="text-foreground">
-                {format(endsAt, "MMM d, yyyy")}
-              </span>
-            </div>
-          ) : null}
+          <div
+            className={cn(
+              "min-h-4 text-muted-foreground",
+              !spansMultipleDays && "invisible"
+            )}
+            aria-hidden={!spansMultipleDays}
+          >
+            <span className="shrink-0">Ends </span>
+            <span className="text-foreground">
+              {format(endsAt, "MMM d, yyyy")}
+            </span>
+          </div>
         </CardContent>
       </Card>
     </TooltipProvider>
