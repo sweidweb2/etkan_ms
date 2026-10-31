@@ -26,6 +26,11 @@ function canViewNavItem(
   permissions: ReadonlySet<PermissionKey>,
   options: FilterPanelNavigationOptions
 ): boolean {
+  // Hub route: any manager-panel session can open Pages; cards inside are filtered.
+  if (item.href === ROUTES.MANAGER_PAGES) {
+    return true;
+  }
+
   const required = getRequiredViewPermissionForManagerPath(item.href);
 
   if (!required) {

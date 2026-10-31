@@ -71,6 +71,7 @@ export const ROUTES = {
   MANAGER_BLOGS: "/manager/blogs",
   MANAGER_SEMESTERS: "/manager/semesters",
   MANAGER_SETTINGS: "/manager/settings",
+  MANAGER_PAGES: "/manager/pages",
   MANAGER_BACKUP: "/manager/backup",
   MANAGER_LOGS: "/manager/logs",
   MANAGER_CLOUDFLARE_AI_USAGE: "/manager/cloudflare-ai-usage",

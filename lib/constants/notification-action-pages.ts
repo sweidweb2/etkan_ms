@@ -3,6 +3,7 @@ import {
   CEO_PANEL_NAVIGATION,
   CO_MANAGER_PANEL_NAVIGATION,
   CRM_PANEL_NAVIGATION,
+  MANAGER_PAGES_HUB_GROUPS,
   MANAGER_PANEL_NAVIGATION,
   STUDENT_PANEL_NAVIGATION,
   SUPERVISOR_PANEL_NAVIGATION,
@@ -12,6 +13,7 @@ import {
   NOTIFICATION_AUDIENCE_LABELS,
   type NotificationAudienceValue,
 } from "@/lib/constants/manager-notification-display";
+import { ROUTES } from "@/lib/constants/routes";
 import type { PanelNavigation } from "@/types/panel";
 
 export const NOTIFICATION_ACTION_NONE_VALUE = "__none__";
@@ -31,10 +33,20 @@ function flattenPanelNavigation(
 
   return items
     .filter((item) => !item.href.includes("["))
+    .filter((item) => item.href !== ROUTES.MANAGER_PAGES)
     .map((item) => ({
       label: item.title,
       href: item.href,
     }));
+}
+
+function flattenManagerCatalog(): NotificationActionPage[] {
+  return flattenPanelNavigation({
+    groups: [
+      ...(MANAGER_PANEL_NAVIGATION.groups ?? []),
+      ...MANAGER_PAGES_HUB_GROUPS,
+    ],
+  });
 }
 
 const NOTIFICATION_ACTION_PAGES_BY_AUDIENCE: Record<
@@ -42,10 +54,10 @@ const NOTIFICATION_ACTION_PAGES_BY_AUDIENCE: Record<
   NotificationActionPage[]
 > = {
   admin: flattenPanelNavigation(ADMIN_PANEL_NAVIGATION),
-  manager: flattenPanelNavigation(MANAGER_PANEL_NAVIGATION),
+  manager: flattenManagerCatalog(),
   "co-manager": flattenPanelNavigation(CO_MANAGER_PANEL_NAVIGATION),
   ceo: flattenPanelNavigation(CEO_PANEL_NAVIGATION),
-  supervisor: flattenPanelNavigation(SUPERVISOR_PANEL_NAVIGATION),
+  supervisor: flattenManagerCatalog(),
   crm: flattenPanelNavigation(CRM_PANEL_NAVIGATION),
   teacher: flattenPanelNavigation(TEACHER_PANEL_NAVIGATION),
   student: flattenPanelNavigation(STUDENT_PANEL_NAVIGATION),
