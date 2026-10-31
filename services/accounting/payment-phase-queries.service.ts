@@ -36,8 +36,14 @@ import type {
   ManagerSppRow,
   ManagerSppSemesterMismatchRow,
 } from "@/types/manager-payment-phase";
+import * as semesterDropRequestRepository from "@/repositories/semester-drop-request.repository";
 import * as semesterRepository from "@/repositories/semester.repository";
 import * as studentProfileRepository from "@/repositories/student-profile.repository";
+import type { ManagerNeedRefundRow } from "@/types/manager-semester-drop";
+import {
+  SEMESTER_DROP_REFUND_STATUSES,
+  SEMESTER_DROP_REQUEST_STATUSES,
+} from "@/lib/manager/accounting/constants";
 
 export async function listPaymentPhasesForManager(
   adminClient: Supabase,
@@ -165,6 +171,7 @@ export async function getAccountingExceptionsSnapshotForManager(
     withoutClassOrPhase: [],
     billedWithoutClass: [],
     sppSemesterMismatches: [],
+    needRefund: [],
   };
 
   const nonCancelledPhases = phases.filter(
@@ -504,9 +511,12 @@ export async function getAccountingExceptionsSnapshotForManager(
     (row) => !billedStudentIds.has(row.user_id)
   );
 
+  const needRefund = await loadNeedRefundRows(adminClient, phaseById);
+
   if (
     nonCancelledPhases.length === 0 &&
-    studentsWithoutActiveClass.length === 0
+    studentsWithoutActiveClass.length === 0 &&
+    needRefund.length === 0
   ) {
     return empty;
   }
@@ -516,7 +526,58 @@ export async function getAccountingExceptionsSnapshotForManager(
     withoutClassOrPhase,
     billedWithoutClass,
     sppSemesterMismatches,
+    needRefund,
   };
+}
+
+async function loadNeedRefundRows(
+  adminClient: Supabase,
+  phaseById: Map<string, ManagerPaymentPhaseRow>
+): Promise<ManagerNeedRefundRow[]> {
+  const { data, error } =
+    await semesterDropRequestRepository.listNeedRefundDropRequests(adminClient);
+  if (error) {
+    throw new Error(error.message);
+  }
+  const rows = data ?? [];
+  if (rows.length === 0) {
+    return [];
+  }
+
+  const studentIds = [...new Set(rows.map((row) => row.student_id))];
+  const meta = await buildStudentMetaByUserId(adminClient, studentIds);
+
+  return rows.map((row) => {
+    const phase = row.payment_phase_id
+      ? phaseById.get(row.payment_phase_id)
+      : undefined;
+    return {
+      id: row.id,
+      student_id: row.student_id,
+      semester_id: row.semester_id,
+      class_id: row.class_id,
+      payment_phase_id: row.payment_phase_id,
+      spp_id: row.spp_id,
+      status: row.status,
+      required_percent: Number(row.required_percent),
+      required_amount: Number(row.required_amount),
+      phase_amount_snapshot: Number(row.phase_amount_snapshot),
+      requested_at: row.requested_at,
+      deadline_at: row.deadline_at,
+      completed_at: row.completed_at,
+      refund_owed: Number(row.refund_owed),
+      refund_status: row.refund_status,
+      refunded_amount: Number(row.refunded_amount),
+      remaining_refund: Math.max(
+        0,
+        Number(row.refund_owed) - Number(row.refunded_amount)
+      ),
+      requested_by: row.requested_by,
+      notes: row.notes,
+      student_label: meta.get(row.student_id)?.label ?? row.student_id,
+      phase_name: phase?.name ?? null,
+    };
+  });
 }
 
 export async function listPaymentPhaseSemesterOptionsForManager(
@@ -617,27 +678,76 @@ export async function listSppsForPhaseForManager(
     return [];
   }
 
-  const [meta, clearances] = await Promise.all([
-    buildStudentMetaByUserId(
-      adminClient,
-      [...new Set(records.map((record) => record.student_id))]
-    ),
+  const sppIds = records.map((record) => record.id);
+  const studentIds = [...new Set(records.map((record) => record.student_id))];
+
+  const [meta, clearances, dropsResult, membershipResult] = await Promise.all([
+    buildStudentMetaByUserId(adminClient, studentIds),
     import("@/services/accounting/spp-clearance.service").then(
       ({ loadActiveClearanceDtosBySppIds }) =>
-        loadActiveClearanceDtosBySppIds(
-          adminClient,
-          records.map((record) => record.id)
-        )
+        loadActiveClearanceDtosBySppIds(adminClient, sppIds)
     ),
+    semesterDropRequestRepository.listDropRequestsBySppIds(adminClient, sppIds),
+    studentClassRepository.listMemberUserIdsAmongUserIds(adminClient, studentIds),
   ]);
+
+  if (dropsResult.error) {
+    throw new Error(dropsResult.error.message);
+  }
+  if (membershipResult.error) {
+    throw new Error(membershipResult.error.message);
+  }
+
+  const memberStudentIds = new Set(
+    (membershipResult.data ?? []).map((row) => row.user_id)
+  );
+
+  const dropBySppId = new Map<
+    string,
+    { status: string; refund_status: string; id: string }
+  >();
+  for (const drop of dropsResult.data ?? []) {
+    if (!drop.spp_id) continue;
+    const existing = dropBySppId.get(drop.spp_id);
+    if (
+      !existing ||
+      drop.status === SEMESTER_DROP_REQUEST_STATUSES.PENDING ||
+      (drop.status === SEMESTER_DROP_REQUEST_STATUSES.COMPLETED &&
+        existing.status !== SEMESTER_DROP_REQUEST_STATUSES.PENDING)
+    ) {
+      dropBySppId.set(drop.spp_id, {
+        status: drop.status,
+        refund_status: drop.refund_status,
+        id: drop.id,
+      });
+    }
+  }
 
   return records.map((record) => {
     const studentMeta = meta.get(record.student_id);
-    return mapSppRecordToRow(
+    const base = mapSppRecordToRow(
       record,
       studentMeta?.label ?? record.student_id,
       studentMeta?.student_profile_id ?? null,
       clearances.get(record.id) ?? null
     );
+    const drop = dropBySppId.get(record.id);
+    if (!drop) {
+      return base;
+    }
+    const isMember = memberStudentIds.has(record.student_id);
+    const isPending = drop.status === SEMESTER_DROP_REQUEST_STATUSES.PENDING;
+    const isCompleted =
+      drop.status === SEMESTER_DROP_REQUEST_STATUSES.COMPLETED;
+    return {
+      ...base,
+      drop_pending: isPending,
+      drop_dropped: isCompleted && !isMember,
+      drop_done_paid: isCompleted && !isMember,
+      drop_refund_owed:
+        isCompleted &&
+        drop.refund_status === SEMESTER_DROP_REFUND_STATUSES.OWED,
+      drop_request_id: drop.id,
+    };
   });
 }

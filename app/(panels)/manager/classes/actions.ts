@@ -39,6 +39,10 @@ import { parseUpdateClassSessionFormData } from "@/lib/validators/manager/update
 import { parseUpdateFinalExamFormData } from "@/lib/validators/manager/update-final-exam";
 import { parseUpdateSessionSettingsFormData } from "@/lib/validators/manager/update-session-settings";
 import { parseRemoveStudentFromClassFormData } from "@/lib/validators/manager/remove-student-from-class";
+import {
+  parseCancelSemesterDropFormData,
+  parseCreateSemesterDropFormData,
+} from "@/lib/validators/manager/parse-semester-drop-form";
 import { parseTransferStudentBetweenClassesFormData } from "@/lib/validators/manager/transfer-student-between-classes";
 import {
   parseChangeClassStatusFormData,
@@ -66,6 +70,10 @@ import {
   updateFinalExamForManager,
   updateStudentFinalExamGradeForManager,
 } from "@/services/classes/class.service";
+import {
+  cancelSemesterDropForManager,
+  createSemesterDropForManager,
+} from "@/services/classes/drop-semester.service";
 import {
   createClassTaskForManager,
   deleteClassTaskForManager,
@@ -549,6 +557,67 @@ export async function transferStudentBetweenClassesAction(
       student: result.student,
       from_class_id: result.from_class_id,
       to_class_id: result.to_class_id,
+    }),
+  });
+}
+
+export type CreateSemesterDropActionState = {
+  success?: boolean;
+  error?: string;
+  message?: string;
+  fieldErrors?: Record<string, string[] | undefined>;
+  completedImmediately?: boolean;
+  removedStudentMembershipId?: string;
+  requestId?: string;
+};
+
+export async function createSemesterDropAction(
+  _prevState: CreateSemesterDropActionState,
+  formData: FormData
+): Promise<CreateSemesterDropActionState> {
+  return runManagerAction({
+    formData,
+    parse: parseCreateSemesterDropFormData,
+    mutate: ({ adminClient, actor, data }) =>
+      createSemesterDropForManager(adminClient, actor.userId, actor, data),
+    revalidate: (_result, data) => {
+      revalidatePath(getManagerClassDetailRoute(data.class_id));
+      revalidatePath("/manager/accounting");
+    },
+    mapSuccess: (result, data) => ({
+      success: true,
+      message: result.message,
+      completedImmediately: result.completedImmediately,
+      removedStudentMembershipId: result.removedFromClass
+        ? data.membership_id
+        : undefined,
+      requestId: result.request?.id,
+    }),
+  });
+}
+
+export type CancelSemesterDropActionState = {
+  success?: boolean;
+  error?: string;
+  message?: string;
+  fieldErrors?: Record<string, string[] | undefined>;
+};
+
+export async function cancelSemesterDropAction(
+  _prevState: CancelSemesterDropActionState,
+  formData: FormData
+): Promise<CancelSemesterDropActionState> {
+  return runManagerAction({
+    formData,
+    parse: parseCancelSemesterDropFormData,
+    mutate: ({ adminClient, actor, data }) =>
+      cancelSemesterDropForManager(adminClient, actor.userId, actor, data),
+    revalidate: (_result, data) => {
+      revalidatePath(getManagerClassDetailRoute(data.class_id));
+    },
+    mapSuccess: (result) => ({
+      success: true,
+      message: result.message,
     }),
   });
 }

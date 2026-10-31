@@ -26,6 +26,7 @@ export async function AccountingExceptionsSection({
       withoutClassOrPhase={snapshot.withoutClassOrPhase}
       billedWithoutClass={snapshot.billedWithoutClass}
       sppSemesterMismatches={snapshot.sppSemesterMismatches}
+      needRefund={snapshot.needRefund}
     />
   );
 }

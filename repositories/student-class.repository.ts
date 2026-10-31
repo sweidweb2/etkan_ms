@@ -77,6 +77,17 @@ export async function listStudentClassesByUserId(
     .order("joined_at", { ascending: false });
 }
 
+/** Distinct user_ids that currently have any class membership. */
+export async function listMemberUserIdsAmongUserIds(
+  client: Supabase,
+  userIds: string[]
+) {
+  if (userIds.length === 0) {
+    return { data: [] as Array<{ user_id: string }>, error: null };
+  }
+  return client.from("student_class").select("user_id").in("user_id", userIds);
+}
+
 export type StudentClassWithClassRecord = StudentClassRecord & {
   classes: { id: string; name: string; status: string } | null;
 };

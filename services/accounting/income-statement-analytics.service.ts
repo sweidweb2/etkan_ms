@@ -315,14 +315,20 @@ export async function getIncomeStatementAnalyticsSummaryForManager(
 
   for (const row of scopedPayments) {
     const amount = Number(row.amount);
-    paymentsTotal += amount;
+    const isDebit = "type" in row && row.type === "debit";
     const part =
       month === null
         ? monthFromDate(row.payment_date)
         : dayFromDate(row.payment_date);
     if (!part) continue;
     const bucket = periodMap.get(String(part).padStart(2, "0"));
-    if (bucket) bucket.payments += amount;
+    if (isDebit) {
+      debitsTotal += amount;
+      if (bucket) bucket.debits += amount;
+    } else {
+      paymentsTotal += amount;
+      if (bucket) bucket.payments += amount;
+    }
   }
 
   for (const row of scopedTransactions) {

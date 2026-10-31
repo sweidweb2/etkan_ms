@@ -348,6 +348,21 @@ export async function addStudentToClassForManager(
       }
     }
 
+    if (classRecord.semester_id) {
+      try {
+        const { reactivateSemesterAfterRejoin } = await import(
+          "@/services/classes/drop-semester.service"
+        );
+        await reactivateSemesterAfterRejoin(
+          adminClient,
+          userId,
+          classRecord.semester_id
+        );
+      } catch {
+        // Non-fatal: membership already created.
+      }
+    }
+
     return {
       success: true,
       student,
@@ -643,6 +658,25 @@ async function enrollStudentsInClassCore(
 
     let warning: string | undefined;
     let joinItems: StudentJoinSyncItem[] = [];
+
+    if (classRecord.semester_id) {
+      try {
+        const { reactivateSemesterAfterRejoin } = await import(
+          "@/services/classes/drop-semester.service"
+        );
+        await Promise.all(
+          insertedUserIds.map((userId) =>
+            reactivateSemesterAfterRejoin(
+              adminClient,
+              userId,
+              classRecord.semester_id!
+            )
+          )
+        );
+      } catch {
+        // Non-fatal: memberships already created.
+      }
+    }
 
     try {
       joinItems = await timer.step("paymentSync", () =>
@@ -1246,6 +1280,25 @@ export async function transferStudentBetweenClassesForManager(
 
     const studentProfile = studentProfileResult.data;
     const userId = studentProfile.user_id;
+
+    const sourceSemesterId = fromClassResult.data.semester_id;
+    if (sourceSemesterId) {
+      const { studentHasPendingSemesterDrop } = await import(
+        "@/services/classes/drop-semester.service"
+      );
+      const hasPendingDrop = await studentHasPendingSemesterDrop(
+        adminClient,
+        userId,
+        sourceSemesterId
+      );
+      if (hasPendingDrop) {
+        return {
+          success: false,
+          error:
+            "Cannot transfer while a semester drop is pending for this student.",
+        };
+      }
+    }
 
     const transferResult = await timer.step("transfer", () =>
       studentClassRepository.transferStudentBetweenClasses(

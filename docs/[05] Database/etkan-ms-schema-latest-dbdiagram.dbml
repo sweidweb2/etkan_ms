@@ -723,13 +723,48 @@ Table student_payments {
   student_payment_phase_id uuid [not null]
   payment_date date [not null]
   amount numeric(10,2) [not null]
+  type text [not null, default: 'credit', note: 'credit | debit']
   payment_method text [not null]
   received_by text [not null]
   received_by_management boolean [not null, default: false]
   receipt_number text
   notes text
+  semester_drop_request_id uuid [note: 'Set on drop-refund debit rows']
   created_at timestamptz [not null, default: `now()`]
   updated_at timestamptz [not null, default: `now()`]
+}
+
+Table semester_drop_requests {
+  id uuid [pk, default: `gen_random_uuid()`]
+  student_id uuid [not null]
+  semester_id uuid [not null]
+  class_id uuid [not null]
+  payment_phase_id uuid
+  spp_id uuid
+  status text [not null, default: 'pending', note: 'pending | completed | cancelled']
+  required_percent numeric(5,2) [not null]
+  required_amount numeric(10,2) [not null]
+  phase_amount_snapshot numeric(10,2) [not null]
+  requested_at timestamptz [not null, default: `now()`]
+  deadline_at date [not null]
+  completed_at timestamptz
+  refund_owed numeric(10,2) [not null, default: 0]
+  refund_status text [not null, default: 'none', note: 'none | owed | processed']
+  refunded_amount numeric(10,2) [not null, default: 0]
+  requested_by uuid
+  notes text
+  created_at timestamptz [not null, default: `now()`]
+  updated_at timestamptz [not null, default: `now()`]
+
+  indexes {
+    (student_id, semester_id) [name: 'idx_semester_drop_requests_student_semester']
+    class_id [name: 'idx_semester_drop_requests_class']
+    spp_id [name: 'idx_semester_drop_requests_spp']
+    status [name: 'idx_semester_drop_requests_status']
+    refund_status [name: 'idx_semester_drop_requests_refund_status']
+  }
+
+  Note: 'Drop-semester lifecycle. Membership stays binary on student_class.'
 }
 
 Table student_payment_schedules {
@@ -838,6 +873,14 @@ Ref: student_payment_phases.payment_phase_id > payment_phases.id
 Ref: payment_phases.semester_id > semesters.id
 
 Ref: student_payments.student_payment_phase_id > student_payment_phases.id
+Ref: student_payments.semester_drop_request_id > semester_drop_requests.id
+
+Ref: semester_drop_requests.student_id > profiles.id
+Ref: semester_drop_requests.semester_id > semesters.id
+Ref: semester_drop_requests.class_id > classes.id
+Ref: semester_drop_requests.payment_phase_id > payment_phases.id
+Ref: semester_drop_requests.spp_id > student_payment_phases.id
+Ref: semester_drop_requests.requested_by > profiles.id
 
 Ref: student_payment_schedules.student_payment_phase_id > student_payment_phases.id
 Ref: student_payment_schedules.created_by > profiles.id

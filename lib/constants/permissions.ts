@@ -144,6 +144,7 @@ export const PERMISSIONS = {
   CLASSES_ADD_STUDENT: "classes.add_student",
   CLASSES_COPY_STUDENTS_FROM_CLASS: "classes.copy_students_from_class",
   CLASSES_REMOVE_STUDENT: "classes.remove_student",
+  CLASSES_DROP_SEMESTER: "classes.drop_semester",
   CLASSES_VIEW_ANALYTICS: "classes.view_analytics",
 
   SESSIONS_VIEW: "sessions.view",
@@ -256,6 +257,7 @@ export const PERMISSIONS = {
   ACCOUNTING_PAYMENTS_CREATE: "accounting.payments.create",
   ACCOUNTING_PAYMENTS_UPDATE: "accounting.payments.update",
   ACCOUNTING_PAYMENTS_DELETE: "accounting.payments.delete",
+  ACCOUNTING_DROP_REFUNDS_PROCESS: "accounting.drop_refunds.process",
   ACCOUNTING_ADJUSTMENTS_CREATE: "accounting.adjustments.create",
   ACCOUNTING_ADJUSTMENTS_UPDATE: "accounting.adjustments.update",
   ACCOUNTING_ADJUSTMENTS_DELETE: "accounting.adjustments.delete",
@@ -620,6 +622,12 @@ export const PERMISSION_DEFINITIONS: readonly PermissionDefinition[] = [
     key: PERMISSIONS.CLASSES_REMOVE_STUDENT,
     feature: "classes",
     label: "Remove student from class",
+    access: PERMISSION_ACCESS.WRITE,
+  },
+  {
+    key: PERMISSIONS.CLASSES_DROP_SEMESTER,
+    feature: "classes",
+    label: "Drop semester for class student",
     access: PERMISSION_ACCESS.WRITE,
   },
   {
@@ -1211,6 +1219,12 @@ export const PERMISSION_DEFINITIONS: readonly PermissionDefinition[] = [
     key: PERMISSIONS.ACCOUNTING_PAYMENTS_DELETE,
     feature: "accounting",
     label: "Delete student payment",
+    access: PERMISSION_ACCESS.WRITE,
+  },
+  {
+    key: PERMISSIONS.ACCOUNTING_DROP_REFUNDS_PROCESS,
+    feature: "accounting",
+    label: "Process drop semester refund",
     access: PERMISSION_ACCESS.WRITE,
   },
   {

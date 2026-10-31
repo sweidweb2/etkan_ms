@@ -169,6 +169,7 @@ function mapPaymentRecordToRow(
     student_payment_phase_id: record.student_payment_phase_id,
     payment_date: record.payment_date,
     amount: Number(record.amount),
+    type: record.type === "debit" ? "debit" : "credit",
     payment_method: isPaymentMethod(record.payment_method)
       ? record.payment_method
       : PAYMENT_METHODS.OTHER,
@@ -176,6 +177,7 @@ function mapPaymentRecordToRow(
     received_by_management: Boolean(record.received_by_management),
     receipt_number: record.receipt_number,
     notes: record.notes,
+    semester_drop_request_id: record.semester_drop_request_id ?? null,
     created_at: record.created_at,
   };
 }

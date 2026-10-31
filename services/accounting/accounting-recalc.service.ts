@@ -10,8 +10,13 @@ import {
 } from "@/lib/manager/accounting/constants";
 import { derivePaymentPhaseStatus } from "@/lib/manager/accounting/payment-phase-status";
 import {
+  STUDENT_PAYMENT_TYPES,
+  type StudentPaymentType,
+} from "@/lib/manager/accounting/constants";
+import {
   computeSppFinancials,
   type SppAdjustmentInput,
+  type SppPaymentLine,
 } from "@/lib/manager/accounting/spp-financials";
 import { deriveSppStatus } from "@/lib/manager/accounting/spp-status";
 import { createNavStepTimer } from "@/lib/debug/nav-timing";
@@ -53,11 +58,17 @@ function isAdjustmentValueType(
   );
 }
 
+function asPaymentType(value: unknown): StudentPaymentType {
+  return value === STUDENT_PAYMENT_TYPES.DEBIT
+    ? STUDENT_PAYMENT_TYPES.DEBIT
+    : STUDENT_PAYMENT_TYPES.CREDIT;
+}
+
 async function loadAdjustmentAndPaymentsForSppIds(
   adminClient: Supabase,
   sppIds: string[]
 ): Promise<{
-  paymentAmountsBySppId: Map<string, number[]>;
+  paymentAmountsBySppId: Map<string, SppPaymentLine[]>;
   adjustmentBySppId: Map<string, SppAdjustmentInput>;
 }> {
   const [
@@ -79,11 +90,16 @@ async function loadAdjustmentAndPaymentsForSppIds(
     throw new Error(adjustmentsError.message);
   }
 
-  const paymentAmountsBySppId = new Map<string, number[]>();
+  const paymentAmountsBySppId = new Map<string, SppPaymentLine[]>();
   for (const payment of payments ?? []) {
     const list =
       paymentAmountsBySppId.get(payment.student_payment_phase_id) ?? [];
-    list.push(Number(payment.amount));
+    list.push({
+      amount: Number(payment.amount),
+      type: asPaymentType(
+        "type" in payment ? (payment as { type?: unknown }).type : undefined
+      ),
+    });
     paymentAmountsBySppId.set(payment.student_payment_phase_id, list);
   }
 

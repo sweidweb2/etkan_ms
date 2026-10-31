@@ -26,6 +26,7 @@ import * as profileRepository from "@/repositories/profile.repository";
 import * as semesterRepository from "@/repositories/semester.repository";
 import * as sessionRepository from "@/repositories/session.repository";
 import type { SessionRecord } from "@/repositories/session.repository";
+import * as semesterDropRequestRepository from "@/repositories/semester-drop-request.repository";
 import * as studentClassRepository from "@/repositories/student-class.repository";
 import * as studentProfileRepository from "@/repositories/student-profile.repository";
 import * as studentTaskRepository from "@/repositories/student-task.repository";
@@ -562,6 +563,19 @@ export async function loadClassStudentRows(
       (studentProfilesResult.data ?? []).map((row) => [row.user_id, row])
     );
     const emailById = emailResult.data;
+
+    const pendingDropsResult =
+      await semesterDropRequestRepository.listPendingDropsByClassId(
+        adminClient,
+        classId
+      );
+    if (pendingDropsResult.error) {
+      throw new Error(pendingDropsResult.error.message);
+    }
+    const pendingDropByStudentId = new Map(
+      (pendingDropsResult.data ?? []).map((row) => [row.student_id, row.id])
+    );
+
     const rows: ManagerClassStudentRow[] = [];
 
     for (const enrollment of enrollments) {
@@ -572,6 +586,9 @@ export async function loadClassStudentRows(
         continue;
       }
 
+      const pendingDropId =
+        pendingDropByStudentId.get(enrollment.user_id) ?? null;
+
       rows.push({
         id: enrollment.id,
         student_profile_id: studentProfile.id,
@@ -581,6 +598,8 @@ export async function loadClassStudentRows(
         email: emailById.get(enrollment.user_id) ?? "",
         phone: studentProfile.phone,
         joined_at: enrollment.joined_at ?? "",
+        pending_drop_request_id: pendingDropId,
+        has_pending_drop: Boolean(pendingDropId),
       });
     }
 

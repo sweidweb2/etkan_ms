@@ -19,6 +19,18 @@ describe("computeSppFinancials", () => {
     });
   });
 
+  it("nets debit refunds against credits", () => {
+    expect(
+      computeSppFinancials(100, null, [
+        70,
+        { amount: 20, type: "debit" as const },
+      ])
+    ).toMatchObject({
+      totalPaid: 50,
+      remaining: 50,
+    });
+  });
+
   it("applies a fixed adjustment", () => {
     expect(
       computeSppFinancials(

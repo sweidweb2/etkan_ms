@@ -39,6 +39,8 @@ import { parseTransferSppFormData } from "@/lib/validators/manager/transfer-spp"
 import { parseUpdatePaymentPhaseFormData } from "@/lib/validators/manager/update-payment-phase";
 import { parseUpdateStudentPaymentFormData } from "@/lib/validators/manager/update-student-payment";
 import { parseUpdateStudentPaymentScheduleFormData } from "@/lib/validators/manager/update-student-payment-schedule";
+import { parseProcessDropRefundFormData } from "@/lib/validators/manager/parse-semester-drop-form";
+import { processDropRefundForManager } from "@/services/accounting/drop-refund.service";
 import {
   parseCreateFinancialFormFormData,
   parseCreateFinancialFormInviteFormData,
@@ -834,6 +836,33 @@ export async function deleteFinancialFormAction(
       message: result.message,
       student_payment_phase_id: result.student_payment_phase_id,
       payment_phase_id: result.payment_phase_id,
+    }),
+  });
+}
+
+export type ProcessDropRefundActionState = {
+  success?: boolean;
+  error?: string;
+  message?: string;
+  fieldErrors?: Record<string, string[] | undefined>;
+};
+
+export async function processDropRefundAction(
+  _prevState: ProcessDropRefundActionState,
+  formData: FormData
+): Promise<ProcessDropRefundActionState> {
+  return runManagerAction({
+    formData,
+    parse: parseProcessDropRefundFormData,
+    mutate: ({ adminClient, actor, data }) =>
+      processDropRefundForManager(adminClient, actor.userId, actor, data),
+    revalidate: () => {
+      revalidatePath(ROUTES.MANAGER_ACCOUNTING);
+      revalidatePath("/manager/income-statement");
+    },
+    mapSuccess: (result) => ({
+      success: true,
+      message: result.message,
     }),
   });
 }

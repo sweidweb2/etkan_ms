@@ -10,19 +10,24 @@ import {
   ChevronRightIcon,
   CopyIcon,
   EyeIcon,
+  LogOutIcon,
   PlusIcon,
   SearchIcon,
   Trash2Icon,
   UsersIcon,
+  XIcon,
 } from "lucide-react";
 import { removeStudentFromClassAction } from "@/app/manager/classes/actions";
 import { Can } from "@/components/auth/can";
 import { AddStudentToClassDialog } from "@/components/manager/classes/add-student-to-class-dialog";
+import { CancelSemesterDropDialog } from "@/components/manager/classes/cancel-semester-drop-dialog";
 import { CopyStudentsFromClassDialog } from "@/components/manager/classes/copy-students-from-class-dialog";
+import { DropSemesterDialog } from "@/components/manager/classes/drop-semester-dialog";
 import {
   TransferStudentBetweenClassesDialog,
   type ClassTransferOption,
 } from "@/components/manager/classes/transfer-student-between-classes-dialog";
+import { SEMESTER_DROP_BADGE_LABELS } from "@/lib/constants/manager-semester-drop-display";
 import { ClassTabCollapsibleSection } from "@/components/manager/students/class-tab-collapsible-section";
 import { InlineSpinner } from "@/components/loaders/inline-spinner";
 import { Button } from "@/components/ui/button";
@@ -180,6 +185,10 @@ export function ClassStudentsSection({
     useState<ManagerClassStudentRow | null>(null);
   const [removingStudent, setRemovingStudent] =
     useState<ManagerClassStudentRow | null>(null);
+  const [droppingStudent, setDroppingStudent] =
+    useState<ManagerClassStudentRow | null>(null);
+  const [stoppingDropStudent, setStoppingDropStudent] =
+    useState<ManagerClassStudentRow | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
 
@@ -316,6 +325,63 @@ export function ClassStudentsSection({
         }}
       />
 
+      <DropSemesterDialog
+        open={droppingStudent !== null}
+        onOpenChange={(open) => {
+          if (!open) setDroppingStudent(null);
+        }}
+        classId={classId}
+        className={className}
+        student={droppingStudent}
+        onCompleted={({ removedMembershipId, pendingRequestId }) => {
+          if (removedMembershipId) {
+            const nextStudents = students.filter(
+              (row) => row.id !== removedMembershipId
+            );
+            setStudents(nextStudents);
+            onStudentsChange(nextStudents);
+          } else if (droppingStudent && pendingRequestId) {
+            const nextStudents = students.map((row) =>
+              row.id === droppingStudent.id
+                ? {
+                    ...row,
+                    has_pending_drop: true,
+                    pending_drop_request_id: pendingRequestId,
+                  }
+                : row
+            );
+            setStudents(nextStudents);
+            onStudentsChange(nextStudents);
+          }
+          setDroppingStudent(null);
+        }}
+      />
+
+      <CancelSemesterDropDialog
+        open={stoppingDropStudent !== null}
+        onOpenChange={(open) => {
+          if (!open) setStoppingDropStudent(null);
+        }}
+        classId={classId}
+        student={stoppingDropStudent}
+        onCancelled={() => {
+          if (stoppingDropStudent) {
+            const nextStudents = students.map((row) =>
+              row.id === stoppingDropStudent.id
+                ? {
+                    ...row,
+                    has_pending_drop: false,
+                    pending_drop_request_id: null,
+                  }
+                : row
+            );
+            setStudents(nextStudents);
+            onStudentsChange(nextStudents);
+          }
+          setStoppingDropStudent(null);
+        }}
+      />
+
       <Dialog
         open={removingStudent !== null}
         onOpenChange={handleRemoveOpenChange}
@@ -435,10 +501,17 @@ export function ClassStudentsSection({
                       className="border-b last:border-b-0 hover:bg-muted/30"
                     >
                       <td className="max-w-[12rem] px-4 py-3">
-                        <TruncatedCell
-                          value={student.full_name}
-                          maxLength={CLASS_STUDENT_TABLE_LIMITS.fullName}
-                        />
+                        <div className="flex flex-col gap-1">
+                          <TruncatedCell
+                            value={student.full_name}
+                            maxLength={CLASS_STUDENT_TABLE_LIMITS.fullName}
+                          />
+                          {student.has_pending_drop ? (
+                            <span className="inline-flex w-fit items-center rounded-md bg-amber-500/15 px-2 py-0.5 text-xs font-medium text-amber-800 dark:text-amber-200">
+                              {SEMESTER_DROP_BADGE_LABELS.PENDING}
+                            </span>
+                          ) : null}
+                        </div>
                       </td>
                       <td className="max-w-[10rem] px-4 py-3">
                         <TruncatedCell
@@ -465,6 +538,29 @@ export function ClassStudentsSection({
                       </td>
                       <td className="px-4 py-3 text-right">
                         <div className="inline-flex items-center justify-end gap-1">
+                          <Can permission={PERMISSIONS.CLASSES_DROP_SEMESTER}>
+                            {student.has_pending_drop ? (
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="icon-sm"
+                                aria-label={`Stop drop for ${student.full_name}`}
+                                onClick={() => setStoppingDropStudent(student)}
+                              >
+                                <XIcon />
+                              </Button>
+                            ) : (
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="icon-sm"
+                                aria-label={`Drop semester for ${student.full_name}`}
+                                onClick={() => setDroppingStudent(student)}
+                              >
+                                <LogOutIcon />
+                              </Button>
+                            )}
+                          </Can>
                           <Can permission={PERMISSIONS.CLASSES_REMOVE_STUDENT}>
                             <Button
                               type="button"
@@ -480,6 +576,12 @@ export function ClassStudentsSection({
                               variant="ghost"
                               size="icon-sm"
                               aria-label={`Transfer ${student.full_name}`}
+                              disabled={Boolean(student.has_pending_drop)}
+                              title={
+                                student.has_pending_drop
+                                  ? "Transfer is blocked while a semester drop is pending"
+                                  : undefined
+                              }
                               onClick={() => setTransferringStudent(student)}
                             >
                               <ArrowRightLeftIcon />

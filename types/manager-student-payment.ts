@@ -63,11 +63,14 @@ export type ManagerStudentPaymentRow = {
   student_payment_phase_id: string;
   payment_date: string;
   amount: number;
+  /** credit (default) or debit (drop refund). */
+  type: "credit" | "debit";
   payment_method: PaymentMethod;
   received_by: string;
   received_by_management: boolean;
   receipt_number: string | null;
   notes: string | null;
+  semester_drop_request_id?: string | null;
   created_at: string;
 };
 

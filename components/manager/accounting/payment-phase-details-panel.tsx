@@ -754,6 +754,11 @@ export function PaymentPhaseDetailsPanel({
                                 Refund
                               </span>
                             ) : null}
+                            {spp.drop_refund_owed ? (
+                              <span className="inline-flex shrink-0 items-center rounded-md bg-amber-500/15 px-2 py-0.5 text-xs font-medium text-amber-800 dark:text-amber-200">
+                                Refund
+                              </span>
+                            ) : null}
                           </div>
                         </td>
                         <td className="px-4 py-3">
@@ -774,6 +779,21 @@ export function PaymentPhaseDetailsPanel({
                             <SppCurrentBadge
                               clearance={spp.current_clearance}
                             />
+                            {spp.drop_dropped ? (
+                              <span className="inline-flex items-center rounded-md bg-muted px-2 py-0.5 text-xs font-medium text-muted-foreground">
+                                Dropped
+                              </span>
+                            ) : null}
+                            {spp.drop_done_paid ? (
+                              <span className="inline-flex items-center rounded-md bg-emerald-500/15 px-2 py-0.5 text-xs font-medium text-emerald-700 dark:text-emerald-300">
+                                Done paid
+                              </span>
+                            ) : null}
+                            {spp.drop_pending ? (
+                              <span className="inline-flex items-center rounded-md bg-amber-500/15 px-2 py-0.5 text-xs font-medium text-amber-800 dark:text-amber-200">
+                                Pending drop
+                              </span>
+                            ) : null}
                           </span>
                         </td>
                         <td className="whitespace-nowrap px-4 py-3 text-right tabular-nums">

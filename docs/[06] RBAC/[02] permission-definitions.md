@@ -162,6 +162,7 @@ Format: `key` — label — access
 | `classes.add_student` | Add student to class | write |
 | `classes.copy_students_from_class` | Copy students from another class | write |
 | `classes.remove_student` | Remove student from class | write |
+| `classes.drop_semester` | Drop semester for class student | write |
 | `classes.view_analytics` | View class analytics | read |
 
 ### Sessions
@@ -299,6 +300,7 @@ Format: `key` — label — access
 | `accounting.payments.create` | Record student payment | write |
 | `accounting.payments.update` | Edit student payment | write |
 | `accounting.payments.delete` | Delete student payment | write |
+| `accounting.drop_refunds.process` | Process drop semester refund | write |
 | `accounting.adjustments.create` | Create financial adjustment | write |
 | `accounting.adjustments.update` | Edit financial adjustment | write |
 | `accounting.adjustments.delete` | Delete financial adjustment | write |
@@ -490,6 +492,7 @@ classes.unassign_teacher
 classes.add_student
 classes.copy_students_from_class
 classes.remove_student
+classes.drop_semester
 classes.view_analytics
 sessions.view
 sessions.create
@@ -565,6 +568,7 @@ accounting.spp.delete
 accounting.payments.create
 accounting.payments.update
 accounting.payments.delete
+accounting.drop_refunds.process
 accounting.adjustments.create
 accounting.adjustments.update
 accounting.adjustments.delete

@@ -146,7 +146,7 @@ export async function getIncomeStatementForManager(
       fromInclusive,
       toExclusive
     ),
-    studentPaymentRepository.sumAllPaymentAmounts(adminClient),
+    studentPaymentRepository.sumAllPaymentAmountsByType(adminClient),
     studentFinancialAdjustmentRepository.listFinancialAdjustmentsBetween(
       adminClient,
       fromInclusive,
@@ -176,7 +176,7 @@ export async function getIncomeStatementForManager(
   }
 
   const paymentRows = paymentsResult.data ?? [];
-  const totalSppPaymentsAmount = allPaymentAmountsResult.data;
+  const totalSppPaymentsAmount = allPaymentAmountsResult.data.net;
   const adjustmentRows = adjustmentsResult.data ?? [];
   const transactionRows = transactionsResult.data ?? [];
 
@@ -281,10 +281,14 @@ export async function getIncomeStatementForManager(
     labelByStudentId.set(studentId, fullName || username || studentId);
   }
 
-  const totalPaymentsAmount = paymentRows.reduce(
-    (sum, row) => sum + Number(row.amount),
-    0
-  );
+  const totalPaymentsAmount = paymentRows.reduce((sum, row) => {
+    if (row.type === "debit") return sum;
+    return sum + Number(row.amount);
+  }, 0);
+  const totalSppDebitsAmount = paymentRows.reduce((sum, row) => {
+    if (row.type !== "debit") return sum;
+    return sum + Number(row.amount);
+  }, 0);
 
   const allAdjustmentPeople = new Set<string>();
   let scholarshipCount = 0;
@@ -373,12 +377,16 @@ export async function getIncomeStatementForManager(
     .filter((row) => row.type === TRANSACTION_TYPES.DEBIT)
     .reduce((sum, row) => sum + row.amount, 0);
   const availableMoney =
-    totalPaymentsAmount + totalCreditsAmount - totalDebitsAmount;
+    totalPaymentsAmount -
+    totalSppDebitsAmount +
+    totalCreditsAmount -
+    totalDebitsAmount;
 
   return {
     stats: {
       paymentCount: paymentRows.length,
       totalPaymentsAmount,
+      totalSppDebitsAmount,
       totalSppPaymentsAmount,
       totalScholarshipAmount,
       adjustmentPeopleCount: allAdjustmentPeople.size,

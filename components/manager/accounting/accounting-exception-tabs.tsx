@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useState } from "react";
-import { EyeIcon, UsersIcon } from "lucide-react";
+import { BanknoteIcon, EyeIcon, UsersIcon } from "lucide-react";
 import { Can } from "@/components/auth/can";
 import {
   Tabs as TabsPrimitive,
@@ -30,20 +30,25 @@ import type {
   ManagerMissingSppRow,
   ManagerSppSemesterMismatchRow,
 } from "@/types/manager-payment-phase";
+import type { ManagerNeedRefundRow } from "@/types/manager-semester-drop";
 import type { ManagerStudentWithoutActiveClassRow } from "@/types/manager-student";
+import { formatPaymentPhaseMoney } from "@/lib/constants/manager-payment-phase-display";
 
 export type AccountingExceptionTabValue =
   | "billed-no-class"
   | "no-class-no-phase"
   | "semester-mismatch"
-  | "in-class-no-phase";
+  | "in-class-no-phase"
+  | "need-refund";
 
 type AccountingExceptionTabsProps = {
   billedWithoutClass: ManagerBilledWithoutClassRow[];
   withoutClassOrPhase: ManagerStudentWithoutActiveClassRow[];
   semesterMismatches: ManagerSppSemesterMismatchRow[];
   missingSpp: ManagerMissingSppRow[];
+  needRefund: ManagerNeedRefundRow[];
   onAssignMissing: (row: ManagerMissingSppRow) => void;
+  onProcessRefund: (row: ManagerNeedRefundRow) => void;
 };
 
 function TruncatedCell({
@@ -88,7 +93,9 @@ export function AccountingExceptionTabs({
   withoutClassOrPhase,
   semesterMismatches,
   missingSpp,
+  needRefund,
   onAssignMissing,
+  onProcessRefund,
 }: AccountingExceptionTabsProps) {
   const [activeTab, setActiveTab] =
     useState<AccountingExceptionTabValue>("billed-no-class");
@@ -129,6 +136,13 @@ export function AccountingExceptionTabs({
         >
           In class, no phase
           <CountBadge count={missingSpp.length} />
+        </TabsTriggerPrimitive>
+        <TabsTriggerPrimitive
+          value="need-refund"
+          className={TAB_TRIGGER_CLASS}
+        >
+          Need refund
+          <CountBadge count={needRefund.length} />
         </TabsTriggerPrimitive>
       </TabsListPrimitive>
 
@@ -516,6 +530,80 @@ export function AccountingExceptionTabs({
                                 onClick={() => onAssignMissing(row)}
                               >
                                 Assign
+                              </Button>
+                            </Can>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </TabsContentPrimitive>
+
+          <TabsContentPrimitive value="need-refund" className="px-0 py-0">
+            {needRefund.length === 0 ? (
+              <EmptyState
+                size="sm"
+                icon={BanknoteIcon}
+                title="No drop refunds owed"
+                description="Completed semester drops with excess payment will appear here."
+              />
+            ) : (
+              <div className="overflow-x-auto overflow-hidden rounded-xl border">
+                <table className="w-full min-w-[720px] text-sm">
+                  <thead>
+                    <tr className="border-b bg-muted/40 text-left">
+                      <th className="px-4 py-3 font-medium">Student</th>
+                      <th className="px-4 py-3 font-medium">Phase</th>
+                      <th className="px-4 py-3 font-medium text-right">Owed</th>
+                      <th className="px-4 py-3 font-medium text-right">
+                        Refunded
+                      </th>
+                      <th className="px-4 py-3 font-medium text-right">
+                        Action
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {needRefund.map((row) => (
+                      <tr
+                        key={row.id}
+                        className="border-b last:border-b-0 hover:bg-muted/30"
+                      >
+                        <td className="max-w-[14rem] px-4 py-3 font-medium">
+                          <TruncatedCell
+                            value={row.student_label}
+                            maxLength={32}
+                          />
+                        </td>
+                        <td className="max-w-[14rem] px-4 py-3">
+                          <TruncatedCell
+                            value={row.phase_name ?? "—"}
+                            maxLength={28}
+                          />
+                        </td>
+                        <td className="whitespace-nowrap px-4 py-3 text-right tabular-nums">
+                          {formatPaymentPhaseMoney(row.remaining_refund)}
+                        </td>
+                        <td className="whitespace-nowrap px-4 py-3 text-right tabular-nums text-muted-foreground">
+                          {formatPaymentPhaseMoney(row.refunded_amount)}
+                        </td>
+                        <td className="px-4 py-3">
+                          <div className="flex justify-end">
+                            <Can
+                              permission={
+                                PERMISSIONS.ACCOUNTING_DROP_REFUNDS_PROCESS
+                              }
+                            >
+                              <Button
+                                type="button"
+                                size="sm"
+                                variant="outline"
+                                onClick={() => onProcessRefund(row)}
+                              >
+                                Mark refunded
                               </Button>
                             </Can>
                           </div>

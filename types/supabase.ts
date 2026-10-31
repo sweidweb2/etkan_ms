@@ -1929,6 +1929,118 @@ export type Database = {
           },
         ]
       }
+      semester_drop_requests: {
+        Row: {
+          id: string
+          student_id: string
+          semester_id: string
+          class_id: string
+          payment_phase_id: string | null
+          spp_id: string | null
+          status: string
+          required_percent: number
+          required_amount: number
+          phase_amount_snapshot: number
+          requested_at: string
+          deadline_at: string
+          completed_at: string | null
+          refund_owed: number
+          refund_status: string
+          refunded_amount: number
+          requested_by: string | null
+          notes: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          student_id: string
+          semester_id: string
+          class_id: string
+          payment_phase_id?: string | null
+          spp_id?: string | null
+          status?: string
+          required_percent: number
+          required_amount: number
+          phase_amount_snapshot: number
+          requested_at?: string
+          deadline_at: string
+          completed_at?: string | null
+          refund_owed?: number
+          refund_status?: string
+          refunded_amount?: number
+          requested_by?: string | null
+          notes?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          student_id?: string
+          semester_id?: string
+          class_id?: string
+          payment_phase_id?: string | null
+          spp_id?: string | null
+          status?: string
+          required_percent?: number
+          required_amount?: number
+          phase_amount_snapshot?: number
+          requested_at?: string
+          deadline_at?: string
+          completed_at?: string | null
+          refund_owed?: number
+          refund_status?: string
+          refunded_amount?: number
+          requested_by?: string | null
+          notes?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "semester_drop_requests_student_id_fkey"
+            columns: ["student_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "semester_drop_requests_semester_id_fkey"
+            columns: ["semester_id"]
+            isOneToOne: false
+            referencedRelation: "semesters"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "semester_drop_requests_class_id_fkey"
+            columns: ["class_id"]
+            isOneToOne: false
+            referencedRelation: "classes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "semester_drop_requests_payment_phase_id_fkey"
+            columns: ["payment_phase_id"]
+            isOneToOne: false
+            referencedRelation: "payment_phases"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "semester_drop_requests_spp_id_fkey"
+            columns: ["spp_id"]
+            isOneToOne: false
+            referencedRelation: "student_payment_phases"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "semester_drop_requests_requested_by_fkey"
+            columns: ["requested_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       student_payments: {
         Row: {
           amount: number
@@ -1940,7 +2052,9 @@ export type Database = {
           receipt_number: string | null
           received_by: string
           received_by_management: boolean
+          semester_drop_request_id: string | null
           student_payment_phase_id: string
+          type: string
           updated_at: string
         }
         Insert: {
@@ -1953,7 +2067,9 @@ export type Database = {
           receipt_number?: string | null
           received_by: string
           received_by_management?: boolean
+          semester_drop_request_id?: string | null
           student_payment_phase_id: string
+          type?: string
           updated_at?: string
         }
         Update: {
@@ -1966,7 +2082,9 @@ export type Database = {
           receipt_number?: string | null
           received_by?: string
           received_by_management?: boolean
+          semester_drop_request_id?: string | null
           student_payment_phase_id?: string
+          type?: string
           updated_at?: string
         }
         Relationships: [
@@ -1975,6 +2093,13 @@ export type Database = {
             columns: ["student_payment_phase_id"]
             isOneToOne: false
             referencedRelation: "student_payment_phases"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "student_payments_semester_drop_request_id_fkey"
+            columns: ["semester_drop_request_id"]
+            isOneToOne: false
+            referencedRelation: "semester_drop_requests"
             referencedColumns: ["id"]
           },
         ]
@@ -3266,7 +3391,43 @@ export type Database = {
         }
         Returns: Json
       }
+      create_semester_drop_request: {
+        Args: {
+          p_student_id: string
+          p_class_id: string
+          p_required_percent: number
+          p_requested_by?: string | null
+          p_notes?: string | null
+        }
+        Returns: Json
+      }
+      cancel_semester_drop_request: {
+        Args: { p_request_id: string }
+        Returns: Json
+      }
+      complete_semester_drop_request: {
+        Args: { p_request_id: string }
+        Returns: Json
+      }
+      try_complete_semester_drop_for_spp: {
+        Args: { p_spp_id: string }
+        Returns: Json
+      }
+      create_student_payment_debit_for_drop_refund: {
+        Args: {
+          p_drop_request_id: string
+          p_amount: number
+          p_payment_date: string
+          p_payment_method: string
+          p_received_by: string
+          p_received_by_management?: boolean
+          p_notes?: string | null
+        }
+        Returns: Json
+      }
       sum_student_payment_amounts: { Args: never; Returns: number }
+      sum_student_payment_amounts_by_type: { Args: never; Returns: Json }
+      spp_net_total_paid: { Args: { p_spp_id: string }; Returns: number }
       aggregate_workshop_payment_totals: { Args: never; Returns: Json }
       sum_workshop_payment_nets: {
         Args: { p_workshop_ids: string[] }

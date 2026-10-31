@@ -8,6 +8,9 @@ export type ClassStudentRow = {
   email: string;
   phone: string | null;
   joined_at: string;
+  /** Pending semester drop request id when present. */
+  pending_drop_request_id?: string | null;
+  has_pending_drop?: boolean;
 };
 
 /** @deprecated Prefer `ClassStudentRow`. */

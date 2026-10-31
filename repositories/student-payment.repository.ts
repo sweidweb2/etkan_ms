@@ -6,18 +6,20 @@ import type { Database } from "@/types/supabase";
 type Supabase = SupabaseClient<Database>;
 
 const PAYMENT_COLUMNS =
-  "id, student_payment_phase_id, payment_date, amount, payment_method, received_by, received_by_management, receipt_number, notes, created_at, updated_at";
+  "id, student_payment_phase_id, payment_date, amount, type, payment_method, received_by, received_by_management, receipt_number, notes, semester_drop_request_id, created_at, updated_at";
 
 export type StudentPaymentRecord = {
   id: string;
   student_payment_phase_id: string;
   payment_date: string;
   amount: number;
+  type: string;
   payment_method: string;
   received_by: string;
   received_by_management: boolean;
   receipt_number: string | null;
   notes: string | null;
+  semester_drop_request_id: string | null;
   created_at: string;
   updated_at: string;
 };
@@ -53,7 +55,7 @@ export async function listPaymentAmountsBySppIds(
 
   return client
     .from("student_payments")
-    .select("student_payment_phase_id, amount")
+    .select("student_payment_phase_id, amount, type")
     .in("student_payment_phase_id", sppIds);
 }
 
@@ -175,7 +177,7 @@ export async function listPaymentAmountsBetween(
 ) {
   return client
     .from("student_payments")
-    .select("payment_date, amount")
+    .select("payment_date, amount, type")
     .gte("payment_date", fromInclusive)
     .lt("payment_date", toExclusive);
 }
@@ -324,6 +326,7 @@ function asPaymentRecord(value: unknown): StudentPaymentRecord | null {
         : "",
     payment_date: typeof row.payment_date === "string" ? row.payment_date : "",
     amount: asNumber(row.amount),
+    type: typeof row.type === "string" ? row.type : "credit",
     payment_method:
       typeof row.payment_method === "string" ? row.payment_method : "",
     received_by: typeof row.received_by === "string" ? row.received_by : "",
@@ -331,9 +334,88 @@ function asPaymentRecord(value: unknown): StudentPaymentRecord | null {
     receipt_number:
       typeof row.receipt_number === "string" ? row.receipt_number : null,
     notes: typeof row.notes === "string" ? row.notes : null,
+    semester_drop_request_id:
+      typeof row.semester_drop_request_id === "string"
+        ? row.semester_drop_request_id
+        : null,
     created_at: typeof row.created_at === "string" ? row.created_at : "",
     updated_at: typeof row.updated_at === "string" ? row.updated_at : "",
   };
+}
+
+export async function sumAllPaymentAmountsByType(client: Supabase) {
+  const { data, error } = await client.rpc("sum_student_payment_amounts_by_type");
+
+  if (error) {
+    return { data: { credits: 0, debits: 0, net: 0 }, error };
+  }
+
+  const row =
+    data && typeof data === "object" ? (data as Record<string, unknown>) : {};
+
+  return {
+    data: {
+      credits: Math.max(0, Number(row.credits) || 0),
+      debits: Math.max(0, Number(row.debits) || 0),
+      net: Number(row.net) || 0,
+    },
+    error: null,
+  };
+}
+
+export async function createDropRefundDebitWithRecalc(
+  client: Supabase,
+  input: {
+    drop_request_id: string;
+    amount: number;
+    payment_date: string;
+    payment_method: string;
+    received_by: string;
+    received_by_management: boolean;
+    notes: string | null;
+  }
+) {
+  const { data, error } = await client.rpc(
+    "create_student_payment_debit_for_drop_refund",
+    {
+      p_drop_request_id: input.drop_request_id,
+      p_amount: input.amount,
+      p_payment_date: input.payment_date,
+      p_payment_method: input.payment_method,
+      p_received_by: input.received_by,
+      p_received_by_management: input.received_by_management,
+      p_notes: input.notes,
+    }
+  );
+
+  if (error) {
+    return { data: null, error };
+  }
+
+  if (!data || typeof data !== "object") {
+    return { data: null, error: null };
+  }
+
+  const row = data as Record<string, unknown>;
+  return {
+    data: {
+      payment: asPaymentRecord(row.payment),
+      paymentPhaseId:
+        typeof row.paymentPhaseId === "string" ? row.paymentPhaseId : "",
+      request: row.request ?? null,
+      spp: row.spp ?? null,
+    },
+    error: null,
+  };
+}
+
+export async function tryCompleteSemesterDropForSpp(
+  client: Supabase,
+  sppId: string
+) {
+  return client.rpc("try_complete_semester_drop_for_spp", {
+    p_spp_id: sppId,
+  });
 }
 
 export async function createStudentPaymentWithRecalc(

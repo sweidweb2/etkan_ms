@@ -88,3 +88,18 @@ export async function listEnrollmentsByStudentProfileId(
     .eq("student_profile_id", studentProfileId)
     .order("created_at", { ascending: false });
 }
+
+export async function updateEnrollmentStatus(
+  client: Supabase,
+  studentProfileId: string,
+  semesterId: string,
+  status: string
+) {
+  return client
+    .from("student_semester")
+    .update({ status })
+    .eq("student_profile_id", studentProfileId)
+    .eq("semester_id", semesterId)
+    .select(ENROLLMENT_COLUMNS)
+    .maybeSingle();
+}
