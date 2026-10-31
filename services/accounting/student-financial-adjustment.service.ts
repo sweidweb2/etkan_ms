@@ -40,6 +40,7 @@ import type { FinancialFormRecord } from "@/repositories/student-financial-form.
 import * as formRepository from "@/repositories/student-financial-form.repository";
 import type { StudentPaymentPhaseRecord } from "@/repositories/student-payment-phase.repository";
 import * as studentPaymentPhaseRepository from "@/repositories/student-payment-phase.repository";
+import * as semesterDropRequestRepository from "@/repositories/semester-drop-request.repository";
 import * as profileRepository from "@/repositories/profile.repository";
 import * as studentProfileRepository from "@/repositories/student-profile.repository";
 import {
@@ -135,13 +136,17 @@ function normalizeOptionalString(value?: string | null): string | null {
 
 function assertMutationsAllowed(
   phaseStatus: string | null | undefined,
-  sppStatus: string | null | undefined
+  sppStatus: string | null | undefined,
+  dropCompleted = false
 ): string | null {
   if (phaseStatus === PAYMENT_PHASE_STATUSES.CANCELLED) {
     return "Cannot change adjustments on a cancelled payment phase.";
   }
   if (sppStatus === STUDENT_PAYMENT_PHASE_STATUSES.CANCELLED) {
     return "Cannot change adjustments on a cancelled student assignment.";
+  }
+  if (dropCompleted) {
+    return "Cannot change adjustments on a completed semester drop.";
   }
   return null;
 }
@@ -156,6 +161,7 @@ function mapAdjustmentWriteError(
     "Unable to load student payment phase.",
     "Cannot change adjustments on a cancelled payment phase.",
     "Cannot change adjustments on a cancelled student assignment.",
+    "Cannot change adjustments on a completed semester drop.",
     "This student payment phase already has a financial adjustment.",
     "Adjustment not found.",
     "Adjustment does not belong to this student payment phase.",
@@ -280,11 +286,17 @@ async function loadSppAndPhase(
   adminClient: Supabase,
   sppId: string
 ): Promise<
-  | { spp: StudentPaymentPhaseRecord; phase: PaymentPhaseListRecord }
+  | {
+      spp: StudentPaymentPhaseRecord;
+      phase: PaymentPhaseListRecord;
+      dropCompleted: boolean;
+    }
   | { error: string }
 > {
-  const { data, error } =
-    await studentPaymentPhaseRepository.findSppWithPhaseById(adminClient, sppId);
+  const [{ data, error }, completedDropResult] = await Promise.all([
+    studentPaymentPhaseRepository.findSppWithPhaseById(adminClient, sppId),
+    semesterDropRequestRepository.findCompletedDropBySppId(adminClient, sppId),
+  ]);
 
   if (error) {
     return { error: "Unable to load student payment phase." };
@@ -292,6 +304,10 @@ async function loadSppAndPhase(
 
   if (!data) {
     return { error: "Student payment phase not found." };
+  }
+
+  if (completedDropResult.error) {
+    return { error: "Unable to load student payment phase." };
   }
 
   const phase = data.payment_phases;
@@ -304,6 +320,7 @@ async function loadSppAndPhase(
   return {
     spp: spp as StudentPaymentPhaseRecord,
     phase: phase as PaymentPhaseListRecord,
+    dropCompleted: Boolean(completedDropResult.data),
   };
 }
 
@@ -696,7 +713,8 @@ export async function importAdjustmentForManager(
 
   const mutationBlocked = assertMutationsAllowed(
     targetLoaded.phase.status,
-    targetLoaded.spp.status
+    targetLoaded.spp.status,
+    targetLoaded.dropCompleted
   );
   if (mutationBlocked) {
     return { success: false, error: mutationBlocked };
@@ -1007,7 +1025,11 @@ export async function createFinancialFormForManager(
     return { success: false, error: loaded.error };
   }
 
-  const blocked = assertMutationsAllowed(loaded.phase.status, loaded.spp.status);
+  const blocked = assertMutationsAllowed(
+    loaded.phase.status,
+    loaded.spp.status,
+    loaded.dropCompleted
+  );
   if (blocked) {
     return { success: false, error: blocked };
   }
@@ -1124,7 +1146,11 @@ export async function updateFinancialFormForManager(
     return { success: false, error: loaded.error };
   }
 
-  const blocked = assertMutationsAllowed(loaded.phase.status, loaded.spp.status);
+  const blocked = assertMutationsAllowed(
+    loaded.phase.status,
+    loaded.spp.status,
+    loaded.dropCompleted
+  );
   if (blocked) {
     return { success: false, error: blocked };
   }
@@ -1228,7 +1254,11 @@ export async function deleteFinancialFormForManager(
     return { success: false, error: loaded.error };
   }
 
-  const blocked = assertMutationsAllowed(loaded.phase.status, loaded.spp.status);
+  const blocked = assertMutationsAllowed(
+    loaded.phase.status,
+    loaded.spp.status,
+    loaded.dropCompleted
+  );
   if (blocked) {
     return { success: false, error: blocked };
   }
@@ -1298,7 +1328,11 @@ export async function createFinancialFormInviteForManager(
     return { success: false, error: loaded.error };
   }
 
-  const blocked = assertMutationsAllowed(loaded.phase.status, loaded.spp.status);
+  const blocked = assertMutationsAllowed(
+    loaded.phase.status,
+    loaded.spp.status,
+    loaded.dropCompleted
+  );
   if (blocked) {
     return { success: false, error: blocked };
   }
@@ -1393,7 +1427,11 @@ export async function deleteFinancialFormInviteForManager(
     return { success: false, error: loaded.error };
   }
 
-  const blocked = assertMutationsAllowed(loaded.phase.status, loaded.spp.status);
+  const blocked = assertMutationsAllowed(
+    loaded.phase.status,
+    loaded.spp.status,
+    loaded.dropCompleted
+  );
   if (blocked) {
     return { success: false, error: blocked };
   }
@@ -1553,7 +1591,11 @@ export async function submitFinancialFormByToken(
     return { success: false, error: loaded.error };
   }
 
-  const blocked = assertMutationsAllowed(loaded.phase.status, loaded.spp.status);
+  const blocked = assertMutationsAllowed(
+    loaded.phase.status,
+    loaded.spp.status,
+    loaded.dropCompleted
+  );
   if (blocked) {
     return { success: false, error: blocked };
   }

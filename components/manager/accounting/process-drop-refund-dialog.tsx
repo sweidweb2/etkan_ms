@@ -1,5 +1,6 @@
 "use client";
 
+import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { processDropRefundAction } from "@/app/manager/accounting/actions";
 import { InlineSpinner } from "@/components/loaders/inline-spinner";
@@ -19,13 +20,17 @@ import {
   PAYMENT_METHOD_LABELS,
   PAYMENT_METHOD_VALUES,
 } from "@/lib/manager/accounting/constants";
-import type { ManagerNeedRefundRow } from "@/types/manager-semester-drop";
+import type {
+  ManagerNeedRefundRow,
+  ManagerSemesterDropRequestRow,
+} from "@/types/manager-semester-drop";
 
 type ProcessDropRefundActionState = {
   success?: boolean;
   error?: string;
   message?: string;
   fieldErrors?: Record<string, string[] | undefined>;
+  request?: ManagerSemesterDropRequestRow;
 };
 
 const initialState: ProcessDropRefundActionState = {};
@@ -34,8 +39,12 @@ type ProcessDropRefundDialogProps = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   row: ManagerNeedRefundRow | null;
-  onProcessed: () => void;
+  onProcessed: (request: ManagerSemesterDropRequestRow) => void;
 };
+
+function todayIsoDate() {
+  return new Date().toISOString().slice(0, 10);
+}
 
 export function ProcessDropRefundDialog({
   open,
@@ -44,36 +53,76 @@ export function ProcessDropRefundDialog({
   onProcessed,
 }: ProcessDropRefundDialogProps) {
   const router = useRouter();
+  const rowRef = useRef(row);
+  rowRef.current = row;
+
+  const remaining = row?.remaining_refund ?? 0;
+  const resetToken = open && row ? `${row.id}:${remaining}` : null;
+  const [prevResetToken, setPrevResetToken] = useState(resetToken);
+  const [amount, setAmount] = useState(
+    remaining > 0 ? String(remaining) : ""
+  );
+  const [paymentDate, setPaymentDate] = useState(todayIsoDate);
+  const [paymentMethod, setPaymentMethod] = useState("cash");
+  const [receivedBy, setReceivedBy] = useState("Management");
+  const [notes, setNotes] = useState("");
+
+  if (resetToken !== prevResetToken) {
+    setPrevResetToken(resetToken);
+    if (resetToken !== null) {
+      setAmount(remaining > 0 ? String(remaining) : "");
+      setPaymentDate(todayIsoDate());
+      setPaymentMethod("cash");
+      setReceivedBy("Management");
+      setNotes("");
+    }
+  }
+
   const { formAction, isPending, handleOpenChange, state } =
     useMutationDialogForm({
       action: processDropRefundAction,
       initialState,
       open,
       onOpenChange,
-      onSuccess: () => {
-        onProcessed();
+      onSuccess: (next) => {
+        if (next.request) {
+          onProcessed(next.request);
+        }
         onOpenChange(false);
         router.refresh();
       },
     });
 
-  const today = new Date().toISOString().slice(0, 10);
-  const remaining = row?.remaining_refund ?? 0;
+  function handleSubmit() {
+    const current = rowRef.current;
+    if (!current || isPending) {
+      return;
+    }
+    const formData = new FormData();
+    formData.set("request_id", current.id);
+    formData.set("amount", amount.trim());
+    formData.set("payment_date", paymentDate);
+    formData.set("payment_method", paymentMethod);
+    formData.set("received_by", receivedBy.trim());
+    formData.set("received_by_management", "on");
+    if (notes.trim()) {
+      formData.set("notes", notes.trim());
+    }
+    formAction(formData);
+  }
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent className="sm:max-w-md" showCloseButton={!isPending}>
-        <form action={formAction} className="flex flex-col gap-4">
-          <DialogHeader>
-            <DialogTitle>Mark refunded</DialogTitle>
-            <DialogDescription>
-              Record a debit refund for {row?.student_label ?? "this student"}.
-              Remaining owed: {remaining.toFixed(2)}.
-            </DialogDescription>
-          </DialogHeader>
+        <DialogHeader>
+          <DialogTitle>Mark refunded</DialogTitle>
+          <DialogDescription>
+            Record a debit refund for {row?.student_label ?? "this student"}.
+            Remaining owed: {remaining.toFixed(2)}.
+          </DialogDescription>
+        </DialogHeader>
 
-          <input type="hidden" name="request_id" value={row?.id ?? ""} />
-
+        <div className="flex flex-col gap-4">
           <div className="flex flex-col gap-2">
             <Label htmlFor="amount">Amount</Label>
             <Input
@@ -83,7 +132,8 @@ export function ProcessDropRefundDialog({
               min={0.01}
               step={0.01}
               max={remaining}
-              defaultValue={remaining}
+              value={amount}
+              onChange={(event) => setAmount(event.target.value)}
               disabled={isPending}
               required
             />
@@ -100,7 +150,8 @@ export function ProcessDropRefundDialog({
               id="payment_date"
               name="payment_date"
               type="date"
-              defaultValue={today}
+              value={paymentDate}
+              onChange={(event) => setPaymentDate(event.target.value)}
               disabled={isPending}
               required
             />
@@ -111,7 +162,8 @@ export function ProcessDropRefundDialog({
             <select
               id="payment_method"
               name="payment_method"
-              defaultValue="cash"
+              value={paymentMethod}
+              onChange={(event) => setPaymentMethod(event.target.value)}
               disabled={isPending}
               className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-xs"
             >
@@ -128,7 +180,8 @@ export function ProcessDropRefundDialog({
             <Input
               id="received_by"
               name="received_by"
-              defaultValue="Management"
+              value={receivedBy}
+              onChange={(event) => setReceivedBy(event.target.value)}
               disabled={isPending}
               required
             />
@@ -136,28 +189,38 @@ export function ProcessDropRefundDialog({
 
           <div className="flex flex-col gap-2">
             <Label htmlFor="notes">Notes</Label>
-            <Input id="notes" name="notes" disabled={isPending} />
+            <Input
+              id="notes"
+              name="notes"
+              value={notes}
+              onChange={(event) => setNotes(event.target.value)}
+              disabled={isPending}
+            />
           </div>
 
           {state.error && !state.fieldErrors ? (
             <p className="text-sm text-destructive">{state.error}</p>
           ) : null}
+        </div>
 
-          <DialogFooter className="sm:justify-end">
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => handleOpenChange(false)}
-              disabled={isPending}
-            >
-              Cancel
-            </Button>
-            <Button type="submit" disabled={isPending || !row}>
-              {isPending ? <InlineSpinner /> : null}
-              Mark refunded
-            </Button>
-          </DialogFooter>
-        </form>
+        <DialogFooter className="sm:justify-end">
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => handleOpenChange(false)}
+            disabled={isPending}
+          >
+            Cancel
+          </Button>
+          <Button
+            type="button"
+            onClick={handleSubmit}
+            disabled={isPending || !row}
+          >
+            {isPending ? <InlineSpinner /> : null}
+            Mark refunded
+          </Button>
+        </DialogFooter>
       </DialogContent>
     </Dialog>
   );

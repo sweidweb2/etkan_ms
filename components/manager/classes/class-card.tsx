@@ -32,11 +32,16 @@ export function ClassCard({ classRow }: ClassCardProps) {
     "border-border bg-secondary text-secondary-foreground hover:bg-secondary/80";
   const sessionRate = getClassSessionCompletionRate(classRow);
   const sessionTone = getClassProgressTone(classRow);
+  const detailHref = getManagerClassDetailRoute(classRow.id);
 
   return (
     <GradientGlassCard
       id={classRow.id}
       cardGradient={classRow.card_gradient}
+      coverImageUrl={classRow.image_url}
+      coverImageAlt={classRow.name}
+      href={detailHref}
+      hrefAriaLabel={`View ${classRow.name}`}
       title={classRow.name}
       glassLabel={classRow.subject_name}
       badge={
@@ -79,7 +84,7 @@ export function ClassCard({ classRow }: ClassCardProps) {
     >
       <div
         className={cn(
-          "mt-3 grid w-full gap-2",
+          "pointer-events-auto relative z-10 mt-3 grid w-full gap-2",
           classRow.semester_id ? "grid-cols-2" : "grid-cols-1"
         )}
       >
@@ -109,7 +114,7 @@ export function ClassCard({ classRow }: ClassCardProps) {
           nativeButton={false}
           render={
             <Link
-              href={getManagerClassDetailRoute(classRow.id)}
+              href={detailHref}
               prefetch={false}
               aria-label={`View ${classRow.name}`}
             />

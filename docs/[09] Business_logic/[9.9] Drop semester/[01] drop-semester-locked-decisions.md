@@ -64,9 +64,9 @@ Manager marks that a student wants to **drop this semester** from class details.
 
 | # | Rule |
 |---|------|
-| 1 | Base = **`payment_phases.amount`**. |
+| 1 | Base for required % = **`SPP.final_amount_due`** (phase amount **after** financial adjustments). Snapshot `phase_amount_snapshot` still stores raw `payment_phases.amount` for settlement math. |
 | 2 | Default required % = **50** (manager input at create, editable then only). |
-| 3 | `required_amount = phase.amount × required_percent / 100` (snapshot on request). |
+| 3 | `required_amount = final_amount_due × required_percent / 100` (snapshot on request). |
 | 4 | Window reference = **`phase.start_date + 2 months`** (`deadline_at`). Informational; **does not auto-fail**. |
 | 5 | After window, manager can still create drop with **custom %**. |
 | 6 | Paid &lt; required → stay **`pending`** on roster. |
@@ -74,10 +74,12 @@ Manager marks that a student wants to **drop this semester** from class details.
 | 8 | On **complete**: if `total_paid > required_amount` →  
     `refund_owed = total_paid − required_amount` on **drop request**; `refund_status = owed`. |
 | 9 | On **complete**: settle SPP obligation to the drop fee —  
-    **`final_amount_due` becomes `required_amount`** (via adjustment or equivalent), then recalc.  
+    **`final_amount_due` becomes `required_amount`** (fixed adj = `phase.amount − required_amount`), then recalc.  
     Example: phase 100, required 50, paid 70 → due 50, paid 70 → refund_owed 20; badges Dropped + Done paid + Refund. |
 | 10 | No SPP → **immediate remove** from class (no drop request). |
-| 11 | % applies to the phase for the **semester being dropped**. |
+| 11 | % applies to the **adjusted due** for the semester being dropped. |
+| 12 | **Paid SPP** (remaining ≤ 0): no new credit payments. |
+| 13 | **Completed drop** SPP: no credit payments, schedules, adjustments, or SPP transfer (Need-refund debit path stays). |
 
 ### Example (locked)
 
@@ -98,6 +100,19 @@ Manager marks refund 20:
   - recalc: total_paid = 70 − 20 = 50
   - refund_owed → 0 / refund_status = processed
   - SPP shows paid 50 / due 50
+```
+
+### Example with adjustment (locked)
+
+```text
+Phase amount     = 100
+Adjustment       = 20% off → final_amount_due = 80
+Required %       = 50  → required_amount = 40
+Student paid     = 40
+
+Drop completes:
+  - settlement fixed adj = 100 − 40 = 60 → final_amount_due = 40
+  - paid 40 / due 40 → paid; Dropped + Done paid
 ```
 
 ---

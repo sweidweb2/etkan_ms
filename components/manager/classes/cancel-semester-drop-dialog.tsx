@@ -1,5 +1,6 @@
 "use client";
 
+import { useRef } from "react";
 import { useRouter } from "next/navigation";
 import { cancelSemesterDropAction } from "@/app/manager/classes/actions";
 import { InlineSpinner } from "@/components/loaders/inline-spinner";
@@ -29,7 +30,7 @@ type CancelSemesterDropDialogProps = {
   onOpenChange: (open: boolean) => void;
   classId: string;
   student: ManagerClassStudentRow | null;
-  onCancelled: () => void;
+  onCancelled: (membershipId: string) => void;
 };
 
 export function CancelSemesterDropDialog({
@@ -40,52 +41,69 @@ export function CancelSemesterDropDialog({
   onCancelled,
 }: CancelSemesterDropDialogProps) {
   const router = useRouter();
-  const { formAction, isPending, handleOpenChange } = useMutationDialogForm({
-    action: cancelSemesterDropAction,
-    initialState,
-    open,
-    onOpenChange,
-    onSuccess: () => {
-      onCancelled();
-      onOpenChange(false);
-      router.refresh();
-    },
-  });
+  const studentRef = useRef(student);
+  studentRef.current = student;
+
+  const { formAction, isPending, handleOpenChange, state } =
+    useMutationDialogForm({
+      action: cancelSemesterDropAction,
+      initialState,
+      open,
+      onOpenChange,
+      onSuccess: () => {
+        const membershipId = studentRef.current?.id;
+        if (membershipId) {
+          onCancelled(membershipId);
+        }
+        onOpenChange(false);
+        router.refresh();
+      },
+    });
+
+  function handleConfirm() {
+    const current = studentRef.current;
+    if (!current?.pending_drop_request_id || isPending) {
+      return;
+    }
+    const formData = new FormData();
+    formData.set("request_id", current.pending_drop_request_id);
+    formData.set("class_id", classId);
+    formAction(formData);
+  }
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent className="sm:max-w-md" showCloseButton={!isPending}>
-        <form action={formAction} className="flex flex-col gap-4">
-          <DialogHeader>
-            <DialogTitle>Stop semester drop</DialogTitle>
-            <DialogDescription>
-              Cancel the pending drop for {student?.full_name ?? "this student"}?
-              They remain in the class with no drop badge.
-            </DialogDescription>
-          </DialogHeader>
+        <DialogHeader>
+          <DialogTitle>Stop semester drop</DialogTitle>
+          <DialogDescription>
+            Cancel the pending drop for {student?.full_name ?? "this student"}?
+            They remain in the class with no drop badge.
+          </DialogDescription>
+        </DialogHeader>
 
-          <input
-            type="hidden"
-            name="request_id"
-            value={student?.pending_drop_request_id ?? ""}
-          />
-          <input type="hidden" name="class_id" value={classId} />
+        {state.error ? (
+          <p className="text-sm text-destructive">{state.error}</p>
+        ) : null}
 
-          <DialogFooter className="sm:justify-end">
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => handleOpenChange(false)}
-              disabled={isPending}
-            >
-              Keep pending
-            </Button>
-            <Button type="submit" disabled={isPending || !student}>
-              {isPending ? <InlineSpinner /> : null}
-              Stop drop
-            </Button>
-          </DialogFooter>
-        </form>
+        <DialogFooter className="sm:justify-end">
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => handleOpenChange(false)}
+            disabled={isPending}
+          >
+            Keep pending
+          </Button>
+          <Button
+            type="button"
+            onClick={handleConfirm}
+            disabled={isPending || !student?.pending_drop_request_id}
+          >
+            {isPending ? <InlineSpinner /> : null}
+            Stop drop
+          </Button>
+        </DialogFooter>
       </DialogContent>
     </Dialog>
   );

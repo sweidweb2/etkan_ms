@@ -68,6 +68,7 @@ import {
   FINANCIAL_ADJUSTMENT_VALUE_TYPE_LABELS,
   FINANCIAL_ADJUSTMENT_VALUE_TYPES,
   PAYMENT_METHOD_LABELS,
+  STUDENT_PAYMENT_PHASE_STATUSES,
   type FinancialAdjustmentType,
   type FinancialAdjustmentValueType,
   type PaymentMethod,
@@ -904,10 +905,16 @@ export function SppDetailsPanel({
                 </Link>
               ) : null}
             </div>
-            {spp.payments_blocked ? (
+            {spp.drop_completed ? (
               <p className="text-amber-700 dark:text-amber-300">
-                Payments and adjustments are blocked because this phase or
-                student assignment is cancelled.
+                Payments, schedules, and adjustments are locked because this
+                student completed a semester drop.
+              </p>
+            ) : spp.payments_blocked ? (
+              <p className="text-amber-700 dark:text-amber-300">
+                {spp.status === STUDENT_PAYMENT_PHASE_STATUSES.PAID
+                  ? "Payments are locked because this student assignment is already paid."
+                  : "Payments and adjustments are blocked because this phase or student assignment is cancelled."}
               </p>
             ) : null}
           </CardContent>
@@ -1089,6 +1096,7 @@ export function SppDetailsPanel({
           isScheduleEditable={isPaymentScheduleEditable({
             spp_status: spp.status,
             payment_phase_status: spp.payment_phase_status,
+            drop_completed: spp.drop_completed,
           })}
           initialSchedules={initialSchedules}
         />
@@ -1110,7 +1118,7 @@ export function SppDetailsPanel({
         <Card>
           <CardHeader>
             <CardTitle>Financial adjustment</CardTitle>
-            {!spp.payments_blocked && !adjustment ? (
+            {!spp.adjustments_blocked && !adjustment ? (
               <CardAction className="flex flex-wrap gap-2">
                 <Can permission={PERMISSIONS.ACCOUNTING_ADJUSTMENTS_CREATE}>
                   <Button
@@ -1139,7 +1147,7 @@ export function SppDetailsPanel({
                 </Can>
               </CardAction>
             ) : null}
-            {!spp.payments_blocked && adjustment ? (
+            {!spp.adjustments_blocked && adjustment ? (
               <CardAction className="flex flex-wrap gap-2">
                 <Can permission={PERMISSIONS.ACCOUNTING_ADJUSTMENTS_UPDATE}>
                   <Button
@@ -1223,7 +1231,7 @@ export function SppDetailsPanel({
         <Card>
           <CardHeader>
             <CardTitle>Financial form invites</CardTitle>
-            {!spp.payments_blocked ? (
+            {!spp.adjustments_blocked ? (
               <CardAction>
                 <Can permission={PERMISSIONS.ACCOUNTING_ADJUSTMENTS_UPDATE}>
                   <Button
@@ -1273,7 +1281,7 @@ export function SppDetailsPanel({
                         </p>
                       ) : null}
                     </div>
-                    {!invite.is_used && !spp.payments_blocked ? (
+                    {!invite.is_used && !spp.adjustments_blocked ? (
                       <div className="flex shrink-0 gap-2">
                         <Button
                           type="button"
@@ -1318,7 +1326,7 @@ export function SppDetailsPanel({
         <Card>
           <CardHeader>
             <CardTitle>Financial forms</CardTitle>
-            {!spp.payments_blocked ? (
+            {!spp.adjustments_blocked ? (
               <CardAction>
                 <Can permission={PERMISSIONS.ACCOUNTING_ADJUSTMENTS_UPDATE}>
                   <Button
@@ -1352,7 +1360,7 @@ export function SppDetailsPanel({
                       <p className="min-w-0 truncate text-sm font-medium">
                         {formRow.full_name}
                       </p>
-                      {!spp.payments_blocked ? (
+                      {!spp.adjustments_blocked ? (
                         <div className="flex shrink-0 gap-1">
                           <Can
                             permission={PERMISSIONS.ACCOUNTING_ADJUSTMENTS_UPDATE}

@@ -136,6 +136,18 @@ export async function listDropRequestsBySppIds(
     .in("status", ["pending", "completed"]);
 }
 
+export async function findCompletedDropBySppId(
+  client: Supabase,
+  sppId: string
+) {
+  return client
+    .from("semester_drop_requests")
+    .select(DROP_COLUMNS)
+    .eq("spp_id", sppId)
+    .eq("status", "completed")
+    .maybeSingle();
+}
+
 export async function findDropRequestById(client: Supabase, id: string) {
   return client
     .from("semester_drop_requests")

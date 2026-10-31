@@ -4,11 +4,15 @@ function roundMoney(value: number): number {
   return Math.round((value + Number.EPSILON) * 100) / 100;
 }
 
+/**
+ * Drop required amount = adjusted final due × percent.
+ * Pass `final_amount_due` (phase amount after financial adjustments), not raw phase price.
+ */
 export function computeDropRequiredAmount(
-  phaseAmount: number,
+  finalAmountDue: number,
   requiredPercent: number = SEMESTER_DROP_DEFAULT_REQUIRED_PERCENT
 ): number {
-  const amount = Math.max(0, Number(phaseAmount) || 0);
+  const amount = Math.max(0, Number(finalAmountDue) || 0);
   const percent = Math.min(100, Math.max(0, Number(requiredPercent) || 0));
   return roundMoney((amount * percent) / 100);
 }
@@ -36,6 +40,7 @@ export function computeDropRefundOwed(
   );
 }
 
+/** Settlement fixed adjustment so final due becomes required (phase.amount − required). */
 export function computeDropSettlementAdjustment(
   phaseAmount: number,
   requiredAmount: number

@@ -107,9 +107,9 @@ export function EditPhaseDialog({
     <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent className="sm:max-w-lg" showCloseButton={!isPending}>
         <DialogHeader>
-          <DialogTitle>Edit team</DialogTitle>
+          <DialogTitle>Edit semester</DialogTitle>
           <DialogDescription>
-            Update the team name. Code cannot be changed.
+            Update the semester name. Code cannot be changed.
           </DialogDescription>
         </DialogHeader>
 
@@ -141,7 +141,7 @@ export function EditPhaseDialog({
           <div className="flex flex-col gap-2">
             <FieldLabel
               htmlFor="edit-semester-code"
-              label="Team code"
+              label="Semester code"
               hint="Read-only"
             />
             <Input

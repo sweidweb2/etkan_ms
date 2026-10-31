@@ -27,6 +27,7 @@ import * as studentPaymentPhaseRepository from "@/repositories/student-payment-p
 import type { StudentPaymentRecord } from "@/repositories/student-payment.repository";
 import * as studentPaymentRepository from "@/repositories/student-payment.repository";
 import * as studentProfileRepository from "@/repositories/student-profile.repository";
+import * as semesterDropRequestRepository from "@/repositories/semester-drop-request.repository";
 import {
   recordManagerAuditLog,
   type AuditActor,
@@ -147,6 +148,10 @@ function mapPaymentWriteError(
     "Student payment phase not found.",
     "Cannot record payments on a cancelled payment phase.",
     "Cannot record payments on a cancelled student assignment.",
+    "Cannot record payments on a paid student assignment.",
+    "Cannot record payments on a completed semester drop.",
+    "Only credit payments can be updated here.",
+    "Only credit payments can be deleted here.",
     "Payment not found.",
     "Payment does not belong to this student.",
     "This student payment phase has payments. Delete all payments first.",
@@ -258,11 +263,19 @@ export async function getSppDetailForManager(
   const { loadActiveClearanceDtoBySppId } = await import(
     "@/services/accounting/spp-clearance.service"
   );
-  const [studentMeta, billingClass, currentClearance] = await Promise.all([
-    resolveStudentMeta(adminClient, sppRecord.student_id),
-    resolveInProgressClassForSemester(adminClient, phaseRecord.semester_id),
-    loadActiveClearanceDtoBySppId(adminClient, sppRecord.id),
-  ]);
+  const [studentMeta, billingClass, currentClearance, completedDropResult] =
+    await Promise.all([
+      resolveStudentMeta(adminClient, sppRecord.student_id),
+      resolveInProgressClassForSemester(adminClient, phaseRecord.semester_id),
+      loadActiveClearanceDtoBySppId(adminClient, sppRecord.id),
+      semesterDropRequestRepository.findCompletedDropBySppId(
+        adminClient,
+        sppRecord.id
+      ),
+    ]);
+  if (completedDropResult.error) {
+    throw new Error(completedDropResult.error.message);
+  }
   const phaseStatus = isPaymentPhaseStatus(phaseRecord.status)
     ? phaseRecord.status
     : PAYMENT_PHASE_STATUSES.OPENED;
@@ -270,6 +283,7 @@ export async function getSppDetailForManager(
     ? sppRecord.status
     : STUDENT_PAYMENT_PHASE_STATUSES.PENDING;
   const remaining = Number(sppRecord.remaining_amount);
+  const dropCompleted = Boolean(completedDropResult.data);
 
   return {
     id: sppRecord.id,
@@ -298,9 +312,16 @@ export async function getSppDetailForManager(
     total_paid: Number(sppRecord.total_paid),
     remaining_amount: remaining,
     has_credit: remaining < 0,
+    drop_completed: dropCompleted,
     payments_blocked:
       phaseStatus === PAYMENT_PHASE_STATUSES.CANCELLED ||
-      sppStatus === STUDENT_PAYMENT_PHASE_STATUSES.CANCELLED,
+      sppStatus === STUDENT_PAYMENT_PHASE_STATUSES.CANCELLED ||
+      sppStatus === STUDENT_PAYMENT_PHASE_STATUSES.PAID ||
+      dropCompleted,
+    adjustments_blocked:
+      phaseStatus === PAYMENT_PHASE_STATUSES.CANCELLED ||
+      sppStatus === STUDENT_PAYMENT_PHASE_STATUSES.CANCELLED ||
+      dropCompleted,
     assigned_at: sppRecord.assigned_at,
     created_at: sppRecord.created_at,
     current_clearance: currentClearance,
@@ -952,6 +973,8 @@ export async function getSppDetailForSelf(
     remaining_amount: remaining,
     has_credit: remaining < 0,
     payments_blocked: false,
+    adjustments_blocked: false,
+    drop_completed: false,
     assigned_at: sppRecord.assigned_at,
     created_at: sppRecord.created_at,
     current_clearance: currentClearance,

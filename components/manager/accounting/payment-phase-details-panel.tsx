@@ -825,7 +825,10 @@ export function PaymentPhaseDetailsPanel({
                           <div className="flex items-center justify-end gap-1">
                             {canRecordPayments &&
                             spp.status !==
-                              STUDENT_PAYMENT_PHASE_STATUSES.CANCELLED ? (
+                              STUDENT_PAYMENT_PHASE_STATUSES.CANCELLED &&
+                            spp.status !==
+                              STUDENT_PAYMENT_PHASE_STATUSES.PAID &&
+                            !spp.drop_dropped ? (
                               <Can
                                 permission={
                                   PERMISSIONS.ACCOUNTING_PAYMENTS_CREATE
@@ -893,7 +896,8 @@ export function PaymentPhaseDetailsPanel({
                               </Can>
                             ) : null}
                             {spp.status !==
-                            STUDENT_PAYMENT_PHASE_STATUSES.CANCELLED ? (
+                              STUDENT_PAYMENT_PHASE_STATUSES.CANCELLED &&
+                            !spp.drop_dropped ? (
                               <Can
                                 permission={PERMISSIONS.ACCOUNTING_SPP_TRANSFER}
                               >

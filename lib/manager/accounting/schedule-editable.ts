@@ -8,8 +8,17 @@ import {
 export function isPaymentScheduleEditable(input: {
   spp_status: StudentPaymentPhaseStatus;
   payment_phase_status: PaymentPhaseStatus;
+  drop_completed?: boolean;
 }): boolean {
+  if (input.drop_completed) {
+    return false;
+  }
+
   if (input.spp_status === STUDENT_PAYMENT_PHASE_STATUSES.CANCELLED) {
+    return false;
+  }
+
+  if (input.spp_status === STUDENT_PAYMENT_PHASE_STATUSES.PAID) {
     return false;
   }
 

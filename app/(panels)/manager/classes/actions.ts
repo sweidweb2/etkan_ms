@@ -568,6 +568,7 @@ export type CreateSemesterDropActionState = {
   fieldErrors?: Record<string, string[] | undefined>;
   completedImmediately?: boolean;
   removedStudentMembershipId?: string;
+  membershipId?: string;
   requestId?: string;
 };
 
@@ -588,6 +589,7 @@ export async function createSemesterDropAction(
       success: true,
       message: result.message,
       completedImmediately: result.completedImmediately,
+      membershipId: data.membership_id,
       removedStudentMembershipId: result.removedFromClass
         ? data.membership_id
         : undefined,

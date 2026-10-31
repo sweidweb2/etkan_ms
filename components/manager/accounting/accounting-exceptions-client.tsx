@@ -10,6 +10,7 @@ import type {
   ManagerPaymentPhaseRow,
   ManagerSppSemesterMismatchRow,
 } from "@/types/manager-payment-phase";
+import { SEMESTER_DROP_REFUND_STATUSES } from "@/lib/manager/accounting/constants";
 import type { ManagerNeedRefundRow } from "@/types/manager-semester-drop";
 import type { ManagerStudentWithoutActiveClassRow } from "@/types/manager-student";
 
@@ -72,7 +73,26 @@ export function AccountingExceptionsClient({
           if (!open) setRefundRow(null);
         }}
         row={refundRow}
-        onProcessed={() => {
+        onProcessed={(request) => {
+          setNeedRefund((current) => {
+            if (
+              request.refund_status === SEMESTER_DROP_REFUND_STATUSES.PROCESSED ||
+              request.remaining_refund <= 0
+            ) {
+              return current.filter((row) => row.id !== request.id);
+            }
+            return current.map((row) =>
+              row.id === request.id
+                ? {
+                    ...row,
+                    refund_owed: request.refund_owed,
+                    refunded_amount: request.refunded_amount,
+                    remaining_refund: request.remaining_refund,
+                    refund_status: request.refund_status,
+                  }
+                : row
+            );
+          });
           setRefundRow(null);
         }}
       />

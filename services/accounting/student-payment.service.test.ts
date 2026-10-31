@@ -6,6 +6,7 @@ import * as studentPaymentPhaseRepository from "@/repositories/student-payment-p
 import * as studentPaymentRepository from "@/repositories/student-payment.repository";
 import * as studentProfileRepository from "@/repositories/student-profile.repository";
 import * as clearanceRepository from "@/repositories/student-payment-phase-clearance.repository";
+import * as semesterDropRequestRepository from "@/repositories/semester-drop-request.repository";
 import * as auditLogService from "@/services/ops/audit-log.service";
 import type { AuditActor } from "@/services/ops/audit-log.service";
 import {
@@ -29,6 +30,7 @@ vi.mock("@/repositories/profile.repository");
 vi.mock("@/repositories/student-payment-phase.repository");
 vi.mock("@/repositories/student-payment.repository");
 vi.mock("@/repositories/student-profile.repository");
+vi.mock("@/repositories/semester-drop-request.repository");
 vi.mock("@/repositories/student-payment-phase-clearance.repository", () => ({
   findClearanceBySppId: vi.fn().mockResolvedValue({ data: null, error: null }),
   findClearancesBySppIds: vi.fn().mockResolvedValue({ data: [], error: null }),
@@ -272,6 +274,12 @@ describe("getSppDetailForManager", () => {
       data: null,
       error: null,
     } as never);
+    vi.mocked(
+      semesterDropRequestRepository.findCompletedDropBySppId
+    ).mockResolvedValue({
+      data: null,
+      error: null,
+    } as never);
   });
 
   it("sets has_credit when remaining amount is negative (E9)", async () => {
@@ -339,6 +347,8 @@ describe("getSppDetailForManager", () => {
     expect(detail?.remaining_amount).toBe(-200);
     expect(detail?.has_credit).toBe(true);
     expect(detail?.status).toBe("paid");
+    expect(detail?.payments_blocked).toBe(true);
+    expect(detail?.drop_completed).toBe(false);
     expect(detail?.student_profile_id).toBe("sp-1");
   });
 });

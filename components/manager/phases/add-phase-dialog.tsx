@@ -83,9 +83,9 @@ export function AddPhaseDialog({
     <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent className="sm:max-w-lg" showCloseButton={!isPending}>
         <DialogHeader>
-          <DialogTitle>Add team</DialogTitle>
+          <DialogTitle>Add semester</DialogTitle>
           <DialogDescription>
-            Create a team with a name. A unique 4-digit code is assigned
+            Create a semester with a name. A unique 4-digit code is assigned
             automatically.
           </DialogDescription>
         </DialogHeader>
@@ -126,7 +126,7 @@ export function AddPhaseDialog({
                 Creating…
               </>
             ) : (
-              "Create team"
+              "Create semester"
             )}
           </Button>
         </DialogFooter>

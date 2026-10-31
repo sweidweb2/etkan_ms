@@ -1,4 +1,5 @@
 import type { CSSProperties, ReactNode } from "react";
+import Link from "next/link";
 import { createClassCardMeshGradient } from "@/lib/ui/procedural-mesh-gradient";
 import { cn } from "@/lib/utils";
 
@@ -7,6 +8,12 @@ type GradientGlassCardProps = {
   id: string;
   /** Key from `CLASS_CARD_GRADIENTS` directory (`classes.card_gradient`). */
   cardGradient: string;
+  /**
+   * Optional cover image. When set, replaces the mesh gradient in the
+   * cover band; gradient remains the fallback when this is empty/null.
+   */
+  coverImageUrl?: string | null;
+  coverImageAlt?: string;
   title: string;
   description?: string;
   /** Label inside the frosted glass panel; overflows with ellipsis. */
@@ -17,6 +24,9 @@ type GradientGlassCardProps = {
   badge?: ReactNode;
   /** Extra content below meta (progress, actions). */
   children?: ReactNode;
+  /** When set, the whole card navigates here (nested controls need `pointer-events-auto`). */
+  href?: string;
+  hrefAriaLabel?: string;
   className?: string;
   style?: CSSProperties;
 };
@@ -28,16 +38,21 @@ type GradientGlassCardProps = {
 export function GradientGlassCard({
   id,
   cardGradient,
+  coverImageUrl,
+  coverImageAlt = "",
   title,
   description,
   glassLabel,
   meta,
   badge,
   children,
+  href,
+  hrefAriaLabel,
   className,
   style,
 }: GradientGlassCardProps) {
   const mesh = createClassCardMeshGradient(cardGradient);
+  const hasCoverImage = Boolean(coverImageUrl);
 
   return (
     <article
@@ -49,29 +64,52 @@ export function GradientGlassCard({
         "transition-[transform,box-shadow] duration-300 ease-out",
         "hover:-translate-y-0.5 hover:shadow-[0_22px_40px_-20px_rgb(42_42_82/0.4)]",
         "motion-reduce:transition-none motion-reduce:hover:translate-y-0",
+        href ? "cursor-pointer" : null,
         className
       )}
       style={style}
     >
-      <div className="relative isolate h-24 w-full shrink-0 overflow-hidden sm:h-28">
-        <div
-          aria-hidden
-          className={cn(
-            "absolute inset-0 scale-105 transition-[filter,transform] duration-500 ease-out",
-            "group-hover/gradient-glass:scale-110 group-hover/gradient-glass:brightness-[1.06]",
-            "motion-reduce:transition-none motion-reduce:group-hover/gradient-glass:scale-105"
-          )}
-          style={{
-            backgroundColor: mesh.backgroundColor,
-            backgroundImage: mesh.backgroundImage,
-          }}
+      {href ? (
+        <Link
+          href={href}
+          aria-label={hrefAriaLabel ?? title}
+          className="absolute inset-0 z-0 rounded-2xl"
+          prefetch={false}
         />
+      ) : null}
+
+      <div className="relative isolate h-24 w-full shrink-0 overflow-hidden sm:h-28">
+        {hasCoverImage ? (
+          // eslint-disable-next-line @next/next/no-img-element -- class cover URLs are storage/CDN paths
+          <img
+            src={coverImageUrl!}
+            alt={coverImageAlt}
+            className={cn(
+              "absolute inset-0 size-full object-cover transition-[filter,transform] duration-500 ease-out",
+              "group-hover/gradient-glass:scale-105 group-hover/gradient-glass:brightness-[1.04]",
+              "motion-reduce:transition-none motion-reduce:group-hover/gradient-glass:scale-100"
+            )}
+          />
+        ) : (
+          <div
+            aria-hidden
+            className={cn(
+              "absolute inset-0 scale-105 transition-[filter,transform] duration-500 ease-out",
+              "group-hover/gradient-glass:scale-110 group-hover/gradient-glass:brightness-[1.06]",
+              "motion-reduce:transition-none motion-reduce:group-hover/gradient-glass:scale-105"
+            )}
+            style={{
+              backgroundColor: mesh.backgroundColor,
+              backgroundImage: mesh.backgroundImage,
+            }}
+          />
+        )}
         <div
           aria-hidden
           className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_center,transparent_45%,rgba(0,0,0,0.12)_100%)]"
         />
 
-        <div className="absolute inset-0 z-10 flex items-center justify-center px-4 py-3">
+        <div className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center px-4 py-3">
           <div
             className={cn(
               "flex h-12 w-[min(100%,11.5rem)] items-center justify-center overflow-hidden rounded-xl px-3",
@@ -94,7 +132,12 @@ export function GradientGlassCard({
         </div>
       </div>
 
-      <div className="flex min-h-0 flex-1 flex-col gap-1 px-4 pt-3.5 pb-4">
+      <div
+        className={cn(
+          "relative z-10 flex min-h-0 flex-1 flex-col gap-1 px-4 pt-3.5 pb-4",
+          href ? "pointer-events-none" : null
+        )}
+      >
         <div className="flex min-h-12 items-start justify-between gap-2">
           <h2
             className="min-w-0 line-clamp-2 text-base leading-6 font-semibold tracking-tight text-balance"

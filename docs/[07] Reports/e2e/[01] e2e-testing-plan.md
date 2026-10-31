@@ -43,7 +43,7 @@ Do **not** E2E every validator edge case — Vitest already covers most of that.
 | Layer | Status |
 |-------|--------|
 | Vitest unit/service tests | Strong (keep growing) |
-| Playwright / Cypress | ✅ Phases **0–2** done (auth + public smoke); Phases 3–15 not started |
+| Playwright / Cypress | ✅ Phases **0–6** done (through class deep path); Phases 7–15 not started |
 | CI for E2E | None yet |
 | Seed scripts | `seed`, `seed:admin`, `seed:manager`, `seed:demo`, `seed:rbac`, etc. |
 | Auth | Supabase email/password + cookies |
@@ -273,56 +273,56 @@ Coverage columns: leave blank until implemented. Use `S` = smoke (loads), `M` = 
 
 | Route | Nav group | Coverage |
 |-------|-----------|----------|
-| `/manager` | Root | |
-| `/manager/users` | People | |
-| `/manager/students` | People | |
-| `/manager/registrations` | People | |
-| `/manager/guests` | People | |
-| `/manager/subjects` | Academics | |
-| `/manager/subjects/catalog` | Academics | |
-| `/manager/classes` | Academics | |
-| `/manager/semesters` | Academics (“Manage teams”) | |
-| `/manager/equipments` | Resources | |
-| `/manager/instructors` | Instructors & workshops | |
-| `/manager/instructor-schedules` | Instructors & workshops | |
-| `/manager/instructor-schedules/details` | Instructors & workshops | |
-| `/manager/workshops` | Instructors & workshops | |
-| `/manager/workshops/payments` | Workshops | |
-| `/manager/cloudflare-ai-usage` | Instructors & workshops | |
-| `/manager/accounting` | Operations | |
-| `/manager/income-statement` | Operations | |
-| `/manager/income-statement/analytics` | Operations | |
-| `/manager/income-statement/history` | Operations | |
-| `/manager/academic-analysis` | Operations | |
-| `/manager/emailing` | Email | |
-| `/manager/emailing/compose` | Email | |
-| `/manager/sent` | Email | |
-| `/manager/gallery` | Options | |
-| `/manager/projects` | Options | |
-| `/manager/blogs` | Options | |
-| `/manager/notifications` | System | |
-| `/manager/backup` | System | |
-| `/manager/logs` | System | |
-| `/manager/rbac` | System | |
-| `/manager/settings` | System | |
-| `/manager/cron-jobs` | System (page exists; may be off-nav) | |
+| `/manager` | Root | ✅ S (Phase 3; redirects → students) |
+| `/manager/users` | People | ✅ S (Phase 3) + M create/edit (Phase 4) |
+| `/manager/students` | People | ✅ S (Phase 3) + M create/edit (Phase 4) |
+| `/manager/registrations` | People | ✅ S (Phase 3–4) |
+| `/manager/guests` | People | ✅ S (Phase 3) + M create (Phase 4) |
+| `/manager/subjects` | Academics | ✅ S (Phase 3) + M create (Phase 5) |
+| `/manager/subjects/catalog` | Academics | ✅ S (Phase 3–5) |
+| `/manager/classes` | Academics | ✅ S (Phase 3) + M create/enroll (Phase 5) |
+| `/manager/semesters` | Academics (“Manage semesters”) | ✅ S (Phase 3) + M create (Phase 5) |
+| `/manager/equipments` | Resources | ✅ S (Phase 3) |
+| `/manager/instructors` | Instructors & workshops | ✅ S (Phase 3) |
+| `/manager/instructor-schedules` | Instructors & workshops | ✅ S (Phase 3) |
+| `/manager/instructor-schedules/details` | Instructors & workshops | ✅ S (Phase 3) |
+| `/manager/workshops` | Instructors & workshops | ✅ S (Phase 3) |
+| `/manager/workshops/payments` | Workshops | ✅ S (Phase 3) |
+| `/manager/cloudflare-ai-usage` | Instructors & workshops | ✅ S (Phase 3) |
+| `/manager/accounting` | Operations | ✅ S (Phase 3) |
+| `/manager/income-statement` | Operations | ✅ S (Phase 3) |
+| `/manager/income-statement/analytics` | Operations | ✅ S (Phase 3) |
+| `/manager/income-statement/history` | Operations | ✅ S (Phase 3) |
+| `/manager/academic-analysis` | Operations | ✅ S (Phase 3) |
+| `/manager/emailing` | Email | ✅ S (Phase 3) |
+| `/manager/emailing/compose` | Email | ✅ S (Phase 3) |
+| `/manager/sent` | Email | ✅ S (Phase 3) |
+| `/manager/gallery` | Options | ✅ S (Phase 3) |
+| `/manager/projects` | Options | ✅ S (Phase 3) |
+| `/manager/blogs` | Options | ✅ S (Phase 3) |
+| `/manager/notifications` | System | ✅ S (Phase 3) |
+| `/manager/backup` | System | ✅ S (Phase 3) |
+| `/manager/logs` | System | ✅ S (Phase 3) |
+| `/manager/rbac` | System | ✅ S (Phase 3) |
+| `/manager/settings` | System | ✅ S (Phase 3) |
+| `/manager/cron-jobs` | System (page exists; may be off-nav) | ✅ S (Phase 3) |
 
 ### 8.4 Manager panel — detail / deep routes
 
 | Route | Coverage |
 |-------|----------|
 | `/manager/users/[id]` | |
-| `/manager/students/[id]` | |
-| `/manager/registrations/[id]` | |
-| `/manager/guests/[id]` | |
+| `/manager/students/[id]` | ✅ S/M (Phase 4 edit) |
+| `/manager/registrations/[id]` | ✅ S when seeded (Phase 4) |
+| `/manager/guests/[id]` | ✅ S/M (Phase 4 create → detail) |
 | `/manager/subjects/[id]` | |
-| `/manager/semesters/[id]` | |
-| `/manager/classes/[id]` | |
-| `/manager/classes/[id]/categories` | |
-| `/manager/classes/[id]/grades` | |
+| `/manager/semesters/[id]` | ✅ S (Phase 5) |
+| `/manager/classes/[id]` | ✅ S/M (Phase 5–6) |
+| `/manager/classes/[id]/categories` | ✅ S (Phase 6) |
+| `/manager/classes/[id]/grades` | ✅ S locked-state (Phase 6) |
 | `/manager/classes/[id]/grades/students/[studentId]` | |
-| `/manager/classes/[id]/sessions/[sessionId]` | |
-| `/manager/classes/[id]/tasks/[taskId]` | |
+| `/manager/classes/[id]/sessions/[sessionId]` | ✅ S + attendance M (Phase 6) |
+| `/manager/classes/[id]/tasks/[taskId]` | ✅ S (Phase 6) |
 | `/manager/classes/[id]/sessions/[sessionId]/tasks/[taskId]` | deprecated alias — smoke optional |
 | `/manager/equipments/[id]` | |
 | `/manager/equipments/borrow` | |
@@ -376,13 +376,13 @@ These are the **happy paths** that must eventually exist (beyond “page loads�
 
 | ID | Journey | Primary phase |
 |----|---------|---------------|
-| J1 | Create staff user → detail/list | 4 |
-| J2 | Create student → detail/list | 4 |
-| J3 | Registration status / guest flow sample | 4 |
-| J4 | Create subject (+ catalog open) | 5 |
-| J5 | Create semester/team → open detail | 5 |
-| J6 | Create class → enroll student | 5 |
-| J7 | Session attendance or task grade write (one) | 6 |
+| J1 | Create staff user → detail/list | 4 ✅ |
+| J2 | Create student → detail/list | 4 ✅ |
+| J3 | Registration status / guest flow sample | 4 ✅ (guest create; registrations smoke) |
+| J4 | Create subject (+ catalog open) | 5 ✅ |
+| J5 | Create semester/team → open detail | 5 ✅ |
+| J6 | Create class → enroll student | 5 ✅ |
+| J7 | Session attendance or task grade write (one) | 6 ✅ (attendance) |
 | J8 | Equipment create + borrow/return | 7 |
 | J9 | Instructor schedule slot create/edit | 7 |
 | J10 | Workshop create/open + payments page | 7 |
@@ -454,63 +454,63 @@ These are the **happy paths** that must eventually exist (beyond “page loads�
 
 ---
 
-### Phase 3 — Manager navigation smoke (read-only)
+### Phase 3 — Manager navigation smoke (read-only) ✅ Done
 
 **Goal:** Every manager **list/root** route in §8.3 opens without crash.
 
-**Approach:** Parameterized `manager/smoke-nav.spec.ts` walking sidebar groups + off-nav pages (`cron-jobs`, `subjects/catalog`, `workshops/payments`, income history, email compose).
+**Approach:** ✅ Parameterized `manager/smoke-nav.spec.ts` walking sidebar groups + off-nav pages (`cron-jobs`, `subjects/catalog`, `workshops/payments`, income history, email compose).
 
-**Assertions (light):** no Next error overlay; main heading/landmark; sidebar click where linked (`prefetch={false}` is fine).
+**Assertions (light):** ✅ no Next error overlay; main heading/landmark; sidebar click where linked (`prefetch={false}` is fine).
 
 **Do not yet:** create/delete data.
 
-**Exit:** Full-permission manager opens all §8.3 routes.
+**Exit:** ✅ Full-permission manager opens all §8.3 routes.
 
 **Risk:** Low–medium (slow pages) — generous timeouts only where measured.
 
 ---
 
-### Phase 4 — Manager people (users, students, registrations, guests)
+### Phase 4 — Manager people (users, students, registrations, guests) ✅ Done
 
 | Suite | Journeys |
 |-------|----------|
-| Users | Create → toast → list/detail; edit safe fields |
-| Students | Create → detail; edit; optional status |
-| Registrations | List → detail; one status update if safe |
-| Guests | List → detail; one update if safe |
+| Users | ✅ Create → toast → list; edit username |
+| Students | ✅ Create → detail; edit full name |
+| Registrations | ✅ List smoke; detail when a row exists (skip if empty) |
+| Guests | ✅ Create → toast → detail |
 
-**Align:** wait for toast / dialog close (`usePendingAwareOpenChange`); unique emails.
+**Align:** ✅ wait for toast / dialog close (`usePendingAwareOpenChange`); unique emails.
 
-**Exit:** J1–J3 green (or J3 smoke-only if mutations unsafe).
+**Exit:** ✅ J1–J2 green; J3 smoke (+ guest create).
 
 **Risk:** Medium (timing/toasts).
 
 ---
 
-### Phase 5 — Manager academics (subjects, teams, classes, enroll)
+### Phase 5 — Manager academics (subjects, teams, classes, enroll) ✅ Done
 
-1. Subjects create/edit + catalog open  
-2. Semesters (“teams”) create → detail  
-3. Classes create linked as UI requires  
-4. Enroll student; one remove/transfer happy path  
-5. Open class detail tabs that exist without deep grade writes yet  
+1. ✅ Subjects create + catalog open (`e2e/manager/academics.spec.ts`)  
+2. ✅ Semesters (“teams”) create → detail  
+3. ✅ Classes create linked to subject  
+4. ✅ Enroll seeded student (Alice) into new class  
+5. ✅ Open class detail after create  
 
-**Exit:** J4–J6 green on dedicated E2E data.
+**Exit:** ✅ J4–J6 green on dedicated E2E data.
 
 **Risk:** Higher (RPC + multi-table) — keep journeys short.
 
 ---
 
-### Phase 6 — Manager class deep path (grades, sessions, tasks, categories)
+### Phase 6 — Manager class deep path (grades, sessions, tasks, categories) ✅ Done
 
-1. Categories page loads  
-2. Grades list → one student grade detail  
-3. Session detail loads  
-4. Task detail loads  
-5. `@mutation`: one attendance **or** one task grade write  
+1. ✅ Categories page loads (Demo Math 101)  
+2. ✅ Grades list (locked while not Done)  
+3. ✅ Session detail loads  
+4. ✅ Task detail loads  
+5. ✅ `@mutation`: attendance mark-absent when attendees exist  
 6. `@slow` optional: certificate/export later  
 
-**Exit:** All §8.4 class deep routes smoke; J7 if product-ready.
+**Exit:** ✅ Class deep routes smoke; J7 attendance when available.
 
 **Risk:** High complexity — smoke PR then mutation PR.
 
@@ -737,7 +737,7 @@ Debug order: env/seed → selector → toast/action state → service error → 
 
 ## 14. Definition of “integrate it now”
 
-**Now = Phase 3 (manager nav smoke).** Phases 0–2 are ✅ done.
+**Now = Phase 7 (equipment / instructors / workshops).** Phases 0–6 are ✅ done.
 
 1. [x] Install Playwright  
 2. [x] Config + `npm run test:e2e`  
@@ -747,8 +747,12 @@ Debug order: env/seed → selector → toast/action state → service error → 
 6. [x] `[03] local-setup.md`  
 7. [x] Tick Phase 0–1 in `[02] phase-checklist.md`  
 8. [x] Phase 2 public + invite smokes  
+9. [x] Phase 3 manager nav smoke  
+10. [x] Phase 4 manager people CRUD  
+11. [x] Phase 5 academics create/enroll  
+12. [x] Phase 6 class deep path  
 
-Next: Phase 3 → continue through §9 until §8 tables are complete.
+Next: Phase 7 → continue through §9 until §8 tables are complete.
 
 ---
 

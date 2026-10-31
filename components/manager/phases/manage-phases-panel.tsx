@@ -164,15 +164,18 @@ export function ManagePhasesPanel({ initialSemesters }: ManagePhasesPanelProps) 
     <div className="flex flex-col gap-6">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight">Manage teams</h1>
+          <h1 className="text-2xl font-semibold tracking-tight">
+            Manage semesters
+          </h1>
           <p className="mt-1 text-sm text-muted-foreground">
-            Teams with names and codes for linking classes and payment phases.
+            Semesters with names and codes for linking classes and payment
+            phases.
           </p>
         </div>
         <Can permission={PERMISSIONS.SEMESTERS_CREATE}>
           <Button type="button" onClick={() => setIsAddOpen(true)}>
             <PlusIcon data-icon="inline-start" />
-            Add team
+            Add semester
           </Button>
         </Can>
       </div>
@@ -198,7 +201,7 @@ export function ManagePhasesPanel({ initialSemesters }: ManagePhasesPanelProps) 
 
       <div className="grid gap-4 sm:grid-cols-2">
         <UserStatCard
-          label="Total teams"
+          label="Total semesters"
           value={phases.length}
           accentClassName="border-l-sky-500"
         />
@@ -211,7 +214,7 @@ export function ManagePhasesPanel({ initialSemesters }: ManagePhasesPanelProps) 
 
       <Card className="py-0">
         <CardHeader className="border-b bg-muted/50 py-3">
-          <CardTitle>Teams</CardTitle>
+          <CardTitle>Semesters</CardTitle>
         </CardHeader>
         <CardContent className="flex flex-col gap-6 px-4 pt-2 pb-3">
           <div className="flex flex-col gap-3 lg:flex-row lg:items-center">
@@ -223,9 +226,9 @@ export function ManagePhasesPanel({ initialSemesters }: ManagePhasesPanelProps) 
                   setSearchQuery(event.target.value);
                   setCurrentPage(1);
                 }}
-                placeholder="Search team name or code..."
+                placeholder="Search semester name or code..."
                 className="pl-8"
-                aria-label="Search teams"
+                aria-label="Search semesters"
               />
             </div>
             <div className="flex flex-col gap-3 sm:flex-row">
@@ -241,7 +244,7 @@ export function ManagePhasesPanel({ initialSemesters }: ManagePhasesPanelProps) 
               >
                 <SelectTrigger
                   className="w-full sm:w-44"
-                  aria-label="Sort teams by"
+                  aria-label="Sort semesters by"
                 >
                   <SelectValue placeholder="Sort by">
                     {(value) =>
@@ -284,7 +287,7 @@ export function ManagePhasesPanel({ initialSemesters }: ManagePhasesPanelProps) 
 
           {paginatedPhases.length === 0 ? (
             <p className="py-10 text-center text-sm text-muted-foreground">
-              No teams match your search.
+              No semesters match your search.
             </p>
           ) : (
             <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-3">

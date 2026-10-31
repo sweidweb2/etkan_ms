@@ -9,9 +9,19 @@ import { computeSppFinancials } from "@/lib/manager/accounting/spp-financials";
 import { STUDENT_PAYMENT_TYPES } from "@/lib/manager/accounting/constants";
 
 describe("semester drop money helpers", () => {
-  it("computes required amount from phase total and percent", () => {
+  it("computes required amount from adjusted final due and percent", () => {
     expect(computeDropRequiredAmount(100, 50)).toBe(50);
     expect(computeDropRequiredAmount(100, 60)).toBe(60);
+  });
+
+  it("uses adjusted final due so phase 100 with 20% off at 50% drop requires 40", () => {
+    const financials = computeSppFinancials(100, {
+      value_type: "percentage",
+      value: 20,
+    }, []);
+    expect(financials.finalDue).toBe(80);
+    expect(computeDropRequiredAmount(financials.finalDue, 50)).toBe(40);
+    expect(computeDropSettlementAdjustment(100, 40)).toBe(60);
   });
 
   it("adds two months to phase start for deadline", () => {

@@ -30,7 +30,12 @@ export type ManagerSppDetail = {
   total_paid: number;
   remaining_amount: number;
   has_credit: boolean;
+  /** Cancelled, paid, or completed semester drop — no credit payment UI. */
   payments_blocked: boolean;
+  /** Cancelled or completed semester drop — no adjustment / form UI. */
+  adjustments_blocked: boolean;
+  /** Completed semester drop on this SPP. */
+  drop_completed: boolean;
   assigned_at: string;
   created_at: string;
   current_clearance: ManagerSppClearanceDto | null;

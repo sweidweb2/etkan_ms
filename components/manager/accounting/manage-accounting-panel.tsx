@@ -190,7 +190,7 @@ export function ManageAccountingPanel({
   const router = useRouter();
   const [phases, setPhases] = useState(initialPhases);
   const [prevPhases, setPrevPhases] = useState(initialPhases);
-  const [activeTab, setActiveTab] = useState<AccountingPageTab>("timeline");
+  const [activeTab, setActiveTab] = useState<AccountingPageTab>("phases");
 
   if (initialPhases !== prevPhases) {
     setPrevPhases(initialPhases);

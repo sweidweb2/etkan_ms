@@ -122,6 +122,7 @@ import type {
   DeleteSppClearanceActionState,
   UpsertSppClearanceActionState,
 } from "@/types/manager-spp-clearance";
+import type { ManagerSemesterDropRequestRow } from "@/types/manager-semester-drop";
 
 function revalidateAccountingList() {
   revalidatePath(ROUTES.MANAGER_ACCOUNTING);
@@ -845,6 +846,7 @@ export type ProcessDropRefundActionState = {
   error?: string;
   message?: string;
   fieldErrors?: Record<string, string[] | undefined>;
+  request?: ManagerSemesterDropRequestRow;
 };
 
 export async function processDropRefundAction(
@@ -863,6 +865,7 @@ export async function processDropRefundAction(
     mapSuccess: (result) => ({
       success: true,
       message: result.message,
+      request: result.request,
     }),
   });
 }

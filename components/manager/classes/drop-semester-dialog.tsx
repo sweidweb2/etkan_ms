@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { createSemesterDropAction } from "@/app/manager/classes/actions";
 import { InlineSpinner } from "@/components/loaders/inline-spinner";
@@ -25,6 +26,7 @@ type DropSemesterActionState = {
   fieldErrors?: Record<string, string[] | undefined>;
   completedImmediately?: boolean;
   removedStudentMembershipId?: string;
+  membershipId?: string;
   requestId?: string;
 };
 
@@ -37,6 +39,7 @@ type DropSemesterDialogProps = {
   className: string;
   student: ManagerClassStudentRow | null;
   onCompleted: (result: {
+    membershipId: string;
     removedMembershipId?: string;
     pendingRequestId?: string;
   }) => void;
@@ -51,6 +54,10 @@ export function DropSemesterDialog({
   onCompleted,
 }: DropSemesterDialogProps) {
   const router = useRouter();
+  const percentInputRef = useRef<HTMLInputElement>(null);
+  const studentRef = useRef(student);
+  studentRef.current = student;
+
   const { formAction, isPending, handleOpenChange, state } =
     useMutationDialogForm({
       action: createSemesterDropAction,
@@ -58,39 +65,65 @@ export function DropSemesterDialog({
       open,
       onOpenChange,
       onSuccess: (next) => {
-        onCompleted({
-          removedMembershipId: next.removedStudentMembershipId,
-          pendingRequestId: next.requestId,
-        });
+        const current = studentRef.current;
+        const membershipId =
+          next.membershipId ??
+          next.removedStudentMembershipId ??
+          current?.id;
+        if (membershipId) {
+          onCompleted({
+            membershipId,
+            removedMembershipId: next.removedStudentMembershipId,
+            pendingRequestId: next.requestId,
+          });
+        }
         onOpenChange(false);
         router.refresh();
       },
     });
 
+  useEffect(() => {
+    if (open && percentInputRef.current) {
+      percentInputRef.current.value = String(
+        SEMESTER_DROP_DEFAULT_REQUIRED_PERCENT
+      );
+    }
+  }, [open, student?.id]);
+
+  function handleSubmit() {
+    const current = studentRef.current;
+    if (!current || isPending) {
+      return;
+    }
+    const formData = new FormData();
+    formData.set("student_id", current.user_id);
+    formData.set("class_id", classId);
+    formData.set("membership_id", current.id);
+    formData.set(
+      "required_percent",
+      percentInputRef.current?.value?.trim() ||
+        String(SEMESTER_DROP_DEFAULT_REQUIRED_PERCENT)
+    );
+    formAction(formData);
+  }
+
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent className="sm:max-w-md" showCloseButton={!isPending}>
-        <form action={formAction} className="flex flex-col gap-4">
-          <DialogHeader>
-            <DialogTitle>Drop semester</DialogTitle>
-            <DialogDescription>
-              Mark {student?.full_name ?? "this student"} as dropping from{" "}
-              {className}. They stay on the roster as pending until the required
-              share of the phase amount is paid (default 50%).
-            </DialogDescription>
-          </DialogHeader>
+        <DialogHeader>
+          <DialogTitle>Drop semester</DialogTitle>
+          <DialogDescription>
+            Mark {student?.full_name ?? "this student"} as dropping from{" "}
+            {className}. They stay on the roster as pending until the required
+            share of the phase amount is paid (default 50%).
+          </DialogDescription>
+        </DialogHeader>
 
-          <input type="hidden" name="student_id" value={student?.user_id ?? ""} />
-          <input type="hidden" name="class_id" value={classId} />
-          <input
-            type="hidden"
-            name="membership_id"
-            value={student?.id ?? ""}
-          />
-
+        <div className="flex flex-col gap-4">
           <div className="flex flex-col gap-2">
             <Label htmlFor="required_percent">Required percent</Label>
             <Input
+              ref={percentInputRef}
               id="required_percent"
               name="required_percent"
               type="number"
@@ -111,22 +144,26 @@ export function DropSemesterDialog({
           {state.error && !state.fieldErrors ? (
             <p className="text-sm text-destructive">{state.error}</p>
           ) : null}
+        </div>
 
-          <DialogFooter className="sm:justify-end">
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => handleOpenChange(false)}
-              disabled={isPending}
-            >
-              Cancel
-            </Button>
-            <Button type="submit" disabled={isPending || !student}>
-              {isPending ? <InlineSpinner /> : null}
-              Drop semester
-            </Button>
-          </DialogFooter>
-        </form>
+        <DialogFooter className="sm:justify-end">
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => handleOpenChange(false)}
+            disabled={isPending}
+          >
+            Cancel
+          </Button>
+          <Button
+            type="button"
+            onClick={handleSubmit}
+            disabled={isPending || !student}
+          >
+            {isPending ? <InlineSpinner /> : null}
+            Drop semester
+          </Button>
+        </DialogFooter>
       </DialogContent>
     </Dialog>
   );

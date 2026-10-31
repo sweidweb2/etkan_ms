@@ -15,10 +15,10 @@ Also mark matching rows in the plan’s **§8 inventory** tables.
 | 0 | Foundation (Playwright + home smoke) | [x] Done | Docker-aware: reuse :3000 / `E2E_SKIP_WEBSERVER` |
 | 1 | Auth & session (all roles) | [x] Done | setup + storageState; optional roles soft-skip |
 | 2 | Public site & invite forms | [x] Done | `/life` auth-gated asserted; invite invalid-token smoke |
-| 3 | Manager nav smoke (all list routes) | [ ] Not started | Full §8.3 |
-| 4 | Manager people CRUD | [ ] Not started | Users, students, registrations, guests |
-| 5 | Manager academics | [ ] Not started | Subjects, teams, classes, enroll |
-| 6 | Manager class deep path | [ ] Not started | Grades / sessions / tasks |
+| 3 | Manager nav smoke (all list routes) | [x] Done | Full §8.3 + sidebar sample |
+| 4 | Manager people CRUD | [x] Done | Users/students create+edit; guests create; registrations list smoke (skip if empty) |
+| 5 | Manager academics | [x] Done | Subject/team/class create + enroll |
+| 6 | Manager class deep path | [x] Done | Categories/grades/session(+attendance)/task |
 | 7 | Equipment / instructors / schedules / workshops | [ ] Not started | |
 | 8 | Finance & analysis | [ ] Not started | `@money` gated |
 | 9 | Email / content / notifications | [ ] Not started | Gate real email send |
@@ -61,29 +61,29 @@ Also mark matching rows in the plan’s **§8 inventory** tables.
 
 ### Phase 3
 
-- [ ] All manager list/root routes in §8.3 open without error overlay  
-- [ ] Sidebar navigation covered for linked routes  
+- [x] All manager list/root routes in §8.3 open without error overlay  
+- [x] Sidebar navigation covered for linked routes  
 
 ### Phase 4
 
-- [ ] Create staff user happy path  
-- [ ] Create student happy path  
-- [ ] Edit path for at least one of user/student  
-- [ ] Registrations + guests list/detail (mutation if safe)  
-- [ ] Unique test data; no production DB  
+- [x] Create staff user happy path  
+- [x] Create student happy path  
+- [x] Edit path for at least one of user/student  
+- [x] Registrations + guests list/detail (mutation if safe)  
+- [x] Unique test data; no production DB  
 
 ### Phase 5
 
-- [ ] Subject create (or stable seeded subject) + catalog open  
-- [ ] Semester/team create/open  
-- [ ] Class create/open  
-- [ ] Enroll student happy path  
+- [x] Subject create (or stable seeded subject) + catalog open  
+- [x] Semester/team create/open  
+- [x] Class create/open  
+- [x] Enroll student happy path  
 
 ### Phase 6
 
-- [ ] Categories + grades + student grade detail load  
-- [ ] Session + task deep links load  
-- [ ] Optional `@mutation` attendance/task write  
+- [x] Categories + grades + student grade detail load  
+- [x] Session + task deep links load  
+- [x] Optional `@mutation` attendance/task write  
 
 ### Phase 7
 

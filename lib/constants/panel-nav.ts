@@ -64,7 +64,7 @@ export const MANAGER_PANEL_NAVIGATION: PanelNavigation = {
           icon: "school",
         },
         {
-          title: "Manage teams",
+          title: "Manage semesters",
           href: ROUTES.MANAGER_SEMESTERS,
           icon: "layers",
         },

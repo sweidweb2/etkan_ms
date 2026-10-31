@@ -333,25 +333,29 @@ export function ClassStudentsSection({
         classId={classId}
         className={className}
         student={droppingStudent}
-        onCompleted={({ removedMembershipId, pendingRequestId }) => {
+        onCompleted={({ membershipId, removedMembershipId, pendingRequestId }) => {
           if (removedMembershipId) {
-            const nextStudents = students.filter(
-              (row) => row.id !== removedMembershipId
-            );
-            setStudents(nextStudents);
-            onStudentsChange(nextStudents);
-          } else if (droppingStudent && pendingRequestId) {
-            const nextStudents = students.map((row) =>
-              row.id === droppingStudent.id
-                ? {
-                    ...row,
-                    has_pending_drop: true,
-                    pending_drop_request_id: pendingRequestId,
-                  }
-                : row
-            );
-            setStudents(nextStudents);
-            onStudentsChange(nextStudents);
+            setStudents((prev) => {
+              const nextStudents = prev.filter(
+                (row) => row.id !== removedMembershipId
+              );
+              onStudentsChange(nextStudents);
+              return nextStudents;
+            });
+          } else if (pendingRequestId) {
+            setStudents((prev) => {
+              const nextStudents = prev.map((row) =>
+                row.id === membershipId
+                  ? {
+                      ...row,
+                      has_pending_drop: true,
+                      pending_drop_request_id: pendingRequestId,
+                    }
+                  : row
+              );
+              onStudentsChange(nextStudents);
+              return nextStudents;
+            });
           }
           setDroppingStudent(null);
         }}
@@ -364,10 +368,10 @@ export function ClassStudentsSection({
         }}
         classId={classId}
         student={stoppingDropStudent}
-        onCancelled={() => {
-          if (stoppingDropStudent) {
-            const nextStudents = students.map((row) =>
-              row.id === stoppingDropStudent.id
+        onCancelled={(membershipId) => {
+          setStudents((prev) => {
+            const nextStudents = prev.map((row) =>
+              row.id === membershipId
                 ? {
                     ...row,
                     has_pending_drop: false,
@@ -375,9 +379,9 @@ export function ClassStudentsSection({
                   }
                 : row
             );
-            setStudents(nextStudents);
             onStudentsChange(nextStudents);
-          }
+            return nextStudents;
+          });
           setStoppingDropStudent(null);
         }}
       />
@@ -540,52 +544,85 @@ export function ClassStudentsSection({
                         <div className="inline-flex items-center justify-end gap-1">
                           <Can permission={PERMISSIONS.CLASSES_DROP_SEMESTER}>
                             {student.has_pending_drop ? (
-                              <Button
-                                type="button"
-                                variant="ghost"
-                                size="icon-sm"
-                                aria-label={`Stop drop for ${student.full_name}`}
-                                onClick={() => setStoppingDropStudent(student)}
-                              >
-                                <XIcon />
-                              </Button>
+                              <Tooltip>
+                                <TooltipTrigger
+                                  render={
+                                    <Button
+                                      type="button"
+                                      variant="ghost"
+                                      size="icon-sm"
+                                      aria-label={`Stop drop for ${student.full_name}`}
+                                      onClick={() =>
+                                        setStoppingDropStudent(student)
+                                      }
+                                    />
+                                  }
+                                >
+                                  <XIcon />
+                                </TooltipTrigger>
+                                <TooltipContent>Stop drop</TooltipContent>
+                              </Tooltip>
                             ) : (
-                              <Button
-                                type="button"
-                                variant="ghost"
-                                size="icon-sm"
-                                aria-label={`Drop semester for ${student.full_name}`}
-                                onClick={() => setDroppingStudent(student)}
-                              >
-                                <LogOutIcon />
-                              </Button>
+                              <Tooltip>
+                                <TooltipTrigger
+                                  render={
+                                    <Button
+                                      type="button"
+                                      variant="ghost"
+                                      size="icon-sm"
+                                      aria-label={`Drop semester for ${student.full_name}`}
+                                      onClick={() =>
+                                        setDroppingStudent(student)
+                                      }
+                                    />
+                                  }
+                                >
+                                  <LogOutIcon />
+                                </TooltipTrigger>
+                                <TooltipContent>Drop semester</TooltipContent>
+                              </Tooltip>
                             )}
                           </Can>
                           <Can permission={PERMISSIONS.CLASSES_REMOVE_STUDENT}>
-                            <Button
-                              type="button"
-                              variant="ghost"
-                              size="icon-sm"
-                              aria-label={`Remove ${student.full_name}`}
-                              onClick={() => setRemovingStudent(student)}
-                            >
-                              <Trash2Icon />
-                            </Button>
-                            <Button
-                              type="button"
-                              variant="ghost"
-                              size="icon-sm"
-                              aria-label={`Transfer ${student.full_name}`}
-                              disabled={Boolean(student.has_pending_drop)}
-                              title={
-                                student.has_pending_drop
+                            <Tooltip>
+                              <TooltipTrigger
+                                render={
+                                  <Button
+                                    type="button"
+                                    variant="ghost"
+                                    size="icon-sm"
+                                    aria-label={`Remove ${student.full_name}`}
+                                    onClick={() => setRemovingStudent(student)}
+                                  />
+                                }
+                              >
+                                <Trash2Icon />
+                              </TooltipTrigger>
+                              <TooltipContent>Remove</TooltipContent>
+                            </Tooltip>
+                            <Tooltip>
+                              <TooltipTrigger
+                                render={
+                                  <Button
+                                    type="button"
+                                    variant="ghost"
+                                    size="icon-sm"
+                                    aria-label={`Transfer ${student.full_name}`}
+                                    disabled={Boolean(student.has_pending_drop)}
+                                    onClick={() =>
+                                      setTransferringStudent(student)
+                                    }
+                                  />
+                                }
+                              >
+                                <ArrowRightLeftIcon />
+                              </TooltipTrigger>
+                              <TooltipContent>
+                                {student.has_pending_drop
                                   ? "Transfer is blocked while a semester drop is pending"
-                                  : undefined
-                              }
-                              onClick={() => setTransferringStudent(student)}
-                            >
-                              <ArrowRightLeftIcon />
-                            </Button>
+                                  : "Transfer"}
+                              </TooltipContent>
+                            </Tooltip>
                           </Can>
                           <Link
                             href={getManagerStudentDetailRoute(

@@ -32,7 +32,7 @@ export function PhaseCard({ phase, onEdit }: PhaseCardProps) {
       <Card className="group relative gap-0 overflow-hidden py-0 transition-colors duration-150 hover:border-primary/40 hover:bg-muted/40">
         <Link
           href={href}
-          aria-label={`View team ${phase.name}`}
+          aria-label={`View semester ${phase.name}`}
           className="absolute inset-0 z-0 rounded-xl"
           prefetch={false}
         />
@@ -57,7 +57,7 @@ export function PhaseCard({ phase, onEdit }: PhaseCardProps) {
 
           <span
             className="shrink-0 rounded-md border bg-muted/50 px-2 py-0.5 font-mono text-xs font-medium tabular-nums tracking-wider text-foreground"
-            title="Team code"
+            title="Semester code"
           >
             {phase.semester_code}
           </span>
@@ -70,7 +70,7 @@ export function PhaseCard({ phase, onEdit }: PhaseCardProps) {
                   variant="outline"
                   size="icon-sm"
                   className="relative z-10 size-7 bg-background pointer-events-auto hover:border-primary/40 hover:bg-background hover:text-primary"
-                  aria-label={`Edit team ${phase.name}`}
+                  aria-label={`Edit semester ${phase.name}`}
                   onClick={(event) => {
                     event.preventDefault();
                     event.stopPropagation();
@@ -85,7 +85,7 @@ export function PhaseCard({ phase, onEdit }: PhaseCardProps) {
               variant="outline"
               size="icon-sm"
               className="relative z-10 size-7 bg-background pointer-events-auto hover:border-primary/40 hover:bg-background hover:text-primary"
-              aria-label={`View team ${phase.name}`}
+              aria-label={`View semester ${phase.name}`}
               nativeButton={false}
               render={<Link href={href} prefetch={false} />}
             >
