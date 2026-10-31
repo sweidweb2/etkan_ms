@@ -32,3 +32,29 @@ export type ManagerSppDropOverlay = {
   refund_owed: boolean;
   request_id: string | null;
 };
+
+export type ProcessDropRefundActionState = {
+  success?: boolean;
+  error?: string;
+  message?: string;
+  fieldErrors?: Record<string, string[] | undefined>;
+  request?: ManagerSemesterDropRequestRow;
+};
+
+export type CreateSemesterDropActionState = {
+  success?: boolean;
+  error?: string;
+  message?: string;
+  fieldErrors?: Record<string, string[] | undefined>;
+  completedImmediately?: boolean;
+  removedStudentMembershipId?: string;
+  membershipId?: string;
+  requestId?: string;
+};
+
+export type CancelSemesterDropActionState = {
+  success?: boolean;
+  error?: string;
+  message?: string;
+  fieldErrors?: Record<string, string[] | undefined>;
+};

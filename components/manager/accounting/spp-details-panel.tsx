@@ -75,8 +75,7 @@ import {
 } from "@/lib/manager/accounting/constants";
 import { resolveSppDisplayStatus } from "@/lib/manager/accounting/spp-display-status";
 import { isPaymentScheduleEditable } from "@/lib/manager/accounting/schedule-editable";
-import { computeSppFinancials } from "@/lib/manager/accounting/spp-financials";
-import { deriveSppStatus } from "@/lib/manager/accounting/spp-status";
+import { applySppFinancialSnapshot } from "@/lib/manager/accounting/apply-spp-financial-snapshot";
 import { useActionStateSuccess } from "@/hooks/use-action-state-success";
 import { useActionStateToast } from "@/hooks/use-action-state-toast";
 import { usePendingAwareOpenChange } from "@/hooks/use-pending-aware-open-change";
@@ -186,32 +185,6 @@ function sortPayments(rows: ManagerStudentPaymentRow[]) {
       b.payment_date.localeCompare(a.payment_date) ||
       b.created_at.localeCompare(a.created_at)
   );
-}
-
-function applySppFinancials(
-  spp: ManagerSppDetail,
-  adjustment: ManagerFinancialAdjustmentRow | null,
-  payments: ManagerStudentPaymentRow[]
-): ManagerSppDetail {
-  const financials = computeSppFinancials(
-    spp.phase_amount,
-    adjustment
-      ? { value_type: adjustment.value_type, value: adjustment.value }
-      : null,
-    payments.map((payment) => payment.amount)
-  );
-  const status = deriveSppStatus(financials, spp.status);
-
-  return {
-    ...spp,
-    original_amount: financials.original,
-    adjustment_amount: financials.adjustmentAmount,
-    final_amount_due: financials.finalDue,
-    total_paid: financials.totalPaid,
-    remaining_amount: financials.remaining,
-    has_credit: financials.remaining < 0,
-    status,
-  };
 }
 
 export function SppDetailsPanel({
@@ -331,31 +304,42 @@ export function SppDetailsPanel({
   );
 
   useActionStateToast(deletePaymentState, isDeletePaymentActionPending);
-  useActionStateSuccess(deletePaymentState, isDeletePaymentActionPending, () => {
-    const removedId = deletingPayment?.id;
-    const shouldClearClearance = alsoDeleteClearance;
-    setDeletingPayment(null);
-    setAlsoDeleteClearance(false);
-    if (removedId) {
-      const nextPayments = payments.filter((payment) => payment.id !== removedId);
-      setPayments(sortPayments(nextPayments));
-      setSpp((current) => {
-        const next = applySppFinancials(current, adjustment, nextPayments);
-        return shouldClearClearance
-          ? { ...next, current_clearance: null }
-          : next;
-      });
+  useActionStateSuccess(
+    deletePaymentState,
+    isDeletePaymentActionPending,
+    (nextState) => {
+      const removedId = deletingPayment?.id;
+      const shouldClearClearance = alsoDeleteClearance;
+      setDeletingPayment(null);
+      setAlsoDeleteClearance(false);
+      if (removedId) {
+        setPayments((current) =>
+          sortPayments(current.filter((payment) => payment.id !== removedId))
+        );
+      }
+      if (nextState.spp) {
+        setSpp((current) => {
+          const next = applySppFinancialSnapshot(current, nextState.spp!);
+          return shouldClearClearance
+            ? { ...next, current_clearance: null }
+            : next;
+        });
+      }
     }
-  });
+  );
 
   useActionStateToast(deleteAdjustmentState, isDeleteAdjustmentActionPending);
   useActionStateSuccess(
     deleteAdjustmentState,
     isDeleteAdjustmentActionPending,
-    () => {
+    (nextState) => {
       setIsDeleteAdjustmentOpen(false);
       setAdjustment(null);
-      setSpp((current) => applySppFinancials(current, null, payments));
+      if (nextState.spp) {
+        setSpp((current) =>
+          applySppFinancialSnapshot(current, nextState.spp!)
+        );
+      }
     }
   );
 
@@ -430,34 +414,33 @@ export function SppDetailsPanel({
     setPayments((current) =>
       sortPayments(appendUniqueById(current, payment))
     );
-    setSpp((current) => ({
-      ...current,
-      status: snapshot.status,
-      original_amount: snapshot.original_amount,
-      adjustment_amount: snapshot.adjustment_amount,
-      final_amount_due: snapshot.final_amount_due,
-      total_paid: snapshot.total_paid,
-      remaining_amount: snapshot.remaining_amount,
-      has_credit: snapshot.remaining_amount < 0,
-    }));
+    setSpp((current) => applySppFinancialSnapshot(current, snapshot));
   };
 
-  const handlePaymentUpdated = (payment: ManagerStudentPaymentRow) => {
-    const nextPayments = sortPayments(
-      payments.map((row) => (row.id === payment.id ? payment : row))
+  const handlePaymentUpdated = (
+    payment: ManagerStudentPaymentRow,
+    snapshot: ManagerSppFinancialSnapshot
+  ) => {
+    setPayments((current) =>
+      sortPayments(current.map((row) => (row.id === payment.id ? payment : row)))
     );
-    setPayments(nextPayments);
-    setSpp((current) => applySppFinancials(current, adjustment, nextPayments));
+    setSpp((current) => applySppFinancialSnapshot(current, snapshot));
   };
 
-  const handleAdjustmentCreated = (nextAdjustment: ManagerFinancialAdjustmentRow) => {
+  const handleAdjustmentCreated = (
+    nextAdjustment: ManagerFinancialAdjustmentRow,
+    snapshot: ManagerSppFinancialSnapshot
+  ) => {
     setAdjustment(nextAdjustment);
-    setSpp((current) => applySppFinancials(current, nextAdjustment, payments));
+    setSpp((current) => applySppFinancialSnapshot(current, snapshot));
   };
 
-  const handleAdjustmentUpdated = (nextAdjustment: ManagerFinancialAdjustmentRow) => {
+  const handleAdjustmentUpdated = (
+    nextAdjustment: ManagerFinancialAdjustmentRow,
+    snapshot: ManagerSppFinancialSnapshot
+  ) => {
     setAdjustment(nextAdjustment);
-    setSpp((current) => applySppFinancials(current, nextAdjustment, payments));
+    setSpp((current) => applySppFinancialSnapshot(current, snapshot));
   };
 
   const handleFormSaved = (form: ManagerFinancialFormRow) => {

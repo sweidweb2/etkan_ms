@@ -338,6 +338,10 @@ describe("createAdjustmentForManager", () => {
       },
       error: null,
     } as never);
+    vi.mocked(studentPaymentPhaseRepository.findSppById).mockResolvedValue({
+      data: sppRecord,
+      error: null,
+    } as never);
 
     const result = await createAdjustmentForManager(
       adminClient,
@@ -382,6 +386,10 @@ describe("deleteAdjustmentForManager", () => {
         studentPaymentPhaseId: sppId,
         paymentPhaseId: phaseId,
       },
+      error: null,
+    } as never);
+    vi.mocked(studentPaymentPhaseRepository.findSppById).mockResolvedValue({
+      data: sppRecord,
       error: null,
     } as never);
 
@@ -948,6 +956,10 @@ describe("importAdjustmentForManager", () => {
         studentPaymentPhaseId: sppId,
         paymentPhaseId: phaseId,
       },
+      error: null,
+    } as never);
+    vi.mocked(studentPaymentPhaseRepository.findSppById).mockResolvedValue({
+      data: sppRecord,
       error: null,
     } as never);
 

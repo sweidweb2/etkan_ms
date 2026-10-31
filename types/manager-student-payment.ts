@@ -105,6 +105,7 @@ export type UpdateStudentPaymentActionState = {
   message?: string;
   fieldErrors?: FieldErrors;
   payment?: ManagerStudentPaymentRow;
+  spp?: ManagerSppFinancialSnapshot;
 };
 
 export type DeleteStudentPaymentActionState = {
@@ -114,6 +115,7 @@ export type DeleteStudentPaymentActionState = {
   fieldErrors?: FieldErrors;
   student_payment_phase_id?: string;
   payment_phase_id?: string;
+  spp?: ManagerSppFinancialSnapshot;
 };
 
 export type DeleteStudentPaymentPhaseActionState = {

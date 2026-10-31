@@ -55,6 +55,7 @@ import {
   mapClassDetailRecordToRow,
   mapStudentFinalExamGradeRecord,
   recordPaymentSyncFailure,
+  withPaymentSync,
   type MutationFailure,
   type Supabase,
 } from "@/services/classes/class-shared";
@@ -329,23 +330,23 @@ export async function addStudentToClassForManager(
     let warning: string | undefined;
 
     if (!options?.skipPaymentSync) {
-      try {
-        await timer.step("paymentSync", () =>
+      const sync = await withPaymentSync(
+        adminClient,
+        actor,
+        {
+          studentId: userId,
+          classId: input.class_id,
+          operation: "enroll_join_sync",
+        },
+        () =>
           onStudentJoinedClass(
             adminClient,
             { studentId: userId, classId: input.class_id },
             actor
-          )
-        );
-      } catch (syncError) {
-        await recordPaymentSyncFailure(adminClient, actor, {
-          studentId: userId,
-          classId: input.class_id,
-          operation: "enroll_join_sync",
-          error: syncError,
-        });
-        warning = PAYMENT_SYNC_FAILURE_WARNING;
-      }
+          ),
+        { timer }
+      );
+      warning = sync.warning;
     }
 
     if (classRecord.semester_id) {
@@ -1133,31 +1134,28 @@ export async function removeStudentFromClassForManager(
       })
     );
 
-    let warning: string | undefined;
-
-    try {
-      await timer.step("paymentSync", () =>
+    const sync = await withPaymentSync(
+      adminClient,
+      actor,
+      {
+        studentId: deleted.user_id,
+        classId: parsed.data.class_id,
+        operation: "enrollment_leave_sync",
+      },
+      () =>
         onStudentLeftClass(
           adminClient,
           { studentId: deleted.user_id, classId: parsed.data.class_id },
           actor
-        )
-      );
-    } catch (syncError) {
-      await recordPaymentSyncFailure(adminClient, actor, {
-        studentId: deleted.user_id,
-        classId: parsed.data.class_id,
-        operation: "enrollment_leave_sync",
-        error: syncError,
-      });
-      warning = PAYMENT_SYNC_FAILURE_WARNING;
-    }
+        ),
+      { timer }
+    );
 
     return {
       success: true,
       removedStudentId: deleted.id,
       message: "Student removed from class.",
-      warning,
+      warning: sync.warning,
     };
   } finally {
     timer.end();
@@ -1347,25 +1345,23 @@ export async function transferStudentBetweenClassesForManager(
     const destEnrollment = transferResult.data.to;
     const fromEnrollment = transferResult.data.from;
 
-    let warning: string | undefined;
-
-    try {
-      await timer.step("leaveSync", () =>
+    const leaveSync = await withPaymentSync(
+      adminClient,
+      actor,
+      {
+        studentId: userId,
+        classId: from_class_id,
+        operation: "transfer_leave_sync",
+      },
+      () =>
         onStudentLeftClass(
           adminClient,
           { studentId: userId, classId: from_class_id },
           actor
-        )
-      );
-    } catch (syncError) {
-      await recordPaymentSyncFailure(adminClient, actor, {
-        studentId: userId,
-        classId: from_class_id,
-        operation: "transfer_leave_sync",
-        error: syncError,
-      });
-      warning = PAYMENT_SYNC_FAILURE_WARNING;
-    }
+        ),
+      { timer, stepName: "leaveSync" }
+    );
+    let warning = leaveSync.warning;
 
     let profileResult: Awaited<
       ReturnType<typeof profileRepository.findProfileById>

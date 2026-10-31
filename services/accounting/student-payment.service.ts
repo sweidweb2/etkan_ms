@@ -72,6 +72,7 @@ export type CreateStudentPaymentResult =
 export type UpdateStudentPaymentSuccess = {
   success: true;
   payment: ManagerStudentPaymentRow;
+  spp: ManagerSppFinancialSnapshot;
   message: string;
   payment_phase_id: string;
 };
@@ -91,6 +92,7 @@ export type DeleteStudentPaymentSuccess = {
   message: string;
   student_payment_phase_id: string;
   payment_phase_id: string;
+  spp: ManagerSppFinancialSnapshot;
 };
 
 export type DeleteStudentPaymentFailure = {
@@ -560,6 +562,19 @@ export async function updateStudentPaymentForManager(
   const updated = data.payment;
   const previous = data.previous;
 
+  const { data: sppRecord, error: sppError } =
+    await studentPaymentPhaseRepository.findSppById(
+      adminClient,
+      updated.student_payment_phase_id
+    );
+
+  if (sppError || !sppRecord) {
+    return {
+      success: false,
+      error: sppError?.message ?? "Unable to load updated student balance.",
+    };
+  }
+
   await recordManagerAuditLog(adminClient, actor, {
     action: "update",
     severity: "info",
@@ -585,6 +600,9 @@ export async function updateStudentPaymentForManager(
   return {
     success: true,
     payment: mapPaymentRecordToRow(updated),
+    spp: mapSppRecordToFinancialSnapshot(
+      sppRecord as StudentPaymentPhaseRecord
+    ),
     message: "Payment updated.",
     payment_phase_id: data.paymentPhaseId,
   };
@@ -667,11 +685,28 @@ export async function deleteStudentPaymentForManager(
     Boolean(parsed.data.also_delete_clearance)
   );
 
+  const sppResult = await studentPaymentPhaseRepository.findSppById(
+    adminClient,
+    data.studentPaymentPhaseId
+  );
+  const sppRecord = sppResult?.data;
+  const sppError = sppResult?.error;
+
+  if (sppError || !sppRecord) {
+    return {
+      success: false,
+      error: sppError?.message ?? "Unable to load updated student balance.",
+    };
+  }
+
   return {
     success: true,
     message: "Payment deleted.",
     student_payment_phase_id: data.studentPaymentPhaseId,
     payment_phase_id: data.paymentPhaseId,
+    spp: mapSppRecordToFinancialSnapshot(
+      sppRecord as StudentPaymentPhaseRecord
+    ),
   };
 }
 

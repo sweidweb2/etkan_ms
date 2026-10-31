@@ -370,6 +370,10 @@ describe("deleteStudentPaymentForManager", () => {
       },
       error: null,
     } as never);
+    vi.mocked(studentPaymentPhaseRepository.findSppById).mockResolvedValue({
+      data: sppRecord,
+      error: null,
+    } as never);
 
     const result = await deleteStudentPaymentForManager(
       adminClient,

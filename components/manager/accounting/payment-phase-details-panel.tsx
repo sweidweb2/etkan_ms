@@ -26,6 +26,12 @@ import {
 } from "lucide-react";
 import { cancelPaymentPhaseAction } from "@/app/manager/accounting/actions";
 import { Can } from "@/components/auth/can";
+import {
+  getPageNumbers,
+  PAGE_SIZE_OPTIONS,
+  STATUS_FILTER_ALL,
+  TruncatedCell,
+} from "@/components/manager/accounting/accounting-table-shared";
 import { BulkCreateSppClearancesDialog } from "@/components/manager/accounting/bulk-create-spp-clearances-dialog";
 import { BulkDeleteSppClearancesDialog } from "@/components/manager/accounting/bulk-delete-spp-clearances-dialog";
 import { CreateStudentPaymentDialog } from "@/components/manager/accounting/create-student-payment-dialog";
@@ -98,13 +104,12 @@ import {
 import { useActionStateSuccess } from "@/hooks/use-action-state-success";
 import { useActionStateToast } from "@/hooks/use-action-state-toast";
 import { usePendingAwareOpenChange } from "@/hooks/use-pending-aware-open-change";
-import { cn } from "@/lib/utils";
-import { truncateText } from "@/lib/utils/truncate-text";
 import type {
   CancelPaymentPhaseActionState,
   ManagerPaymentPhaseRow,
   ManagerSppRow,
 } from "@/types/manager-payment-phase";
+import { applySppFinancialSnapshot } from "@/lib/manager/accounting/apply-spp-financial-snapshot";
 import type {
   ManagerSppFinancialSnapshot,
   ManagerStudentPaymentRow,
@@ -114,19 +119,9 @@ function applySppRowFinancials(
   spp: ManagerSppRow,
   snapshot: ManagerSppFinancialSnapshot
 ): ManagerSppRow {
-  return {
-    ...spp,
-    status: snapshot.status,
-    original_amount: snapshot.original_amount,
-    adjustment_amount: snapshot.adjustment_amount,
-    final_amount_due: snapshot.final_amount_due,
-    total_paid: snapshot.total_paid,
-    remaining_amount: snapshot.remaining_amount,
-  };
+  return applySppFinancialSnapshot(spp, snapshot);
 }
 
-const PAGE_SIZE_OPTIONS = [5, 10, 25] as const;
-const STATUS_FILTER_ALL = "all";
 const initialCancelState: CancelPaymentPhaseActionState = {};
 
 const SPP_ROW_CLASS =
@@ -145,67 +140,6 @@ type PaymentPhaseDetailsPanelProps = {
   initialSpps: ManagerSppRow[];
   transferPhaseOptions: ManagerPaymentPhaseRow[];
 };
-
-
-function TruncatedCell({
-  value,
-  maxLength,
-  className,
-}: {
-  value: string;
-  maxLength: number;
-  className?: string;
-}) {
-  const { display, isTruncated } = truncateText(value, maxLength);
-
-  if (!isTruncated) {
-    return <span className={cn("block truncate", className)}>{display}</span>;
-  }
-
-  return (
-    <Tooltip>
-      <TooltipTrigger
-        render={
-          <span
-            className={cn("block cursor-default truncate", className)}
-            tabIndex={0}
-          />
-        }
-      >
-        {display}
-      </TooltipTrigger>
-      <TooltipContent>{value}</TooltipContent>
-    </Tooltip>
-  );
-}
-
-function getPageNumbers(currentPage: number, totalPages: number) {
-  if (totalPages <= 7) {
-    return Array.from({ length: totalPages }, (_, index) => index + 1);
-  }
-
-  const pages = new Set<number>([1, totalPages, currentPage]);
-
-  for (let offset = -1; offset <= 1; offset += 1) {
-    const page = currentPage + offset;
-    if (page > 1 && page < totalPages) {
-      pages.add(page);
-    }
-  }
-
-  const sortedPages = [...pages].sort((a, b) => a - b);
-  const result: Array<number | "ellipsis"> = [];
-
-  sortedPages.forEach((page, index) => {
-    const previousPage = sortedPages[index - 1];
-    if (previousPage !== undefined && page - previousPage > 1) {
-      result.push("ellipsis");
-    }
-    result.push(page);
-  });
-
-  return result;
-}
 
 function matchesSppSearch(spp: ManagerSppRow, query: string) {
   const normalizedQuery = query.trim().toLowerCase();

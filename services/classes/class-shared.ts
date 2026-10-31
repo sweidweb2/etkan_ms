@@ -69,6 +69,35 @@ export async function recordPaymentSyncFailure(
   });
 }
 
+type PaymentSyncTimer = {
+  step: <T>(name: string, fn: () => Promise<T>) => Promise<T>;
+};
+
+/**
+ * Run accounting sync after membership mutations. Failures are audited and
+ * surfaced as a warning; the enrollment change itself is kept.
+ */
+export async function withPaymentSync<T>(
+  adminClient: Supabase,
+  actor: AuditActor,
+  input: { studentId: string; classId: string; operation: string },
+  run: () => Promise<T>,
+  options?: { timer?: PaymentSyncTimer; stepName?: string }
+): Promise<{ result?: T; warning?: string }> {
+  try {
+    const result = options?.timer
+      ? await options.timer.step(options.stepName ?? "paymentSync", run)
+      : await run();
+    return { result };
+  } catch (error) {
+    await recordPaymentSyncFailure(adminClient, actor, {
+      ...input,
+      error,
+    });
+    return { warning: PAYMENT_SYNC_FAILURE_WARNING };
+  }
+}
+
 export function mapClassStatus(status: string | null): ClassStatusValue {
   if (
     status === CLASS_STATUSES.SCHEDULED ||

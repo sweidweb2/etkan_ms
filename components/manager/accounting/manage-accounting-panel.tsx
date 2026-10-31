@@ -26,6 +26,12 @@ import {
   TabsTrigger as TabsTriggerPrimitive,
 } from "@/components/animate-ui/primitives/animate/tabs";
 import { Can } from "@/components/auth/can";
+import {
+  getPageNumbers,
+  PAGE_SIZE_OPTIONS,
+  STATUS_FILTER_ALL,
+  TruncatedCell,
+} from "@/components/manager/accounting/accounting-table-shared";
 import { CreatePaymentPhaseDialog } from "@/components/manager/accounting/create-payment-phase-dialog";
 import { EditPaymentPhaseDialog } from "@/components/manager/accounting/edit-payment-phase-dialog";
 import { PaymentPhaseStatusBadge } from "@/components/manager/accounting/payment-phase-status-badge";
@@ -44,12 +50,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
+import { TooltipProvider } from "@/components/ui/tooltip";
 import { formatPaymentPhaseMoney, PAYMENT_PHASE_STATUS_LABELS } from "@/lib/constants/manager-payment-phase-display";
 import { PERMISSIONS } from "@/lib/constants/permissions";
 import {
@@ -63,13 +64,9 @@ import {
 } from "@/lib/manager/accounting/constants";
 import { cn } from "@/lib/utils";
 import { prependUniqueById } from "@/lib/utils/prepend-unique-by-id";
-import { truncateText } from "@/lib/utils/truncate-text";
 import type {
   ManagerPaymentPhaseRow,
 } from "@/types/manager-payment-phase";
-
-const PAGE_SIZE_OPTIONS = [5, 10, 25] as const;
-const STATUS_FILTER_ALL = "all";
 
 type AccountingPageTab =
   | "timeline"
@@ -94,66 +91,6 @@ const STATUS_FILTER_SELECT_ITEMS = [
     label: PAYMENT_PHASE_STATUS_LABELS[status],
   })),
 ];
-
-function TruncatedCell({
-  value,
-  maxLength,
-  className,
-}: {
-  value: string;
-  maxLength: number;
-  className?: string;
-}) {
-  const { display, isTruncated } = truncateText(value, maxLength);
-
-  if (!isTruncated) {
-    return <span className={cn("block truncate", className)}>{display}</span>;
-  }
-
-  return (
-    <Tooltip>
-      <TooltipTrigger
-        render={
-          <span
-            className={cn("block cursor-default truncate", className)}
-            tabIndex={0}
-          />
-        }
-      >
-        {display}
-      </TooltipTrigger>
-      <TooltipContent>{value}</TooltipContent>
-    </Tooltip>
-  );
-}
-
-function getPageNumbers(currentPage: number, totalPages: number) {
-  if (totalPages <= 7) {
-    return Array.from({ length: totalPages }, (_, index) => index + 1);
-  }
-
-  const pages = new Set<number>([1, totalPages, currentPage]);
-
-  for (let offset = -1; offset <= 1; offset += 1) {
-    const page = currentPage + offset;
-    if (page > 1 && page < totalPages) {
-      pages.add(page);
-    }
-  }
-
-  const sortedPages = [...pages].sort((a, b) => a - b);
-  const result: Array<number | "ellipsis"> = [];
-
-  sortedPages.forEach((page, index) => {
-    const previousPage = sortedPages[index - 1];
-    if (previousPage !== undefined && page - previousPage > 1) {
-      result.push("ellipsis");
-    }
-    result.push(page);
-  });
-
-  return result;
-}
 
 function matchesPhaseSearch(phase: ManagerPaymentPhaseRow, query: string) {
   const normalizedQuery = query.trim().toLowerCase();

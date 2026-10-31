@@ -25,10 +25,7 @@ import {
 } from "@/services/ops/audit-log.service";
 import type { ManagerSemesterDropRequestRow } from "@/types/manager-semester-drop";
 import type { MutationFailure, Supabase } from "@/services/classes/class-shared";
-import {
-  PAYMENT_SYNC_FAILURE_WARNING,
-  recordPaymentSyncFailure,
-} from "@/services/classes/class-shared";
+import { withPaymentSync } from "@/services/classes/class-shared";
 import { assertAssignedTeacherForClassMutation } from "@/services/classes/teacher-class-scope.service";
 
 export type CreateSemesterDropResult =
@@ -71,22 +68,17 @@ async function leaveClassWithoutSppDrop(
     return { success: false, error: "Student is not a member of this class." };
   }
 
-  let warning: string | undefined;
-  try {
-    await onStudentLeftClass(
-      adminClient,
-      { studentId, classId },
-      actor
-    );
-  } catch (error) {
-    warning = PAYMENT_SYNC_FAILURE_WARNING;
-    await recordPaymentSyncFailure(adminClient, actor, {
-      operation: "drop_semester_leave_sync",
+  const sync = await withPaymentSync(
+    adminClient,
+    actor,
+    {
       studentId,
       classId,
-      error,
-    });
-  }
+      operation: "drop_semester_leave_sync",
+    },
+    () => onStudentLeftClass(adminClient, { studentId, classId }, actor)
+  );
+  const warning = sync.warning;
 
   const classResult = await classRepository.findClassById(adminClient, classId);
   const semesterId = classResult.data?.semester_id ?? null;
