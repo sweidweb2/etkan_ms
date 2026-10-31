@@ -1,8 +1,7 @@
-import {
-  PAYMENT_PHASE_STATUSES,
-  STUDENT_PAYMENT_PHASE_STATUSES,
-  type PaymentPhaseStatus,
-  type StudentPaymentPhaseStatus,
+import { deriveSppLocks } from "@/lib/manager/accounting/semester-drop-status";
+import type {
+  PaymentPhaseStatus,
+  StudentPaymentPhaseStatus,
 } from "@/lib/manager/accounting/constants";
 
 export function isPaymentScheduleEditable(input: {
@@ -10,24 +9,9 @@ export function isPaymentScheduleEditable(input: {
   payment_phase_status: PaymentPhaseStatus;
   drop_completed?: boolean;
 }): boolean {
-  if (input.drop_completed) {
-    return false;
-  }
-
-  if (input.spp_status === STUDENT_PAYMENT_PHASE_STATUSES.CANCELLED) {
-    return false;
-  }
-
-  if (input.spp_status === STUDENT_PAYMENT_PHASE_STATUSES.PAID) {
-    return false;
-  }
-
-  if (
-    input.payment_phase_status === PAYMENT_PHASE_STATUSES.CLOSED ||
-    input.payment_phase_status === PAYMENT_PHASE_STATUSES.CANCELLED
-  ) {
-    return false;
-  }
-
-  return true;
+  return deriveSppLocks({
+    phaseStatus: input.payment_phase_status,
+    sppStatus: input.spp_status,
+    dropCompleted: Boolean(input.drop_completed),
+  }).schedule_editable;
 }

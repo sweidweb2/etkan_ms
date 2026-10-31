@@ -39,13 +39,19 @@ test.describe("manager notifications @mutation", () => {
     await expect(dialog).toBeHidden({ timeout: 20_000 });
     await expect(page.getByText(title).first()).toBeVisible({ timeout: 20_000 });
 
-    const markRead = page.getByRole("button", { name: "Mark as read" }).first();
+    // Cards are role=button; prefer exact name so we don't click the card itself.
+    const card = page.locator("article").filter({ hasText: title });
+    const markRead = card.getByRole("button", {
+      name: "Mark as read",
+      exact: true,
+    });
     if ((await markRead.count()) > 0) {
       await markRead.click();
       await expectToastVisible(
         page,
         /Notification marked as read\.|Notification already marked as read\./
       );
+      await expect(card.getByText(/^Read /)).toBeVisible({ timeout: 15_000 });
     }
   });
 });

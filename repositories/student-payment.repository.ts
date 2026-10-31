@@ -409,15 +409,6 @@ export async function createDropRefundDebitWithRecalc(
   };
 }
 
-export async function tryCompleteSemesterDropForSpp(
-  client: Supabase,
-  sppId: string
-) {
-  return client.rpc("try_complete_semester_drop_for_spp", {
-    p_spp_id: sppId,
-  });
-}
-
 export async function createStudentPaymentWithRecalc(
   client: Supabase,
   input: {

@@ -1,5 +1,19 @@
 import { SEMESTER_DROP_DEFAULT_REQUIRED_PERCENT } from "@/lib/manager/accounting/constants";
 
+/**
+ * Drop money formula mirrors.
+ *
+ * Authoritative implementations run inside Postgres RPCs (atomic create /
+ * complete / refund). Keep these in sync with:
+ * - `create_semester_drop_request` (required %, deadline = start + 2 months)
+ * - `complete_semester_drop_request` (settlement adjustment, refund_owed)
+ * Migrations: `20261031150000_semester_drop_requests.sql`,
+ * `20261031160000_drop_adjusted_required_and_spp_locks.sql`.
+ *
+ * Use these helpers for previews, docs, and unit tests — not as a second
+ * write path.
+ */
+
 function roundMoney(value: number): number {
   return Math.round((value + Number.EPSILON) * 100) / 100;
 }

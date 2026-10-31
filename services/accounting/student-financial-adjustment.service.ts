@@ -52,7 +52,6 @@ import {
   assertStudentSelfAccess,
   getUnauthorizedError,
 } from "@/services/auth/authorization.service";
-import type { FieldErrors } from "@/types/auth";
 import type {
   ManagerFinancialAdjustmentRow,
   ManagerFinancialFormInviteRow,
@@ -63,22 +62,20 @@ import type {
 } from "@/types/manager-financial-adjustment";
 import type { ManagerPaymentPhaseRow } from "@/types/manager-payment-phase";
 import { randomBytes } from "crypto";
-import type { SupabaseClient } from "@supabase/supabase-js";
-import type { Database } from "@/types/supabase";
-
-type Supabase = SupabaseClient<Database>;
+import {
+  adjustmentBlockedMessage,
+  SPP_ADJUSTMENT_LOCK_MESSAGES,
+} from "@/lib/manager/accounting/semester-drop-messages";
+import type {
+  MutationFailure,
+  Supabase,
+} from "@/services/shared/mutation";
 
 type MutationSuccessBase = {
   success: true;
   message: string;
   student_payment_phase_id: string;
   payment_phase_id: string;
-};
-
-type MutationFailure = {
-  success: false;
-  error: string;
-  fieldErrors?: FieldErrors;
 };
 
 export type GetAdjustmentResult = ManagerFinancialAdjustmentRow | null;
@@ -139,16 +136,11 @@ function assertMutationsAllowed(
   sppStatus: string | null | undefined,
   dropCompleted = false
 ): string | null {
-  if (phaseStatus === PAYMENT_PHASE_STATUSES.CANCELLED) {
-    return "Cannot change adjustments on a cancelled payment phase.";
-  }
-  if (sppStatus === STUDENT_PAYMENT_PHASE_STATUSES.CANCELLED) {
-    return "Cannot change adjustments on a cancelled student assignment.";
-  }
-  if (dropCompleted) {
-    return "Cannot change adjustments on a completed semester drop.";
-  }
-  return null;
+  return adjustmentBlockedMessage({
+    phaseStatus,
+    sppStatus,
+    dropCompleted,
+  });
 }
 
 function mapAdjustmentWriteError(
@@ -159,9 +151,9 @@ function mapAdjustmentWriteError(
     "Student payment phase not found.",
     "Unable to load payment phase.",
     "Unable to load student payment phase.",
-    "Cannot change adjustments on a cancelled payment phase.",
-    "Cannot change adjustments on a cancelled student assignment.",
-    "Cannot change adjustments on a completed semester drop.",
+    SPP_ADJUSTMENT_LOCK_MESSAGES.PHASE_CANCELLED,
+    SPP_ADJUSTMENT_LOCK_MESSAGES.SPP_CANCELLED,
+    SPP_ADJUSTMENT_LOCK_MESSAGES.DROP_COMPLETED,
     "This student payment phase already has a financial adjustment.",
     "Adjustment not found.",
     "Adjustment does not belong to this student payment phase.",

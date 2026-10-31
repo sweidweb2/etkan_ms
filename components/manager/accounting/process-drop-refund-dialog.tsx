@@ -2,7 +2,10 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { processDropRefundAction } from "@/app/manager/accounting/actions";
+import {
+  processDropRefundAction,
+  type ProcessDropRefundActionState,
+} from "@/app/manager/accounting/actions";
 import { InlineSpinner } from "@/components/loaders/inline-spinner";
 import { Button } from "@/components/ui/button";
 import {
@@ -24,14 +27,6 @@ import type {
   ManagerNeedRefundRow,
   ManagerSemesterDropRequestRow,
 } from "@/types/manager-semester-drop";
-
-type ProcessDropRefundActionState = {
-  success?: boolean;
-  error?: string;
-  message?: string;
-  fieldErrors?: Record<string, string[] | undefined>;
-  request?: ManagerSemesterDropRequestRow;
-};
 
 const initialState: ProcessDropRefundActionState = {};
 

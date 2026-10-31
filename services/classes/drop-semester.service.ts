@@ -3,6 +3,8 @@ import "server-only";
 import { PERMISSIONS } from "@/lib/constants/permissions";
 import { STUDENT_SEMESTER_STATUSES } from "@/lib/constants/manager-student-semester-status";
 import { SEMESTER_DROP_DEFAULT_REQUIRED_PERCENT } from "@/lib/manager/accounting/constants";
+import { toManagerSemesterDropRow } from "@/lib/manager/accounting/semester-drop-mapper";
+import { isNoSppDropFallbackMessage } from "@/lib/manager/accounting/semester-drop-messages";
 import {
   cancelSemesterDropSchema,
   createSemesterDropSchema,
@@ -28,36 +30,6 @@ import {
   recordPaymentSyncFailure,
 } from "@/services/classes/class-shared";
 import { assertAssignedTeacherForClassMutation } from "@/services/classes/teacher-class-scope.service";
-
-function mapDropRequest(
-  row: NonNullable<
-    ReturnType<
-      typeof semesterDropRequestRepository.mapSemesterDropRequestRecord
-    >
-  >
-): ManagerSemesterDropRequestRow {
-  return {
-    id: row.id,
-    student_id: row.student_id,
-    semester_id: row.semester_id,
-    class_id: row.class_id,
-    payment_phase_id: row.payment_phase_id,
-    spp_id: row.spp_id,
-    status: row.status,
-    required_percent: row.required_percent,
-    required_amount: row.required_amount,
-    phase_amount_snapshot: row.phase_amount_snapshot,
-    requested_at: row.requested_at,
-    deadline_at: row.deadline_at,
-    completed_at: row.completed_at,
-    refund_owed: row.refund_owed,
-    refund_status: row.refund_status,
-    refunded_amount: row.refunded_amount,
-    remaining_refund: Math.max(0, row.refund_owed - row.refunded_amount),
-    requested_by: row.requested_by,
-    notes: row.notes,
-  };
-}
 
 export type CreateSemesterDropResult =
   | {
@@ -216,10 +188,7 @@ export async function createSemesterDropForManager(
 
     if (error) {
       const message = error.message ?? "";
-      if (
-        message.includes("NO_SPP") ||
-        message.includes("NO_SPP_PHASE")
-      ) {
+      if (isNoSppDropFallbackMessage(message)) {
         let membershipId = parsed.data.membership_id;
         if (!membershipId) {
           const membershipResult =
@@ -251,7 +220,9 @@ export async function createSemesterDropForManager(
       return { success: false, error: "Unable to create drop request." };
     }
 
-    const request = data.request ? mapDropRequest(data.request) : null;
+    const request = data.request
+      ? toManagerSemesterDropRow(data.request)
+      : null;
 
     await timer.step("audit", () =>
       recordManagerAuditLog(adminClient, actor, {
@@ -333,7 +304,7 @@ export async function cancelSemesterDropForManager(
     return { success: false, error: "Unable to cancel drop request." };
   }
 
-  const request = mapDropRequest(data.request);
+  const request = toManagerSemesterDropRow(data.request);
 
   await recordManagerAuditLog(adminClient, actor, {
     action: "update",

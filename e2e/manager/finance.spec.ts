@@ -26,8 +26,10 @@ test.describe("manager finance", () => {
       page.getByRole("heading", { level: 1, name: "Accounting" })
     ).toBeVisible({ timeout: 60_000 });
 
-    const phaseLink = page.getByRole("link", {
+    // Eye button is the real <Link>; table rows are role=link without href.
+    const phaseLink = page.getByRole("button", {
       name: `View ${DEMO_PHASE}`,
+      exact: true,
     });
     if ((await phaseLink.count()) === 0) {
       test.skip(true, "Demo Fall Tuition not seeded — run npm run seed:demo");
@@ -43,7 +45,7 @@ test.describe("manager finance", () => {
     await expect(page.getByText("Student payment phases").first()).toBeVisible();
 
     const sppLink = page
-      .getByRole("link", { name: /^View assignment for / })
+      .getByRole("button", { name: /^View assignment for / })
       .first();
     if ((await sppLink.count()) === 0) {
       test.skip(true, "No SPP rows on demo phase");
@@ -70,7 +72,10 @@ test.describe("manager finance", () => {
 
     page.setDefaultNavigationTimeout(90_000);
     await page.goto("/manager/accounting", { waitUntil: "commit" });
-    const phaseLink = page.getByRole("link", { name: `View ${DEMO_PHASE}` });
+    const phaseLink = page.getByRole("button", {
+      name: `View ${DEMO_PHASE}`,
+      exact: true,
+    });
     test.skip((await phaseLink.count()) === 0, "Demo phase missing");
 
     await page.goto((await phaseLink.first().getAttribute("href"))!, {
@@ -84,7 +89,7 @@ test.describe("manager finance", () => {
       await recordFromTable.click();
     } else {
       const sppLink = page
-        .getByRole("link", { name: /^View assignment for / })
+        .getByRole("button", { name: /^View assignment for / })
         .first();
       test.skip((await sppLink.count()) === 0, "No SPP to pay");
       await page.goto((await sppLink.getAttribute("href"))!, {

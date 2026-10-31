@@ -10,6 +10,8 @@ import {
   type StudentPaymentPhaseStatus,
 } from "@/lib/manager/accounting/constants";
 import { resolveInProgressClassForSemester } from "@/lib/manager/accounting/resolve-in-progress-class";
+import { SPP_PAYMENT_LOCK_MESSAGES } from "@/lib/manager/accounting/semester-drop-messages";
+import { deriveSppLocks } from "@/lib/manager/accounting/semester-drop-status";
 import { isPhaseUpfrontWindowActive } from "@/lib/manager/accounting/upfront-window";
 import { PERMISSIONS } from "@/lib/constants/permissions";
 import { createNavStepTimer } from "@/lib/debug/nav-timing";
@@ -146,10 +148,10 @@ function mapPaymentWriteError(
 
   const known = [
     "Student payment phase not found.",
-    "Cannot record payments on a cancelled payment phase.",
-    "Cannot record payments on a cancelled student assignment.",
-    "Cannot record payments on a paid student assignment.",
-    "Cannot record payments on a completed semester drop.",
+    SPP_PAYMENT_LOCK_MESSAGES.PHASE_CANCELLED,
+    SPP_PAYMENT_LOCK_MESSAGES.SPP_CANCELLED,
+    SPP_PAYMENT_LOCK_MESSAGES.SPP_PAID,
+    SPP_PAYMENT_LOCK_MESSAGES.DROP_COMPLETED,
     "Only credit payments can be updated here.",
     "Only credit payments can be deleted here.",
     "Payment not found.",
@@ -284,6 +286,11 @@ export async function getSppDetailForManager(
     : STUDENT_PAYMENT_PHASE_STATUSES.PENDING;
   const remaining = Number(sppRecord.remaining_amount);
   const dropCompleted = Boolean(completedDropResult.data);
+  const locks = deriveSppLocks({
+    phaseStatus,
+    sppStatus,
+    dropCompleted,
+  });
 
   return {
     id: sppRecord.id,
@@ -313,15 +320,8 @@ export async function getSppDetailForManager(
     remaining_amount: remaining,
     has_credit: remaining < 0,
     drop_completed: dropCompleted,
-    payments_blocked:
-      phaseStatus === PAYMENT_PHASE_STATUSES.CANCELLED ||
-      sppStatus === STUDENT_PAYMENT_PHASE_STATUSES.CANCELLED ||
-      sppStatus === STUDENT_PAYMENT_PHASE_STATUSES.PAID ||
-      dropCompleted,
-    adjustments_blocked:
-      phaseStatus === PAYMENT_PHASE_STATUSES.CANCELLED ||
-      sppStatus === STUDENT_PAYMENT_PHASE_STATUSES.CANCELLED ||
-      dropCompleted,
+    payments_blocked: locks.payments_blocked,
+    adjustments_blocked: locks.adjustments_blocked,
     assigned_at: sppRecord.assigned_at,
     created_at: sppRecord.created_at,
     current_clearance: currentClearance,
@@ -972,8 +972,11 @@ export async function getSppDetailForSelf(
     total_paid: Number(sppRecord.total_paid),
     remaining_amount: remaining,
     has_credit: remaining < 0,
-    payments_blocked: false,
-    adjustments_blocked: false,
+    ...deriveSppLocks({
+      phaseStatus,
+      sppStatus,
+      dropCompleted: false,
+    }),
     drop_completed: false,
     assigned_at: sppRecord.assigned_at,
     created_at: sppRecord.created_at,

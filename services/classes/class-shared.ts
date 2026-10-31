@@ -23,7 +23,6 @@ import {
   recordManagerAuditLog,
   type AuditActor,
 } from "@/services/ops/audit-log.service";
-import type { FieldErrors } from "@/types/auth";
 import type {
   ManagerClassFinalExamRow,
   ManagerStudentFinalExamGradeRow,
@@ -31,17 +30,13 @@ import type {
 import type { ManagerClassRow } from "@/types/manager-class-list";
 import type { ManagerClassSessionRow } from "@/types/manager-class-session";
 import type { SessionGroupGradeLevelValue } from "@/types/manager-session-group-grade";
-import type { SupabaseClient } from "@supabase/supabase-js";
-import type { Database } from "@/types/supabase";
 import { z } from "zod";
 
-export type Supabase = SupabaseClient<Database>;
-
-export type MutationFailure = {
-  success: false;
-  error: string;
-  fieldErrors?: FieldErrors;
-};
+export type {
+  MutationFailure,
+  Supabase,
+} from "@/services/shared/mutation";
+import type { Supabase } from "@/services/shared/mutation";
 
 export const PAYMENT_SYNC_FAILURE_WARNING =
   "Payment sync failed. Check Accounting → Missing assignments.";

@@ -27,7 +27,9 @@ test.describe("manager emailing", () => {
       page.getByRole("heading", { level: 1, name: "Compose letter" })
     ).toBeVisible({ timeout: 45_000 });
     await expect(page.getByText("New message").first()).toBeVisible();
-    await expect(page.getByRole("button", { name: "Send" })).toBeVisible();
+    await expect(
+      page.locator("#compose-letter-form").getByRole("button", { name: "Send" })
+    ).toBeVisible();
   });
 
   test("sent list and optional detail @smoke", async ({ page }) => {
@@ -64,7 +66,10 @@ test.describe("manager emailing", () => {
     if ((await body.count()) > 0) {
       await body.fill("E2E body");
     }
-    await page.getByRole("button", { name: "Send" }).click();
+    await page
+      .locator("#compose-letter-form")
+      .getByRole("button", { name: "Send" })
+      .click();
     await expectToastVisible(page, /Sent .+ email/i);
   });
 });

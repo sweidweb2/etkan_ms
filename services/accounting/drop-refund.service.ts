@@ -1,6 +1,11 @@
 import "server-only";
 
 import { PERMISSIONS } from "@/lib/constants/permissions";
+import {
+  remainingDropRefund,
+  toManagerSemesterDropRow,
+} from "@/lib/manager/accounting/semester-drop-mapper";
+import { DROP_REFUND_AMOUNT_SQL_MESSAGE } from "@/lib/manager/accounting/semester-drop-messages";
 import { processDropRefundSchema } from "@/lib/validators/manager/create-semester-drop";
 import * as semesterDropRequestRepository from "@/repositories/semester-drop-request.repository";
 import * as studentPaymentRepository from "@/repositories/student-payment.repository";
@@ -9,47 +14,8 @@ import {
   recordManagerAuditLog,
   type AuditActor,
 } from "@/services/ops/audit-log.service";
+import type { MutationFailure, Supabase } from "@/services/shared/mutation";
 import type { ManagerSemesterDropRequestRow } from "@/types/manager-semester-drop";
-import type { SupabaseClient } from "@supabase/supabase-js";
-import type { Database } from "@/types/supabase";
-
-type Supabase = SupabaseClient<Database>;
-
-type MutationFailure = {
-  success: false;
-  error: string;
-  fieldErrors?: Record<string, string[] | undefined>;
-};
-
-function mapDropRequest(
-  row: NonNullable<
-    ReturnType<
-      typeof semesterDropRequestRepository.mapSemesterDropRequestRecord
-    >
-  >
-): ManagerSemesterDropRequestRow {
-  return {
-    id: row.id,
-    student_id: row.student_id,
-    semester_id: row.semester_id,
-    class_id: row.class_id,
-    payment_phase_id: row.payment_phase_id,
-    spp_id: row.spp_id,
-    status: row.status,
-    required_percent: row.required_percent,
-    required_amount: row.required_amount,
-    phase_amount_snapshot: row.phase_amount_snapshot,
-    requested_at: row.requested_at,
-    deadline_at: row.deadline_at,
-    completed_at: row.completed_at,
-    refund_owed: row.refund_owed,
-    refund_status: row.refund_status,
-    refunded_amount: row.refunded_amount,
-    remaining_refund: Math.max(0, row.refund_owed - row.refunded_amount),
-    requested_by: row.requested_by,
-    notes: row.notes,
-  };
-}
 
 export type ProcessDropRefundResult =
   | {
@@ -103,9 +69,10 @@ export async function processDropRefundForManager(
     return { success: false, error: "Drop request not found." };
   }
 
-  const remaining = Math.max(
-    0,
-    Number(existing.data.refund_owed) - Number(existing.data.refunded_amount)
+  // Fast field-level check; SQL re-validates under row lock.
+  const remaining = remainingDropRefund(
+    Number(existing.data.refund_owed),
+    Number(existing.data.refunded_amount)
   );
   if (parsed.data.amount > remaining) {
     return {
@@ -132,10 +99,15 @@ export async function processDropRefundForManager(
     );
 
   if (error) {
-    return {
-      success: false,
-      error: error.message || "Unable to record refund.",
-    };
+    const message = error.message || "Unable to record refund.";
+    if (message.includes(DROP_REFUND_AMOUNT_SQL_MESSAGE)) {
+      return {
+        success: false,
+        error: "Please fix the errors below.",
+        fieldErrors: { amount: [message] },
+      };
+    }
+    return { success: false, error: message };
   }
 
   if (!data?.payment || !data.request) {
@@ -148,7 +120,7 @@ export async function processDropRefundForManager(
     return { success: false, error: "Unable to load updated drop request." };
   }
 
-  const request = mapDropRequest(mappedRequest);
+  const request = toManagerSemesterDropRow(mappedRequest);
 
   await recordManagerAuditLog(adminClient, actor, {
     action: "insert",
