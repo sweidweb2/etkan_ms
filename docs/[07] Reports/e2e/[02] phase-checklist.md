@@ -4,7 +4,7 @@ Track progress against [`[01] e2e-testing-plan.md`](./[01]%20e2e-testing-plan.md
 Tick only when the phase **exit criteria** are met (specs green + Vitest/typecheck/lint green + no unsafe product hacks).  
 Also mark matching rows in the plan’s **§8 inventory** tables.
 
-**Last updated:** 2026-10-25
+**Last updated:** 2026-10-31
 
 ---
 

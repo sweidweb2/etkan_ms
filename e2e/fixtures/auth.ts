@@ -152,31 +152,43 @@ export async function loginViaUi(
 
   // Wait until the client LoginForm has hydrated. Otherwise the native form
   // submits as GET /auth/login?email=&password= and never hits the server action.
-  await page.waitForFunction(() => {
-    const form = document.querySelector("main form");
-    if (!form) return false;
-    return Object.keys(form).some(
-      (key) =>
-        key.startsWith("__reactFiber") ||
-        key.startsWith("__reactProps") ||
-        key.startsWith("__reactInternalInstance")
-    );
-  });
+  await expect(page.getByTestId("login-form")).toHaveAttribute(
+    "data-hydrated",
+    "true",
+    { timeout: 60_000 }
+  );
 
+  await email.click();
   await email.fill(credentials.email);
   await password.fill(credentials.password);
   await expect(email).toHaveValue(credentials.email);
 
-  await Promise.all([
-    page.waitForURL(
+  // Prefer commit over load — Next server-action redirects often skip a full
+  // document load, which makes waitForURL(..., load) flake under workers=1.
+  await submit.click();
+  try {
+    await page.waitForURL(
       (url) =>
         !url.pathname.startsWith("/auth/login") ||
         url.searchParams.has("toast") ||
         url.searchParams.has("error"),
-      { timeout: 45_000 }
-    ),
-    submit.click(),
-  ]);
+      { timeout: 45_000, waitUntil: "commit" }
+    );
+  } catch (error) {
+    const toastText = (
+      await page
+        .locator("[data-sonner-toast], [role='status'], [role='alert']")
+        .allTextContents()
+        .catch(() => [])
+    )
+      .join(" | ")
+      .trim();
+    throw new Error(
+      `Login did not navigate away from /auth/login (url=${page.url()}).${
+        toastText ? ` UI message: ${toastText}` : ""
+      } Underlying: ${String(error)}`
+    );
+  }
 
   if (page.url().includes("password=")) {
     throw new Error(

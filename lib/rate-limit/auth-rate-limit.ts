@@ -10,6 +10,15 @@ export type AuthRateLimitKind = "login" | "signup";
 export async function checkAuthRateLimit(
   kind: AuthRateLimitKind
 ): Promise<{ allowed: true } | { allowed: false; message: string }> {
+  // Playwright E2E performs many UI logins (setup + role redirects). Production
+  // caps stay strict; local/dev and explicit E2E opt-out must not flake the suite.
+  if (
+    process.env.E2E_DISABLE_AUTH_RATE_LIMIT === "1" ||
+    process.env.NODE_ENV === "development"
+  ) {
+    return { allowed: true };
+  }
+
   const ip = await getClientIp();
   const config = AUTH_RATE_LIMITS[kind];
   const key = `auth:${kind}:${ip}`;

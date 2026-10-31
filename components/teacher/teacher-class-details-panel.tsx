@@ -5,6 +5,7 @@ import {
   useMemo,
   useRef,
   useState,
+  useSyncExternalStore,
   useTransition,
   type ReactNode,
 } from "react";
@@ -96,6 +97,30 @@ type TeacherClassDetailsPanelProps = {
 };
 
 const TABS = TEACHER_CLASS_DETAIL_TABS;
+const emptySubscribe = () => () => {};
+
+function useHasMounted() {
+  return useSyncExternalStore(
+    emptySubscribe,
+    () => true,
+    () => false
+  );
+}
+
+/** Browser-only: legacy `?tab=` wins, then localStorage, else main. */
+function resolveTeacherClassDetailTab(classId: string): TeacherClassDetailTab {
+  if (typeof window === "undefined") {
+    return TABS.MAIN;
+  }
+
+  const params = new URLSearchParams(window.location.search);
+  const fromLegacyUrl = parseTeacherClassDetailTab(params.get("tab"));
+  if (fromLegacyUrl) {
+    return fromLegacyUrl;
+  }
+
+  return readTeacherClassDetailTab(classId) ?? TABS.MAIN;
+}
 
 const CLASS_TABS = [
   { value: TABS.MAIN, label: "Main", icon: LayoutDashboardIcon },
@@ -123,37 +148,38 @@ export function TeacherClassDetailsPanel({
     gradeSummarySlot ?? tasksGradeSummarySlot ?? analyticsGradeSummarySlot;
   // Client-only tabs (localStorage). Avoid `?tab=` / router.replace — that
   // re-runs the full class RSC on every switch.
+  const hasMounted = useHasMounted();
   const [tab, setTab] = useState<TeacherClassDetailTab>(TABS.MAIN);
   const [visitedTabs, setVisitedTabs] = useState(
     () => new Set<TeacherClassDetailTab>([TABS.MAIN])
   );
+  const [hydratedClassId, setHydratedClassId] = useState<string | null>(null);
   const [classRow, setClassRow] = useState(initialClassRow);
 
+  // Restore tab from URL/localStorage after mount (or when class changes).
+  // Adjust during render — avoids setState-in-effect cascading renders.
+  if (hasMounted && hydratedClassId !== classRow.id) {
+    const next = resolveTeacherClassDetailTab(classRow.id);
+    setHydratedClassId(classRow.id);
+    setTab(next);
+    setVisitedTabs(new Set<TeacherClassDetailTab>([TABS.MAIN, next]));
+  }
+
+  // Drop stale `?tab=` bookmarks without App Router navigation (external URL only).
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const fromLegacyUrl = parseTeacherClassDetailTab(params.get("tab"));
-    const stored = readTeacherClassDetailTab(classRow.id);
-    const next = fromLegacyUrl ?? stored ?? TABS.MAIN;
-    writeTeacherClassDetailTab(classRow.id, next);
-    setTab(next);
-    setVisitedTabs((current) => {
-      if (current.has(next)) {
-        return current;
-      }
-      const updated = new Set(current);
-      updated.add(next);
-      return updated;
-    });
-
-    // Drop stale `?tab=` bookmarks without triggering App Router navigation.
-    if (fromLegacyUrl && params.has("tab")) {
-      params.delete("tab");
-      const query = params.toString();
-      const nextUrl = query
-        ? `${window.location.pathname}?${query}`
-        : window.location.pathname;
-      window.history.replaceState(window.history.state, "", nextUrl);
+    if (!fromLegacyUrl || !params.has("tab")) {
+      return;
     }
+
+    writeTeacherClassDetailTab(classRow.id, fromLegacyUrl);
+    params.delete("tab");
+    const query = params.toString();
+    const nextUrl = query
+      ? `${window.location.pathname}?${query}`
+      : window.location.pathname;
+    window.history.replaceState(window.history.state, "", nextUrl);
   }, [classRow.id]);
 
   if (!visitedTabs.has(tab)) {
