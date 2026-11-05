@@ -65,23 +65,26 @@ const TAB_TRIGGER_CLASS = cn(
   "focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50"
 );
 
-type BodyTab = "etkan" | "students";
+type BodyTab = "general" | "etkan" | "academy";
 
 type IncomeStatementAnalyticsPanelProps = {
   data: ManagerIncomeStatementAnalyticsData;
-  /** When set, Etkan/Students tab bodies are replaced by this slot (Suspense tables). */
-  tablesSlot?: ReactNode;
+  /** When set, replaces the Etkan tab body (Suspense table). */
+  etkanSlot?: ReactNode;
+  /** When set, replaces the Academy tab body (Suspense tables). */
+  academySlot?: ReactNode;
   /** Next-month forecast cards, loaded separately from the period stats. */
   forecastSlot?: ReactNode;
 };
 
 export function IncomeStatementAnalyticsPanel({
   data,
-  tablesSlot,
+  etkanSlot,
+  academySlot,
   forecastSlot,
 }: IncomeStatementAnalyticsPanelProps) {
   const router = useRouter();
-  const [bodyTab, setBodyTab] = useState<BodyTab>("etkan");
+  const [bodyTab, setBodyTab] = useState<BodyTab>("general");
   const monthValue = data.month === null ? "all" : String(data.month);
   const selectedMonthLabel =
     MONTH_OPTIONS.find((option) => option.value === monthValue)?.label ??
@@ -179,96 +182,100 @@ export function IncomeStatementAnalyticsPanel({
         </div>
       </div>
 
-      <div className="grid gap-4 @lg/panel:grid-cols-2 @2xl/panel:grid-cols-3">
-        <AnalyticsStatCard
-          label="Payments"
-          value={formatPaymentPhaseMoney(payments)}
-          description="Sum of student SPP payment amounts whose payment date falls in the selected period."
-          icon={BadgeDollarSignIcon}
-          iconClassName="text-emerald-500"
-        />
-        <AnalyticsStatCard
-          label="Credits"
-          value={formatPaymentPhaseMoney(credits)}
-          description="Sum of external credit transactions recorded in the selected period."
-          icon={ArrowDownLeftIcon}
-          iconClassName="text-teal-500"
-        />
-        <AnalyticsStatCard
-          label="Debits"
-          value={formatPaymentPhaseMoney(debits)}
-          description="Sum of external debit transactions recorded in the selected period."
-          icon={ArrowUpRightIcon}
-          iconClassName="text-rose-500"
-        />
-        <AnalyticsStatCard
-          label="Adjustments"
-          value={formatPaymentPhaseMoney(adjustments)}
-          description="Scholarships, discounts, and manual adjustments for the selected period, converted to dollars like the income statement."
-          icon={SlidersHorizontalIcon}
-          iconClassName="text-amber-500"
-        />
-        <AnalyticsStatCard
-          label="Total inflow"
-          value={formatPaymentPhaseMoney(totalInflow)}
-          description="Payments plus credits for the selected period (money coming in)."
-          icon={TrendingUpIcon}
-          iconClassName="text-sky-500"
-        />
-        <AnalyticsStatCard
-          label="Available money"
-          value={formatPaymentPhaseMoney(availableMoney)}
-          description="Payments plus credits minus debits for the selected period."
-          icon={WalletIcon}
-          iconClassName="text-violet-500"
-        />
-      </div>
+      <TabsPrimitive
+        value={bodyTab}
+        onValueChange={(value) => setBodyTab(value as BodyTab)}
+        className="flex flex-col gap-4"
+      >
+        <div className="flex justify-center">
+          <TabsListPrimitive className="flex h-auto w-full flex-wrap items-center justify-center gap-2 rounded-full bg-muted/60 p-1 ring-1 ring-foreground/8 @lg/panel:w-fit">
+            <TabsTriggerPrimitive value="general" className={TAB_TRIGGER_CLASS}>
+              General
+            </TabsTriggerPrimitive>
+            <TabsTriggerPrimitive value="etkan" className={TAB_TRIGGER_CLASS}>
+              Etkan
+            </TabsTriggerPrimitive>
+            <TabsTriggerPrimitive value="academy" className={TAB_TRIGGER_CLASS}>
+              Academy
+            </TabsTriggerPrimitive>
+          </TabsListPrimitive>
+        </div>
 
-      {forecastSlot}
+        <TabsContentsPrimitive>
+          <TabsContentPrimitive value="general" className="outline-none">
+            <div className="flex flex-col gap-6">
+              <div className="grid gap-4 @lg/panel:grid-cols-2 @2xl/panel:grid-cols-3">
+                <AnalyticsStatCard
+                  label="Payments"
+                  value={formatPaymentPhaseMoney(payments)}
+                  description="Sum of student SPP payment amounts whose payment date falls in the selected period."
+                  icon={BadgeDollarSignIcon}
+                  iconClassName="text-emerald-500"
+                />
+                <AnalyticsStatCard
+                  label="Credits"
+                  value={formatPaymentPhaseMoney(credits)}
+                  description="Sum of external credit transactions recorded in the selected period."
+                  icon={ArrowDownLeftIcon}
+                  iconClassName="text-teal-500"
+                />
+                <AnalyticsStatCard
+                  label="Debits"
+                  value={formatPaymentPhaseMoney(debits)}
+                  description="Sum of external debit transactions recorded in the selected period."
+                  icon={ArrowUpRightIcon}
+                  iconClassName="text-rose-500"
+                />
+                <AnalyticsStatCard
+                  label="Adjustments"
+                  value={formatPaymentPhaseMoney(adjustments)}
+                  description="Scholarships, discounts, and manual adjustments for the selected period, converted to dollars like the income statement."
+                  icon={SlidersHorizontalIcon}
+                  iconClassName="text-amber-500"
+                />
+                <AnalyticsStatCard
+                  label="Total inflow"
+                  value={formatPaymentPhaseMoney(totalInflow)}
+                  description="Payments plus credits for the selected period (money coming in)."
+                  icon={TrendingUpIcon}
+                  iconClassName="text-sky-500"
+                />
+                <AnalyticsStatCard
+                  label="Available money"
+                  value={formatPaymentPhaseMoney(availableMoney)}
+                  description="Payments plus credits minus debits for the selected period."
+                  icon={WalletIcon}
+                  iconClassName="text-violet-500"
+                />
+              </div>
 
-      {tablesSlot}
+              {forecastSlot}
+            </div>
+          </TabsContentPrimitive>
 
-      {!tablesSlot ? (
-        <TabsPrimitive
-          value={bodyTab}
-          onValueChange={(value) => setBodyTab(value as BodyTab)}
-          className="flex flex-col gap-4"
-        >
-          <div className="flex justify-center">
-            <TabsListPrimitive className="flex h-auto w-full flex-wrap items-center justify-center gap-2 rounded-full bg-muted/60 p-1 ring-1 ring-foreground/8 @lg/panel:w-fit">
-              <TabsTriggerPrimitive value="etkan" className={TAB_TRIGGER_CLASS}>
-                Etkan
-              </TabsTriggerPrimitive>
-              <TabsTriggerPrimitive
-                value="students"
-                className={TAB_TRIGGER_CLASS}
-              >
-                Students
-              </TabsTriggerPrimitive>
-            </TabsListPrimitive>
-          </div>
-
-          <TabsContentsPrimitive>
-            <TabsContentPrimitive value="etkan" className="outline-none">
+          <TabsContentPrimitive value="etkan" className="outline-none">
+            {etkanSlot ?? (
               <IncomeStatementAnalyticsEtkanTab
                 key={`etkan-${data.year}-${data.month ?? "all"}`}
                 transactions={data.transactions}
                 month={data.month}
               />
-            </TabsContentPrimitive>
+            )}
+          </TabsContentPrimitive>
 
-            <TabsContentPrimitive value="students" className="outline-none">
+          <TabsContentPrimitive value="academy" className="outline-none">
+            {academySlot ?? (
               <IncomeStatementAnalyticsStudentsTab
-                key={`students-${data.year}-${data.month ?? "all"}`}
+                key={`academy-${data.year}-${data.month ?? "all"}`}
                 payments={data.payments}
                 unpaidStudents={data.unpaidStudents}
                 adjustedStudents={data.adjustedStudents}
                 month={data.month}
               />
-            </TabsContentPrimitive>
-          </TabsContentsPrimitive>
-        </TabsPrimitive>
-      ) : null}
+            )}
+          </TabsContentPrimitive>
+        </TabsContentsPrimitive>
+      </TabsPrimitive>
     </div>
   );
 }

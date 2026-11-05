@@ -74,7 +74,6 @@ export const ROUTES = {
   MANAGER_PAGES: "/manager/pages",
   MANAGER_BACKUP: "/manager/backup",
   MANAGER_LOGS: "/manager/logs",
-  MANAGER_CLOUDFLARE_AI_USAGE: "/manager/cloudflare-ai-usage",
   MANAGER_REGISTRATIONS: "/manager/registrations",
   MANAGER_GUESTS: "/manager/guests",
   MANAGER_GUEST_DETAIL: "/manager/guests/[id]",

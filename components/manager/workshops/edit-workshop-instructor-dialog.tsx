@@ -149,7 +149,7 @@ export function EditWorkshopInstructorDialog({
           <DialogTitle>Edit instructor</DialogTitle>
           <DialogDescription>
             Update role and wage for{" "}
-            {instructor?.username?.trim() ? instructor.username : "this instructor"}.
+            {instructor?.full_name?.trim() ? instructor.full_name : "this instructor"}.
           </DialogDescription>
         </DialogHeader>
 
@@ -166,7 +166,7 @@ export function EditWorkshopInstructorDialog({
               Instructor
             </p>
             <p className="text-sm text-foreground">
-              {instructor?.username?.trim() ? instructor.username : "—"}
+              {instructor?.full_name?.trim() ? instructor.full_name : "—"}
             </p>
           </div>
 

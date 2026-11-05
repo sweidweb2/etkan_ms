@@ -136,21 +136,18 @@ function isoDateTime(daysFromToday: number, hourUtc = 9): string {
 }
 
 type SeedStaff = {
-  username: string;
   email: string;
   fullName: string;
   role: RoleValue;
 };
 
 type SeedTeacher = {
-  username: string;
   email: string;
   fullName: string;
   isInstructor?: boolean;
 };
 
 type SeedStudent = {
-  username: string;
   email: string;
   fullName: string;
   phone?: string;
@@ -269,12 +266,6 @@ async function findOrCreateStaff(
   client: Supabase,
   input: SeedStaff
 ): Promise<string> {
-  const existingProfile = await profileRepository.findProfileByUsername(
-    client,
-    input.username
-  );
-  if (existingProfile.data) return existingProfile.data.id;
-
   const existingEmail = await authRepository.findAuthUserByEmail(
     client,
     input.email
@@ -287,14 +278,13 @@ async function findOrCreateStaff(
     {
       email: input.email,
       password: getDefaultPassword(),
-      username: input.username,
       fullName: input.fullName,
       role: input.role,
     }
   );
 
   if (authError || !authData.user) {
-    throw new Error(authError?.message ?? `Unable to create staff ${input.username}.`);
+    throw new Error(authError?.message ?? `Unable to create staff ${input.email}.`);
   }
 
   const authUserId = authData.user.id;
@@ -302,7 +292,7 @@ async function findOrCreateStaff(
   try {
     const { error: profileError } = await profileRepository.createProfile(client, {
       id: authUserId,
-      username: input.username,
+      full_name: input.fullName,
       role: input.role,
     });
     if (profileError) throw new Error(profileError.message);
@@ -356,31 +346,26 @@ async function findOrCreateTeacher(
   client: Supabase,
   input: SeedTeacher
 ): Promise<string> {
-  const existingProfile = await profileRepository.findProfileByUsername(
-    client,
-    input.username
-  );
-
-  if (existingProfile.data) {
-    const flags = {
-      is_instructor: input.isInstructor ?? false,
-    };
-    await profileRepository.updateProfileById(client, existingProfile.data.id, {
-      username: input.username,
-      role: ROLES.TEACHER,
-      ...flags,
-    });
-    await syncAuthUserRole(client, existingProfile.data.id, ROLES.TEACHER);
-    return existingProfile.data.id;
-  }
-
   const existingEmail = await authRepository.findAuthUserByEmail(
     client,
     input.email
   );
   if (existingEmail.error) throw new Error(existingEmail.error.message);
   if (existingEmail.data?.user) {
-    return existingEmail.data.user.id;
+    const userId = existingEmail.data.user.id;
+    const existingProfile = await profileRepository.findProfileById(
+      client,
+      userId
+    );
+    if (existingProfile.data) {
+      await profileRepository.updateProfileById(client, userId, {
+        full_name: input.fullName,
+        role: ROLES.TEACHER,
+        is_instructor: input.isInstructor ?? false,
+      });
+      await syncAuthUserRole(client, userId, ROLES.TEACHER);
+    }
+    return userId;
   }
 
   const { data: authData, error: authError } = await authRepository.createAuthUser(
@@ -388,14 +373,13 @@ async function findOrCreateTeacher(
     {
       email: input.email,
       password: getDefaultPassword(),
-      username: input.username,
       fullName: input.fullName,
       role: ROLES.TEACHER,
     }
   );
 
   if (authError || !authData.user) {
-    throw new Error(authError?.message ?? `Unable to create teacher ${input.username}.`);
+    throw new Error(authError?.message ?? `Unable to create teacher ${input.email}.`);
   }
 
   const authUserId = authData.user.id;
@@ -403,7 +387,7 @@ async function findOrCreateTeacher(
   try {
     const { error: profileError } = await profileRepository.createProfile(client, {
       id: authUserId,
-      username: input.username,
+      full_name: input.fullName,
       role: ROLES.TEACHER,
       is_instructor: input.isInstructor ?? false,
     });
@@ -422,31 +406,6 @@ async function findOrCreateStudent(
   client: Supabase,
   input: SeedStudent
 ): Promise<{ userId: string; studentProfileId: string }> {
-  const existingProfile = await profileRepository.findProfileByUsername(
-    client,
-    input.username
-  );
-
-  if (existingProfile.data) {
-    const studentProfile =
-      await studentProfileRepository.findStudentProfileByUserId(
-        client,
-        existingProfile.data.id
-      );
-
-    if (studentProfile.error) throw new Error(studentProfile.error.message);
-    if (!studentProfile.data) {
-      throw new Error(
-        `Profile exists for ${input.username} but student_profiles row is missing.`
-      );
-    }
-
-    return {
-      userId: existingProfile.data.id,
-      studentProfileId: studentProfile.data.id,
-    };
-  }
-
   const existingEmail = await authRepository.findAuthUserByEmail(
     client,
     input.email
@@ -475,14 +434,13 @@ async function findOrCreateStudent(
     {
       email: input.email,
       password: getDefaultPassword(),
-      username: input.username,
       fullName: input.fullName,
       role: ROLES.STUDENT,
     }
   );
 
   if (authError || !authData.user) {
-    throw new Error(authError?.message ?? `Unable to create student ${input.username}.`);
+    throw new Error(authError?.message ?? `Unable to create student ${input.email}.`);
   }
 
   const authUserId = authData.user.id;
@@ -490,8 +448,6 @@ async function findOrCreateStudent(
   try {
     await ensureStudentRegistration(client, {
       authId: authUserId,
-      username: input.username,
-      email: input.email,
       fullName: input.fullName,
       phone: input.phone ?? null,
       role: ROLES.STUDENT,
@@ -504,7 +460,7 @@ async function findOrCreateStudent(
 
     if (studentProfile.error) throw new Error(studentProfile.error.message);
     if (!studentProfile.data) {
-      throw new Error(`Student registration incomplete for ${input.username}.`);
+      throw new Error(`Student registration incomplete for ${input.email}.`);
     }
 
     return {
@@ -2007,20 +1963,30 @@ async function ensureTransactions(
   if (created.error) throw new Error(created.error.message);
 }
 
-async function resolveReceiverUserId(client: Supabase): Promise<string> {
-  const managerUsername = process.env.SEED_MANAGER_USERNAME ?? "asweid";
-  const manager = await profileRepository.findProfileByUsername(
-    client,
-    managerUsername
-  );
-  if (manager.data) return manager.data.id;
+async function findProfileIdByEmail(
+  client: Supabase,
+  email: string
+): Promise<string | null> {
+  const authUser = await authRepository.findAuthUserByEmail(client, email);
+  const userId = authUser.data?.user?.id;
+  if (!userId) return null;
 
-  const adminUsername = process.env.SEED_ADMIN_USERNAME ?? "admin";
-  const admin = await profileRepository.findProfileByUsername(
+  const profile = await profileRepository.findProfileById(client, userId);
+  return profile.data?.id ?? null;
+}
+
+async function resolveReceiverUserId(client: Supabase): Promise<string> {
+  const managerId = await findProfileIdByEmail(
     client,
-    adminUsername
+    process.env.SEED_MANAGER_EMAIL ?? "asweid657@gmail.com"
   );
-  if (admin.data) return admin.data.id;
+  if (managerId) return managerId;
+
+  const adminId = await findProfileIdByEmail(
+    client,
+    process.env.SEED_ADMIN_EMAIL ?? "admin@example.com"
+  );
+  if (adminId) return adminId;
 
   throw new Error(
     "No manager/admin profile found. Run seed:admin and seed:manager first."
@@ -2036,25 +2002,21 @@ async function seedDemoData(): Promise<void> {
 
   // --- Panel staff (beyond admin/manager scripts) ---
   await findOrCreateStaff(client, {
-    username: "demo.ceo",
     email: "demo.ceo@example.com",
     fullName: "Demo CEO",
     role: ROLES.CEO,
   });
   await findOrCreateStaff(client, {
-    username: "demo.supervisor",
     email: "demo.supervisor@example.com",
     fullName: "Demo Supervisor",
     role: ROLES.SUPERVISOR,
   });
   await findOrCreateStaff(client, {
-    username: "demo.crm",
     email: "demo.crm@example.com",
     fullName: "Demo CRM",
     role: ROLES.CRM,
   });
   await findOrCreateStaff(client, {
-    username: "demo.comanager",
     email: "demo.comanager@example.com",
     fullName: "Demo Co-Manager",
     role: ROLES.CO_MANAGER,
@@ -2121,13 +2083,11 @@ async function seedDemoData(): Promise<void> {
   });
 
   const mathTeacherId = await findOrCreateTeacher(client, {
-    username: "demo.teacher.math",
     email: "demo.teacher.math@example.com",
     fullName: "Demo Math Teacher",
     isInstructor: true,
   });
   const physicsTeacherId = await findOrCreateTeacher(client, {
-    username: "demo.teacher.physics",
     email: "demo.teacher.physics@example.com",
     fullName: "Demo Physics Teacher",
     isInstructor: true,
@@ -2138,25 +2098,21 @@ async function seedDemoData(): Promise<void> {
 
   const mathStudents: SeedStudent[] = [
     {
-      username: "demo.student.alice",
       email: "demo.student.alice@example.com",
       fullName: "Alice Anderson",
       phone: "+1-555-0101",
     },
     {
-      username: "demo.student.bob",
       email: "demo.student.bob@example.com",
       fullName: "Bob Baker",
       phone: "+1-555-0102",
     },
     {
-      username: "demo.student.carol",
       email: "demo.student.carol@example.com",
       fullName: "Carol Clark",
       phone: "+1-555-0103",
     },
     {
-      username: "demo.student.david",
       email: "demo.student.david@example.com",
       fullName: "David Davis",
       phone: "+1-555-0104",
@@ -2165,19 +2121,16 @@ async function seedDemoData(): Promise<void> {
 
   const physicsStudents: SeedStudent[] = [
     {
-      username: "demo.student.eve",
       email: "demo.student.eve@example.com",
       fullName: "Eve Edwards",
       phone: "+1-555-0105",
     },
     {
-      username: "demo.student.frank",
       email: "demo.student.frank@example.com",
       fullName: "Frank Foster",
       phone: "+1-555-0106",
     },
     {
-      username: "demo.student.grace",
       email: "demo.student.grace@example.com",
       fullName: "Grace Green",
       phone: "+1-555-0107",

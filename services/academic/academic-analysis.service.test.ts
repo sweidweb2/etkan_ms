@@ -68,13 +68,11 @@ describe("getAcademicAnalysisForManager", () => {
           {
             id: studentProfileId,
             full_name: "Ada Lovelace",
-            username: "ada",
             status: "active",
           },
           {
             id: "d4d5e6f7-a8b9-0123-def0-234567890123",
             full_name: "Inactive Student",
-            username: "inactive",
             status: "inactive",
           },
         ],
@@ -133,7 +131,6 @@ describe("listAcademicAnalysisStudentsPageForManager", () => {
           {
             id: studentProfileId,
             full_name: "Ada Lovelace",
-            username: "ada",
             status: "graduated",
           },
         ],

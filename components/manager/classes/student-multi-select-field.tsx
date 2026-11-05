@@ -61,7 +61,6 @@ export function StudentMultiSelectField({
         const haystack = [
           student.full_name,
           student.email,
-          student.username ?? "",
           student.phone ?? "",
         ]
           .join(" ")
@@ -199,7 +198,6 @@ export function StudentMultiSelectField({
               <span className="font-medium">{student.full_name}</span>
               <span className="text-xs text-muted-foreground">
                 {student.email}
-                {student.username ? ` · ${student.username}` : ""}
               </span>
             </button>
           ))}

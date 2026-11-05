@@ -346,7 +346,7 @@ describe("listMissingSppForOpenedPhases", () => {
     } as never);
     vi.mocked(profileRepository.listProfilesByIds).mockResolvedValue({
       data: [
-        { id: studentB, username: "studentb", role: "student", created_at: "" },
+        { id: studentB, full_name: "Student B", role: "student", created_at: "" },
       ],
       error: null,
     } as never);

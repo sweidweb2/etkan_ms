@@ -19,6 +19,27 @@ export async function findProfileById(client: Supabase, id: string) {
     .maybeSingle();
 }
 
+export async function findProfileAvatarUrlById(client: Supabase, id: string) {
+  return client
+    .from("profiles")
+    .select("id, avatar_url")
+    .eq("id", id)
+    .maybeSingle();
+}
+
+export async function updateProfileAvatarUrl(
+  client: Supabase,
+  id: string,
+  avatarUrl: string | null
+) {
+  return client
+    .from("profiles")
+    .update({ avatar_url: avatarUrl })
+    .eq("id", id)
+    .select("id, avatar_url")
+    .maybeSingle();
+}
+
 export async function findRoleById(client: Supabase, id: string) {
   return client.from("profiles").select("role").eq("id", id).maybeSingle();
 }

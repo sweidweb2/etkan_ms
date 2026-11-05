@@ -1335,7 +1335,7 @@ export async function transferStudentBetweenClassesForManager(
         ),
       { timer, stepName: "leaveSync" }
     );
-    let warning = leaveSync.warning;
+    const warning = leaveSync.warning;
 
     let authResult: Awaited<
       ReturnType<typeof authRepository.getAuthUserById>

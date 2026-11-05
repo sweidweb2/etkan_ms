@@ -3,7 +3,6 @@ import { ROLES } from "@/lib/constants/roles";
 import * as authRepository from "@/repositories/auth.repository";
 import * as classRepository from "@/repositories/class.repository";
 import * as finalExamRepository from "@/repositories/final-exam.repository";
-import * as profileRepository from "@/repositories/profile.repository";
 import * as semesterDropRequestRepository from "@/repositories/semester-drop-request.repository";
 import * as studentClassRepository from "@/repositories/student-class.repository";
 import * as studentProfileRepository from "@/repositories/student-profile.repository";
@@ -162,19 +161,6 @@ describe("transferStudentBetweenClassesForManager accounting (E7)", () => {
         },
       },
       error: null,
-    } as never);
-
-    vi.mocked(profileRepository.findProfileById).mockResolvedValue({
-      data: {
-        id: userId,
-        username: "student",
-        role: "student",
-        created_at: "2026-01-01T00:00:00.000Z",
-      },
-      error: null,
-      count: null,
-      status: 200,
-      statusText: "OK",
     } as never);
 
     vi.mocked(authRepository.getAuthUserById).mockResolvedValue({

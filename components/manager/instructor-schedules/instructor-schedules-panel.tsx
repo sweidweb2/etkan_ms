@@ -17,7 +17,6 @@ import {
   type AddInstructorScheduleSlotDefaults,
 } from "@/components/manager/instructor-schedules/add-instructor-schedule-slot-dialog";
 import { EditInstructorScheduleSlotDialog } from "@/components/manager/instructor-schedules/edit-instructor-schedule-slot-dialog";
-import { ScheduleAssistantPrompt } from "@/components/manager/instructor-schedules/schedule-assistant-prompt";
 import {
   ScheduleTanks,
   type ScheduleTankDay,
@@ -287,7 +286,7 @@ export function InstructorSchedulesPanel({
     return (
       data.instructors.find(
         (instructor) => instructor.id === instructorFilter
-      )?.username ?? "Unknown"
+      )?.full_name ?? "Unknown"
     );
   }, [instructorFilter, data.instructors, isAllInstructors]);
 
@@ -302,7 +301,7 @@ export function InstructorSchedulesPanel({
     for (const instructor of data.instructors) {
       map.set(
         entityMapKey(ENTITY_SCHEDULE_TYPE_INSTRUCTOR, instructor.id),
-        instructor.username?.trim() || "Unknown"
+        instructor.full_name.trim() || "Unknown"
       );
     }
     return map;
@@ -671,10 +670,6 @@ export function InstructorSchedulesPanel({
         </Can>
       </div>
 
-      <Can permission={PERMISSIONS.CLOUDFLARE_AI_USAGE_VIEW}>
-        <ScheduleAssistantPrompt />
-      </Can>
-
       <div className="flex flex-col gap-2 @lg/panel:flex-row @lg/panel:flex-wrap @lg/panel:items-center @lg/panel:justify-between">
         <div className="flex min-w-0 flex-wrap items-center gap-2">
           <Select
@@ -694,7 +689,7 @@ export function InstructorSchedulesPanel({
               <SelectItem value={FILTER_ALL}>All</SelectItem>
               {data.instructors.map((instructor) => (
                 <SelectItem key={instructor.id} value={instructor.id}>
-                  {instructor.username ?? "Unknown"}
+                  {instructor.full_name || "Unknown"}
                 </SelectItem>
               ))}
             </SelectContent>

@@ -40,7 +40,6 @@ export const PERMISSION_FEATURES = [
   "payment_schedules",
   "backup",
   "logs",
-  "cloudflare_ai_usage",
   "registrations",
   "guests",
   "teams",
@@ -77,7 +76,6 @@ export const PERMISSION_FEATURE_LABELS: Record<PermissionFeature, string> = {
   payment_schedules: "Payment schedules",
   backup: "Backup",
   logs: "Logs",
-  cloudflare_ai_usage: "Cloudflare AI usage",
   registrations: "Registrations",
   guests: "Guests",
   teams: "Teams",
@@ -97,8 +95,10 @@ export const PERMISSIONS = {
   STUDENTS_VIEW: "students.view",
   STUDENTS_VIEW_OWN: "students.view_own",
   STUDENTS_UPDATE_OWN: "students.update_own",
+  STUDENTS_UPDATE_OWN_AVATAR: "students.update_own_avatar",
   STUDENTS_CREATE: "students.create",
   STUDENTS_UPDATE: "students.update",
+  STUDENTS_UPDATE_AVATAR: "students.update_avatar",
   STUDENTS_CHANGE_STATUS: "students.change_status",
   SUBJECTS_VIEW: "subjects.view",
   SUBJECTS_CREATE: "subjects.create",
@@ -272,8 +272,6 @@ export const PERMISSIONS = {
   LOGS_VIEW: "logs.view",
   LOGS_DELETE: "logs.delete",
 
-  CLOUDFLARE_AI_USAGE_VIEW: "cloudflare_ai_usage.view",
-
   REGISTRATIONS_VIEW: "registrations.view",
   REGISTRATIONS_UPDATE_STATUS: "registrations.update_status",
 
@@ -360,6 +358,12 @@ export const PERMISSION_DEFINITIONS: readonly PermissionDefinition[] = [
     access: PERMISSION_ACCESS.WRITE,
   },
   {
+    key: PERMISSIONS.STUDENTS_UPDATE_OWN_AVATAR,
+    feature: "students",
+    label: "Upload or remove own profile photo",
+    access: PERMISSION_ACCESS.WRITE,
+  },
+  {
     key: PERMISSIONS.STUDENTS_CREATE,
     feature: "students",
     label: "Create student",
@@ -369,6 +373,12 @@ export const PERMISSION_DEFINITIONS: readonly PermissionDefinition[] = [
     key: PERMISSIONS.STUDENTS_UPDATE,
     feature: "students",
     label: "Edit student",
+    access: PERMISSION_ACCESS.WRITE,
+  },
+  {
+    key: PERMISSIONS.STUDENTS_UPDATE_AVATAR,
+    feature: "students",
+    label: "Upload or remove a student's profile photo",
     access: PERMISSION_ACCESS.WRITE,
   },
   {
@@ -1297,13 +1307,6 @@ export const PERMISSION_DEFINITIONS: readonly PermissionDefinition[] = [
     feature: "logs",
     label: "Delete audit logs",
     access: PERMISSION_ACCESS.WRITE,
-  },
-
-  {
-    key: PERMISSIONS.CLOUDFLARE_AI_USAGE_VIEW,
-    feature: "cloudflare_ai_usage",
-    label: "View Cloudflare AI usage logs",
-    access: PERMISSION_ACCESS.READ,
   },
 
   {

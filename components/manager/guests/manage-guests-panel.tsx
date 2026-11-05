@@ -37,11 +37,10 @@ import {
 import { TeamFormDialog } from "@/components/manager/guests/team-form-dialog";
 import { TeamsSection } from "@/components/manager/guests/teams-section";
 import { ViewGuestNotesDialog } from "@/components/manager/guests/view-guest-notes-dialog";
-import { UserStatCard } from "@/components/manager/users/user-stat-card";
 import { InlineSpinner } from "@/components/loaders/inline-spinner";
 import { PanelPageHeader } from "@/components/panels/panel-page-header";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
   Dialog,
@@ -334,6 +333,7 @@ export function ManageGuestsPanel({
     permissions,
     PERMISSIONS.TEAMS_ASSIGN_GUEST
   );
+  const canViewTeams = hasPermissionInSet(permissions, PERMISSIONS.TEAMS_VIEW);
   const canViewNotifications = hasPermissionInSet(
     permissions,
     PERMISSIONS.NOTIFICATIONS_VIEW
@@ -442,15 +442,6 @@ export function ManageGuestsPanel({
     () => allGuests.filter((row) => !teamIdByGuestId.has(row.id)),
     [allGuests, teamIdByGuestId]
   );
-
-  const stats = useMemo(() => {
-    return {
-      total: allGuests.length,
-      scheduled: allGuests.filter((row) => row.status === "scheduled").length,
-      finished: allGuests.filter((row) => row.status === "finished").length,
-      cancelled: allGuests.filter((row) => row.status === "cancelled").length,
-    };
-  }, [allGuests]);
 
   const filteredGuests = useMemo(() => {
     return guestsById.filter((guest) => {
@@ -630,32 +621,8 @@ export function ManageGuestsPanel({
           onUnreadCountChange={setRegistrationUnreadCount}
         />
 
-        <div className="grid gap-3 @lg/panel:grid-cols-2 @2xl/panel:grid-cols-4">
-          <UserStatCard
-            label="Total"
-            value={stats.total}
-            accentClassName="border-l-sky-500"
-          />
-          <UserStatCard
-            label="Scheduled"
-            value={stats.scheduled}
-            accentClassName="border-l-violet-500"
-          />
-          <UserStatCard
-            label="Finished"
-            value={stats.finished}
-            accentClassName="border-l-emerald-500"
-          />
-          <UserStatCard
-            label="Cancelled"
-            value={stats.cancelled}
-            accentClassName="border-l-amber-500"
-          />
-        </div>
-
-        <Card>
-          <CardHeader className="gap-4 border-b">
-            <CardTitle className="text-base">Guest list</CardTitle>
+        <Card className="gap-0 py-0">
+          <CardHeader className="border-b py-3">
             <div className="flex w-full flex-col gap-3 @lg/panel:flex-row @lg/panel:items-end">
               <div className="grid w-full gap-1.5 @lg/panel:w-56">
                 <Label htmlFor="guest-filter-search">Search</Label>
@@ -767,6 +734,15 @@ export function ManageGuestsPanel({
                   setEditGuest(guest);
                   setIsEditOpen(true);
                 }}
+                moveDown={
+                  canAssignGuests && canViewTeams && optimisticTeams[0]
+                    ? {
+                        label: `Move to ${optimisticTeams[0].name}`,
+                        onMove: (guest) =>
+                          moveGuest(guest.id, optimisticTeams[0].id),
+                      }
+                    : undefined
+                }
                 emptyState={
                   guestsById.length === 0 ? (
                     <div className="mx-auto flex max-w-sm flex-col items-center gap-3">
@@ -879,6 +855,9 @@ export function ManageGuestsPanel({
               setIsTeamFormOpen(true);
             }}
             onDelete={(team) => setDeleteTeamTarget(team)}
+            onMoveGuest={(guest, targetGroup) =>
+              moveGuest(guest.id, targetGroup)
+            }
             onViewNotes={(guest) => {
               setNotesGuest(guest);
               setIsNotesOpen(true);

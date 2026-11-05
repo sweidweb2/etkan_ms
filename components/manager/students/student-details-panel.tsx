@@ -5,13 +5,24 @@ import { useEffect, useState, type ReactNode } from "react";
 import Link from "next/link";
 import { format } from "date-fns";
 import {
+  CameraIcon,
   FileTextIcon,
   KeyRoundIcon,
   LockIcon,
   PencilIcon,
 } from "lucide-react";
+import {
+  removeOwnAvatarAction,
+  updateOwnAvatarAction,
+} from "@/app/(panels)/student/actions";
+import {
+  removeStudentAvatarAction,
+  updateStudentAvatarAction,
+} from "@/app/manager/students/actions";
 import { Can } from "@/components/auth/can";
 import { EditStudentDialog } from "@/components/manager/students/edit-student-dialog";
+import { ProfileAvatar } from "@/components/shared/profile-avatar";
+import { ChangeAvatarDialog } from "@/components/student/avatar/change-avatar-dialog";
 import { ChangeOwnPasswordDialog } from "@/components/student/change-own-password-dialog";
 import { StudentDetailsSectionNav } from "@/components/manager/students/student-details-section-nav";
 import { StudentJoinedClassesSection } from "@/components/manager/students/student-joined-classes-section";
@@ -116,7 +127,13 @@ export function StudentDetailsPanel({
     useState<ManagerStudentRow>(initialStudent);
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [isPasswordOpen, setIsPasswordOpen] = useState(false);
+  const [isAvatarOpen, setIsAvatarOpen] = useState(false);
   const isSelf = variant === "self";
+  const avatarUrl = student.avatar_url ?? null;
+
+  function handleAvatarChange(nextAvatarUrl: string | null) {
+    setStudent((current) => ({ ...current, avatar_url: nextAvatarUrl }));
+  }
 
   if (initialStudent !== prevStudent) {
     setPrevStudent(initialStudent);
@@ -173,6 +190,75 @@ export function StudentDetailsPanel({
           onOpenChange={setIsPasswordOpen}
         />
       )}
+
+      {isSelf ? (
+        <ChangeAvatarDialog
+          open={isAvatarOpen}
+          onOpenChange={setIsAvatarOpen}
+          name={student.full_name}
+          currentAvatarUrl={avatarUrl}
+          uploadAction={updateOwnAvatarAction}
+          removeAction={removeOwnAvatarAction}
+          onAvatarChange={handleAvatarChange}
+        />
+      ) : (
+        <Can permission={PERMISSIONS.STUDENTS_UPDATE_AVATAR}>
+          <ChangeAvatarDialog
+            open={isAvatarOpen}
+            onOpenChange={setIsAvatarOpen}
+            name={student.full_name}
+            currentAvatarUrl={avatarUrl}
+            uploadAction={updateStudentAvatarAction}
+            removeAction={removeStudentAvatarAction}
+            hiddenFields={{
+              user_id: student.user_id,
+              student_profile_id: student.student_profile_id,
+            }}
+            onAvatarChange={handleAvatarChange}
+          />
+        </Can>
+      )}
+
+      {isSelf ? (
+        <Card className="gap-0 py-0">
+          <CardHeader className="border-b bg-muted/40 py-3">
+            <CardTitle className="flex items-center gap-2 text-base">
+              <CameraIcon className="size-4 shrink-0" aria-hidden />
+              Profile photo
+            </CardTitle>
+            <CardDescription>
+              JPEG, PNG, or WebP up to 10 MB. Saved as a square photo.
+            </CardDescription>
+            <Can permission={PERMISSIONS.STUDENTS_UPDATE_OWN_AVATAR}>
+              <CardAction className="self-center">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => setIsAvatarOpen(true)}
+                >
+                  <CameraIcon data-icon="inline-start" />
+                  {avatarUrl ? "Change photo" : "Add photo"}
+                </Button>
+              </CardAction>
+            </Can>
+          </CardHeader>
+          <CardContent className="flex items-center gap-4 pb-4 pt-3">
+            <ProfileAvatar
+              name={student.full_name}
+              avatarUrl={avatarUrl}
+              size="lg"
+            />
+            <div className="min-w-0">
+              <p className="truncate font-medium">{student.full_name}</p>
+              <p className="text-sm text-muted-foreground">
+                {avatarUrl
+                  ? "This photo appears on your profile."
+                  : "No photo yet. Your initials are shown instead."}
+              </p>
+            </div>
+          </CardContent>
+        </Card>
+      ) : null}
 
       {isSelf ? (
         <div className="grid gap-6 @xl/panel:grid-cols-2">
@@ -241,8 +327,25 @@ export function StudentDetailsPanel({
       ) : (
         <Card className="gap-0 py-0">
           <CardHeader className="border-b bg-muted/40 py-3">
-            <CardTitle className="text-xl">{student.full_name}</CardTitle>
+            <CardTitle className="flex min-w-0 items-center gap-3 text-xl">
+              <ProfileAvatar
+                name={student.full_name}
+                avatarUrl={avatarUrl}
+                size="md"
+              />
+              <span className="min-w-0 truncate">{student.full_name}</span>
+            </CardTitle>
             <CardAction className="flex flex-wrap items-center justify-end gap-2 self-center">
+              <Can permission={PERMISSIONS.STUDENTS_UPDATE_AVATAR}>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => setIsAvatarOpen(true)}
+                >
+                  <CameraIcon data-icon="inline-start" />
+                  {avatarUrl ? "Change photo" : "Add photo"}
+                </Button>
+              </Can>
               {registrationApplicationId ? (
                 <Can permission={PERMISSIONS.REGISTRATIONS_VIEW}>
                   <Button

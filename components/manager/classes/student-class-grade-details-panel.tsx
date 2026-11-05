@@ -805,7 +805,6 @@ export function StudentClassGradeDetailsPanel({
         <CardContent className="py-6">
           <dl className="grid gap-6 @lg/panel:grid-cols-2 @2xl/panel:grid-cols-3">
             <DetailField label="Full name" value={student.full_name} />
-            <DetailField label="Username" value={student.username ?? "—"} />
             <DetailField label="Email" value={student.email} />
             <DetailField label="Phone" value={student.phone ?? "—"} />
             <DetailField label="Membership" value="Member" />

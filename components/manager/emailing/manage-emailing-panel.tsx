@@ -119,7 +119,7 @@ function SelectionCheckbox({
 }
 
 function getUserDisplayName(user: ManagerUserRow) {
-  return user.username ?? user.student_full_name ?? "—";
+  return user.full_name || "—";
 }
 
 function matchesNameFilter(user: ManagerUserRow, query: string) {
@@ -128,9 +128,7 @@ function matchesNameFilter(user: ManagerUserRow, query: string) {
     return true;
   }
 
-  const username = user.username?.toLowerCase() ?? "";
-  const fullName = user.student_full_name?.toLowerCase() ?? "";
-  return username.includes(normalized) || fullName.includes(normalized);
+  return user.full_name.toLowerCase().includes(normalized);
 }
 
 function matchesEmailFilter(user: ManagerUserRow, query: string) {
@@ -668,7 +666,7 @@ export function ManageEmailingPanel({
                           ariaLabel="Select all users on this page"
                         />
                       </th>
-                      <th className="px-4 py-3 font-medium">Username</th>
+                      <th className="px-4 py-3 font-medium">Full name</th>
                       <th className="px-4 py-3 font-medium">Email</th>
                       <th className="px-4 py-3 font-medium">Role</th>
                       <th className="px-4 py-3 font-medium">Created</th>

@@ -184,7 +184,7 @@ export function AssignClassTeachersDropdown({
           </p>
         ) : (
           teachers.map((teacher) => {
-            const name = teacher.username?.trim() || "Unnamed user";
+            const name = teacher.full_name.trim() || "Unnamed user";
             return (
               <DropdownMenuCheckboxItem
                 key={teacher.id}

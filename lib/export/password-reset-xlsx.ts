@@ -1,7 +1,7 @@
 import JSZip from "jszip";
 
 export type PasswordResetXlsxRow = {
-  username: string;
+  full_name: string;
   email: string;
   role: string;
   password: string;
@@ -32,7 +32,7 @@ function columnName(indexZeroBased: number): string {
 }
 
 function sheetXml(rows: PasswordResetXlsxRow[]): string {
-  const header = ["username", "email", "role", "password"];
+  const header = ["full name", "email", "role", "password"];
   const sheetRows: string[] = [];
 
   sheetRows.push(
@@ -43,7 +43,7 @@ function sheetXml(rows: PasswordResetXlsxRow[]): string {
 
   rows.forEach((row, index) => {
     const r = index + 2;
-    const values = [row.username, row.email, row.role, row.password];
+    const values = [row.full_name, row.email, row.role, row.password];
     sheetRows.push(
       `<row r="${r}">${values
         .map((value, col) => cellXml(value, r, col))

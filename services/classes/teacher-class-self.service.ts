@@ -240,7 +240,7 @@ export async function getTeachingClassPageBundleForSelf(
       classRepository.findClassDetailById(adminClient, classId),
       sessionRepository.listSessionsByClassId(adminClient, classId),
       classTaskRepository.listClassTasksByClassId(adminClient, classId),
-      // Skip Auth Admin email fan-out; teacher roster uses name/username.
+      // Skip Auth Admin email fan-out; teacher roster uses the student name.
       loadClassStudentRows(adminClient, classId, {
         includeAuthEmails: false,
       }),
@@ -278,7 +278,7 @@ export async function getTeachingClassPageBundleForSelf(
 
   const tasks = (tasksResult.data ?? []).map(mapTaskRecord);
 
-  // Teachers get username (not Auth email); omit phone from RSC payload.
+  // Teachers get the student name (not Auth email); omit phone from RSC payload.
   const teacherStudents = students.map((student) => ({
     ...student,
     email: "",

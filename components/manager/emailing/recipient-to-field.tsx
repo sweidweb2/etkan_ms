@@ -55,7 +55,7 @@ const BULK_OPTIONS: Array<{ id: string; label: string; roles?: RoleValue[] }> =
 const EMPTY_USERS: ManagerUserRow[] = [];
 
 function getUserDisplayName(user: ManagerUserRow) {
-  return user.username ?? user.student_full_name ?? user.email;
+  return user.full_name || user.email;
 }
 
 function recipientKey(recipient: ComposeRecipient) {
@@ -129,8 +129,7 @@ export function RecipientToField({
         }
         const haystack = [
           user.email,
-          user.username ?? "",
-          user.student_full_name ?? "",
+          user.full_name,
           user.role,
         ]
           .join(" ")

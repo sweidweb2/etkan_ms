@@ -113,7 +113,7 @@ const instructorAssignmentRecord = {
   wage_amount: 500,
   notes: null,
   created_at: "2026-01-02T00:00:00.000Z",
-  profiles: { username: "lead_teacher" },
+  profiles: { full_name: "Lead Teacher" },
 };
 
 const documentRecord = {
@@ -634,14 +634,14 @@ describe("getWorkshopForManager", () => {
       data: [
         {
           id: instructorUserId,
-          username: "lead_teacher",
+          full_name: "Lead Teacher",
           role: "teacher",
           is_instructor: true,
           created_at: "2026-01-01T00:00:00.000Z",
         },
         {
           id: "d4d5e6f7-a8b9-0123-def0-234567890123",
-          username: "assistant_one",
+          full_name: "Assistant One",
           role: "teacher",
           is_instructor: true,
           created_at: "2026-01-01T00:00:00.000Z",
@@ -698,7 +698,7 @@ describe("getWorkshopForManager", () => {
     expect(detail?.scheduleSlots).toEqual([]);
     expect(detail?.workshop.id).toBe(workshopId);
     expect(detail?.instructors).toHaveLength(1);
-    expect(detail?.instructors[0]?.username).toBe("lead_teacher");
+    expect(detail?.instructors[0]?.full_name).toBe("Lead Teacher");
     expect(detail?.documents).toHaveLength(1);
     expect(detail?.documents[0]?.name).toBe("Syllabus");
     expect(detail?.sessions).toEqual([]);
@@ -959,7 +959,7 @@ describe("addWorkshopInstructorForManager", () => {
     vi.mocked(profileRepository.findProfileById).mockResolvedValue({
       data: {
         id: instructorUserId,
-        username: "not_instructor",
+        full_name: "Not Instructor",
         role: "teacher",
         is_instructor: false,
         created_at: "2026-01-01T00:00:00.000Z",
@@ -994,7 +994,7 @@ describe("addWorkshopInstructorForManager", () => {
     vi.mocked(profileRepository.findProfileById).mockResolvedValue({
       data: {
         id: instructorUserId,
-        username: "lead_teacher",
+        full_name: "Lead Teacher",
         role: "teacher",
         is_instructor: true,
         created_at: "2026-01-01T00:00:00.000Z",
@@ -1038,7 +1038,7 @@ describe("addWorkshopInstructorForManager", () => {
     vi.mocked(profileRepository.findProfileById).mockResolvedValue({
       data: {
         id: instructorUserId,
-        username: "lead_teacher",
+        full_name: "Lead Teacher",
         role: "teacher",
         is_instructor: true,
         created_at: "2026-01-01T00:00:00.000Z",
@@ -1118,7 +1118,7 @@ describe("addWorkshopInstructorForManager", () => {
     vi.mocked(profileRepository.findProfileById).mockResolvedValue({
       data: {
         id: instructorUserId,
-        username: "lead_teacher",
+        full_name: "Lead Teacher",
         role: "teacher",
         is_instructor: true,
         created_at: "2026-01-01T00:00:00.000Z",

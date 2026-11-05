@@ -262,10 +262,10 @@ export async function getIncomeStatementForManager(
   );
 
   const labelByStudentId = new Map<string, string>();
-  const usernameById = new Map(
+  const profileNameById = new Map(
     (profilesResult.data ?? []).map((profile) => [
       profile.id,
-      profile.username,
+      profile.full_name,
     ])
   );
   const fullNameByUserId = new Map(
@@ -277,8 +277,8 @@ export async function getIncomeStatementForManager(
 
   for (const studentId of studentIds) {
     const fullName = fullNameByUserId.get(studentId)?.trim();
-    const username = usernameById.get(studentId)?.trim();
-    labelByStudentId.set(studentId, fullName || username || studentId);
+    const profileName = profileNameById.get(studentId)?.trim();
+    labelByStudentId.set(studentId, fullName || profileName || studentId);
   }
 
   const totalPaymentsAmount = paymentRows.reduce((sum, row) => {

@@ -148,7 +148,6 @@ function matchesSearch(student: ManagerClassStudentRow, query: string) {
 
   const haystack = [
     student.full_name,
-    student.username ?? "",
     student.email,
     student.phone ?? "",
   ]
@@ -465,7 +464,7 @@ export function ClassStudentsSection({
               <Input
                 value={searchQuery}
                 onChange={(event) => handleSearchChange(event.target.value)}
-                placeholder="Search name, username, email, or phone…"
+                placeholder="Search name, email, or phone…"
                 className="pl-8"
                 aria-label="Search class students"
               />
@@ -496,7 +495,6 @@ export function ClassStudentsSection({
                   <tr className="border-b bg-muted/40 text-left">
                     <th className="w-12 px-4 py-3 font-medium">#</th>
                     <th className="px-4 py-3 font-medium">Full name</th>
-                    <th className="px-4 py-3 font-medium">Username</th>
                     <th className="px-4 py-3 font-medium">Email</th>
                     <th className="px-4 py-3 font-medium">Phone</th>
                     <th className="px-4 py-3 font-medium">Joined</th>
@@ -524,12 +522,6 @@ export function ClassStudentsSection({
                             </span>
                           ) : null}
                         </div>
-                      </td>
-                      <td className="max-w-[10rem] px-4 py-3">
-                        <TruncatedCell
-                          value={student.username ?? "—"}
-                          maxLength={CLASS_STUDENT_TABLE_LIMITS.username}
-                        />
                       </td>
                       <td className="max-w-[14rem] px-4 py-3">
                         <TruncatedCell

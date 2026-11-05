@@ -35,7 +35,6 @@ const MANAGER_SMOKE_ROUTES: ReadonlyArray<{
   },
   { path: "/manager/workshops", landmark: "Manage workshops" },
   { path: "/manager/workshops/payments", landmark: /Total payments/i },
-  { path: "/manager/cloudflare-ai-usage", landmark: "AI usage" },
   { path: "/manager/accounting", landmark: "Accounting" },
   { path: "/manager/income-statement", landmark: "Income statement" },
   {

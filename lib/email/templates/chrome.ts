@@ -20,7 +20,6 @@ export function emailChrome(locale: EmailLocale) {
       ctaOpenDetails: "عرض التفاصيل",
       labels: {
         email: "البريد الإلكتروني",
-        username: "اسم المستخدم",
         temporaryPassword: "كلمة المرور المؤقتة",
         date: "التاريخ",
         when: "الموعد",
@@ -44,7 +43,6 @@ export function emailChrome(locale: EmailLocale) {
     ctaOpenDetails: "Open details",
     labels: {
       email: "Email",
-      username: "Username",
       temporaryPassword: "Temporary password",
       date: "Date",
       when: "When",

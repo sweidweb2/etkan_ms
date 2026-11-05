@@ -342,7 +342,7 @@ async function fetchScheduleInstructorTabs(): Promise<
 
   return (instructorsResult.data ?? []).map((row) => ({
     id: row.id,
-    username: row.username,
+    full_name: row.full_name,
   }));
 }
 

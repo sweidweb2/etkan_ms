@@ -144,6 +144,17 @@ async function notifyStudentCreated(
   // Intentionally no-op until email infrastructure is added.
 }
 
+/** A missing avatar read must not break the detail page. */
+function avatarUrlOrNull(result: {
+  data: { avatar_url: string | null } | null;
+  error: unknown;
+}): string | null {
+  if (result.error) {
+    return null;
+  }
+  return result.data?.avatar_url ?? null;
+}
+
 async function mapStudentProfileToManagerStudentRow(
   adminClient: Supabase,
   studentProfile: {
@@ -489,13 +500,22 @@ export async function getStudentForManager(
       return null;
     }
 
-    const [profileResult, emailsResult] = await timer.step("map", () =>
-      Promise.all([
-        profileRepository.findProfileById(adminClient, studentProfile.user_id),
-        authRepository.listAuthEmailsByIds(adminClient, [
-          studentProfile.user_id,
-        ]),
-      ])
+    const [profileResult, emailsResult, avatarResult] = await timer.step(
+      "map",
+      () =>
+        Promise.all([
+          profileRepository.findProfileById(
+            adminClient,
+            studentProfile.user_id
+          ),
+          authRepository.listAuthEmailsByIds(adminClient, [
+            studentProfile.user_id,
+          ]),
+          profileRepository.findProfileAvatarUrlById(
+            adminClient,
+            studentProfile.user_id
+          ),
+        ])
     );
 
     if (profileResult.error || !profileResult.data) {
@@ -505,12 +525,13 @@ export async function getStudentForManager(
       return null;
     }
 
-    return mapStudentProfileToManagerStudentRow(
+    const row = await mapStudentProfileToManagerStudentRow(
       adminClient,
       studentProfile,
       profileResult.data,
       emailsResult.data.get(studentProfile.user_id) ?? ""
     );
+    return row ? { ...row, avatar_url: avatarUrlOrNull(avatarResult) } : null;
   } finally {
     timer.end();
   }
@@ -539,9 +560,13 @@ export async function getStudentForSelf(
     return null;
   }
 
-  const [profileResult, emailsResult] = await Promise.all([
+  const [profileResult, emailsResult, avatarResult] = await Promise.all([
     profileRepository.findProfileById(adminClient, studentProfile.user_id),
     authRepository.listAuthEmailsByIds(adminClient, [studentProfile.user_id]),
+    profileRepository.findProfileAvatarUrlById(
+      adminClient,
+      studentProfile.user_id
+    ),
   ]);
 
   if (profileResult.error || !profileResult.data) {
@@ -551,12 +576,13 @@ export async function getStudentForSelf(
     return null;
   }
 
-  return mapStudentProfileToManagerStudentRow(
+  const row = await mapStudentProfileToManagerStudentRow(
     adminClient,
     studentProfile,
     profileResult.data,
     emailsResult.data.get(studentProfile.user_id) ?? ""
   );
+  return row ? { ...row, avatar_url: avatarUrlOrNull(avatarResult) } : null;
 }
 
 export async function getStudentDetailStatsForManager(
@@ -975,7 +1001,6 @@ export async function createStudent(
   try {
     await ensureStudentRegistration(adminClient, {
       authId: authUserId,
-      email: normalizedEmail,
       fullName: normalizedFullName,
       birthDate: normalizedBirthDate,
       phone: normalizedPhone,

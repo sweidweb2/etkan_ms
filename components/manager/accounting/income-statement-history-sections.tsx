@@ -90,7 +90,6 @@ export async function IncomeStatementHistoryStatementSection({
       data={data}
       periodLabel={incomeStatementPeriodLabel(period)}
       readOnly
-      hideAllTimePaymentsCard
     />
   );
 }

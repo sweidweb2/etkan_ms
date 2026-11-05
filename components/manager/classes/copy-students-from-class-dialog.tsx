@@ -348,7 +348,7 @@ export function CopyStudentsFromClassDialog({
                               {student.full_name}
                             </span>
                             <span className="block truncate text-muted-foreground">
-                              {student.email || student.username || "—"}
+                              {student.email || "—"}
                             </span>
                           </span>
                         </label>

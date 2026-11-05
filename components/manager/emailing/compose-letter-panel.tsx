@@ -62,7 +62,6 @@ function emptyComposeValues(): SendEmailInput {
     toEmails: [],
     bodyHtml: undefined,
     account_email: undefined,
-    username: undefined,
     temporary_password: undefined,
     title: undefined,
     body: undefined,

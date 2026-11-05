@@ -50,7 +50,6 @@ const STATUS_FILTER_ALL = "all";
 const PAGE_SIZE_OPTIONS = [5, 10, 25] as const;
 const COLUMN_LIMITS = {
   fullName: 24,
-  username: 20,
 } as const;
 
 function TruncatedCell({
@@ -254,7 +253,7 @@ export function AcademicAnalysisPanel({ data }: AcademicAnalysisPanelProps) {
                 <Input
                   value={searchQuery}
                   onChange={(event) => handleSearchChange(event.target.value)}
-                  placeholder="Search name or username…"
+                  placeholder="Search name…"
                   className="pl-8"
                   aria-label="Search students"
                 />
@@ -297,7 +296,6 @@ export function AcademicAnalysisPanel({ data }: AcademicAnalysisPanelProps) {
                 <thead className="border-b bg-muted/40 text-xs uppercase tracking-wide text-muted-foreground">
                   <tr>
                     <th className="px-4 py-3 font-medium">Name</th>
-                    <th className="px-4 py-3 font-medium">Username</th>
                     <th className="px-4 py-3 font-medium">Status</th>
                   </tr>
                 </thead>
@@ -305,7 +303,7 @@ export function AcademicAnalysisPanel({ data }: AcademicAnalysisPanelProps) {
                   {students.length === 0 ? (
                     <tr>
                       <td
-                        colSpan={3}
+                        colSpan={2}
                         className="px-4 py-10 text-center text-muted-foreground"
                       >
                         {hasActiveFilters
@@ -340,12 +338,6 @@ export function AcademicAnalysisPanel({ data }: AcademicAnalysisPanelProps) {
                               />
                             </Link>
                           </Can>
-                        </td>
-                        <td className="max-w-[10rem] px-4 py-3 text-muted-foreground">
-                          <TruncatedCell
-                            value={student.username || "—"}
-                            maxLength={COLUMN_LIMITS.username}
-                          />
                         </td>
                         <td className="px-4 py-3">
                           <span

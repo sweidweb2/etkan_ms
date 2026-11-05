@@ -174,12 +174,11 @@ export async function listOpenSppsMissingPriorAdjustmentForManager(
       continue;
     }
     const fullName = spp.full_name?.trim();
-    const username = spp.username?.trim();
     rows.push({
       spp_id: spp.spp_id,
       student_id: spp.student_id,
       student_profile_id: spp.student_profile_id,
-      student_label: fullName || username || spp.student_id,
+      student_label: fullName || spp.student_id,
       payment_phase_id: phase.id,
       payment_phase_name: phase.name,
       semester_id: phase.semester_id,

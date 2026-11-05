@@ -55,7 +55,6 @@ export function TeacherSettingsProfileForm({
     mode: "onBlur",
     defaultValues: {
       fullName: profile.fullName,
-      username: profile.username,
       email: profile.email,
     },
   });
@@ -63,7 +62,6 @@ export function TeacherSettingsProfileForm({
   useEffect(() => {
     reset({
       fullName: profile.fullName,
-      username: profile.username,
       email: profile.email,
     });
   }, [profile, reset]);
@@ -73,7 +71,6 @@ export function TeacherSettingsProfileForm({
       onProfileUpdated?.(state.profile);
       reset({
         fullName: state.profile.fullName,
-        username: state.profile.username,
         email: state.profile.email,
       });
     }
@@ -81,14 +78,11 @@ export function TeacherSettingsProfileForm({
 
   const fullNameError =
     errors.fullName?.message ?? state.fieldErrors?.fullName?.[0];
-  const usernameError =
-    errors.username?.message ?? state.fieldErrors?.username?.[0];
   const emailError = errors.email?.message ?? state.fieldErrors?.email?.[0];
 
   function onSubmit(values: UpdateOwnTeacherProfileInput) {
     const formData = new FormData();
     formData.set("fullName", values.fullName);
-    formData.set("username", values.username);
     formData.set("email", values.email);
     formAction(formData);
   }
@@ -124,26 +118,6 @@ export function TeacherSettingsProfileForm({
             />
             {fullNameError ? (
               <p className="text-sm text-destructive">{fullNameError}</p>
-            ) : null}
-          </div>
-
-          <div className="flex flex-col gap-2">
-            <FieldLabel
-              htmlFor="teacher-username"
-              label="Username"
-              hint={AUTH_FIELD_HINTS.username}
-            />
-            <Input
-              id="teacher-username"
-              autoComplete="username"
-              placeholder="Choose a username"
-              maxLength={AUTH_LIMITS.username.max}
-              aria-invalid={!!usernameError}
-              disabled={isPending}
-              {...register("username")}
-            />
-            {usernameError ? (
-              <p className="text-sm text-destructive">{usernameError}</p>
             ) : null}
           </div>
 

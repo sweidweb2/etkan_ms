@@ -29,6 +29,18 @@ export const CO_MANAGER_PANEL_NAVIGATION = withManageWorkshops({ items: [] });
  */
 export const MANAGER_PAGES_HUB_GROUPS: PanelNavGroup[] = [
   {
+    id: "people",
+    label: "People",
+    defaultOpen: true,
+    items: [
+      {
+        title: "Registrations",
+        href: ROUTES.MANAGER_REGISTRATIONS,
+        icon: "clipboard-list",
+      },
+    ],
+  },
+  {
     id: "resources",
     label: "Resources",
     defaultOpen: true,
@@ -59,11 +71,6 @@ export const MANAGER_PAGES_HUB_GROUPS: PanelNavGroup[] = [
         title: "Manage workshops",
         href: ROUTES.MANAGER_WORKSHOPS,
         icon: "presentation",
-      },
-      {
-        title: "AI usage",
-        href: ROUTES.MANAGER_CLOUDFLARE_AI_USAGE,
-        icon: "sparkles",
       },
     ],
   },
@@ -112,6 +119,11 @@ export const MANAGER_PAGES_HUB_GROUPS: PanelNavGroup[] = [
     defaultOpen: true,
     items: [
       {
+        title: "Notifications",
+        href: ROUTES.MANAGER_NOTIFICATIONS,
+        icon: "bell",
+      },
+      {
         title: "Backup",
         href: ROUTES.MANAGER_BACKUP,
         icon: "backup",
@@ -143,11 +155,6 @@ export const MANAGER_PANEL_NAVIGATION: PanelNavigation = {
           icon: "book-open",
         },
         {
-          title: "Registrations",
-          href: ROUTES.MANAGER_REGISTRATIONS,
-          icon: "clipboard-list",
-        },
-        {
           title: "Guests",
           href: ROUTES.MANAGER_GUESTS,
           icon: "user-plus",
@@ -174,6 +181,11 @@ export const MANAGER_PANEL_NAVIGATION: PanelNavigation = {
           href: ROUTES.MANAGER_SEMESTERS,
           icon: "layers",
         },
+        {
+          title: "Academic analysis",
+          href: ROUTES.MANAGER_ACADEMIC_ANALYSIS,
+          icon: "book-open",
+        },
       ],
     },
     {
@@ -196,11 +208,6 @@ export const MANAGER_PANEL_NAVIGATION: PanelNavigation = {
           href: ROUTES.MANAGER_INCOME_STATEMENT_ANALYTICS,
           icon: "analytics",
         },
-        {
-          title: "Academic analysis",
-          href: ROUTES.MANAGER_ACADEMIC_ANALYSIS,
-          icon: "book-open",
-        },
       ],
     },
     {
@@ -208,11 +215,6 @@ export const MANAGER_PANEL_NAVIGATION: PanelNavigation = {
       label: "System",
       defaultOpen: true,
       items: [
-        {
-          title: "Notifications ❗",
-          href: ROUTES.MANAGER_NOTIFICATIONS,
-          icon: "bell",
-        },
         {
           title: "Permissions",
           href: ROUTES.MANAGER_RBAC,
@@ -250,11 +252,6 @@ export const CEO_PANEL_NAVIGATION: PanelNavigation = {
       title: "Guests",
       href: ROUTES.MANAGER_GUESTS,
       icon: "user-plus",
-    },
-    {
-      title: "AI usage",
-      href: ROUTES.MANAGER_CLOUDFLARE_AI_USAGE,
-      icon: "sparkles",
     },
     {
       title: "Income analytics",

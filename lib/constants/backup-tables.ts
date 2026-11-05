@@ -69,7 +69,6 @@ export const BACKUP_TABLES = [
   "transactions",
   "notifications",
   "audit_logs",
-  "cloudflare_ai_usage",
   "backup_history",
 ] as const satisfies readonly PublicTableName[];
 
@@ -161,6 +160,5 @@ export const BACKUP_TABLE_LABELS: Record<BackupTableName, string> = {
   transactions: "Transactions",
   notifications: "Notifications",
   audit_logs: "Audit logs",
-  cloudflare_ai_usage: "Cloudflare AI usage",
   backup_history: "Backup history",
 };

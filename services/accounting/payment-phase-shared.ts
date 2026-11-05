@@ -335,8 +335,8 @@ export async function buildStudentMetaByUserId(
     ),
   ]);
 
-  const usernameById = new Map(
-    (profiles ?? []).map((profile) => [profile.id, profile.username])
+  const profileNameById = new Map(
+    (profiles ?? []).map((profile) => [profile.id, profile.full_name])
   );
   const studentProfileByUserId = new Map(
     (studentProfiles ?? []).map((profile) => [profile.user_id, profile])
@@ -345,9 +345,9 @@ export async function buildStudentMetaByUserId(
   for (const studentId of studentIds) {
     const studentProfile = studentProfileByUserId.get(studentId);
     const fullName = studentProfile?.full_name?.trim();
-    const username = usernameById.get(studentId)?.trim();
+    const profileName = profileNameById.get(studentId)?.trim();
     meta.set(studentId, {
-      label: fullName || username || studentId,
+      label: fullName || profileName || studentId,
       student_profile_id: studentProfile?.id ?? null,
     });
   }

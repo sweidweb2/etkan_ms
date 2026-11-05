@@ -39,9 +39,9 @@ vi.mock("@/repositories/student-financial-adjustment.repository");
 vi.mock("@/repositories/student-financial-form.repository");
 vi.mock("@/repositories/student-financial-form-invite.repository");
 vi.mock("@/repositories/profile.repository", () => ({
-  findProfileById: vi.fn().mockResolvedValue({ data: { username: "jane" }, error: null }),
+  findProfileById: vi.fn().mockResolvedValue({ data: { full_name: "Jane Doe" }, error: null }),
   listProfilesByIds: vi.fn().mockResolvedValue({
-    data: [{ id: "student-1", username: "jane" }],
+    data: [{ id: "student-1", full_name: "Jane Doe" }],
     error: null,
   }),
 }));
@@ -1083,7 +1083,6 @@ describe("listOpenSppsMissingPriorAdjustmentForManager", () => {
       spp_status: "pending",
       student_profile_id: "sp1",
       full_name: "Jane Student",
-      username: "jane",
       ...overrides,
     };
   }
@@ -1118,17 +1117,16 @@ describe("listOpenSppsMissingPriorAdjustmentForManager", () => {
     ).not.toHaveBeenCalled();
   });
 
-  it("falls back to username, then user id, for the label", async () => {
+  it("falls back to the user id for the label", async () => {
     vi.mocked(
       studentFinancialAdjustmentRepository.listOpenSppsMissingPriorAdjustment
     ).mockResolvedValue({
       data: [
-        rpcRow({ full_name: "  ", username: "jane" }),
+        rpcRow({ full_name: "  " }),
         rpcRow({
           spp_id: otherOpenSppId,
           student_id: "student-2",
           full_name: null,
-          username: null,
           student_profile_id: null,
         }),
       ],
@@ -1142,7 +1140,7 @@ describe("listOpenSppsMissingPriorAdjustmentForManager", () => {
     );
 
     expect(rows.map((row) => row.student_label).sort()).toEqual([
-      "jane",
+      "student-1",
       "student-2",
     ]);
   });

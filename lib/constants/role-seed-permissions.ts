@@ -37,8 +37,8 @@ export const WORKSHOP_ACCESS_SEED_PERMISSIONS = [
 
 /**
  * CEO workshop / instructor module: full instructors + schedules + workshops
- * (including payments) plus AI usage for Schedule assistant, income
- * statement analytics, academic analysis, and the full manage-guests flow.
+ * (including payments) plus income statement analytics, academic analysis,
+ * and the full manage-guests flow.
  */
 export const CEO_WORKSHOP_SEED_PERMISSIONS = [
   PERMISSIONS.INSTRUCTORS_VIEW,
@@ -71,7 +71,6 @@ export const CEO_WORKSHOP_SEED_PERMISSIONS = [
   PERMISSIONS.WORKSHOPS_PAYMENTS_CREATE,
   PERMISSIONS.WORKSHOPS_PAYMENTS_UPDATE,
   PERMISSIONS.WORKSHOPS_PAYMENTS_DELETE,
-  PERMISSIONS.CLOUDFLARE_AI_USAGE_VIEW,
   PERMISSIONS.ACCOUNTING_INCOME_STATEMENT_ANALYTICS_VIEW,
   PERMISSIONS.ACADEMIC_ANALYSIS_VIEW,
   PERMISSIONS.GUESTS_VIEW,
@@ -175,6 +174,7 @@ export const CRM_SEED_PERMISSIONS = [
 export const STUDENT_SEED_PERMISSIONS = [
   PERMISSIONS.STUDENTS_VIEW_OWN,
   PERMISSIONS.STUDENTS_UPDATE_OWN,
+  PERMISSIONS.STUDENTS_UPDATE_OWN_AVATAR,
   PERMISSIONS.CLASSES_VIEW,
   PERMISSIONS.SESSIONS_VIEW,
   PERMISSIONS.ATTENDANCE_VIEW,

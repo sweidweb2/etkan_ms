@@ -42,7 +42,7 @@ type CapabilityToggleVars = {
 /** A person row in the matrix. */
 export type SubjectCapabilityRow = {
   id: string;
-  username: string | null;
+  full_name: string;
   email: string;
 };
 
@@ -253,7 +253,7 @@ export function SubjectCapabilitiesMatrix({
                 className="border-b last:border-b-0 hover:bg-muted/20"
               >
                 <td className="sticky left-0 z-10 bg-background px-4 py-3 font-medium">
-                  {row.username ?? row.email}
+                  {row.full_name || row.email}
                 </td>
                 {subjects.map((subject) => {
                   const key = pairKey(row.id, subject.id);
@@ -263,7 +263,7 @@ export function SubjectCapabilitiesMatrix({
                     <td key={subject.id} className="px-3 py-3 text-center">
                       <input
                         type="checkbox"
-                        aria-label={`${row.username ?? row.email} — ${subject.name}`}
+                        aria-label={`${row.full_name || row.email} — ${subject.name}`}
                         checked={checked}
                         disabled={disabled || !canUpdate}
                         onChange={(event) => {

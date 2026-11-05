@@ -245,10 +245,10 @@ async function resolveStudentMeta(
 
   const studentProfile = studentProfiles?.[0];
   const fullName = studentProfile?.full_name?.trim();
-  const username = profile?.username?.trim();
+  const profileName = profile?.full_name?.trim();
 
   return {
-    label: fullName || username || studentId,
+    label: fullName || profileName || studentId,
     student_profile_id: studentProfile?.id ?? null,
   };
 }

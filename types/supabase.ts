@@ -190,113 +190,6 @@ export type Database = {
           },
         ]
       }
-      borrow_equipment: {
-        Row: {
-          borrowed_at: string | null
-          equipment_id: string
-          id: string
-          quantity: number | null
-          returned_at: string | null
-          status: string | null
-          user_id: string
-        }
-        Insert: {
-          borrowed_at?: string | null
-          equipment_id: string
-          id?: string
-          quantity?: number | null
-          returned_at?: string | null
-          status?: string | null
-          user_id: string
-        }
-        Update: {
-          borrowed_at?: string | null
-          equipment_id?: string
-          id?: string
-          quantity?: number | null
-          returned_at?: string | null
-          status?: string | null
-          user_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "borrow_equipment_equipment_id_fkey"
-            columns: ["equipment_id"]
-            isOneToOne: false
-            referencedRelation: "equipments"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "borrow_equipment_user_id_fkey"
-            columns: ["user_id"]
-            isOneToOne: false
-            referencedRelation: "profiles"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      cloudflare_ai_usage: {
-        Row: {
-          completion_tokens: number | null
-          created_at: string
-          error_message: string | null
-          feature: string
-          id: string
-          metadata: Json | null
-          model: string
-          prompt: string
-          prompt_tokens: number | null
-          response: string | null
-          status: string
-          tool_rounds: number
-          total_tokens: number | null
-          user_id: string | null
-          user_label: string
-        }
-        Insert: {
-          completion_tokens?: number | null
-          created_at?: string
-          error_message?: string | null
-          feature: string
-          id?: string
-          metadata?: Json | null
-          model: string
-          prompt: string
-          prompt_tokens?: number | null
-          response?: string | null
-          status: string
-          tool_rounds?: number
-          total_tokens?: number | null
-          user_id?: string | null
-          user_label?: string
-        }
-        Update: {
-          completion_tokens?: number | null
-          created_at?: string
-          error_message?: string | null
-          feature?: string
-          id?: string
-          metadata?: Json | null
-          model?: string
-          prompt?: string
-          prompt_tokens?: number | null
-          response?: string | null
-          status?: string
-          tool_rounds?: number
-          total_tokens?: number | null
-          user_id?: string | null
-          user_label?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "cloudflare_ai_usage_user_id_fkey"
-            columns: ["user_id"]
-            isOneToOne: false
-            referencedRelation: "profiles"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       class_teacher: {
         Row: {
           assigned_at: string | null
@@ -626,33 +519,6 @@ export type Database = {
           status?: Database["public"]["Enums"]["exercise_status"]
           title?: string
           updated_at?: string
-        }
-        Relationships: []
-      }
-      equipments: {
-        Row: {
-          created_at: string | null
-          description: string | null
-          id: string
-          name: string
-          quantity: number | null
-          unit_price: number | null
-        }
-        Insert: {
-          created_at?: string | null
-          description?: string | null
-          id?: string
-          name: string
-          quantity?: number | null
-          unit_price?: number | null
-        }
-        Update: {
-          created_at?: string | null
-          description?: string | null
-          id?: string
-          name?: string
-          quantity?: number | null
-          unit_price?: number | null
         }
         Relationships: []
       }
@@ -1136,6 +1002,7 @@ export type Database = {
       }
       profiles: {
         Row: {
+          avatar_url: string | null
           created_at: string | null
           full_name: string
           id: string
@@ -1143,6 +1010,7 @@ export type Database = {
           role: string
         }
         Insert: {
+          avatar_url?: string | null
           created_at?: string | null
           full_name: string
           id: string
@@ -1150,6 +1018,7 @@ export type Database = {
           role?: string
         }
         Update: {
+          avatar_url?: string | null
           created_at?: string | null
           full_name?: string
           id?: string

@@ -15,6 +15,8 @@ export interface ManagerStudentRow {
   /** Account fields, present when the row is built from a profiles read. */
   role?: RoleValue;
   is_instructor?: boolean;
+  /** Public avatar URL; loaded on detail/profile reads only. */
+  avatar_url?: string | null;
 }
 
 export type ManagerStudentsListQuery = {

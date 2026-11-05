@@ -50,7 +50,7 @@ import type { ManagerUserRow } from "@/types/manager-user";
 
 const PAGE_SIZE_OPTIONS = [5, 10, 25] as const;
 const COLUMN_LIMITS = {
-  username: 20,
+  fullName: 28,
   email: 32,
 } as const;
 
@@ -128,10 +128,10 @@ function matchesSearch(user: ManagerUserRow, query: string) {
     return true;
   }
 
-  const username = user.username?.toLowerCase() ?? "";
+  const fullName = user.full_name.toLowerCase();
   const email = user.email.toLowerCase();
 
-  return username.includes(normalizedQuery) || email.includes(normalizedQuery);
+  return fullName.includes(normalizedQuery) || email.includes(normalizedQuery);
 }
 
 function CurrentUserBadge() {
@@ -143,7 +143,7 @@ function CurrentUserBadge() {
 }
 
 function UserDetailsLink({ user }: { user: ManagerUserRow }) {
-  const label = user.username ?? user.email;
+  const label = user.full_name || user.email;
 
   return (
     <Link
@@ -329,7 +329,7 @@ export function ManageUsersPanel({
                 <Input
                   value={searchQuery}
                   onChange={(event) => handleSearchChange(event.target.value)}
-                  placeholder="Search username or email…"
+                  placeholder="Search name or email…"
                   className="pr-8 pl-8"
                   aria-label="Search users"
                 />
@@ -381,7 +381,7 @@ export function ManageUsersPanel({
                   <thead>
                     <tr className="border-b bg-muted/40 text-left">
                       <th className="w-12 px-4 py-3 font-medium">#</th>
-                      <th className="px-4 py-3 font-medium">Username</th>
+                      <th className="px-4 py-3 font-medium">Full name</th>
                       <th className="px-4 py-3 font-medium">Email</th>
                       <th className="px-4 py-3 font-medium">Role</th>
                       <th className="px-4 py-3 font-medium">Created</th>
@@ -402,7 +402,7 @@ export function ManageUsersPanel({
                           )}
                           tabIndex={0}
                           role="link"
-                          aria-label={`View details for ${user.username ?? user.email}`}
+                          aria-label={`View details for ${user.full_name || user.email}`}
                           onClick={() => openUserDetails(user)}
                           onKeyDown={(event) =>
                             handleUserRowKeyDown(event, user)
@@ -414,12 +414,12 @@ export function ManageUsersPanel({
                           <td className="max-w-[12rem] px-4 py-3">
                             <div className="flex min-w-0 items-center gap-2">
                               <LetterAvatar
-                                name={user.username ?? user.email}
+                                name={user.full_name || user.email}
                                 seed={user.id}
                               />
                               <TruncatedCell
-                                value={user.username ?? "—"}
-                                maxLength={COLUMN_LIMITS.username}
+                                value={user.full_name || "—"}
+                                maxLength={COLUMN_LIMITS.fullName}
                                 className="min-w-0"
                               />
                               {isCurrentUser ? <CurrentUserBadge /> : null}
@@ -434,7 +434,7 @@ export function ManageUsersPanel({
                               />
                               <CopyTextButton
                                 value={user.email}
-                                label={`Copy email for ${user.username ?? user.email}`}
+                                label={`Copy email for ${user.full_name || user.email}`}
                                 successMessage="Email copied to clipboard."
                                 errorMessage="Unable to copy email."
                               />
@@ -457,7 +457,7 @@ export function ManageUsersPanel({
                                   variant="ghost"
                                   size="icon-sm"
                                   className="size-7 text-muted-foreground hover:bg-primary/15 hover:text-primary"
-                                  aria-label={`Edit ${user.username ?? user.email}`}
+                                  aria-label={`Edit ${user.full_name || user.email}`}
                                   onClick={() => setEditingUser(user)}
                                 >
                                   <PencilIcon className="size-4" />

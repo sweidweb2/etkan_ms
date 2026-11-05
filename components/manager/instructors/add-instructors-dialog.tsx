@@ -93,7 +93,7 @@ export function AddInstructorsDialog({
     const added = selected.map(
       (user): ManagerInstructorRow => ({
         id: user.id,
-        username: user.username,
+        full_name: user.full_name,
         role: user.role,
         email: user.email,
         created_at: new Date().toISOString(),
@@ -144,7 +144,7 @@ export function AddInstructorsDialog({
             <FieldLabel
               htmlFor="instructor-user-multi-select"
               label="Users"
-              hint="Type to search by username or email"
+              hint="Type to search by name or email"
             />
             {isLoadingOptions ? (
               <div className="flex items-center gap-2 text-sm text-muted-foreground">

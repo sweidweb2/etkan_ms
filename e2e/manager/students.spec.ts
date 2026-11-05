@@ -15,8 +15,7 @@ test.describe("manager students @mutation", () => {
 
   test("create student then edit full name on detail", async ({ page }) => {
     const stamp = e2eStamp("stu");
-    const username = stamp.slice(0, 28);
-    const email = `${username}@example.com`;
+    const email = `${stamp}@example.com`;
     const fullName = `E2E Student ${stamp.slice(-6)}`;
     const editedName = `${fullName} Edit`;
 
@@ -31,7 +30,6 @@ test.describe("manager students @mutation", () => {
       dialog.getByRole("heading", { name: "Add student" })
     ).toBeVisible();
 
-    await dialog.locator("#add-student-username").fill(username);
     await dialog.locator("#add-student-full-name").fill(fullName);
     await dialog.locator("#add-student-email").fill(email);
     await dialog.getByRole("button", { name: "Create student" }).click();

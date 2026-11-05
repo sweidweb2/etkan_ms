@@ -60,11 +60,10 @@ type EditUserDialogProps = {
 
 function getDefaultValues(user: ManagerUserRow): UpdateManagerUserInput {
   return {
-    username: user.username ?? "",
+    fullName: user.full_name,
     email: user.email,
     role: user.role,
     is_instructor: user.is_instructor,
-    fullName: user.student_full_name ?? "",
     birthDate: user.student_birth_date ?? "",
     phone: user.student_phone ?? "",
     status: user.student_status ?? STUDENT_STATUSES.ACTIVE,
@@ -79,7 +78,7 @@ function buildUpdateFormData(
 ) {
   const formData = new FormData();
   formData.set("userId", userId);
-  formData.set("username", values.username.trim());
+  formData.set("fullName", values.fullName.trim());
   formData.set("email", values.email.trim());
   formData.set("role", values.role);
   formData.set("is_instructor", String(values.is_instructor));
@@ -87,7 +86,6 @@ function buildUpdateFormData(
   formData.set("confirmPassword", values.confirmPassword ?? "");
 
   if (values.role === ROLES.STUDENT) {
-    formData.set("fullName", values.fullName?.trim() ?? "");
     formData.set("birthDate", values.birthDate?.trim() ?? "");
     formData.set("phone", values.phone?.trim() ?? "");
     formData.set("status", values.status ?? STUDENT_STATUSES.ACTIVE);
@@ -144,16 +142,14 @@ export function EditUserDialog({
     formAction(buildUpdateFormData(user.id, values));
   }
 
-  const usernameError =
-    errors.username?.message ?? state.fieldErrors?.username?.[0];
+  const fullNameError =
+    errors.fullName?.message ?? state.fieldErrors?.fullName?.[0];
   const emailError = errors.email?.message ?? state.fieldErrors?.email?.[0];
   const passwordError =
     errors.password?.message ?? state.fieldErrors?.password?.[0];
   const confirmPasswordError =
     errors.confirmPassword?.message ?? state.fieldErrors?.confirmPassword?.[0];
   const roleError = errors.role?.message ?? state.fieldErrors?.role?.[0];
-  const fullNameError =
-    errors.fullName?.message ?? state.fieldErrors?.fullName?.[0];
   const birthDateError =
     errors.birthDate?.message ?? state.fieldErrors?.birthDate?.[0];
   const phoneError = errors.phone?.message ?? state.fieldErrors?.phone?.[0];
@@ -184,22 +180,22 @@ export function EditUserDialog({
         >
           <div className="flex flex-col gap-2">
             <FieldLabel
-              htmlFor="edit-user-username"
-              label="Username"
-              hint={AUTH_FIELD_HINTS.username}
+              htmlFor="edit-user-full-name"
+              label="Full name"
+              hint={AUTH_FIELD_HINTS.fullName}
             />
             <Input
-              id="edit-user-username"
+              id="edit-user-full-name"
               type="text"
-              autoComplete="username"
-              minLength={AUTH_LIMITS.username.min}
-              maxLength={AUTH_LIMITS.username.max}
-              aria-invalid={!!usernameError}
+              autoComplete="name"
+              minLength={AUTH_LIMITS.fullName.min}
+              maxLength={AUTH_LIMITS.fullName.max}
+              aria-invalid={!!fullNameError}
               disabled={isPending}
-              {...register("username")}
+              {...register("fullName")}
             />
-            {usernameError ? (
-              <FieldError>{usernameError}</FieldError>
+            {fullNameError ? (
+              <FieldError>{fullNameError}</FieldError>
             ) : null}
           </div>
 
@@ -343,27 +339,6 @@ export function EditUserDialog({
 
           {isStudentRole ? (
             <>
-              <div className="flex flex-col gap-2">
-                <FieldLabel
-                  htmlFor="edit-user-full-name"
-                  label="Full name"
-                  hint={AUTH_FIELD_HINTS.fullName}
-                />
-                <Input
-                  id="edit-user-full-name"
-                  type="text"
-                  autoComplete="name"
-                  minLength={AUTH_LIMITS.fullName.min}
-                  maxLength={AUTH_LIMITS.fullName.max}
-                  aria-invalid={!!fullNameError}
-                  disabled={isPending}
-                  {...register("fullName")}
-                />
-                {fullNameError ? (
-                  <FieldError>{fullNameError}</FieldError>
-                ) : null}
-              </div>
-
               <div className="flex flex-col gap-2">
                 <FieldLabel
                   htmlFor="edit-user-phone"

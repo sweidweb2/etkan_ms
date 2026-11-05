@@ -581,7 +581,6 @@ export function ManageStudentsPanel({
                       <th className="px-4 py-3 font-medium">Phone</th>
                       <th className="px-4 py-3 font-medium">Birth date</th>
                       <th className="px-4 py-3 font-medium">Status</th>
-                      <th className="px-4 py-3 font-medium">Joined</th>
                       <th className="px-4 py-3 font-medium text-right">Actions</th>
                     </tr>
                   </thead>
@@ -640,9 +639,6 @@ export function ManageStudentsPanel({
                         </td>
                         <td className="px-4 py-3">
                           <StudentStatusBadge status={student.status} />
-                        </td>
-                        <td className="whitespace-nowrap px-4 py-3 text-muted-foreground">
-                          {format(new Date(student.created_at), "MMM d, yyyy")}
                         </td>
                         <td
                           className="px-4 py-3 text-right"

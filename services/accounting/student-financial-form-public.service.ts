@@ -29,8 +29,8 @@ async function resolvePublicStudentLabel(
   ]);
 
   const fullName = studentProfiles?.[0]?.full_name?.trim();
-  const username = profile?.username?.trim();
-  return fullName || username || "Student";
+  const profileName = profile?.full_name?.trim();
+  return fullName || profileName || "Student";
 }
 
 export async function getInviteFormContextByToken(

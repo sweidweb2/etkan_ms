@@ -38,7 +38,7 @@ describe("setSubjectCapabilityForManager", () => {
     vi.mocked(profileRepository.findProfileById).mockResolvedValue({
       data: {
         id: userId,
-        username: "alice",
+        full_name: "Alice",
         role: ROLES.TEACHER,
         is_instructor: true,
         created_at: "2026-01-01T00:00:00.000Z",
@@ -80,7 +80,7 @@ describe("setSubjectCapabilityForManager", () => {
     vi.mocked(profileRepository.findProfileById).mockResolvedValue({
       data: {
         id: userId,
-        username: "alice",
+        full_name: "Alice",
         role: ROLES.TEACHER,
         is_instructor: false,
         created_at: "2026-01-01T00:00:00.000Z",

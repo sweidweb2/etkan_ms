@@ -79,22 +79,33 @@ export default async function ManagerIncomeStatementAnalyticsPage({
           <IncomeStatementNextMonthSection actorUserId={user.id} />
         </Suspense>
       }
-      tablesSlot={
-        <Suspense
-          fallback={
-            <div
-              className="min-h-[12rem] animate-pulse rounded-xl bg-muted/40 ring-1 ring-foreground/10"
-              aria-hidden
-            />
-          }
-        >
+      etkanSlot={
+        <Suspense fallback={TABLES_FALLBACK}>
           <IncomeStatementAnalyticsTablesSection
             actorUserId={user.id}
             year={summary.year}
             month={summary.month}
+            view="etkan"
+          />
+        </Suspense>
+      }
+      academySlot={
+        <Suspense fallback={TABLES_FALLBACK}>
+          <IncomeStatementAnalyticsTablesSection
+            actorUserId={user.id}
+            year={summary.year}
+            month={summary.month}
+            view="academy"
           />
         </Suspense>
       }
     />
   );
 }
+
+const TABLES_FALLBACK = (
+  <div
+    className="min-h-[12rem] animate-pulse rounded-xl bg-muted/40 ring-1 ring-foreground/10"
+    aria-hidden
+  />
+);

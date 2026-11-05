@@ -530,7 +530,7 @@ export async function listWorkshopInstructorCandidatesForManager(
     .filter((profile) => !assignedUserIds.has(profile.id))
     .map((profile) => ({
       id: profile.id,
-      username: profile.username ?? "Unknown",
+      full_name: profile.full_name,
     }));
 }
 

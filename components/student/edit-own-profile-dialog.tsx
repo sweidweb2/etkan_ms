@@ -63,7 +63,6 @@ export function EditOwnProfileDialog({
     schema: updateOwnStudentProfileSchema,
     mode: "onBlur",
     defaultValues: {
-      username: student.username ?? "",
       fullName: student.full_name,
       birthDate: student.birth_date ?? "",
       phone: student.phone ?? "",
@@ -73,7 +72,6 @@ export function EditOwnProfileDialog({
   useEffect(() => {
     if (open) {
       reset({
-        username: student.username ?? "",
         fullName: student.full_name,
         birthDate: student.birth_date ?? "",
         phone: student.phone ?? "",
@@ -97,15 +95,12 @@ export function EditOwnProfileDialog({
 
   function onSubmit(values: UpdateOwnStudentProfileInput) {
     const formData = new FormData();
-    formData.set("username", values.username.trim());
     formData.set("fullName", values.fullName.trim());
     formData.set("birthDate", values.birthDate?.trim() ?? "");
     formData.set("phone", values.phone?.trim() ?? "");
     formAction(formData);
   }
 
-  const usernameError =
-    errors.username?.message ?? state.fieldErrors?.username?.[0];
   const fullNameError =
     errors.fullName?.message ?? state.fieldErrors?.fullName?.[0];
   const birthDateError =
@@ -118,7 +113,7 @@ export function EditOwnProfileDialog({
         <DialogHeader>
           <DialogTitle>Edit profile</DialogTitle>
           <DialogDescription>
-            Update your username, name, birth date, and phone.
+            Update your name, birth date, and phone.
           </DialogDescription>
         </DialogHeader>
         <form
@@ -126,26 +121,6 @@ export function EditOwnProfileDialog({
           noValidate
           onSubmit={handleSubmit(onSubmit)}
         >
-          <div className="flex flex-col gap-2">
-            <FieldLabel
-              htmlFor="own-profile-username"
-              label="Username"
-              hint={AUTH_FIELD_HINTS.username}
-            />
-            <Input
-              id="own-profile-username"
-              type="text"
-              autoComplete="username"
-              minLength={AUTH_LIMITS.username.min}
-              maxLength={AUTH_LIMITS.username.max}
-              aria-invalid={!!usernameError}
-              disabled={isPending}
-              {...register("username")}
-            />
-            {usernameError ? (
-              <p className="text-sm text-destructive">{usernameError}</p>
-            ) : null}
-          </div>
           <div className="flex flex-col gap-2">
             <FieldLabel
               htmlFor="own-profile-full-name"

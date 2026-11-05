@@ -141,7 +141,7 @@ export function ManageInstructorsPanel({ data }: ManageInstructorsPanelProps) {
           ...current,
           {
             id: removed.id,
-            username: removed.username,
+            full_name: removed.full_name,
             role: removed.role,
             email: removed.email,
           },
@@ -263,7 +263,7 @@ export function ManageInstructorsPanel({ data }: ManageInstructorsPanelProps) {
               <table className="w-full min-w-[720px] text-sm">
                 <thead>
                   <tr className="border-b bg-muted/40 text-left">
-                    <th className="px-4 py-3 font-medium">Username</th>
+                    <th className="px-4 py-3 font-medium">Full name</th>
                     <th className="px-4 py-3 font-medium">Email</th>
                     <th className="px-4 py-3 font-medium">Role</th>
                     <th className="px-4 py-3 font-medium">Added</th>
@@ -279,7 +279,7 @@ export function ManageInstructorsPanel({ data }: ManageInstructorsPanelProps) {
                       className="border-b last:border-b-0 hover:bg-muted/20"
                     >
                       <td className="px-4 py-3 font-medium">
-                        {row.username ?? "—"}
+                        {row.full_name || "—"}
                       </td>
                       <td className="px-4 py-3 text-muted-foreground">
                         {row.email || "—"}
@@ -298,7 +298,7 @@ export function ManageInstructorsPanel({ data }: ManageInstructorsPanelProps) {
                             size="icon-sm"
                             disabled={isRemovePending}
                             onClick={() => setRemoveTarget(row)}
-                            aria-label={`Remove ${row.username ?? row.email}`}
+                            aria-label={`Remove ${row.full_name || row.email}`}
                           >
                             <Trash2Icon />
                           </Button>
@@ -446,7 +446,7 @@ export function ManageInstructorsPanel({ data }: ManageInstructorsPanelProps) {
             <DialogTitle>Remove instructor</DialogTitle>
             <DialogDescription>
               This clears all instructor subject capabilities for{" "}
-              {removeTarget?.username ?? removeTarget?.email ?? "this user"} and
+              {removeTarget?.full_name || removeTarget?.email || "this user"} and
               turns off their instructor flag. Their account stays intact.
             </DialogDescription>
           </DialogHeader>

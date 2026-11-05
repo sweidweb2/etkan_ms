@@ -18,13 +18,7 @@ import { LogDetailsDialog } from "@/components/manager/logs/log-details-dialog";
 import { UserStatCard } from "@/components/manager/users/user-stat-card";
 import { PanelPageHeader } from "@/components/panels/panel-page-header";
 import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Input } from "@/components/ui/input";
@@ -56,6 +50,7 @@ import { PERMISSIONS } from "@/lib/constants/permissions";
 import { hasPermissionInSet } from "@/lib/auth/permission-checks";
 import { cn } from "@/lib/utils";
 import { truncateText } from "@/lib/utils/truncate-text";
+import { MAX_AUDIT_LOGS_PER_DELETE } from "@/lib/validators/manager/delete-audit-logs";
 import { loadAuditLogsPageAction } from "@/app/manager/logs/actions";
 import type { AuditLogCursor } from "@/types/manager-audit-log";
 import type { ManagerAuditLogRow } from "@/types/manager-audit-log";
@@ -224,7 +219,7 @@ function matchesActionFilter(log: ManagerAuditLogRow, actionFilter: string) {
 
 function matchesSeverityFilter(
   log: ManagerAuditLogRow,
-  severityFilter: string
+  severityFilter: string,
 ) {
   if (severityFilter === SEVERITY_FILTER_ALL) {
     return true;
@@ -252,7 +247,7 @@ function matchesActorFilter(log: ManagerAuditLogRow, actorFilter: string) {
 function matchesTimeWindowFilter(
   log: ManagerAuditLogRow,
   timeFilter: string,
-  nowMs: number
+  nowMs: number,
 ) {
   if (timeFilter === TIME_FILTER_ALL) {
     return true;
@@ -282,7 +277,7 @@ export function ManageLogsPanel({
 }: ManageLogsPanelProps) {
   const [logs, setLogs] = useState(initialLogs);
   const [nextCursor, setNextCursor] = useState<AuditLogCursor | null>(
-    initialNextCursor
+    initialNextCursor,
   );
   const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
@@ -291,11 +286,12 @@ export function ManageLogsPanel({
   const [tableFilter, setTableFilter] = useState(TABLE_FILTER_ALL);
   const [actorFilter, setActorFilter] = useState(ACTOR_FILTER_ALL);
   const [timeFilter, setTimeFilter] = useState(TIME_FILTER_ALL);
-  const [pageSize, setPageSize] = useState<(typeof PAGE_SIZE_OPTIONS)[number]>(10);
+  const [pageSize, setPageSize] =
+    useState<(typeof PAGE_SIZE_OPTIONS)[number]>(10);
   const [currentPage, setCurrentPage] = useState(1);
   const [detailsLog, setDetailsLog] = useState<ManagerAuditLogRow | null>(null);
   const [selectedIds, setSelectedIds] = useState<ReadonlySet<string>>(
-    () => new Set()
+    () => new Set(),
   );
   const [pendingDeleteIds, setPendingDeleteIds] = useState<string[]>([]);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
@@ -303,7 +299,10 @@ export function ManageLogsPanel({
   const [nowMs] = useState(() => Date.now());
 
   const permissions = usePermissions();
-  const canDeleteLogs = hasPermissionInSet(permissions, PERMISSIONS.LOGS_DELETE);
+  const canDeleteLogs = hasPermissionInSet(
+    permissions,
+    PERMISSIONS.LOGS_DELETE,
+  );
 
   const tableOptions = useMemo(() => {
     const names = new Set<string>(BACKUP_TABLES);
@@ -313,7 +312,7 @@ export function ManageLogsPanel({
       }
     });
     return [...names].sort((left, right) =>
-      getTableLabel(left).localeCompare(getTableLabel(right))
+      getTableLabel(left).localeCompare(getTableLabel(right)),
     );
   }, [logs]);
 
@@ -331,7 +330,8 @@ export function ManageLogsPanel({
     return {
       total: logs.length,
       last24Hours: logs.filter(
-        (log) => nowMs - new Date(log.created_at).getTime() <= TWENTY_FOUR_HOURS_MS
+        (log) =>
+          nowMs - new Date(log.created_at).getTime() <= TWENTY_FOUR_HOURS_MS,
       ).length,
       updates: logs.filter((log) => log.action === "update").length,
       deletes: logs.filter((log) => log.action === "delete").length,
@@ -375,12 +375,29 @@ export function ManageLogsPanel({
 
   const pageLogIds = paginatedLogs.map((log) => log.id);
   const selectedOnPageCount = pageLogIds.filter((id) =>
-    selectedIds.has(id)
+    selectedIds.has(id),
   ).length;
   const isPageFullySelected =
     pageLogIds.length > 0 && selectedOnPageCount === pageLogIds.length;
   const isPagePartiallySelected =
     selectedOnPageCount > 0 && !isPageFullySelected;
+
+  const selectAllIds = useMemo(
+    () => filteredLogs.slice(0, MAX_AUDIT_LOGS_PER_DELETE).map((log) => log.id),
+    [filteredLogs],
+  );
+  const isAllSelectableSelected =
+    selectAllIds.length > 0 && selectAllIds.every((id) => selectedIds.has(id));
+  const selectAllLabel =
+    filteredLogs.length > MAX_AUDIT_LOGS_PER_DELETE
+      ? `Select first ${MAX_AUDIT_LOGS_PER_DELETE} logs`
+      : nextCursor
+        ? `Select all ${filteredLogs.length} loaded logs`
+        : `Select all ${filteredLogs.length} logs`;
+
+  const handleSelectAll = () => {
+    setSelectedIds(new Set(selectAllIds));
+  };
 
   const resetToFirstPage = () => {
     setCurrentPage(1);
@@ -430,7 +447,7 @@ export function ManageLogsPanel({
       return next;
     });
     setDetailsLog((current) =>
-      current && deleted.has(current.id) ? null : current
+      current && deleted.has(current.id) ? null : current,
     );
   };
 
@@ -551,161 +568,144 @@ export function ManageLogsPanel({
           />
         ) : null}
 
-        <Card className="py-0">
-          <CardHeader className="border-b bg-muted/40 py-3">
-            <CardTitle>Audit log</CardTitle>
-            <CardDescription>
-              Filter by action, severity, table, actor name, or time window, then
-              open a row for full change details.
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="px-0 pb-0">
-            <div className="flex flex-col gap-3 border-b px-4 pt-2 pb-3 @lg/panel:flex-row @lg/panel:flex-wrap @lg/panel:items-center">
-              <div className="relative w-full @lg/panel:w-44 sm:shrink-0">
-                <SearchIcon className="pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-muted-foreground" />
-                <Input
-                  value={searchQuery}
-                  onChange={(event) => handleSearchChange(event.target.value)}
-                  placeholder="Search…"
-                  className="pl-8"
-                  aria-label="Search audit logs"
-                />
-              </div>
-              <Select
-                value={actionFilter}
-                onValueChange={handleActionFilterChange}
-              >
-                <SelectTrigger
-                  className="w-full @lg/panel:w-32"
-                  aria-label="Filter by action"
-                >
-                  <SelectValue placeholder="Action">
-                    {(value) =>
-                      !value || value === ACTION_FILTER_ALL
-                        ? "Action"
-                        : (AUDIT_LOG_ACTION_LABELS[
-                            value as keyof typeof AUDIT_LOG_ACTION_LABELS
-                          ] ?? String(value))
-                    }
-                  </SelectValue>
-                </SelectTrigger>
-                <SelectContent align="end">
-                  <SelectItem value={ACTION_FILTER_ALL}>Action</SelectItem>
-                  {AUDIT_LOG_ACTION_VALUES.map((action) => (
-                    <SelectItem key={action} value={action}>
-                      {AUDIT_LOG_ACTION_LABELS[action]}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <Select
-                value={severityFilter}
-                onValueChange={handleSeverityFilterChange}
-              >
-                <SelectTrigger
-                  className="w-full @lg/panel:w-32"
-                  aria-label="Filter by severity"
-                >
-                  <SelectValue placeholder="Severity">
-                    {(value) =>
-                      !value || value === SEVERITY_FILTER_ALL
-                        ? "Severity"
-                        : (AUDIT_LOG_SEVERITY_LABELS[
-                            value as keyof typeof AUDIT_LOG_SEVERITY_LABELS
-                          ] ?? String(value))
-                    }
-                  </SelectValue>
-                </SelectTrigger>
-                <SelectContent align="end">
-                  <SelectItem value={SEVERITY_FILTER_ALL}>Severity</SelectItem>
-                  {AUDIT_LOG_SEVERITY_VALUES.map((severity) => (
-                    <SelectItem key={severity} value={severity}>
-                      {AUDIT_LOG_SEVERITY_LABELS[severity]}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <Select
-                value={tableFilter}
-                onValueChange={handleTableFilterChange}
-              >
-                <SelectTrigger
-                  className="w-full @lg/panel:w-36"
-                  aria-label="Filter by table"
-                >
-                  <SelectValue placeholder="Table">
-                    {(value) =>
-                      !value || value === TABLE_FILTER_ALL
-                        ? "Table"
-                        : getTableLabel(String(value))
-                    }
-                  </SelectValue>
-                </SelectTrigger>
-                <SelectContent align="end">
-                  <SelectItem value={TABLE_FILTER_ALL}>Table</SelectItem>
-                  {tableOptions.map((tableName) => (
-                    <SelectItem key={tableName} value={tableName}>
-                      {getTableLabel(tableName)}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <Select
-                value={actorFilter}
-                onValueChange={handleActorFilterChange}
-              >
-                <SelectTrigger
-                  className="w-full @lg/panel:w-44"
-                  aria-label="Filter by actor name"
-                >
-                  <SelectValue placeholder="Actor name">
-                    {(value) =>
-                      !value || value === ACTOR_FILTER_ALL
-                        ? "Actor name"
-                        : String(value)
-                    }
-                  </SelectValue>
-                </SelectTrigger>
-                <SelectContent align="start">
-                  <SelectItem value={ACTOR_FILTER_ALL}>Actor name</SelectItem>
-                  {actorOptions.map((actor) => (
-                    <SelectItem key={actor} value={actor}>
-                      {actor}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <Select value={timeFilter} onValueChange={handleTimeFilterChange}>
-                <SelectTrigger
-                  className="w-full @lg/panel:w-36"
-                  aria-label="Filter by time window"
-                >
-                  <SelectValue placeholder="Time">
-                    {(value) =>
-                      TIME_FILTER_LABELS[String(value ?? TIME_FILTER_ALL)] ??
-                      "Time"
-                    }
-                  </SelectValue>
-                </SelectTrigger>
-                <SelectContent align="start">
-                  <SelectItem value={TIME_FILTER_ALL}>Time</SelectItem>
-                  <SelectItem value={TIME_FILTER_24H}>Last 24 hours</SelectItem>
-                  <SelectItem value={TIME_FILTER_7D}>Last 7 days</SelectItem>
-                  <SelectItem value={TIME_FILTER_30D}>Last 30 days</SelectItem>
-                </SelectContent>
-              </Select>
-              {hasActiveFilters ? (
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={handleClearFilters}
-                >
-                  Clear filters
-                </Button>
-              ) : null}
-            </div>
+        <div className="flex flex-col gap-3 @lg/panel:flex-row @lg/panel:flex-wrap @lg/panel:items-center">
+          <div className="relative w-full @lg/panel:w-44 sm:shrink-0">
+            <SearchIcon className="pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              value={searchQuery}
+              onChange={(event) => handleSearchChange(event.target.value)}
+              placeholder="Search…"
+              className="pl-8"
+              aria-label="Search audit logs"
+            />
+          </div>
+          <Select value={actionFilter} onValueChange={handleActionFilterChange}>
+            <SelectTrigger
+              className="w-full @lg/panel:w-32"
+              aria-label="Filter by action"
+            >
+              <SelectValue placeholder="Action">
+                {(value) =>
+                  !value || value === ACTION_FILTER_ALL
+                    ? "Action"
+                    : (AUDIT_LOG_ACTION_LABELS[
+                        value as keyof typeof AUDIT_LOG_ACTION_LABELS
+                      ] ?? String(value))
+                }
+              </SelectValue>
+            </SelectTrigger>
+            <SelectContent align="end">
+              <SelectItem value={ACTION_FILTER_ALL}>Action</SelectItem>
+              {AUDIT_LOG_ACTION_VALUES.map((action) => (
+                <SelectItem key={action} value={action}>
+                  {AUDIT_LOG_ACTION_LABELS[action]}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <Select
+            value={severityFilter}
+            onValueChange={handleSeverityFilterChange}
+          >
+            <SelectTrigger
+              className="w-full @lg/panel:w-32"
+              aria-label="Filter by severity"
+            >
+              <SelectValue placeholder="Severity">
+                {(value) =>
+                  !value || value === SEVERITY_FILTER_ALL
+                    ? "Severity"
+                    : (AUDIT_LOG_SEVERITY_LABELS[
+                        value as keyof typeof AUDIT_LOG_SEVERITY_LABELS
+                      ] ?? String(value))
+                }
+              </SelectValue>
+            </SelectTrigger>
+            <SelectContent align="end">
+              <SelectItem value={SEVERITY_FILTER_ALL}>Severity</SelectItem>
+              {AUDIT_LOG_SEVERITY_VALUES.map((severity) => (
+                <SelectItem key={severity} value={severity}>
+                  {AUDIT_LOG_SEVERITY_LABELS[severity]}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <Select value={tableFilter} onValueChange={handleTableFilterChange}>
+            <SelectTrigger
+              className="w-full @lg/panel:w-36"
+              aria-label="Filter by table"
+            >
+              <SelectValue placeholder="Table">
+                {(value) =>
+                  !value || value === TABLE_FILTER_ALL
+                    ? "Table"
+                    : getTableLabel(String(value))
+                }
+              </SelectValue>
+            </SelectTrigger>
+            <SelectContent align="end">
+              <SelectItem value={TABLE_FILTER_ALL}>Table</SelectItem>
+              {tableOptions.map((tableName) => (
+                <SelectItem key={tableName} value={tableName}>
+                  {getTableLabel(tableName)}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <Select value={actorFilter} onValueChange={handleActorFilterChange}>
+            <SelectTrigger
+              className="w-full @lg/panel:w-44"
+              aria-label="Filter by actor name"
+            >
+              <SelectValue placeholder="Actor name">
+                {(value) =>
+                  !value || value === ACTOR_FILTER_ALL
+                    ? "Actor name"
+                    : String(value)
+                }
+              </SelectValue>
+            </SelectTrigger>
+            <SelectContent align="start">
+              <SelectItem value={ACTOR_FILTER_ALL}>Actor name</SelectItem>
+              {actorOptions.map((actor) => (
+                <SelectItem key={actor} value={actor}>
+                  {actor}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <Select value={timeFilter} onValueChange={handleTimeFilterChange}>
+            <SelectTrigger
+              className="w-full @lg/panel:w-36"
+              aria-label="Filter by time window"
+            >
+              <SelectValue placeholder="Time">
+                {(value) =>
+                  TIME_FILTER_LABELS[String(value ?? TIME_FILTER_ALL)] ?? "Time"
+                }
+              </SelectValue>
+            </SelectTrigger>
+            <SelectContent align="start">
+              <SelectItem value={TIME_FILTER_ALL}>Time</SelectItem>
+              <SelectItem value={TIME_FILTER_24H}>Last 24 hours</SelectItem>
+              <SelectItem value={TIME_FILTER_7D}>Last 7 days</SelectItem>
+              <SelectItem value={TIME_FILTER_30D}>Last 30 days</SelectItem>
+            </SelectContent>
+          </Select>
+          {hasActiveFilters ? (
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={handleClearFilters}
+            >
+              Clear filters
+            </Button>
+          ) : null}
+        </div>
 
+        <Card className="py-0">
+          <CardContent className="px-0 pb-0">
             {canDeleteLogs && selectedIds.size > 0 ? (
               <div className="flex flex-wrap items-center justify-between gap-2 border-b bg-muted/30 px-4 py-2">
                 <div className="flex items-center gap-2 text-sm">
@@ -722,6 +722,17 @@ export function ManageLogsPanel({
                   >
                     Clear selection
                   </Button>
+                  {!isAllSelectableSelected ? (
+                    <Button
+                      type="button"
+                      variant="link"
+                      size="sm"
+                      className="px-0"
+                      onClick={handleSelectAll}
+                    >
+                      {selectAllLabel}
+                    </Button>
+                  ) : null}
                 </div>
                 <Button
                   type="button"
@@ -775,7 +786,9 @@ export function ManageLogsPanel({
                       <th className="px-4 py-3 font-medium">Action</th>
                       <th className="px-4 py-3 font-medium">Table</th>
                       <th className="px-4 py-3 font-medium">Summary</th>
-                      <th className="px-4 py-3 text-center font-medium">Details</th>
+                      <th className="px-4 py-3 text-center font-medium">
+                        Details
+                      </th>
                     </tr>
                   </thead>
                   <tbody>
@@ -789,7 +802,7 @@ export function ManageLogsPanel({
                           aria-selected={canDeleteLogs ? isSelected : undefined}
                           className={cn(
                             "border-b last:border-b-0 hover:bg-muted/30",
-                            isSelected && "bg-muted/40"
+                            isSelected && "bg-muted/40",
                           )}
                         >
                           {canDeleteLogs ? (
@@ -801,7 +814,7 @@ export function ManageLogsPanel({
                                 }
                                 aria-label={`Select log from ${format(
                                   new Date(log.created_at),
-                                  "MMM d, yyyy h:mm a"
+                                  "MMM d, yyyy h:mm a",
                                 )}`}
                                 className="align-middle"
                               />
@@ -813,7 +826,7 @@ export function ManageLogsPanel({
                           <td className="whitespace-nowrap px-4 py-3 text-muted-foreground">
                             {format(
                               new Date(log.created_at),
-                              "MMM d, yyyy h:mm a"
+                              "MMM d, yyyy h:mm a",
                             )}
                           </td>
                           <td className="max-w-[9rem] px-4 py-3">
@@ -923,11 +936,13 @@ export function ManageLogsPanel({
                       className="min-w-7"
                       onClick={() => setCurrentPage(page)}
                       aria-label={`Page ${page}`}
-                      aria-current={page === safeCurrentPage ? "page" : undefined}
+                      aria-current={
+                        page === safeCurrentPage ? "page" : undefined
+                      }
                     >
                       {page}
                     </Button>
-                  )
+                  ),
                 )}
 
                 <Button

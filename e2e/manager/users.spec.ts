@@ -13,11 +13,11 @@ test.describe("manager users @mutation", () => {
     );
   });
 
-  test("create staff user then edit username", async ({ page }) => {
+  test("create staff user then edit full name", async ({ page }) => {
     const stamp = e2eStamp("usr");
-    const username = stamp.slice(0, 28);
-    const email = `${username}@example.com`;
-    const editedUsername = `${username}_e`.slice(0, 30);
+    const email = `${stamp}@example.com`;
+    const fullName = `E2E Staff ${stamp.slice(-6)}`;
+    const editedName = `${fullName} Edit`;
 
     await page.goto("/manager/users");
     await expect(
@@ -28,7 +28,7 @@ test.describe("manager users @mutation", () => {
     const dialog = page.getByRole("dialog");
     await expect(dialog.getByRole("heading", { name: "Add user" })).toBeVisible();
 
-    await dialog.locator("#add-user-username").fill(username);
+    await dialog.locator("#add-user-full-name").fill(fullName);
     await dialog.locator("#add-user-email").fill(email);
     // Role defaults to Teacher — leave as-is.
     await dialog.getByRole("button", { name: "Create user" }).click();
@@ -37,18 +37,18 @@ test.describe("manager users @mutation", () => {
     await expect(dialog).toBeHidden({ timeout: 20_000 });
     await expect(page.getByText(email).first()).toBeVisible({ timeout: 20_000 });
 
-    await page.getByRole("button", { name: `Edit ${username}` }).click();
+    await page.getByRole("button", { name: `Edit ${fullName}` }).click();
     const editDialog = page.getByRole("dialog");
     await expect(
       editDialog.getByRole("heading", { name: "Edit user" })
     ).toBeVisible();
 
-    await editDialog.locator("#edit-user-username").fill(editedUsername);
+    await editDialog.locator("#edit-user-full-name").fill(editedName);
     await editDialog.getByRole("button", { name: "Save changes" }).click();
 
     await expectToastVisible(page, "User updated.");
     await expect(editDialog).toBeHidden({ timeout: 20_000 });
-    await expect(page.getByText(editedUsername).first()).toBeVisible({
+    await expect(page.getByText(editedName).first()).toBeVisible({
       timeout: 20_000,
     });
   });

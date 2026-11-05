@@ -441,8 +441,8 @@ async function loadStudentLabelsByIds(
     ),
   ]);
 
-  const usernameById = new Map(
-    (profiles ?? []).map((profile) => [profile.id, profile.username])
+  const profileNameById = new Map(
+    (profiles ?? []).map((profile) => [profile.id, profile.full_name])
   );
   const fullNameByUserId = new Map(
     (studentProfiles ?? []).map((profile) => [
@@ -453,8 +453,8 @@ async function loadStudentLabelsByIds(
 
   for (const studentId of studentIds) {
     const fullName = fullNameByUserId.get(studentId)?.trim();
-    const username = usernameById.get(studentId)?.trim();
-    labelByStudentId.set(studentId, fullName || username || studentId);
+    const profileName = profileNameById.get(studentId)?.trim();
+    labelByStudentId.set(studentId, fullName || profileName || studentId);
   }
 
   return labelByStudentId;

@@ -111,7 +111,6 @@ async function loadStudentPage(
   ).map((row) => ({
     id: row.id,
     full_name: row.full_name,
-    username: row.username,
     status: mapStudentStatus(row.status),
   }));
 

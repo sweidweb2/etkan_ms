@@ -306,7 +306,7 @@ describe("getSppDetailForManager", () => {
     vi.mocked(profileRepository.findProfileById).mockResolvedValue({
       data: {
         id: "student-1",
-        username: "student",
+        full_name: "Student",
         role: "student",
         created_at: "",
       },
@@ -639,7 +639,7 @@ describe("getSppDetailForSelf", () => {
     vi.mocked(profileRepository.findProfileById).mockResolvedValue({
       data: {
         id: studentUserId,
-        username: "student",
+        full_name: "Student",
         role: "student",
         created_at: "",
       },

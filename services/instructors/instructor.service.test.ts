@@ -51,14 +51,14 @@ describe("addInstructorsForManager", () => {
       data: [
         {
           id: instructorId,
-          username: "teacher_one",
+          full_name: "Teacher One",
           role: ROLES.TEACHER,
           is_instructor: false,
           created_at: "2026-01-01T00:00:00.000Z",
         },
         {
           id: secondId,
-          username: "teacher_two",
+          full_name: "Teacher Two",
           role: ROLES.TEACHER,
           is_instructor: false,
           created_at: "2026-01-01T00:00:00.000Z",
@@ -99,7 +99,7 @@ describe("removeInstructorForManager", () => {
     vi.mocked(profileRepository.findProfileById).mockResolvedValue({
       data: {
         id: instructorId,
-        username: "lead_teacher",
+        full_name: "Lead Teacher",
         role: ROLES.TEACHER,
         is_instructor: true,
         created_at: "2026-01-01T00:00:00.000Z",

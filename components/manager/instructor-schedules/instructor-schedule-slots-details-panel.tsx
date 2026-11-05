@@ -131,7 +131,7 @@ export function InstructorScheduleSlotsDetailsPanel({
     for (const instructor of data.instructors) {
       map.set(
         `${ENTITY_SCHEDULE_TYPE_INSTRUCTOR}:${instructor.id}`,
-        instructor.username?.trim() || "Unknown"
+        instructor.full_name.trim() || "Unknown"
       );
     }
     return map;
