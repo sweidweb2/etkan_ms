@@ -96,15 +96,6 @@ describe("getRequiredViewPermissionForManagerPath", () => {
     ).toBe(PERMISSIONS.CLASSES_VIEW);
   });
 
-  it("maps equipment borrow before equipment list", () => {
-    expect(
-      getRequiredViewPermissionForManagerPath(ROUTES.MANAGER_EQUIPMENT_BORROW)
-    ).toBe(PERMISSIONS.EQUIPMENT_VIEW_BORROWS);
-    expect(
-      getRequiredViewPermissionForManagerPath("/manager/equipments/eq-1")
-    ).toBe(PERMISSIONS.EQUIPMENT_VIEW);
-  });
-
   it("maps instructor schedule details before calendar view", () => {
     expect(
       getRequiredViewPermissionForManagerPath(

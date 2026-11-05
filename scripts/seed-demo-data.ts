@@ -56,12 +56,10 @@ import {
 import * as attendeeRepository from "@/repositories/attendee.repository";
 import * as authRepository from "@/repositories/auth.repository";
 import * as blogRepository from "@/repositories/blog.repository";
-import * as borrowEquipmentRepository from "@/repositories/borrow-equipment.repository";
 import * as classRepository from "@/repositories/class.repository";
 import * as classTaskRepository from "@/repositories/class-task.repository";
 import type { ClassTaskRecord } from "@/repositories/class-task.repository";
 import * as classTeacherRepository from "@/repositories/class-teacher.repository";
-import * as equipmentRepository from "@/repositories/equipment.repository";
 import * as finalExamRepository from "@/repositories/final-exam.repository";
 import * as guestRepository from "@/repositories/guest.repository";
 import * as guestStatusEventRepository from "@/repositories/guest-status-event.repository";
@@ -713,7 +711,6 @@ async function ensureSessionsForClass(
       session_report: null,
       starts_at: startsAt,
       ends_at: endsAt,
-      semester_id: semesterId,
       group_grade_level: groupLevels[index] ?? SESSION_GROUP_GRADE_LEVELS.MEDIUM,
     });
     if (created.error || !created.data) {
@@ -1829,49 +1826,6 @@ async function ensureGuestsAndTeam(
   }
 }
 
-async function ensureEquipment(
-  client: Supabase,
-  borrowerUserId: string
-) {
-  const listed = await equipmentRepository.listEquipments(client);
-  if (listed.error) throw new Error(listed.error.message);
-
-  let equipment = (listed.data ?? []).find(
-    (row) => row.name.toLowerCase() === "demo 3d printer"
-  );
-
-  if (!equipment) {
-    const created = await equipmentRepository.createEquipment(client, {
-      name: "Demo 3D Printer",
-      description: "Shared lab printer for demos.",
-      quantity: 2,
-      unit_price: 800,
-    });
-    if (created.error || !created.data) {
-      throw new Error(created.error?.message ?? "Unable to create equipment.");
-    }
-    equipment = created.data;
-  }
-
-  const borrows = await client
-    .from("borrow_equipment")
-    .select("id")
-    .eq("equipment_id", equipment.id)
-    .eq("user_id", borrowerUserId)
-    .limit(1);
-  if (borrows.error) throw new Error(borrows.error.message);
-  if ((borrows.data ?? []).length === 0) {
-    const created = await borrowEquipmentRepository.createBorrows(client, [
-      {
-        equipment_id: equipment.id,
-        user_id: borrowerUserId,
-        quantity: 1,
-      },
-    ]);
-    if (created.error) throw new Error(created.error.message);
-  }
-}
-
 async function ensurePublicContent(client: Supabase) {
   const blogSlug = "demo-welcome-to-etkan";
   const existingBlog = await blogRepository.findBlogBySlug(client, blogSlug);
@@ -2305,9 +2259,8 @@ async function seedDemoData(): Promise<void> {
     createdBy: receiverId,
   });
 
-  // --- Guests / teams / equipment / CMS / ledger ---
+  // --- Guests / teams / CMS / ledger ---
   await ensureGuestsAndTeam(client, receiverId);
-  await ensureEquipment(client, mathTeacherId);
   await ensurePublicContent(client);
   await ensureTransactions(client, receiverId);
 
@@ -2347,7 +2300,7 @@ async function seedDemoData(): Promise<void> {
     `  "${DEMO_SPRING_PHASE_NAME}" (opened): Eve partial, Frank paid, Grace pending`
   );
   console.log("");
-  console.log("Also seeded: workshop, instructor schedule, guests/team, equipment borrow,");
+  console.log("Also seeded: workshop, instructor schedule, guests/team,");
   console.log("  blog + public projects, sample expense transaction.");
   console.log("");
   console.log(`Default password for demo.* users: ${getDefaultPassword()}`);

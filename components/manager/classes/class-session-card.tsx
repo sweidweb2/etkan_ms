@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import type { ReactNode } from "react";
 import { format } from "date-fns";
 import { CalendarIcon, ClockIcon } from "lucide-react";
 import {
@@ -37,6 +38,8 @@ type ClassSessionCardProps = {
   /** When set, card selects inline instead of navigating. */
   onSelect?: (sessionId: string) => void;
   selected?: boolean;
+  /** Interactive control rendered under the card body (above the link overlay). */
+  footerAction?: ReactNode;
 };
 
 function TruncatedText({
@@ -75,6 +78,7 @@ export function ClassSessionCard({
   href,
   onSelect,
   selected = false,
+  footerAction,
 }: ClassSessionCardProps) {
   const timingLabel = getSessionTimingLabel(session);
   const timingText = SESSION_TIMING_LABELS[timingLabel];
@@ -164,6 +168,9 @@ export function ClassSessionCard({
             </span>
           </div>
         </CardContent>
+        {footerAction ? (
+          <div className="relative z-10 border-t px-4 py-2">{footerAction}</div>
+        ) : null}
       </Card>
     </TooltipProvider>
   );

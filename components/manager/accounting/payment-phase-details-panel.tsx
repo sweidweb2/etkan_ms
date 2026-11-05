@@ -19,6 +19,7 @@ import {
   ChevronLeftIcon,
   ChevronRightIcon,
   EyeIcon,
+  InfoIcon,
   PencilIcon,
   ArrowRightLeftIcon,
   SearchIcon,
@@ -28,7 +29,6 @@ import { cancelPaymentPhaseAction } from "@/app/manager/accounting/actions";
 import { Can } from "@/components/auth/can";
 import {
   getPageNumbers,
-  PAGE_SIZE_OPTIONS,
   STATUS_FILTER_ALL,
   TruncatedCell,
 } from "@/components/manager/accounting/accounting-table-shared";
@@ -70,6 +70,14 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import {
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetFooter,
+  SheetHeader,
+  SheetTitle,
+} from "@/components/ui/sheet";
+import {
   Select,
   SelectContent,
   SelectItem,
@@ -87,6 +95,11 @@ import {
   SPP_STATUS_LABELS,
 } from "@/lib/constants/manager-payment-phase-display";
 import { resolveSppDisplayStatus } from "@/lib/manager/accounting/spp-display-status";
+import { ListViewModeToggle } from "@/components/manager/shared/list-view-mode-toggle";
+import {
+  MANAGER_LIST_VIEW_MODES,
+  MANAGER_LIST_VIEW_MODE_STORAGE_KEYS,
+} from "@/lib/constants/manager-list-view-mode";
 import { PERMISSIONS } from "@/lib/constants/permissions";
 import {
   getManagerAccountingSppDetailRoute,
@@ -104,6 +117,8 @@ import {
 import { useActionStateSuccess } from "@/hooks/use-action-state-success";
 import { useActionStateToast } from "@/hooks/use-action-state-toast";
 import { usePendingAwareOpenChange } from "@/hooks/use-pending-aware-open-change";
+import { usePersistedListViewMode } from "@/hooks/use-persisted-list-view-mode";
+import { cn } from "@/lib/utils";
 import type {
   CancelPaymentPhaseActionState,
   ManagerPaymentPhaseRow,
@@ -114,6 +129,10 @@ import type {
   ManagerSppFinancialSnapshot,
   ManagerStudentPaymentRow,
 } from "@/types/manager-student-payment";
+
+const SPP_PAGE_SIZE = 20;
+const SPP_MAX_PAGES = 100;
+const SPP_MAX_VISIBLE = SPP_PAGE_SIZE * SPP_MAX_PAGES;
 
 function applySppRowFinancials(
   spp: ManagerSppRow,
@@ -126,6 +145,9 @@ const initialCancelState: CancelPaymentPhaseActionState = {};
 
 const SPP_ROW_CLASS =
   "cursor-pointer border-b last:border-b-0 transition-all duration-150 hover:bg-primary/10 hover:shadow-[inset_4px_0_0_0_var(--primary)] active:bg-primary/15 focus-visible:bg-primary/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset";
+
+const SPP_CARD_CLASS =
+  "group flex cursor-pointer flex-col gap-4 rounded-xl border bg-card p-4 shadow-xs transition-all duration-150 hover:-translate-y-0.5 hover:border-primary/40 hover:shadow-md active:translate-y-0 active:bg-primary/5 focus-visible:border-primary/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring";
 
 const STATUS_FILTER_SELECT_ITEMS = [
   { value: STATUS_FILTER_ALL, label: "All statuses" },
@@ -150,6 +172,330 @@ function matchesSppSearch(spp: ManagerSppRow, query: string) {
   return spp.student_label.toLowerCase().includes(normalizedQuery);
 }
 
+function SppStudentName({
+  spp,
+  maxLength,
+}: {
+  spp: ManagerSppRow;
+  maxLength: number;
+}) {
+  return (
+    <div className="flex min-w-0 items-center gap-2">
+      <div className="min-w-0 flex-1">
+        {spp.student_profile_id ? (
+          <Link
+            href={getManagerStudentDetailRoute(spp.student_profile_id)}
+            className="text-primary hover:underline"
+          >
+            <TruncatedCell value={spp.student_label} maxLength={maxLength} />
+          </Link>
+        ) : (
+          <TruncatedCell value={spp.student_label} maxLength={maxLength} />
+        )}
+      </div>
+      {spp.remaining_amount < 0 ? (
+        <span className="inline-flex shrink-0 items-center rounded-md bg-violet-500/15 px-2 py-0.5 text-xs font-medium text-violet-700 dark:text-violet-300">
+          Refund
+        </span>
+      ) : null}
+      {spp.drop_refund_owed ? (
+        <span className="inline-flex shrink-0 items-center rounded-md bg-amber-500/15 px-2 py-0.5 text-xs font-medium text-amber-800 dark:text-amber-200">
+          Refund
+        </span>
+      ) : null}
+    </div>
+  );
+}
+
+function SppStatusBadges({
+  spp,
+  phase,
+}: {
+  spp: ManagerSppRow;
+  phase: ManagerPaymentPhaseRow;
+}) {
+  return (
+    <span className="inline-flex flex-wrap items-center gap-1.5">
+      <SppStatusBadge
+        status={resolveSppDisplayStatus(
+          { status: spp.status, totalPaid: spp.total_paid },
+          {
+            upfrontWindowActive: phase.upfront_window_active,
+            upfrontAmount: phase.upfront_amount,
+          }
+        )}
+      />
+      <SppCurrentBadge clearance={spp.current_clearance} />
+      {spp.drop_dropped ? (
+        <span className="inline-flex items-center rounded-md bg-muted px-2 py-0.5 text-xs font-medium text-muted-foreground">
+          Dropped
+        </span>
+      ) : null}
+      {spp.drop_done_paid ? (
+        <span className="inline-flex items-center rounded-md bg-emerald-500/15 px-2 py-0.5 text-xs font-medium text-emerald-700 dark:text-emerald-300">
+          Done paid
+        </span>
+      ) : null}
+      {spp.drop_pending ? (
+        <span className="inline-flex items-center rounded-md bg-amber-500/15 px-2 py-0.5 text-xs font-medium text-amber-800 dark:text-amber-200">
+          Pending drop
+        </span>
+      ) : null}
+    </span>
+  );
+}
+
+type SppActionsProps = {
+  spp: ManagerSppRow;
+  phaseId: string;
+  canRecordPayments: boolean;
+  onRecordPayment: (sppId: string) => void;
+  onEditClearance: (spp: ManagerSppRow) => void;
+  onTransfer: (spp: ManagerSppRow) => void;
+};
+
+function SppActions({
+  spp,
+  phaseId,
+  canRecordPayments,
+  onRecordPayment,
+  onEditClearance,
+  onTransfer,
+}: SppActionsProps) {
+  return (
+    <div className="flex items-center justify-end gap-1">
+      {canRecordPayments &&
+      spp.status !== STUDENT_PAYMENT_PHASE_STATUSES.CANCELLED &&
+      spp.status !== STUDENT_PAYMENT_PHASE_STATUSES.PAID &&
+      !spp.drop_dropped ? (
+        <Can permission={PERMISSIONS.ACCOUNTING_PAYMENTS_CREATE}>
+          <Tooltip>
+            <TooltipTrigger
+              render={
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon-sm"
+                  aria-label={`Record payment for ${spp.student_label}`}
+                  className="text-muted-foreground hover:text-foreground"
+                  onClick={() => onRecordPayment(spp.id)}
+                />
+              }
+            >
+              <BanknoteIcon />
+            </TooltipTrigger>
+            <TooltipContent>Record payment</TooltipContent>
+          </Tooltip>
+        </Can>
+      ) : null}
+      {spp.status !== STUDENT_PAYMENT_PHASE_STATUSES.PAID &&
+      spp.status !== STUDENT_PAYMENT_PHASE_STATUSES.CANCELLED ? (
+        <Can
+          permission={
+            spp.current_clearance
+              ? PERMISSIONS.ACCOUNTING_CLEARANCES_UPDATE
+              : PERMISSIONS.ACCOUNTING_CLEARANCES_CREATE
+          }
+        >
+          <Tooltip>
+            <TooltipTrigger
+              render={
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon-sm"
+                  aria-label={
+                    spp.current_clearance
+                      ? `Edit Month paid marker for ${spp.student_label}`
+                      : `Set Month paid marker for ${spp.student_label}`
+                  }
+                  className="text-muted-foreground hover:text-foreground"
+                  onClick={() => onEditClearance(spp)}
+                />
+              }
+            >
+              <CalendarCheckIcon />
+            </TooltipTrigger>
+            <TooltipContent>
+              {spp.current_clearance ? "Edit Month paid" : "Set Month paid"}
+            </TooltipContent>
+          </Tooltip>
+        </Can>
+      ) : null}
+      {spp.status !== STUDENT_PAYMENT_PHASE_STATUSES.CANCELLED &&
+      !spp.drop_dropped ? (
+        <Can permission={PERMISSIONS.ACCOUNTING_SPP_TRANSFER}>
+          <Tooltip>
+            <TooltipTrigger
+              render={
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon-sm"
+                  aria-label={`Transfer payment phase for ${spp.student_label}`}
+                  className="text-muted-foreground hover:text-foreground"
+                  onClick={() => onTransfer(spp)}
+                />
+              }
+            >
+              <ArrowRightLeftIcon />
+            </TooltipTrigger>
+            <TooltipContent>Transfer payment phase</TooltipContent>
+          </Tooltip>
+        </Can>
+      ) : null}
+      <Button
+        render={
+          <Link href={getManagerAccountingSppDetailRoute(phaseId, spp.id)} />
+        }
+        nativeButton={false}
+        variant="ghost"
+        size="icon-sm"
+        aria-label={`View assignment for ${spp.student_label}`}
+        className="text-muted-foreground hover:text-foreground"
+      >
+        <EyeIcon />
+      </Button>
+    </div>
+  );
+}
+
+function SppAmountStat({
+  label,
+  value,
+  className,
+}: {
+  label: string;
+  value: number;
+  className?: string;
+}) {
+  return (
+    <div className="min-w-0 rounded-lg bg-muted/40 px-2.5 py-2">
+      <dt className="text-[11px] leading-tight text-muted-foreground">
+        {label}
+      </dt>
+      <dd
+        className={cn(
+          "mt-0.5 truncate text-sm font-medium tabular-nums",
+          className
+        )}
+      >
+        {formatPaymentPhaseMoney(value)}
+      </dd>
+    </div>
+  );
+}
+
+type SppCardProps = Omit<SppActionsProps, "phaseId"> & {
+  phase: ManagerPaymentPhaseRow;
+  position: number;
+  onOpen: (sppId: string) => void;
+  onKeyDown: (event: KeyboardEvent<HTMLElement>, sppId: string) => void;
+};
+
+function SppCard({
+  spp,
+  phase,
+  position,
+  onOpen,
+  onKeyDown,
+  ...actionProps
+}: SppCardProps) {
+  const isCredit = spp.remaining_amount < 0;
+  const paidRatio =
+    spp.final_amount_due > 0
+      ? Math.min(1, Math.max(0, spp.total_paid / spp.final_amount_due))
+      : 1;
+  const paidPercent = Math.round(paidRatio * 100);
+
+  return (
+    <div
+      className={SPP_CARD_CLASS}
+      tabIndex={0}
+      role="link"
+      aria-label={`View assignment for ${spp.student_label}`}
+      onClick={() => onOpen(spp.id)}
+      onKeyDown={(event) => onKeyDown(event, spp.id)}
+    >
+      <div className="flex items-start gap-3">
+        <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-primary/10 text-xs font-semibold tabular-nums text-primary">
+          {position}
+        </span>
+        <div className="flex min-w-0 flex-1 flex-col gap-1.5">
+          <div
+            className="font-medium"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <SppStudentName spp={spp} maxLength={32} />
+          </div>
+          <SppStatusBadges spp={spp} phase={phase} />
+        </div>
+      </div>
+
+      <div className="flex flex-col gap-2">
+        <div className="flex items-end justify-between gap-3">
+          <div className="min-w-0">
+            <p className="text-[11px] leading-tight text-muted-foreground">
+              Remaining
+            </p>
+            <p
+              className={cn(
+                "truncate text-xl font-semibold tabular-nums tracking-tight",
+                isCredit && "text-violet-700 dark:text-violet-300"
+              )}
+            >
+              {formatPaymentPhaseMoney(spp.remaining_amount)}
+            </p>
+          </div>
+          <span className="shrink-0 text-xs tabular-nums text-muted-foreground">
+            {paidPercent}% paid
+          </span>
+        </div>
+        <div
+          className="h-1.5 overflow-hidden rounded-full bg-muted"
+          role="progressbar"
+          aria-label={`Paid ${paidPercent}%`}
+          aria-valuemin={0}
+          aria-valuemax={100}
+          aria-valuenow={paidPercent}
+        >
+          <div
+            className={cn(
+              "h-full rounded-full transition-[width] duration-300",
+              isCredit
+                ? "bg-violet-500"
+                : paidRatio >= 1
+                  ? "bg-emerald-500"
+                  : "bg-primary"
+            )}
+            style={{ width: `${paidPercent}%` }}
+          />
+        </div>
+      </div>
+
+      <dl className="grid grid-cols-2 gap-2">
+        <SppAmountStat label="Original" value={spp.original_amount} />
+        <SppAmountStat
+          label="Adjustment"
+          value={spp.adjustment_amount}
+          className="text-muted-foreground"
+        />
+        <SppAmountStat label="Due" value={spp.final_amount_due} />
+        <SppAmountStat label="Paid" value={spp.total_paid} />
+      </dl>
+
+      <div className="mt-auto flex items-center justify-between gap-2 border-t pt-3">
+        <span className="text-xs text-muted-foreground transition-colors group-hover:text-primary">
+          View details
+        </span>
+        <div onClick={(event) => event.stopPropagation()}>
+          <SppActions spp={spp} phaseId={phase.id} {...actionProps} />
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export function PaymentPhaseDetailsPanel({
   phase: initialPhase,
   initialSpps,
@@ -162,6 +508,7 @@ export function PaymentPhaseDetailsPanel({
   const [prevSpps, setPrevSpps] = useState(initialSpps);
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [isCancelOpen, setIsCancelOpen] = useState(false);
+  const [isInfoOpen, setIsInfoOpen] = useState(false);
   const [recordPaymentSppId, setRecordPaymentSppId] = useState<string | null>(
     null
   );
@@ -175,10 +522,11 @@ export function PaymentPhaseDetailsPanel({
   );
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState(STATUS_FILTER_ALL);
-  const [pageSize, setPageSize] = useState<(typeof PAGE_SIZE_OPTIONS)[number]>(
-    10
-  );
   const [currentPage, setCurrentPage] = useState(1);
+  const [viewMode, setViewMode] = usePersistedListViewMode(
+    MANAGER_LIST_VIEW_MODE_STORAGE_KEYS.ACCOUNTING_SPP
+  );
+  const isGridView = viewMode === MANAGER_LIST_VIEW_MODES.GRID;
   const [isTransitionPending, startTransition] = useTransition();
   const [cancelState, cancelAction, isCancelPending] = useActionState(
     cancelPaymentPhaseAction,
@@ -252,18 +600,20 @@ export function PaymentPhaseDetailsPanel({
     });
   }, [spps, searchQuery, statusFilter]);
 
-  const totalPages = Math.max(1, Math.ceil(filteredSpps.length / pageSize));
+  const visibleCount = Math.min(filteredSpps.length, SPP_MAX_VISIBLE);
+  const isOverPageCap = filteredSpps.length > SPP_MAX_VISIBLE;
+  const totalPages = Math.max(1, Math.ceil(visibleCount / SPP_PAGE_SIZE));
   const safeCurrentPage = Math.min(currentPage, totalPages);
 
   const paginatedSpps = useMemo(() => {
-    const startIndex = (safeCurrentPage - 1) * pageSize;
-    return filteredSpps.slice(startIndex, startIndex + pageSize);
-  }, [filteredSpps, pageSize, safeCurrentPage]);
+    const startIndex = (safeCurrentPage - 1) * SPP_PAGE_SIZE;
+    return filteredSpps.slice(startIndex, startIndex + SPP_PAGE_SIZE);
+  }, [filteredSpps, safeCurrentPage]);
 
   const pageNumbers = getPageNumbers(safeCurrentPage, totalPages);
   const rangeStart =
-    filteredSpps.length === 0 ? 0 : (safeCurrentPage - 1) * pageSize + 1;
-  const rangeEnd = Math.min(safeCurrentPage * pageSize, filteredSpps.length);
+    visibleCount === 0 ? 0 : (safeCurrentPage - 1) * SPP_PAGE_SIZE + 1;
+  const rangeEnd = Math.min(safeCurrentPage * SPP_PAGE_SIZE, visibleCount);
 
   const handleSearchChange = (value: string) => {
     setSearchQuery(value);
@@ -275,12 +625,9 @@ export function PaymentPhaseDetailsPanel({
     setCurrentPage(1);
   };
 
-  const handlePageSizeChange = (value: string | null) => {
-    if (!value) {
-      return;
-    }
-    setPageSize(Number(value) as (typeof PAGE_SIZE_OPTIONS)[number]);
-    setCurrentPage(1);
+  const openFromInfoSheet = (open: () => void) => {
+    setIsInfoOpen(false);
+    open();
   };
 
   const handlePhaseUpdated = (updated: ManagerPaymentPhaseRow) => {
@@ -292,9 +639,13 @@ export function PaymentPhaseDetailsPanel({
   };
 
   const handleSppRowKeyDown = (
-    event: KeyboardEvent<HTMLTableRowElement>,
+    event: KeyboardEvent<HTMLElement>,
     sppId: string
   ) => {
+    // Enter/Space on a nested link or button must not also open the row.
+    if (event.target !== event.currentTarget) {
+      return;
+    }
     if (event.key === "Enter" || event.key === " ") {
       event.preventDefault();
       openSppDetails(sppId);
@@ -312,19 +663,30 @@ export function PaymentPhaseDetailsPanel({
   return (
     <TooltipProvider>
       <div className="flex flex-col gap-6">
-        <Breadcrumb>
-          <BreadcrumbList>
-            <BreadcrumbItem>
-              <BreadcrumbLink href={ROUTES.MANAGER_ACCOUNTING}>
-                Accounting
-              </BreadcrumbLink>
-            </BreadcrumbItem>
-            <BreadcrumbSeparator />
-            <BreadcrumbItem>
-              <BreadcrumbPage>{phase.name}</BreadcrumbPage>
-            </BreadcrumbItem>
-          </BreadcrumbList>
-        </Breadcrumb>
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <Breadcrumb className="min-w-0">
+            <BreadcrumbList>
+              <BreadcrumbItem>
+                <BreadcrumbLink href={ROUTES.MANAGER_ACCOUNTING}>
+                  Accounting
+                </BreadcrumbLink>
+              </BreadcrumbItem>
+              <BreadcrumbSeparator />
+              <BreadcrumbItem>
+                <BreadcrumbPage>{phase.name}</BreadcrumbPage>
+              </BreadcrumbItem>
+            </BreadcrumbList>
+          </Breadcrumb>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={() => setIsInfoOpen(true)}
+          >
+            <InfoIcon data-icon="inline-start" />
+            Phase details
+          </Button>
+        </div>
 
         <EditPaymentPhaseDialog
           open={isEditOpen}
@@ -450,40 +812,16 @@ export function PaymentPhaseDetailsPanel({
           </DialogContent>
         </Dialog>
 
-        <Card>
-          <CardHeader>
-            <CardTitle>{phase.name}</CardTitle>
-            <CardAction className="flex flex-wrap gap-2">
-              {!isCancelled ? (
-                <Can permission={PERMISSIONS.ACCOUNTING_PAYMENT_PHASES_UPDATE}>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setIsEditOpen(true)}
-                  >
-                    <PencilIcon data-icon="inline-start" />
-                    Edit
-                  </Button>
-                </Can>
-              ) : null}
-              {!isCancelled ? (
-                <Can permission={PERMISSIONS.ACCOUNTING_PAYMENT_PHASES_CANCEL}>
-                  <Button
-                    type="button"
-                    variant="destructive"
-                    size="sm"
-                    onClick={() => setIsCancelOpen(true)}
-                  >
-                    <BanIcon data-icon="inline-start" />
-                    Cancel phase
-                  </Button>
-                </Can>
-              ) : null}
-            </CardAction>
-          </CardHeader>
-          <CardContent>
-            <dl className="grid gap-4 @lg/panel:grid-cols-2 @2xl/panel:grid-cols-3">
+        <Sheet open={isInfoOpen} onOpenChange={setIsInfoOpen}>
+          <SheetContent
+            side="right"
+            className="w-full overflow-y-auto data-[side=right]:w-full data-[side=right]:sm:max-w-md"
+          >
+            <SheetHeader className="pr-12">
+              <SheetTitle>{phase.name}</SheetTitle>
+              <SheetDescription>Payment phase details</SheetDescription>
+            </SheetHeader>
+            <dl className="grid gap-4 px-4 sm:grid-cols-2">
               <DetailField label="Semester">
                 <Link
                   href={getManagerSemesterDetailRoute(phase.semester_id)}
@@ -541,8 +879,36 @@ export function PaymentPhaseDetailsPanel({
                 </span>
               </DetailField>
             </dl>
-          </CardContent>
-        </Card>
+            {!isCancelled ? (
+              <SheetFooter className="flex-row flex-wrap justify-end border-t">
+                <Can permission={PERMISSIONS.ACCOUNTING_PAYMENT_PHASES_UPDATE}>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => openFromInfoSheet(() => setIsEditOpen(true))}
+                  >
+                    <PencilIcon data-icon="inline-start" />
+                    Edit
+                  </Button>
+                </Can>
+                <Can permission={PERMISSIONS.ACCOUNTING_PAYMENT_PHASES_CANCEL}>
+                  <Button
+                    type="button"
+                    variant="destructive"
+                    size="sm"
+                    onClick={() =>
+                      openFromInfoSheet(() => setIsCancelOpen(true))
+                    }
+                  >
+                    <BanIcon data-icon="inline-start" />
+                    Cancel phase
+                  </Button>
+                </Can>
+              </SheetFooter>
+            ) : null}
+          </SheetContent>
+        </Sheet>
 
         <Card className="py-0">
           <CardHeader className="border-b py-3">
@@ -603,6 +969,12 @@ export function PaymentPhaseDetailsPanel({
                   ))}
                 </SelectContent>
               </Select>
+              <ListViewModeToggle
+                value={viewMode}
+                onChange={setViewMode}
+                label="Student payment phases layout"
+                className="self-end @lg/panel:ml-auto @lg/panel:self-auto"
+              />
             </div>
 
             {paginatedSpps.length === 0 ? (
@@ -621,6 +993,23 @@ export function PaymentPhaseDetailsPanel({
                       : "Try a different search or status."
                   }
                 />
+              </div>
+            ) : isGridView ? (
+              <div className="grid gap-3 p-4 @lg/panel:grid-cols-2 @4xl/panel:grid-cols-3">
+                {paginatedSpps.map((spp, index) => (
+                  <SppCard
+                    key={spp.id}
+                    spp={spp}
+                    phase={phase}
+                    position={rangeStart + index}
+                    canRecordPayments={canRecordPayments}
+                    onOpen={openSppDetails}
+                    onKeyDown={handleSppRowKeyDown}
+                    onRecordPayment={openRecordPayment}
+                    onEditClearance={setClearanceTargetSpp}
+                    onTransfer={setTransferringSpp}
+                  />
+                ))}
               </div>
             ) : (
               <div className="overflow-x-auto">
@@ -666,73 +1055,10 @@ export function PaymentPhaseDetailsPanel({
                           className="max-w-[18rem] px-4 py-3 font-medium"
                           onClick={(event) => event.stopPropagation()}
                         >
-                          <div className="flex min-w-0 items-center gap-2">
-                            <div className="min-w-0 flex-1">
-                              {spp.student_profile_id ? (
-                                <Link
-                                  href={getManagerStudentDetailRoute(
-                                    spp.student_profile_id
-                                  )}
-                                  className="text-primary hover:underline"
-                                >
-                                  <TruncatedCell
-                                    value={spp.student_label}
-                                    maxLength={28}
-                                  />
-                                </Link>
-                              ) : (
-                                <TruncatedCell
-                                  value={spp.student_label}
-                                  maxLength={28}
-                                />
-                              )}
-                            </div>
-                            {spp.remaining_amount < 0 ? (
-                              <span className="inline-flex shrink-0 items-center rounded-md bg-violet-500/15 px-2 py-0.5 text-xs font-medium text-violet-700 dark:text-violet-300">
-                                Refund
-                              </span>
-                            ) : null}
-                            {spp.drop_refund_owed ? (
-                              <span className="inline-flex shrink-0 items-center rounded-md bg-amber-500/15 px-2 py-0.5 text-xs font-medium text-amber-800 dark:text-amber-200">
-                                Refund
-                              </span>
-                            ) : null}
-                          </div>
+                          <SppStudentName spp={spp} maxLength={28} />
                         </td>
                         <td className="px-4 py-3">
-                          <span className="inline-flex flex-wrap items-center gap-1.5">
-                            <SppStatusBadge
-                              status={resolveSppDisplayStatus(
-                                {
-                                  status: spp.status,
-                                  totalPaid: spp.total_paid,
-                                },
-                                {
-                                  upfrontWindowActive:
-                                    phase.upfront_window_active,
-                                  upfrontAmount: phase.upfront_amount,
-                                }
-                              )}
-                            />
-                            <SppCurrentBadge
-                              clearance={spp.current_clearance}
-                            />
-                            {spp.drop_dropped ? (
-                              <span className="inline-flex items-center rounded-md bg-muted px-2 py-0.5 text-xs font-medium text-muted-foreground">
-                                Dropped
-                              </span>
-                            ) : null}
-                            {spp.drop_done_paid ? (
-                              <span className="inline-flex items-center rounded-md bg-emerald-500/15 px-2 py-0.5 text-xs font-medium text-emerald-700 dark:text-emerald-300">
-                                Done paid
-                              </span>
-                            ) : null}
-                            {spp.drop_pending ? (
-                              <span className="inline-flex items-center rounded-md bg-amber-500/15 px-2 py-0.5 text-xs font-medium text-amber-800 dark:text-amber-200">
-                                Pending drop
-                              </span>
-                            ) : null}
-                          </span>
+                          <SppStatusBadges spp={spp} phase={phase} />
                         </td>
                         <td className="whitespace-nowrap px-4 py-3 text-right tabular-nums">
                           {formatPaymentPhaseMoney(spp.original_amount)}
@@ -760,124 +1086,14 @@ export function PaymentPhaseDetailsPanel({
                           className="px-4 py-3"
                           onClick={(event) => event.stopPropagation()}
                         >
-                          <div className="flex items-center justify-end gap-1">
-                            {canRecordPayments &&
-                            spp.status !==
-                              STUDENT_PAYMENT_PHASE_STATUSES.CANCELLED &&
-                            spp.status !==
-                              STUDENT_PAYMENT_PHASE_STATUSES.PAID &&
-                            !spp.drop_dropped ? (
-                              <Can
-                                permission={
-                                  PERMISSIONS.ACCOUNTING_PAYMENTS_CREATE
-                                }
-                              >
-                                <Tooltip>
-                                  <TooltipTrigger
-                                    render={
-                                      <Button
-                                        type="button"
-                                        variant="ghost"
-                                        size="icon-sm"
-                                        aria-label={`Record payment for ${spp.student_label}`}
-                                        className="text-muted-foreground hover:text-foreground"
-                                        onClick={() =>
-                                          openRecordPayment(spp.id)
-                                        }
-                                      />
-                                    }
-                                  >
-                                    <BanknoteIcon />
-                                  </TooltipTrigger>
-                                  <TooltipContent>Record payment</TooltipContent>
-                                </Tooltip>
-                              </Can>
-                            ) : null}
-                            {spp.status !==
-                              STUDENT_PAYMENT_PHASE_STATUSES.PAID &&
-                            spp.status !==
-                              STUDENT_PAYMENT_PHASE_STATUSES.CANCELLED ? (
-                              <Can
-                                permission={
-                                  spp.current_clearance
-                                    ? PERMISSIONS.ACCOUNTING_CLEARANCES_UPDATE
-                                    : PERMISSIONS.ACCOUNTING_CLEARANCES_CREATE
-                                }
-                              >
-                                <Tooltip>
-                                  <TooltipTrigger
-                                    render={
-                                      <Button
-                                        type="button"
-                                        variant="ghost"
-                                        size="icon-sm"
-                                        aria-label={
-                                          spp.current_clearance
-                                            ? `Edit Month paid marker for ${spp.student_label}`
-                                            : `Set Month paid marker for ${spp.student_label}`
-                                        }
-                                        className="text-muted-foreground hover:text-foreground"
-                                        onClick={() =>
-                                          setClearanceTargetSpp(spp)
-                                        }
-                                      />
-                                    }
-                                  >
-                                    <CalendarCheckIcon />
-                                  </TooltipTrigger>
-                                  <TooltipContent>
-                                    {spp.current_clearance
-                                      ? "Edit Month paid"
-                                      : "Set Month paid"}
-                                  </TooltipContent>
-                                </Tooltip>
-                              </Can>
-                            ) : null}
-                            {spp.status !==
-                              STUDENT_PAYMENT_PHASE_STATUSES.CANCELLED &&
-                            !spp.drop_dropped ? (
-                              <Can
-                                permission={PERMISSIONS.ACCOUNTING_SPP_TRANSFER}
-                              >
-                                <Tooltip>
-                                  <TooltipTrigger
-                                    render={
-                                      <Button
-                                        type="button"
-                                        variant="ghost"
-                                        size="icon-sm"
-                                        aria-label={`Transfer payment phase for ${spp.student_label}`}
-                                        className="text-muted-foreground hover:text-foreground"
-                                        onClick={() => setTransferringSpp(spp)}
-                                      />
-                                    }
-                                  >
-                                    <ArrowRightLeftIcon />
-                                  </TooltipTrigger>
-                                  <TooltipContent>
-                                    Transfer payment phase
-                                  </TooltipContent>
-                                </Tooltip>
-                              </Can>
-                            ) : null}
-                            <Button
-                              render={
-                                <Link
-                                  href={getManagerAccountingSppDetailRoute(
-                                    phase.id,
-                                    spp.id
-                                  )}
-                                />
-                              }
-                              nativeButton={false}
-                              variant="ghost"
-                              size="icon-sm"
-                              aria-label={`View assignment for ${spp.student_label}`}
-                              className="text-muted-foreground hover:text-foreground"
-                            >
-                              <EyeIcon />
-                            </Button>
-                          </div>
+                          <SppActions
+                            spp={spp}
+                            phaseId={phase.id}
+                            canRecordPayments={canRecordPayments}
+                            onRecordPayment={openRecordPayment}
+                            onEditClearance={setClearanceTargetSpp}
+                            onTransfer={setTransferringSpp}
+                          />
                         </td>
                       </tr>
                     ))}
@@ -891,29 +1107,15 @@ export function PaymentPhaseDetailsPanel({
                 <span>
                   Showing {rangeStart}–{rangeEnd} of {filteredSpps.length}
                 </span>
-                <span aria-hidden="true">·</span>
-                <div className="flex items-center gap-2">
-                  <span>Rows</span>
-                  <Select
-                    value={String(pageSize)}
-                    onValueChange={handlePageSizeChange}
-                  >
-                    <SelectTrigger
-                      size="sm"
-                      className="w-16"
-                      aria-label="Rows per page"
-                    >
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent align="start">
-                      {PAGE_SIZE_OPTIONS.map((size) => (
-                        <SelectItem key={size} value={String(size)}>
-                          {size}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
+                {isOverPageCap ? (
+                  <>
+                    <span aria-hidden="true">·</span>
+                    <span>
+                      First {SPP_MAX_VISIBLE.toLocaleString()} shown. Search to
+                      narrow the list.
+                    </span>
+                  </>
+                ) : null}
               </div>
 
               <div className="flex items-center gap-1">

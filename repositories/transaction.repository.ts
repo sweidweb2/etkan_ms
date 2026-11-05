@@ -64,7 +64,7 @@ export async function listTransactionAmountsBetween(
 ) {
   return client
     .from("transactions")
-    .select("transaction_date, type, amount")
+    .select("transaction_date, type, amount, payment_method")
     .gte("transaction_date", fromInclusive)
     .lt("transaction_date", toExclusive);
 }

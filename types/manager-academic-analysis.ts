@@ -1,18 +1,4 @@
 import type { ClassStatusValue } from "@/lib/constants/manager-class-status";
-import type { StudentStatusValue } from "@/lib/constants/manager-student-status";
-
-export type ManagerAcademicAnalysisStudentRow = {
-  id: string;
-  full_name: string;
-  status: StudentStatusValue;
-};
-
-export type ManagerAcademicAnalysisStudentsPage = {
-  students: ManagerAcademicAnalysisStudentRow[];
-  total: number;
-  page: number;
-  pageSize: number;
-};
 
 export type ManagerAcademicAnalysisClassSessionPoint = {
   classId: string;
@@ -29,6 +15,5 @@ export type ManagerAcademicAnalysisData = {
     inactive: number;
     total: number;
   };
-  studentsPage: ManagerAcademicAnalysisStudentsPage;
   classSessionSeries: ManagerAcademicAnalysisClassSessionPoint[];
 };

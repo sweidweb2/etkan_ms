@@ -3,13 +3,10 @@
 import { useMemo, useState } from "react";
 import { format } from "date-fns";
 import {
-  BadgeDollarSignIcon,
   CalendarDaysIcon,
   FileTextIcon,
-  GraduationCapIcon,
   LineChartIcon,
-  SlidersHorizontalIcon,
-  UsersIcon,
+  PlusIcon,
   WalletIcon,
 } from "lucide-react";
 import Link from "next/link";
@@ -28,11 +25,17 @@ import {
   IncomeTablePagination,
   usePagedRows,
 } from "@/components/manager/accounting/income-table-paging";
-import { ClassTabCollapsibleSection } from "@/components/manager/students/class-tab-collapsible-section";
 import { UserStatCard } from "@/components/manager/users/user-stat-card";
 import { PanelPageHeader } from "@/components/panels/panel-page-header";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { useExternalTransactionDialogs } from "@/hooks/use-external-transaction-dialogs";
 import { hasPermissionInSet } from "@/lib/auth/permission-checks";
 import { formatPaymentPhaseMoney } from "@/lib/constants/manager-payment-phase-display";
@@ -63,7 +66,7 @@ const STATEMENT_TABS = {
 const METHOD_FILTER_ALL = "all";
 
 const METHOD_FILTERS = [
-  { value: METHOD_FILTER_ALL, label: "All" },
+  { value: METHOD_FILTER_ALL, label: "All methods" },
   { value: PAYMENT_METHODS.CASH, label: PAYMENT_METHOD_LABELS.cash },
   { value: PAYMENT_METHODS.WHISH, label: PAYMENT_METHOD_LABELS.whish },
 ] as const;
@@ -203,176 +206,160 @@ export function IncomeStatementPanel({
 
   return (
     <div className="flex flex-col gap-6">
-      {!readOnly ? (
-        <>
-          <PanelPageHeader title="Income statement" />
-          <div className="flex flex-wrap items-center justify-end gap-2 empty:hidden">
-            <Can permission={PERMISSIONS.ACCOUNTING_INCOME_STATEMENT_VIEW}>
-              <Link
-                href={ROUTES.MANAGER_INCOME_STATEMENT_HISTORY}
-                className={cn(buttonVariants({ variant: "outline" }))}
-              >
-                <CalendarDaysIcon data-icon="inline-start" />
-                Past months
-              </Link>
-            </Can>
-            <Can
-              permission={PERMISSIONS.ACCOUNTING_INCOME_STATEMENT_ANALYTICS_VIEW}
-            >
-              <Link
-                href={ROUTES.MANAGER_INCOME_STATEMENT_ANALYTICS}
-                className={cn(buttonVariants({ variant: "outline" }))}
-              >
-                <LineChartIcon data-icon="inline-start" />
-                Analytics
-              </Link>
-            </Can>
-          </div>
-        </>
-      ) : null}
-
-      <div className="grid gap-4 @lg/panel:grid-cols-2 @4xl/panel:grid-cols-6">
-        <UserStatCard
-          label="Cash"
-          value={formatPaymentPhaseMoney(cashNet)}
-          accentClassName="border-l-sky-500"
-        />
-        <UserStatCard
-          label="Whish"
-          value={formatPaymentPhaseMoney(whishNet)}
-          accentClassName="border-l-emerald-500"
-        />
-        <UserStatCard
-          label="External credits"
-          value={formatPaymentPhaseMoney(stats.totalCreditsAmount)}
-          accentClassName="border-l-teal-500"
-        />
-        <UserStatCard
-          label="External debits"
-          value={formatPaymentPhaseMoney(stats.totalDebitsAmount)}
-          accentClassName="border-l-rose-500"
-        />
-        <UserStatCard
-          label="Available money"
-          value={formatPaymentPhaseMoney(stats.availableMoney)}
-          accentClassName="border-l-indigo-500"
-        />
-        <UserStatCard
-          label="Total adjustments"
-          value={formatPaymentPhaseMoney(stats.totalAdjustmentsValue)}
-          accentClassName="border-l-amber-500"
-        />
-      </div>
+      {!readOnly ? <PanelPageHeader title="Income statement" /> : null}
 
       <TabsPrimitive
         value={activeTab}
         onValueChange={setActiveTab}
-        className="flex flex-col gap-4"
+        className="flex flex-col gap-6"
       >
-        <TabsListPrimitive className="flex h-auto w-full flex-wrap items-center gap-2 rounded-full bg-muted/60 p-1 ring-1 ring-foreground/8 @lg/panel:w-fit">
-          <TabsTriggerPrimitive
-            value={STATEMENT_TABS.TRANSACTIONS}
-            className={TAB_TRIGGER_CLASS}
-          >
-            Transactions
-            <CountBadge count={transactions.length} />
-          </TabsTriggerPrimitive>
-          <TabsTriggerPrimitive
-            value={STATEMENT_TABS.ADJUSTMENTS}
-            className={TAB_TRIGGER_CLASS}
-          >
-            Adjustments
-            <CountBadge count={adjustments.length} />
-          </TabsTriggerPrimitive>
-        </TabsListPrimitive>
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <TabsListPrimitive className="flex h-auto w-full flex-wrap items-center gap-2 rounded-full bg-muted/60 p-1 ring-1 ring-foreground/8 @lg/panel:w-fit">
+            <TabsTriggerPrimitive
+              value={STATEMENT_TABS.TRANSACTIONS}
+              className={TAB_TRIGGER_CLASS}
+            >
+              Transactions
+              <CountBadge count={transactions.length} />
+            </TabsTriggerPrimitive>
+            <TabsTriggerPrimitive
+              value={STATEMENT_TABS.ADJUSTMENTS}
+              className={TAB_TRIGGER_CLASS}
+            >
+              Adjustments
+              <CountBadge count={adjustments.length} />
+            </TabsTriggerPrimitive>
+          </TabsListPrimitive>
+
+          {!readOnly ? (
+            <div className="flex flex-wrap items-center gap-2 empty:hidden">
+              <Can permission={PERMISSIONS.ACCOUNTING_INCOME_STATEMENT_VIEW}>
+                <Link
+                  href={ROUTES.MANAGER_INCOME_STATEMENT_HISTORY}
+                  className={cn(buttonVariants({ variant: "outline" }))}
+                >
+                  <CalendarDaysIcon data-icon="inline-start" />
+                  Past months
+                </Link>
+              </Can>
+              <Can
+                permission={
+                  PERMISSIONS.ACCOUNTING_INCOME_STATEMENT_ANALYTICS_VIEW
+                }
+              >
+                <Link
+                  href={ROUTES.MANAGER_INCOME_STATEMENT_ANALYTICS}
+                  className={cn(buttonVariants({ variant: "outline" }))}
+                >
+                  <LineChartIcon data-icon="inline-start" />
+                  Analytics
+                </Link>
+              </Can>
+            </div>
+          ) : null}
+        </div>
 
         <TabsContentsPrimitive>
           <TabsContentPrimitive
             value={STATEMENT_TABS.TRANSACTIONS}
-            className="px-0 py-0"
+            className="flex flex-col gap-4 px-0 py-0"
           >
-            <ClassTabCollapsibleSection
-              title="External transactions"
-              description="Credits and debits outside student payment phases."
-              collapsible={false}
-              action={
-                readOnly ? undefined : (
-                  <Can permission={PERMISSIONS.ACCOUNTING_TRANSACTIONS_CREATE}>
-                    <Button
-                      type="button"
-                      size="sm"
-                      onClick={() => setCreateOpen(true)}
-                    >
-                      Add transaction
-                    </Button>
-                  </Can>
-                )
-              }
-            >
-              <div className="border-b border-foreground/10 px-3 py-2.5 sm:px-4">
-                <div
-                  role="radiogroup"
+            <div className="grid gap-4 @lg/panel:grid-cols-2 @4xl/panel:grid-cols-5">
+              <UserStatCard
+                label="Cash"
+                value={formatPaymentPhaseMoney(cashNet)}
+                accentClassName="border-l-sky-500"
+              />
+              <UserStatCard
+                label="Whish"
+                value={formatPaymentPhaseMoney(whishNet)}
+                accentClassName="border-l-emerald-500"
+              />
+              <UserStatCard
+                label="External credits"
+                value={formatPaymentPhaseMoney(stats.totalCreditsAmount)}
+                accentClassName="border-l-teal-500"
+              />
+              <UserStatCard
+                label="External debits"
+                value={formatPaymentPhaseMoney(stats.totalDebitsAmount)}
+                accentClassName="border-l-rose-500"
+              />
+              <UserStatCard
+                label="Available money"
+                value={formatPaymentPhaseMoney(stats.availableMoney)}
+                accentClassName="border-l-indigo-500"
+              />
+            </div>
+
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <Select
+                value={methodFilter}
+                onValueChange={(value) => {
+                  if (!value) {
+                    return;
+                  }
+                  setMethodFilter(value as MethodFilterValue);
+                  transactionsPager.setPage(1);
+                }}
+              >
+                <SelectTrigger
+                  className="w-full sm:w-52"
                   aria-label="Filter transactions by payment method"
-                  className="flex w-fit max-w-full flex-wrap items-center gap-1 rounded-xl border bg-card p-1 shadow-xs"
                 >
-                  {METHOD_FILTERS.map((option) => {
-                    const isActive = option.value === methodFilter;
-                    return (
-                      <button
-                        key={option.value}
-                        type="button"
-                        role="radio"
-                        aria-checked={isActive}
-                        onClick={() => {
-                          setMethodFilter(option.value);
-                          transactionsPager.setPage(1);
-                        }}
-                        className={cn(
-                          "inline-flex h-8 items-center gap-2 rounded-lg border border-transparent px-3 text-sm font-medium",
-                          "transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50",
-                          isActive
-                            ? "border-foreground/20 bg-foreground/10 text-foreground"
-                            : "text-muted-foreground hover:bg-muted hover:text-foreground"
-                        )}
-                      >
+                  <SelectValue placeholder="Payment method">
+                    {(value) =>
+                      METHOD_FILTERS.find((option) => option.value === value)
+                        ?.label ?? "Payment method"
+                    }
+                  </SelectValue>
+                </SelectTrigger>
+                <SelectContent align="start">
+                  {METHOD_FILTERS.map((option) => (
+                    <SelectItem key={option.value} value={option.value}>
+                      <span className="flex w-full items-center justify-between gap-3">
                         {option.label}
-                        <span
-                          className={cn(
-                            "text-xs tabular-nums",
-                            isActive ? "opacity-90" : "opacity-60"
-                          )}
-                        >
+                        <span className="text-xs tabular-nums text-muted-foreground">
                           {methodCounts[option.value]}
                         </span>
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
+                      </span>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
 
-              {filteredTransactions.length === 0 ? (
-                <div className="px-3 py-4 sm:px-4">
-                  {transactions.length === 0 ? (
-                    <EmptyState
-                      size="sm"
-                      icon={WalletIcon}
-                      title="No external transactions recorded yet"
-                      description="Credits and debits outside student payment phases appear here."
-                    />
-                  ) : (
-                    <EmptyState
-                      size="sm"
-                      icon={WalletIcon}
-                      title={`No ${activeMethodLabel} transactions`}
-                      description={
-                        periodLabel
-                          ? `Nothing was paid by ${activeMethodLabel} in ${periodLabel}.`
-                          : `Nothing was paid by ${activeMethodLabel} this month.`
-                      }
-                    />
-                  )}
-                </div>
+              {readOnly ? null : (
+                <Can permission={PERMISSIONS.ACCOUNTING_TRANSACTIONS_CREATE}>
+                  <Button type="button" onClick={() => setCreateOpen(true)}>
+                    <PlusIcon data-icon="inline-start" />
+                    Add transaction
+                  </Button>
+                </Can>
+              )}
+            </div>
+
+            {filteredTransactions.length === 0 ? (
+              transactions.length === 0 ? (
+                <EmptyState
+                  size="sm"
+                  icon={WalletIcon}
+                  title="No external transactions recorded yet"
+                  description="Credits and debits outside student payment phases appear here."
+                />
               ) : (
+                <EmptyState
+                  size="sm"
+                  icon={WalletIcon}
+                  title={`No ${activeMethodLabel} transactions`}
+                  description={
+                    periodLabel
+                      ? `Nothing was paid by ${activeMethodLabel} in ${periodLabel}.`
+                      : `Nothing was paid by ${activeMethodLabel} this month.`
+                  }
+                />
+              )
+            ) : (
+              <div className="overflow-hidden rounded-xl border">
                 <div className="overflow-x-auto">
                   <table className="w-full min-w-[900px] text-sm">
                     <thead>
@@ -465,8 +452,6 @@ export function IncomeStatementPanel({
                     </tbody>
                   </table>
                 </div>
-              )}
-              {filteredTransactions.length > 0 ? (
                 <IncomeTablePagination
                   totalCount={filteredTransactions.length}
                   pageSize={transactionsPager.pageSize}
@@ -477,165 +462,117 @@ export function IncomeStatementPanel({
                     transactionsPager.setPage(1);
                   }}
                 />
-              ) : null}
-            </ClassTabCollapsibleSection>
+              </div>
+            )}
           </TabsContentPrimitive>
 
           <TabsContentPrimitive
             value={STATEMENT_TABS.ADJUSTMENTS}
-            className="px-0 py-0"
+            className="flex flex-col gap-4 px-0 py-0"
           >
-            <ClassTabCollapsibleSection
-              title="Financial adjustments"
-              description="Discounts, scholarships, and manual adjustments by student."
-              collapsible={false}
-            >
-              <div className="space-y-4 p-3 sm:p-4">
-                <div className="grid gap-2 @lg/panel:grid-cols-2 @2xl/panel:grid-cols-5">
-                  <div className="flex items-start gap-3 rounded-lg border px-3 py-2">
-                    <UsersIcon
-                      className="mt-0.5 size-4 shrink-0 text-muted-foreground"
-                      aria-hidden
-                    />
-                    <div className="min-w-0">
-                      <p className="text-xs text-muted-foreground">People</p>
-                      <p className="text-lg font-semibold tabular-nums">
-                        {stats.adjustmentPeopleCount}
-                      </p>
-                    </div>
-                  </div>
-                  <div className="flex items-start gap-3 rounded-lg border px-3 py-2">
-                    <FileTextIcon
-                      className="mt-0.5 size-4 shrink-0 text-muted-foreground"
-                      aria-hidden
-                    />
-                    <div className="min-w-0">
-                      <p className="text-xs text-muted-foreground">Records</p>
-                      <p className="text-lg font-semibold tabular-nums">
-                        {stats.adjustmentCount}
-                      </p>
-                    </div>
-                  </div>
-                  <div className="flex items-start gap-3 rounded-lg border px-3 py-2">
-                    <GraduationCapIcon
-                      className="mt-0.5 size-4 shrink-0 text-muted-foreground"
-                      aria-hidden
-                    />
-                    <div className="min-w-0">
-                      <p className="text-xs text-muted-foreground">
-                        Scholarships
-                      </p>
-                      <p className="text-lg font-semibold tabular-nums">
-                        {stats.scholarshipCount}
-                      </p>
-                    </div>
-                  </div>
-                  <div className="flex items-start gap-3 rounded-lg border px-3 py-2">
-                    <BadgeDollarSignIcon
-                      className="mt-0.5 size-4 shrink-0 text-muted-foreground"
-                      aria-hidden
-                    />
-                    <div className="min-w-0">
-                      <p className="text-xs text-muted-foreground">
-                        Adjustments total
-                      </p>
-                      <p className="text-lg font-semibold tabular-nums">
-                        {formatPaymentPhaseMoney(stats.totalAdjustmentsValue)}
-                      </p>
-                    </div>
-                  </div>
-                  <div className="flex items-start gap-3 rounded-lg border px-3 py-2">
-                    <SlidersHorizontalIcon
-                      className="mt-0.5 size-4 shrink-0 text-muted-foreground"
-                      aria-hidden
-                    />
-                    <div className="min-w-0">
-                      <p className="text-xs text-muted-foreground">Manual</p>
-                      <p className="text-lg font-semibold tabular-nums">
-                        {stats.manualAdjustmentCount}
-                      </p>
-                    </div>
-                  </div>
-                </div>
+            <div className="grid gap-4 @lg/panel:grid-cols-2 @4xl/panel:grid-cols-5">
+              <UserStatCard
+                label="Adjustments total"
+                value={formatPaymentPhaseMoney(stats.totalAdjustmentsValue)}
+                accentClassName="border-l-amber-500"
+              />
+              <UserStatCard
+                label="People"
+                value={stats.adjustmentPeopleCount}
+                accentClassName="border-l-sky-500"
+              />
+              <UserStatCard
+                label="Records"
+                value={stats.adjustmentCount}
+                accentClassName="border-l-indigo-500"
+              />
+              <UserStatCard
+                label="Scholarships"
+                value={stats.scholarshipCount}
+                accentClassName="border-l-emerald-500"
+              />
+              <UserStatCard
+                label="Manual"
+                value={stats.manualAdjustmentCount}
+                accentClassName="border-l-rose-500"
+              />
+            </div>
 
-                {adjustments.length === 0 ? (
-                  <EmptyState
-                    size="sm"
-                    icon={FileTextIcon}
-                    title="No financial adjustments recorded yet"
-                    description="Discounts, scholarships, and manual adjustments appear here."
-                  />
-                ) : (
-                  <div className="overflow-x-auto rounded-xl border">
-                    <table className="w-full min-w-[760px] text-sm">
-                      <thead>
-                        <tr className="border-b bg-muted/40 text-left">
-                          <th className="px-4 py-3 font-medium">Student</th>
-                          <th className="px-4 py-3 font-medium">Phase</th>
-                          <th className="px-4 py-3 font-medium">Type</th>
-                          <th className="px-4 py-3 font-medium text-right">
-                            Value
-                          </th>
-                          <th className="px-4 py-3 font-medium">Effective</th>
-                          <th className="px-4 py-3 font-medium">Reason</th>
+            {adjustments.length === 0 ? (
+              <EmptyState
+                size="sm"
+                icon={FileTextIcon}
+                title="No financial adjustments recorded yet"
+                description="Discounts, scholarships, and manual adjustments appear here."
+              />
+            ) : (
+              <div className="overflow-hidden rounded-xl border">
+                <div className="overflow-x-auto">
+                  <table className="w-full min-w-[760px] text-sm">
+                    <thead>
+                      <tr className="border-b bg-muted/40 text-left">
+                        <th className="px-4 py-3 font-medium">Student</th>
+                        <th className="px-4 py-3 font-medium">Phase</th>
+                        <th className="px-4 py-3 font-medium">Type</th>
+                        <th className="px-4 py-3 font-medium text-right">
+                          Value
+                        </th>
+                        <th className="px-4 py-3 font-medium">Effective</th>
+                        <th className="px-4 py-3 font-medium">Reason</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {adjustmentsPager.pagedRows.map((row) => (
+                        <tr
+                          key={row.id}
+                          className="border-b last:border-b-0 hover:bg-muted/30"
+                        >
+                          <td className="max-w-[14rem] px-4 py-3 font-medium">
+                            <TruncatedCell
+                              value={row.student_label}
+                              maxLength={32}
+                            />
+                          </td>
+                          <td className="max-w-[12rem] px-4 py-3">
+                            <TruncatedCell
+                              value={row.payment_phase_name}
+                              maxLength={28}
+                            />
+                          </td>
+                          <td className="px-4 py-3">{row.type_label}</td>
+                          <td className="whitespace-nowrap px-4 py-3 text-right tabular-nums">
+                            {formatAdjustmentValue(row.value_type, row.value)}
+                          </td>
+                          <td className="whitespace-nowrap px-4 py-3 text-muted-foreground">
+                            {format(
+                              new Date(`${row.effective_date}T00:00:00`),
+                              "MMM d, yyyy"
+                            )}
+                          </td>
+                          <td className="max-w-[14rem] px-4 py-3 text-muted-foreground">
+                            {row.reason ? (
+                              <TruncatedCell value={row.reason} maxLength={36} />
+                            ) : (
+                              "—"
+                            )}
+                          </td>
                         </tr>
-                      </thead>
-                      <tbody>
-                        {adjustmentsPager.pagedRows.map((row) => (
-                          <tr
-                            key={row.id}
-                            className="border-b last:border-b-0 hover:bg-muted/30"
-                          >
-                            <td className="max-w-[14rem] px-4 py-3 font-medium">
-                              <TruncatedCell
-                                value={row.student_label}
-                                maxLength={32}
-                              />
-                            </td>
-                            <td className="max-w-[12rem] px-4 py-3">
-                              <TruncatedCell
-                                value={row.payment_phase_name}
-                                maxLength={28}
-                              />
-                            </td>
-                            <td className="px-4 py-3">{row.type_label}</td>
-                            <td className="whitespace-nowrap px-4 py-3 text-right tabular-nums">
-                              {formatAdjustmentValue(row.value_type, row.value)}
-                            </td>
-                            <td className="whitespace-nowrap px-4 py-3 text-muted-foreground">
-                              {format(
-                                new Date(`${row.effective_date}T00:00:00`),
-                                "MMM d, yyyy"
-                              )}
-                            </td>
-                            <td className="max-w-[14rem] px-4 py-3 text-muted-foreground">
-                              {row.reason ? (
-                                <TruncatedCell
-                                  value={row.reason}
-                                  maxLength={36}
-                                />
-                              ) : (
-                                "—"
-                              )}
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                    <IncomeTablePagination
-                      totalCount={adjustments.length}
-                      pageSize={adjustmentsPager.pageSize}
-                      currentPage={adjustmentsPager.page}
-                      onPageChange={adjustmentsPager.setPage}
-                      onPageSizeChange={(size) => {
-                        adjustmentsPager.setPageSize(size);
-                        adjustmentsPager.setPage(1);
-                      }}
-                    />
-                  </div>
-                )}
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+                <IncomeTablePagination
+                  totalCount={adjustments.length}
+                  pageSize={adjustmentsPager.pageSize}
+                  currentPage={adjustmentsPager.page}
+                  onPageChange={adjustmentsPager.setPage}
+                  onPageSizeChange={(size) => {
+                    adjustmentsPager.setPageSize(size);
+                    adjustmentsPager.setPage(1);
+                  }}
+                />
               </div>
-            </ClassTabCollapsibleSection>
+            )}
           </TabsContentPrimitive>
         </TabsContentsPrimitive>
       </TabsPrimitive>

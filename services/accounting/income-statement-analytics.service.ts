@@ -321,6 +321,8 @@ export async function getIncomeStatementAnalyticsSummaryForManager(
   let creditsTotal = 0;
   let debitsTotal = 0;
   let adjustmentsTotal = 0;
+  let cashTransactionsTotal = 0;
+  let whishTransactionsTotal = 0;
 
   for (const row of scopedPayments) {
     const amount = Number(row.amount);
@@ -355,6 +357,14 @@ export async function getIncomeStatementAnalyticsSummaryForManager(
     } else if (row.type === TRANSACTION_TYPES.DEBIT) {
       debitsTotal += amount;
       if (bucket) bucket.debits += amount;
+    }
+
+    const signedAmount =
+      row.type === TRANSACTION_TYPES.DEBIT ? -amount : amount;
+    if (row.payment_method === PAYMENT_METHODS.CASH) {
+      cashTransactionsTotal += signedAmount;
+    } else if (row.payment_method === PAYMENT_METHODS.WHISH) {
+      whishTransactionsTotal += signedAmount;
     }
   }
 
@@ -403,6 +413,8 @@ export async function getIncomeStatementAnalyticsSummaryForManager(
       credits: creditsTotal,
       debits: debitsTotal,
       adjustments: adjustmentsTotal,
+      cashTransactions: cashTransactionsTotal,
+      whishTransactions: whishTransactionsTotal,
     },
   };
 }

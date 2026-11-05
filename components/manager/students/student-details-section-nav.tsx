@@ -1,11 +1,7 @@
 "use client";
 
 import type { ComponentType } from "react";
-import {
-  BookOpenIcon,
-  HistoryIcon,
-  PackageIcon,
-} from "lucide-react";
+import { BookOpenIcon, HistoryIcon } from "lucide-react";
 import {
   scrollToStudentDetailsSection,
   STUDENT_DETAILS_SECTION_IDS,
@@ -30,16 +26,6 @@ const NAV_CARDS: NavCardConfig[] = [
     themeClassName:
       "bg-sky-100/90 ring-sky-200/80 hover:bg-sky-100 dark:bg-sky-950/40 dark:ring-sky-800/60 dark:hover:bg-sky-950/55",
     iconClassName: "bg-sky-200/70 text-sky-700 dark:bg-sky-900/60 dark:text-sky-300",
-  },
-  {
-    id: STUDENT_DETAILS_SECTION_IDS.borrowing,
-    label: "Borrowing",
-    description: "Borrowed equipment records",
-    icon: PackageIcon,
-    themeClassName:
-      "bg-violet-100/90 ring-violet-200/80 hover:bg-violet-100 dark:bg-violet-950/40 dark:ring-violet-800/60 dark:hover:bg-violet-950/55",
-    iconClassName:
-      "bg-violet-200/70 text-violet-700 dark:bg-violet-900/60 dark:text-violet-300",
   },
   {
     id: STUDENT_DETAILS_SECTION_IDS.activity,

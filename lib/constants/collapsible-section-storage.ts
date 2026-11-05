@@ -20,5 +20,4 @@ export const COLLAPSIBLE_SECTION_STORAGE_KEYS = {
   CLASSES_STUDENTS_WITHOUT_ACTIVE_CLASS:
     "etkan:collapsible:classes:students-without-active-class",
   STUDENT_DETAILS_ACTIVITY: "etkan:collapsible:student-details:activity:v2",
-  STUDENT_DETAILS_BORROWING: "etkan:collapsible:student-details:borrowing",
 } as const;

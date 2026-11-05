@@ -8,7 +8,7 @@ import {
 import { cn } from "@/lib/utils";
 import { truncateText } from "@/lib/utils/truncate-text";
 
-export const PAGE_SIZE_OPTIONS = [5, 10, 25] as const;
+export const PAGE_SIZE_OPTIONS = [5, 10, 25, 50] as const;
 export const STATUS_FILTER_ALL = "all";
 
 export type AccountingTablePageSize = (typeof PAGE_SIZE_OPTIONS)[number];

@@ -87,6 +87,11 @@ const validStudentInput = {
 };
 
 function mockStudentLookups() {
+  vi.mocked(profileRepository.findProfileAvatarUrlById).mockResolvedValue({
+    data: { id: "user-1", avatar_url: null },
+    error: null,
+  } as never);
+
   vi.mocked(profileRepository.findProfileById).mockResolvedValue({
     data: {
       id: "user-1",
@@ -207,6 +212,7 @@ describe("getStudentForManager", () => {
 
     expect(student?.full_name).toBe("Jane Doe");
     expect(student?.email).toBe("jane@school.com");
+    expect(student?.avatar_url).toBeNull();
   });
 });
 

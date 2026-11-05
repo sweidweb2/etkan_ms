@@ -23,6 +23,8 @@ export {
   updateSessionSettingsAction,
   updateClassSessionAction,
   deleteClassSessionAction,
+  skipClassWeekAction,
+  unskipClassWeekAction,
 } from "./actions/sessions";
 
 export {

@@ -297,7 +297,7 @@ export function ManageSubjectsPanel({
         <SubjectsPagination position="top" {...paginationProps} />
 
         <div className="flex flex-col gap-3 @lg/panel:flex-row @lg/panel:items-center">
-          <div className="relative min-w-0 flex-1">
+          <div className="relative w-full @lg/panel:w-72">
             <SearchIcon className="pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-muted-foreground" />
             <Input
               value={searchQuery}
@@ -347,7 +347,7 @@ export function ManageSubjectsPanel({
             }
           />
         ) : (
-          <div className="grid grid-cols-2 gap-3 @lg/panel:grid-cols-3 @xl/panel:grid-cols-4 @2xl/panel:grid-cols-5 @4xl/panel:grid-cols-6 @6xl/panel:grid-cols-7">
+          <div className="grid grid-cols-2 gap-4 @2xl/panel:grid-cols-3 @4xl/panel:grid-cols-4 @6xl/panel:grid-cols-5">
             {paginatedSubjects.map((subject) => (
               <SubjectCard key={subject.id} subject={subject} />
             ))}

@@ -37,6 +37,7 @@ import { EditPaymentPhaseDialog } from "@/components/manager/accounting/edit-pay
 import { PaymentPhaseStatusBadge } from "@/components/manager/accounting/payment-phase-status-badge";
 import { PaymentPhasesTimeline } from "@/components/manager/accounting/payment-phases-timeline";
 import { UpfrontWindowChip } from "@/components/manager/accounting/upfront-window-chip";
+import { ListViewModeToggle } from "@/components/manager/shared/list-view-mode-toggle";
 import { UserStatCard } from "@/components/manager/users/user-stat-card";
 import { PanelPageHeader } from "@/components/panels/panel-page-header";
 import { Button } from "@/components/ui/button";
@@ -53,6 +54,11 @@ import {
 } from "@/components/ui/select";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { useHasMounted } from "@/hooks/use-has-mounted";
+import { usePersistedListViewMode } from "@/hooks/use-persisted-list-view-mode";
+import {
+  MANAGER_LIST_VIEW_MODES,
+  MANAGER_LIST_VIEW_MODE_STORAGE_KEYS,
+} from "@/lib/constants/manager-list-view-mode";
 import {
   MANAGER_ACCOUNTING_TABS,
   readManagerAccountingTab,
@@ -113,6 +119,177 @@ function matchesPhaseSearch(phase: ManagerPaymentPhaseRow, query: string) {
   return haystack.includes(normalizedQuery);
 }
 
+const SPP_RING_RADIUS = 12;
+const SPP_RING_CIRCUMFERENCE = 2 * Math.PI * SPP_RING_RADIUS;
+
+function SppPaidSummary({ paid, active }: { paid: number; active: number }) {
+  const ratio = active > 0 ? Math.min(1, paid / active) : 0;
+  const percent = Math.round(ratio * 100);
+
+  return (
+    <div
+      role="group"
+      aria-label={`SPP paid: ${paid} of ${active} active (${percent}%)`}
+      className="flex h-10 items-center gap-2.5 rounded-xl border bg-card pr-2 pl-1.5 shadow-xs"
+    >
+      <svg viewBox="0 0 32 32" className="size-7 -rotate-90" aria-hidden="true">
+        <circle
+          cx="16"
+          cy="16"
+          r={SPP_RING_RADIUS}
+          strokeWidth="4"
+          className="fill-none stroke-muted"
+        />
+        {ratio > 0 ? (
+          <circle
+            cx="16"
+            cy="16"
+            r={SPP_RING_RADIUS}
+            strokeWidth="4"
+            strokeLinecap="round"
+            strokeDasharray={SPP_RING_CIRCUMFERENCE}
+            strokeDashoffset={SPP_RING_CIRCUMFERENCE * (1 - ratio)}
+            className="fill-none stroke-emerald-500 transition-[stroke-dashoffset] duration-500"
+          />
+        ) : null}
+      </svg>
+      <div className="flex flex-col leading-tight">
+        <span className="text-[11px] text-muted-foreground">SPP paid</span>
+        <span className="text-sm font-semibold tabular-nums">
+          {paid}
+          <span className="font-normal text-muted-foreground"> / {active}</span>
+        </span>
+      </div>
+      <span className="rounded-md bg-emerald-500/10 px-1.5 py-0.5 text-xs font-medium tabular-nums text-emerald-700 dark:text-emerald-300">
+        {percent}%
+      </span>
+    </div>
+  );
+}
+
+const PHASE_CARD_CLASS =
+  "group flex cursor-pointer flex-col gap-4 rounded-xl border bg-card p-4 shadow-xs transition-all duration-150 hover:-translate-y-0.5 hover:border-primary/40 hover:shadow-md active:translate-y-0 active:bg-primary/5 focus-visible:border-primary/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring";
+
+type PaymentPhaseCardProps = {
+  phase: ManagerPaymentPhaseRow;
+  position: number;
+  onOpen: (phaseId: string) => void;
+  onKeyDown: (event: KeyboardEvent<HTMLElement>, phaseId: string) => void;
+  onEdit: (phase: ManagerPaymentPhaseRow) => void;
+};
+
+function PaymentPhaseCard({
+  phase,
+  position,
+  onOpen,
+  onKeyDown,
+  onEdit,
+}: PaymentPhaseCardProps) {
+  return (
+    <div
+      className={PHASE_CARD_CLASS}
+      tabIndex={0}
+      role="link"
+      aria-label={`View ${phase.name}`}
+      onClick={() => onOpen(phase.id)}
+      onKeyDown={(event) => onKeyDown(event, phase.id)}
+    >
+      <div className="flex items-start gap-3">
+        <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-primary/10 text-xs font-semibold tabular-nums text-primary">
+          {position}
+        </span>
+        <div className="flex min-w-0 flex-1 flex-col gap-1">
+          <div className="flex min-w-0 items-start justify-between gap-2">
+            <TruncatedCell
+              value={phase.name}
+              maxLength={32}
+              className="font-medium"
+            />
+            <span className="shrink-0">
+              <PaymentPhaseStatusBadge
+                status={phase.status as PaymentPhaseStatus}
+              />
+            </span>
+          </div>
+          <div
+            className="min-w-0 text-sm"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <Link
+              href={getManagerSemesterDetailRoute(phase.semester_id)}
+              className="text-primary hover:underline"
+            >
+              <TruncatedCell value={phase.semester_name} maxLength={36} />
+            </Link>
+          </div>
+        </div>
+      </div>
+
+      <div className="flex items-end justify-between gap-3">
+        <div className="min-w-0">
+          <p className="text-[11px] leading-tight text-muted-foreground">
+            Amount
+          </p>
+          <p className="truncate text-xl font-semibold tabular-nums tracking-tight">
+            {formatPaymentPhaseMoney(phase.amount)}
+          </p>
+        </div>
+        <div className="min-w-0 text-right">
+          <p className="text-[11px] leading-tight text-muted-foreground">
+            Upfront
+          </p>
+          <p className="truncate text-sm font-medium tabular-nums text-muted-foreground">
+            {formatPaymentPhaseMoney(phase.upfront_amount)}
+          </p>
+        </div>
+      </div>
+
+      <div className="mt-auto flex items-center justify-between gap-2 border-t pt-3">
+        <span className="inline-flex min-w-0 items-center gap-2 text-xs text-muted-foreground">
+          <span>
+            SPP paid{" "}
+            <span className="font-medium tabular-nums text-foreground">
+              {phase.spp_paid_count}/{phase.spp_active_count}
+            </span>
+          </span>
+          {phase.upfront_window_active ? <UpfrontWindowChip /> : null}
+        </span>
+        <div
+          className="flex items-center justify-end gap-0.5"
+          onClick={(event) => event.stopPropagation()}
+        >
+          {phase.status !== PAYMENT_PHASE_STATUSES.CANCELLED ? (
+            <Can permission={PERMISSIONS.ACCOUNTING_PAYMENT_PHASES_UPDATE}>
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon-sm"
+                aria-label={`Edit ${phase.name}`}
+                className="text-muted-foreground hover:text-foreground"
+                onClick={() => onEdit(phase)}
+              >
+                <PencilIcon />
+              </Button>
+            </Can>
+          ) : null}
+          <Button
+            render={
+              <Link href={getManagerAccountingPhaseDetailRoute(phase.id)} />
+            }
+            nativeButton={false}
+            variant="ghost"
+            size="icon-sm"
+            aria-label={`View ${phase.name}`}
+            className="text-muted-foreground hover:text-foreground"
+          >
+            <EyeIcon />
+          </Button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 type ManageAccountingPanelProps = {
   initialPhases: ManagerPaymentPhaseRow[];
   paidThisMonthTotal: number;
@@ -162,6 +339,10 @@ export function ManageAccountingPanel({
     10
   );
   const [currentPage, setCurrentPage] = useState(1);
+  const [viewMode, setViewMode] = usePersistedListViewMode(
+    MANAGER_LIST_VIEW_MODE_STORAGE_KEYS.ACCOUNTING_PHASES
+  );
+  const isGridView = viewMode === MANAGER_LIST_VIEW_MODES.GRID;
 
   const stats = useMemo(() => {
     return {
@@ -250,9 +431,13 @@ export function ManageAccountingPanel({
   };
 
   const handlePhaseRowKeyDown = (
-    event: KeyboardEvent<HTMLTableRowElement>,
+    event: KeyboardEvent<HTMLElement>,
     phaseId: string
   ) => {
+    // Enter/Space on a nested link or button must not also open the row.
+    if (event.target !== event.currentTarget) {
+      return;
+    }
     if (event.key === "Enter" || event.key === " ") {
       event.preventDefault();
       openPhaseDetails(phaseId);
@@ -291,7 +476,7 @@ export function ManageAccountingPanel({
         <TabsPrimitive
           value={activeTab}
           onValueChange={handleTabChange}
-          className="flex flex-col gap-4"
+          className="flex flex-col gap-[80px]"
         >
           <div className="flex flex-col gap-3 @lg/panel:flex-row @lg/panel:items-center @lg/panel:justify-between">
             <TabsListPrimitive className="flex h-auto w-full flex-wrap items-center gap-2 rounded-full bg-muted/60 p-1 ring-1 ring-foreground/8 @lg/panel:w-fit">
@@ -316,14 +501,10 @@ export function ManageAccountingPanel({
             </TabsListPrimitive>
 
             <div className="flex flex-wrap items-center gap-3 @lg/panel:justify-end">
-              <div className="rounded-lg border-l-4 border-l-emerald-500 bg-card px-3 py-1.5 ring-1 ring-foreground/10">
-                <p className="text-[11px] leading-tight text-muted-foreground">
-                  SPP paid / active
-                </p>
-                <p className="text-sm font-semibold tabular-nums tracking-tight">
-                  {stats.sppPaidCount}/{stats.sppActiveCount}
-                </p>
-              </div>
+              <SppPaidSummary
+                paid={stats.sppPaidCount}
+                active={stats.sppActiveCount}
+              />
               <Can permission={PERMISSIONS.ACCOUNTING_PAYMENT_PHASES_CREATE}>
                 <Button type="button" onClick={() => setIsCreateOpen(true)}>
                   <PlusIcon data-icon="inline-start" />
@@ -335,7 +516,7 @@ export function ManageAccountingPanel({
 
           <TabsContentsPrimitive>
             <TabsContentPrimitive value="phases" className="outline-none">
-              <div className="flex flex-col gap-4">
+              <div className="flex flex-col gap-5">
                 <div className="flex flex-col gap-3 @lg/panel:flex-row @lg/panel:items-center">
                   <div className="relative max-w-md flex-1">
                     <SearchIcon className="pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-muted-foreground" />
@@ -390,6 +571,12 @@ export function ManageAccountingPanel({
                       Show all
                     </Label>
                   </div>
+                  <ListViewModeToggle
+                    value={viewMode}
+                    onChange={setViewMode}
+                    label="Payment phases layout"
+                    className="self-end @lg/panel:ml-auto @lg/panel:self-auto"
+                  />
                 </div>
 
                 {paginatedPhases.length === 0 ? (
@@ -406,6 +593,19 @@ export function ManageAccountingPanel({
                         : "Try a different search or status."
                     }
                   />
+                ) : isGridView ? (
+                  <div className="grid gap-3 @lg/panel:grid-cols-2 @4xl/panel:grid-cols-3">
+                    {paginatedPhases.map((phase, index) => (
+                      <PaymentPhaseCard
+                        key={phase.id}
+                        phase={phase}
+                        position={rangeStart + index}
+                        onOpen={openPhaseDetails}
+                        onKeyDown={handlePhaseRowKeyDown}
+                        onEdit={setEditPhase}
+                      />
+                    ))}
+                  </div>
                 ) : (
                   <div className="overflow-x-auto overflow-hidden rounded-xl border">
                     <table className="w-full min-w-[900px] text-sm">
@@ -562,7 +762,7 @@ export function ManageAccountingPanel({
                     </span>
                     <span aria-hidden="true">·</span>
                     <div className="flex items-center gap-2">
-                      <span>Rows</span>
+                      <span>{isGridView ? "Cards" : "Rows"}</span>
                       <Select
                         value={String(pageSize)}
                         onValueChange={handlePageSizeChange}
@@ -570,7 +770,9 @@ export function ManageAccountingPanel({
                         <SelectTrigger
                           size="sm"
                           className="w-16"
-                          aria-label="Rows per page"
+                          aria-label={
+                            isGridView ? "Cards per page" : "Rows per page"
+                          }
                         >
                           <SelectValue />
                         </SelectTrigger>

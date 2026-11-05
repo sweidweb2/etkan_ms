@@ -190,6 +190,48 @@ export type Database = {
           },
         ]
       }
+      class_session_skips: {
+        Row: {
+          class_id: string
+          created_at: string
+          created_by: string | null
+          id: string
+          reason: string | null
+          skip_date: string
+        }
+        Insert: {
+          class_id: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          reason?: string | null
+          skip_date: string
+        }
+        Update: {
+          class_id?: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          reason?: string | null
+          skip_date?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "class_session_skips_class_id_fkey"
+            columns: ["class_id"]
+            isOneToOne: false
+            referencedRelation: "classes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "class_session_skips_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       class_teacher: {
         Row: {
           assigned_at: string | null
@@ -1181,7 +1223,6 @@ export type Database = {
           group_grade_level: string | null
           id: string
           nb_order: number
-          semester_id: string | null
           session_report: string | null
           starts_at: string
           topic: string
@@ -1193,7 +1234,6 @@ export type Database = {
           group_grade_level?: string | null
           id?: string
           nb_order: number
-          semester_id?: string | null
           session_report?: string | null
           starts_at: string
           topic: string
@@ -1205,7 +1245,6 @@ export type Database = {
           group_grade_level?: string | null
           id?: string
           nb_order?: number
-          semester_id?: string | null
           session_report?: string | null
           starts_at?: string
           topic?: string
@@ -1216,13 +1255,6 @@ export type Database = {
             columns: ["class_id"]
             isOneToOne: false
             referencedRelation: "classes"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "sessions_semester_id_fkey"
-            columns: ["semester_id"]
-            isOneToOne: false
-            referencedRelation: "semesters"
             referencedColumns: ["id"]
           },
         ]
@@ -3098,6 +3130,20 @@ export type Database = {
       renumber_sessions_after_delete: {
         Args: { p_class_id: string }
         Returns: number
+      }
+      create_next_weekly_session_for_class: {
+        Args: { p_class_id: string; p_lead_days?: number }
+        Returns: string | null
+      }
+      skip_class_week: {
+        Args: {
+          p_class_id: string
+          p_created_by: string | null
+          p_reason: string | null
+          p_session_id?: string | null
+          p_skip_date: string
+        }
+        Returns: string
       }
       copy_weekly_schedule_from_last_week: {
         Args: { p_week_start: string }

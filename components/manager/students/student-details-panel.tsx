@@ -66,8 +66,7 @@ type StudentDetailsPanelProps = {
   stats?: ManagerStudentDetailStats;
   classBundles: ManagerStudentClassAcademicBundle[];
   registrationApplicationId: string | null;
-  /** Streamed secondary panels (manager only). */
-  borrowingSection?: ReactNode;
+  /** Streamed secondary panel (manager only). */
   activitySection?: ReactNode;
   /** Student panel: locked personal info + password change only. */
   variant?: "manager" | "self";
@@ -118,7 +117,6 @@ export function StudentDetailsPanel({
   stats,
   classBundles,
   registrationApplicationId,
-  borrowingSection,
   activitySection,
   variant = "manager",
 }: StudentDetailsPanelProps) {
@@ -416,15 +414,6 @@ export function StudentDetailsPanel({
             initialClasses={classBundles.map((bundle) => bundle.classRow)}
             classBundles={classBundles}
           />
-        </div>
-      )}
-
-      {isSelf ? null : (
-        <div
-          id={STUDENT_DETAILS_SECTION_IDS.borrowing}
-          className="scroll-mt-6"
-        >
-          {borrowingSection}
         </div>
       )}
 

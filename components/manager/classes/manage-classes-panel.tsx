@@ -38,7 +38,9 @@ import {
   MANAGER_CLASS_STATUS_LABELS,
   MANAGER_CLASS_STATUS_TAB_CLASSES,
 } from "@/lib/constants/manager-class-display";
+import { CLASS_CARD_GRADIENT_KEYS } from "@/lib/constants/class-card-gradients";
 import { COLLAPSIBLE_SECTION_STORAGE_KEYS } from "@/lib/constants/collapsible-section-storage";
+import { useGridColumnCount } from "@/hooks/use-grid-column-count";
 import { PERMISSIONS } from "@/lib/constants/permissions";
 import { cn } from "@/lib/utils";
 import { showErrorToast } from "@/lib/toast";
@@ -108,6 +110,11 @@ export function ManageClassesPanel({ initialData }: ManageClassesPanelProps) {
     initialData.classes
   );
   const [totalCount, setTotalCount] = useState(initialData.totalCount);
+  const gridRef = useRef<HTMLDivElement>(null);
+  const gridColumnCount = useGridColumnCount(gridRef, {
+    fallback: 4,
+    isMounted: classes.length > 0,
+  });
   const [statusCounts, setStatusCounts] = useState<ManagerClassStatusCounts>(
     initialData.statusCounts
   );
@@ -241,11 +248,12 @@ export function ManageClassesPanel({ initialData }: ManageClassesPanelProps) {
   return (
     <div className="flex flex-col gap-6">
       <PanelPageHeader title="Manage classes" />
-      <div className="flex flex-col-reverse gap-3 @4xl/panel:flex-row @4xl/panel:items-center @4xl/panel:justify-between">
+      <div className="flex flex-col-reverse items-center gap-3 @4xl/panel:grid @4xl/panel:grid-cols-[1fr_auto_1fr]">
+        <div aria-hidden className="hidden @4xl/panel:block" />
         <div
           role="tablist"
           aria-label="Filter classes by status"
-          className="flex w-fit max-w-full flex-wrap items-center gap-1 rounded-xl border bg-card p-1 shadow-xs"
+          className="flex w-fit max-w-full flex-wrap items-center justify-center gap-1 rounded-xl border bg-card p-1 shadow-xs"
         >
           {statusTabs.map((tab) => {
             const isActive = tab.value === statusFilter;
@@ -299,7 +307,7 @@ export function ManageClassesPanel({ initialData }: ManageClassesPanelProps) {
             );
           })}
         </div>
-        <div className="flex shrink-0 items-center justify-end gap-2">
+        <div className="flex shrink-0 items-center justify-end gap-2 self-end @4xl/panel:self-auto @4xl/panel:justify-self-end">
           <Tooltip>
             <TooltipTrigger
               render={
@@ -356,13 +364,23 @@ export function ManageClassesPanel({ initialData }: ManageClassesPanelProps) {
           />
         ) : (
           <div
+            ref={gridRef}
             className={cn(
               "grid w-full gap-4 [grid-template-columns:repeat(auto-fill,minmax(min(100%,15rem),1fr))]",
               isLoading && "opacity-60"
             )}
           >
-            {classes.map((classRow) => (
-              <ClassCard key={classRow.id} classRow={classRow} />
+            {classes.map((classRow, index) => (
+              <ClassCard
+                key={classRow.id}
+                classRow={classRow}
+                cardGradient={
+                  CLASS_CARD_GRADIENT_KEYS[
+                    Math.floor(index / gridColumnCount) %
+                      CLASS_CARD_GRADIENT_KEYS.length
+                  ]
+                }
+              />
             ))}
           </div>
         )}

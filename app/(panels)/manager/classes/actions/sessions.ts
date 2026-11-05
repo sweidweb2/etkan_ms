@@ -20,7 +20,15 @@ import {
 import {
   parseUpdateSessionSettingsFormData,
 } from "@/lib/validators/manager/update-session-settings";
+import {
+  parseSkipClassWeekFormData,
+  parseUnskipClassWeekFormData,
+} from "@/lib/validators/manager/class-week-skip";
 import { createClassSessionForManager } from "@/services/classes/class.service";
+import {
+  skipClassWeekForManager,
+  unskipClassWeekForManager,
+} from "@/services/classes/class-session-skip.service";
 import {
   deleteClassSessionForManager,
   updateClassSessionForManager,
@@ -34,7 +42,54 @@ import type {
   UpdateClassSessionActionState,
   UpdateSessionSettingsActionState,
 } from "@/types/manager-class-session-detail";
+import type {
+  SkipClassWeekActionState,
+  UnskipClassWeekActionState,
+} from "@/types/manager-class-week-skip";
 import { resolveClassReturnPath } from "./helpers";
+
+function revalidateClassDetailRoutes(classId: string) {
+  revalidatePath(getManagerClassDetailRoute(classId));
+  revalidatePath(getTeacherClassDetailRoute(classId));
+}
+
+export async function skipClassWeekAction(
+  _prevState: SkipClassWeekActionState,
+  formData: FormData
+): Promise<SkipClassWeekActionState> {
+  return runManagerAction({
+    formData,
+    parse: parseSkipClassWeekFormData,
+    mutate: ({ adminClient, actor, data }) =>
+      skipClassWeekForManager(adminClient, actor, data),
+    revalidate: (_result, data) => revalidateClassDetailRoutes(data.class_id),
+    mapSuccess: (result) => ({
+      success: true,
+      message: result.message,
+      weekSkipState: result.state,
+      deletedSessionId: result.deletedSessionId,
+    }),
+  });
+}
+
+export async function unskipClassWeekAction(
+  _prevState: UnskipClassWeekActionState,
+  formData: FormData
+): Promise<UnskipClassWeekActionState> {
+  return runManagerAction({
+    formData,
+    parse: parseUnskipClassWeekFormData,
+    mutate: ({ adminClient, actor, data }) =>
+      unskipClassWeekForManager(adminClient, actor, data),
+    revalidate: (_result, data) => revalidateClassDetailRoutes(data.class_id),
+    mapSuccess: (result) => ({
+      success: true,
+      message: result.message,
+      weekSkipState: result.state,
+      createdSession: result.createdSession,
+    }),
+  });
+}
 
 export async function createClassSessionAction(
   _prevState: CreateClassSessionActionState,
@@ -67,7 +122,6 @@ export async function updateSessionSettingsAction(
       success: true,
       message: result.message,
       session: result.session,
-      linkedPhase: result.linkedPhase,
     }),
   });
 }

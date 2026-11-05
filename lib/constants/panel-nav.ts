@@ -41,18 +41,6 @@ export const MANAGER_PAGES_HUB_GROUPS: PanelNavGroup[] = [
     ],
   },
   {
-    id: "resources",
-    label: "Resources",
-    defaultOpen: true,
-    items: [
-      {
-        title: "Manage equipments",
-        href: ROUTES.MANAGER_EQUIPMENTS,
-        icon: "package",
-      },
-    ],
-  },
-  {
     id: "instructors-workshops",
     label: "Instructors & workshops",
     defaultOpen: true,
@@ -292,7 +280,7 @@ export const TEACHER_PANEL_NAVIGATION = withManageWorkshops({
   items: [],
 });
 
-/** Student panel: classes, payments, borrowings, then profile last. */
+/** Student panel: classes, payments, then profile last. */
 const STUDENT_PANEL_NAVIGATION_BASE = withManageWorkshops({
   items: [
     {
@@ -312,11 +300,6 @@ export const STUDENT_PANEL_NAVIGATION: PanelNavigation = {
   ...STUDENT_PANEL_NAVIGATION_BASE,
   items: [
     ...(STUDENT_PANEL_NAVIGATION_BASE.items ?? []),
-    {
-      title: "My borrowings",
-      href: ROUTES.STUDENT_BORROWINGS,
-      icon: "package",
-    },
     {
       title: "My profile",
       href: ROUTES.STUDENT_ROOT,

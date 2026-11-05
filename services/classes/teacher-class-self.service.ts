@@ -3,6 +3,7 @@ import "server-only";
 import { cache } from "react";
 import { CLASS_STATUSES, type ClassStatusValue } from "@/lib/constants/manager-class-status";
 import { PERMISSIONS } from "@/lib/constants/permissions";
+import { ROLES } from "@/lib/constants/roles";
 import {
   computeClassTaskGradeSummary,
   type ClassTaskGradeSummary,
@@ -31,6 +32,7 @@ import {
   assertPermissions,
 } from "@/services/auth/authorization.service";
 import { getClassComputedGradeLockState } from "@/services/classes/class-computed-grade-lock.service";
+import { getClassWeekSkipState } from "@/services/classes/class-session-skip.service";
 import { loadClassStudentRows } from "@/services/classes/class.service";
 import { ensureSessionAttendeesForMembers } from "@/services/classes/session-seed.service";
 import {
@@ -235,17 +237,24 @@ export async function getTeachingClassPageBundleForSelf(
 
   // Permissions + teaching assignment are already proven above, so skip the
   // manager-path re-asserts and unused teacher-count query.
-  const [classDetailResult, sessionsResult, tasksResult, students, gradeLock] =
-    await Promise.all([
-      classRepository.findClassDetailById(adminClient, classId),
-      sessionRepository.listSessionsByClassId(adminClient, classId),
-      classTaskRepository.listClassTasksByClassId(adminClient, classId),
-      // Skip Auth Admin email fan-out; teacher roster uses the student name.
-      loadClassStudentRows(adminClient, classId, {
-        includeAuthEmails: false,
-      }),
-      getClassComputedGradeLockState(adminClient, classId),
-    ]);
+  const [
+    classDetailResult,
+    sessionsResult,
+    tasksResult,
+    students,
+    gradeLock,
+    weekSkipState,
+  ] = await Promise.all([
+    classRepository.findClassDetailById(adminClient, classId),
+    sessionRepository.listSessionsByClassId(adminClient, classId),
+    classTaskRepository.listClassTasksByClassId(adminClient, classId),
+    // Skip Auth Admin email fan-out; teacher roster uses the student name.
+    loadClassStudentRows(adminClient, classId, {
+      includeAuthEmails: false,
+    }),
+    getClassComputedGradeLockState(adminClient, classId),
+    getClassWeekSkipState(adminClient, { classId, actorRole: ROLES.TEACHER }),
+  ]);
 
   if (classDetailResult.error) {
     throw new Error(classDetailResult.error.message);
@@ -288,6 +297,7 @@ export async function getTeachingClassPageBundleForSelf(
   return {
     classRow,
     sessions: (sessionsResult.data ?? []).map(mapSessionRecord),
+    weekSkipState,
     tasks,
     students: teacherStudents,
     assignedAt: assignment.assignedAt,

@@ -76,10 +76,12 @@ import {
 import type { ManagerClassTaskRow } from "@/types/manager-class-session-detail";
 import type { ClassStudentRow } from "@/types/class-student";
 import type { TeacherClassDetailRow } from "@/types/class-teaching";
+import type { ClassWeekSkipState } from "@/types/manager-class-week-skip";
 
 type TeacherClassDetailsPanelProps = {
   classRow: TeacherClassDetailRow;
   initialSessions: ManagerClassSessionRow[];
+  initialWeekSkipState: ClassWeekSkipState;
   initialTasks: ManagerClassTaskRow[];
   initialStudents?: ClassStudentRow[];
   hasComputedGrades?: boolean;
@@ -126,6 +128,7 @@ const TAB_TRIGGER_CLASS =
 export function TeacherClassDetailsPanel({
   classRow: initialClassRow,
   initialSessions,
+  initialWeekSkipState,
   initialTasks,
   initialStudents = [],
   hasComputedGrades = false,
@@ -182,6 +185,7 @@ export function TeacherClassDetailsPanel({
   const [sessions, setSessions] = useState(() =>
     sortClassSessionsNewestFirst(initialSessions)
   );
+  const [weekSkipState, setWeekSkipState] = useState(initialWeekSkipState);
   const [isChangeStatusOpen, setIsChangeStatusOpen] = useState(false);
   const [selectedSessionId, setSelectedSessionId] = useState<string | null>(
     null
@@ -242,6 +246,16 @@ export function TeacherClassDetailsPanel({
     sessionLoadRequestRef.current += 1;
     setSelectedSessionId(null);
     setSessionDetail(null);
+  }
+
+  function handleSessionsChange(nextSessions: ManagerClassSessionRow[]) {
+    setSessions(nextSessions);
+    if (
+      selectedSessionId &&
+      !nextSessions.some((session) => session.id === selectedSessionId)
+    ) {
+      handleCloseSessionDetail();
+    }
   }
 
   function handleTabChange(nextTab: string) {
@@ -435,7 +449,9 @@ export function TeacherClassDetailsPanel({
                   classId={classRow.id}
                   className={classRow.name}
                   sessions={sessions}
-                  onSessionsChange={setSessions}
+                  onSessionsChange={handleSessionsChange}
+                  weekSkipState={weekSkipState}
+                  onWeekSkipStateChange={setWeekSkipState}
                   onClassUpdated={() => {
                     // Manager path refreshes list counts; teacher derives
                     // counts from local sessions/tasks state.
@@ -466,7 +482,6 @@ export function TeacherClassDetailsPanel({
                           ),
                         }}
                         embedded
-                        hidePhase
                         onClose={handleCloseSessionDetail}
                         onSessionUpdated={handleInlineSessionUpdated}
                       />

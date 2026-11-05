@@ -40,7 +40,6 @@ import type {
   DeleteClassSessionActionState,
   ManagerSessionAttendeeRow,
 } from "@/types/manager-class-session-detail";
-import type { ManagerSessionPhaseLink } from "@/types/manager-session-phase-link";
 
 type ClassSessionDetailsPanelProps = {
   session: ManagerClassSessionRow;
@@ -50,8 +49,6 @@ type ClassSessionDetailsPanelProps = {
     semester_id?: string | null;
     semester_name?: string | null;
   };
-  linkedPhase?: ManagerSessionPhaseLink | null;
-  phaseOptions?: ManagerSessionPhaseLink[];
   initialAttendees: ManagerSessionAttendeeRow[];
   hasComputedGrades?: boolean;
   lockedUserIds?: string[];
@@ -65,8 +62,6 @@ type ClassSessionDetailsPanelProps = {
   embedded?: boolean;
   onClose?: () => void;
   onSessionUpdated?: (session: ManagerClassSessionRow) => void;
-  /** Hide phase linking UI (teacher embedded). */
-  hidePhase?: boolean;
 };
 
 const initialDeleteState: DeleteClassSessionActionState = {};
@@ -99,8 +94,6 @@ function getDeleteBlockedReason(
 export function ClassSessionDetailsPanel({
   session: initialSession,
   classRow,
-  linkedPhase: initialLinkedPhase = null,
-  phaseOptions = [],
   initialAttendees,
   hasComputedGrades = false,
   lockedUserIds = [],
@@ -108,12 +101,9 @@ export function ClassSessionDetailsPanel({
   embedded = false,
   onClose,
   onSessionUpdated,
-  hidePhase = false,
 }: ClassSessionDetailsPanelProps) {
   const [session, setSession] = useState(initialSession);
   const [attendees, setAttendees] = useState(initialAttendees);
-  const [linkedPhase, setLinkedPhase] =
-    useState<ManagerSessionPhaseLink | null>(initialLinkedPhase);
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
   const [isTransitionPending, startTransition] = useTransition();
@@ -137,8 +127,7 @@ export function ClassSessionDetailsPanel({
     // eslint-disable-next-line react-hooks/set-state-in-effect -- sync local editable copies when server props refresh
     setSession(initialSession);
     setAttendees(initialAttendees);
-    setLinkedPhase(initialLinkedPhase);
-  }, [initialSession, initialAttendees, initialLinkedPhase]);
+  }, [initialSession, initialAttendees]);
 
   const nav = navigation ?? {
     classesListHref: ROUTES.MANAGER_CLASSES,
@@ -316,9 +305,6 @@ export function ClassSessionDetailsPanel({
         key={session.id}
         classId={classRow.id}
         sessionId={session.id}
-        linkedPhase={hidePhase ? null : linkedPhase}
-        phaseOptions={hidePhase ? [] : phaseOptions}
-        defaultPhaseId={classRow.semester_id}
         groupGradeLevel={session.group_grade_level}
         sessionReport={session.session_report}
         hasComputedGrades={hasComputedGrades}
@@ -329,13 +315,7 @@ export function ClassSessionDetailsPanel({
             current.map((row) => (row.id === attendee.id ? attendee : row))
           );
         }}
-        hidePhase={hidePhase}
-        onSettingsUpdated={(nextSession, nextLinkedPhase) => {
-          handleSessionUpdated(nextSession);
-          if (!hidePhase && nextLinkedPhase !== undefined) {
-            setLinkedPhase(nextLinkedPhase);
-          }
-        }}
+        onSettingsUpdated={handleSessionUpdated}
       />
     </div>
   );

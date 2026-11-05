@@ -107,7 +107,6 @@ const sessionRecord = {
   session_report: null as string | null,
   starts_at: "2026-07-10T10:00:00.000Z",
   ends_at: "2026-07-10T12:00:00.000Z",
-  semester_id: null as string | null,
   group_grade_level: null as string | null,
   created_at: "2026-07-01T00:00:00.000Z",
 };
@@ -194,10 +193,6 @@ describe("getSessionDetailForManager", () => {
       ],
       error: null,
     } as never);
-    vi.mocked(semesterRepository.listSemesters).mockResolvedValue({
-      data: [{ id: semesterId, name: "Fall 2026" }],
-      error: null,
-    } as never);
     vi.mocked(
       studentProfileRepository.listStudentProfilesByUserIds
     ).mockResolvedValue({
@@ -226,9 +221,7 @@ describe("getSessionDetailForManager", () => {
     expect(result?.session.id).toBe(sessionId);
     expect(result?.attendees).toHaveLength(2);
     expect(result?.tasks).toEqual([]);
-    expect(result?.phaseOptions).toEqual([
-      { phase_id: semesterId, phase_name: "Fall 2026" },
-    ]);
+    expect(semesterRepository.listSemesters).not.toHaveBeenCalled();
   });
 });
 
@@ -332,24 +325,16 @@ describe("updateSessionSettingsForManager", () => {
       {
         session_id: sessionId,
         class_id: classId,
-        semester_id: semesterId,
+        group_grade_level: SESSION_GROUP_GRADE_LEVELS.MEDIUM,
       }
     );
 
     expect(result).toEqual({ success: false, error: "Unauthorized." });
   });
 
-  it("updates only provided settings fields", async () => {
+  it("rejects an update with no settings", async () => {
     vi.mocked(sessionRepository.findSessionById).mockResolvedValue({
       data: sessionRecord,
-      error: null,
-    } as never);
-    vi.mocked(semesterRepository.findSemesterById).mockResolvedValue({
-      data: { id: semesterId, name: "Fall 2026" },
-      error: null,
-    } as never);
-    vi.mocked(sessionRepository.updateSessionSettings).mockResolvedValue({
-      data: { ...sessionRecord, semester_id: semesterId },
       error: null,
     } as never);
 
@@ -360,39 +345,26 @@ describe("updateSessionSettingsForManager", () => {
       {
         session_id: sessionId,
         class_id: classId,
-        semester_id: semesterId,
       }
     );
 
-    expect(sessionRepository.updateSessionSettings).toHaveBeenCalledWith(
-      adminClient,
-      sessionId,
-      { semester_id: semesterId }
-    );
-    expect(result.success).toBe(true);
-    if (result.success) {
-      expect(result.linkedPhase).toEqual({
-        phase_id: semesterId,
-        phase_name: "Fall 2026",
-      });
-    }
+    expect(result).toEqual({
+      success: false,
+      error: "Provide a group grade or session report to update.",
+    });
+    expect(sessionRepository.updateSessionSettings).not.toHaveBeenCalled();
   });
 
-  it("updates group grade without clearing phase", async () => {
+  it("updates only the group grade", async () => {
     vi.mocked(sessionRepository.findSessionById).mockResolvedValue({
-      data: { ...sessionRecord, semester_id: semesterId },
+      data: sessionRecord,
       error: null,
     } as never);
     vi.mocked(sessionRepository.updateSessionSettings).mockResolvedValue({
       data: {
         ...sessionRecord,
-        semester_id: semesterId,
         group_grade_level: SESSION_GROUP_GRADE_LEVELS.MEDIUM,
       },
-      error: null,
-    } as never);
-    vi.mocked(semesterRepository.findSemesterById).mockResolvedValue({
-      data: { id: semesterId, name: "Fall 2026" },
       error: null,
     } as never);
 
@@ -442,38 +414,10 @@ describe("updateSessionSettingsForManager", () => {
     expect(sessionRepository.updateSessionSettings).not.toHaveBeenCalled();
   });
 
-  it("blocks phase updates when computed course grades exist", async () => {
-    vi.mocked(
-      studentCourseGradeRepository.countStudentCourseGradesByClassId
-    ).mockResolvedValue({ count: 1, error: null } as never);
-    vi.mocked(sessionRepository.findSessionById).mockResolvedValue({
-      data: sessionRecord,
-      error: null,
-    } as never);
-
-    const result = await updateSessionSettingsForManager(
-      adminClient,
-      actor.userId,
-      actor,
-      {
-        session_id: sessionId,
-        class_id: classId,
-        semester_id: semesterId,
-      }
-    );
-
-    expect(result).toEqual({
-      success: false,
-      error: CLASS_COMPUTED_GRADES_STRUCTURE_LOCKED_ERROR,
-    });
-    expect(sessionRepository.updateSessionSettings).not.toHaveBeenCalled();
-  });
-
   it("updates session report without clearing other settings", async () => {
     vi.mocked(sessionRepository.findSessionById).mockResolvedValue({
       data: {
         ...sessionRecord,
-        semester_id: semesterId,
         group_grade_level: SESSION_GROUP_GRADE_LEVELS.MEDIUM,
       },
       error: null,
@@ -481,14 +425,9 @@ describe("updateSessionSettingsForManager", () => {
     vi.mocked(sessionRepository.updateSessionSettings).mockResolvedValue({
       data: {
         ...sessionRecord,
-        semester_id: semesterId,
         group_grade_level: SESSION_GROUP_GRADE_LEVELS.MEDIUM,
         session_report: "Students finished the lab.",
       },
-      error: null,
-    } as never);
-    vi.mocked(semesterRepository.findSemesterById).mockResolvedValue({
-      data: { id: semesterId, name: "Fall 2026" },
       error: null,
     } as never);
 

@@ -26,7 +26,6 @@ const MANAGER_SMOKE_ROUTES: ReadonlyArray<{
   { path: "/manager/subjects/catalog", landmark: "Categories & exercises" },
   { path: "/manager/classes", landmark: "Manage classes" },
   { path: "/manager/semesters", landmark: "Manage semesters" },
-  { path: "/manager/equipments", landmark: "Manage equipment" },
   { path: "/manager/instructors", landmark: "Manage instructors" },
   { path: "/manager/instructor-schedules", landmark: "Instructor schedules" },
   {

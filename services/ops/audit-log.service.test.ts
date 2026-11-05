@@ -181,8 +181,8 @@ describe("recordManagerAuditLog", () => {
         user_label: "Manager One",
         action: "update",
         severity: "info",
-        table_name: "equipments",
-        record_id: "eq-1",
+        table_name: "classes",
+        record_id: "class-1",
         old_data: null,
         new_data: null,
         metadata: { note: "updated" },
@@ -193,8 +193,8 @@ describe("recordManagerAuditLog", () => {
 
     await recordManagerAuditLog(adminClient, actor, {
       action: "update",
-      table_name: "equipments",
-      record_id: "eq-1",
+      table_name: "classes",
+      record_id: "class-1",
       metadata: { note: "updated" },
     });
 

@@ -880,7 +880,6 @@ export async function createClassSessionForManager(
     session_report: normalizeOptionalString(parsed.data.session_report),
     starts_at: startsAt,
     ends_at: endsAt,
-    semester_id: existing.data.semester_id,
   });
 
   if (error || !data) {

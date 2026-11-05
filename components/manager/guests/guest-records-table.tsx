@@ -5,6 +5,8 @@ import { Feedback } from "@dnd-kit/dom";
 import { useDraggable } from "@dnd-kit/react";
 import { format } from "date-fns";
 import {
+  ArrowDownIcon,
+  ArrowUpIcon,
   BanIcon,
   CalendarClockIcon,
   CheckCircle2Icon,
@@ -18,6 +20,7 @@ import Link from "next/link";
 import { Can } from "@/components/auth/can";
 import { Button } from "@/components/ui/button";
 import { CopyTextButton } from "@/components/ui/copy-text-button";
+import { LetterAvatar } from "@/components/ui/letter-avatar";
 import {
   Tooltip,
   TooltipContent,
@@ -177,11 +180,58 @@ function CopyableValue({
   );
 }
 
+/** One-click move to an adjacent box (guest list or team). */
+export type GuestMoveTarget = {
+  label: string;
+  onMove: (guest: ManagerGuestRow) => void;
+};
+
+function MoveGuestButton({
+  guest,
+  target,
+  direction,
+  disabled,
+}: {
+  guest: ManagerGuestRow;
+  target: GuestMoveTarget;
+  direction: "up" | "down";
+  disabled: boolean;
+}) {
+  const Icon = direction === "up" ? ArrowUpIcon : ArrowDownIcon;
+
+  return (
+    <Tooltip>
+      <TooltipTrigger
+        render={
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon-sm"
+            aria-label={`${target.label}: ${guest.full_name}`}
+            disabled={disabled}
+            onClick={(event) => {
+              event.preventDefault();
+              event.stopPropagation();
+              target.onMove(guest);
+            }}
+          />
+        }
+      >
+        <Icon />
+      </TooltipTrigger>
+      <TooltipContent>{target.label}</TooltipContent>
+    </Tooltip>
+  );
+}
+
 function GuestRecordRow({
   guest,
   showDragColumn,
   draggable,
   disabled,
+  showEmailAndSchool,
+  moveUp,
+  moveDown,
   onViewNotes,
   onEditGuest,
 }: {
@@ -189,6 +239,9 @@ function GuestRecordRow({
   showDragColumn: boolean;
   draggable: boolean;
   disabled: boolean;
+  showEmailAndSchool: boolean;
+  moveUp?: GuestMoveTarget;
+  moveDown?: GuestMoveTarget;
   onViewNotes: (guest: ManagerGuestRow) => void;
   onEditGuest: (guest: ManagerGuestRow) => void;
 }) {
@@ -229,8 +282,13 @@ function GuestRecordRow({
         </td>
       ) : null}
 
-      <td className="px-4 py-3 font-medium">
+      <td className="overflow-hidden px-4 py-3 font-medium">
         <div className="flex min-w-0 items-center gap-1">
+          <LetterAvatar
+            name={guest.full_name}
+            seed={guest.id}
+            className="mr-1"
+          />
           <Link
             prefetch={false}
             href={getManagerGuestDetailRoute(guest.id)}
@@ -262,22 +320,26 @@ function GuestRecordRow({
           errorMessage="Unable to copy phone."
         />
       </td>
-      <td className="max-w-[14rem] px-4 py-3">
-        <CopyableValue
-          value={guest.email}
-          maxLength={COLUMN_LIMITS.email}
-          label={`Copy email for ${guest.full_name}`}
-          successMessage="Email copied to clipboard."
-          errorMessage="Unable to copy email."
-        />
-      </td>
+      {showEmailAndSchool ? (
+        <td className="max-w-[14rem] px-4 py-3">
+          <CopyableValue
+            value={guest.email}
+            maxLength={COLUMN_LIMITS.email}
+            label={`Copy email for ${guest.full_name}`}
+            successMessage="Email copied to clipboard."
+            errorMessage="Unable to copy email."
+          />
+        </td>
+      ) : null}
       <td className="px-4 py-3">{guest.age ?? "—"}</td>
-      <td className="px-4 py-3">
-        <TruncatedCell
-          value={guest.school_or_university ?? "—"}
-          maxLength={COLUMN_LIMITS.school}
-        />
-      </td>
+      {showEmailAndSchool ? (
+        <td className="px-4 py-3">
+          <TruncatedCell
+            value={guest.school_or_university ?? "—"}
+            maxLength={COLUMN_LIMITS.school}
+          />
+        </td>
+      ) : null}
       <td className="px-4 py-3">
         <StatusBadge status={guest.status} />
       </td>
@@ -286,6 +348,22 @@ function GuestRecordRow({
       </td>
       <td className="relative z-10 px-4 py-3">
         <div className="flex items-center justify-end gap-1">
+          {moveUp ? (
+            <MoveGuestButton
+              guest={guest}
+              target={moveUp}
+              direction="up"
+              disabled={disabled}
+            />
+          ) : null}
+          {moveDown ? (
+            <MoveGuestButton
+              guest={guest}
+              target={moveDown}
+              direction="down"
+              disabled={disabled}
+            />
+          ) : null}
           <Button
             type="button"
             variant="ghost"
@@ -326,6 +404,14 @@ type GuestRecordsTableProps = {
   canDrag: boolean;
   disabled: boolean;
   emptyState: ReactNode;
+  /** Email and School / uni columns. Defaults to shown. */
+  showEmailAndSchool?: boolean;
+  /** Visible column header row. When false it stays for screen readers only. */
+  showHeader?: boolean;
+  /** Shows an up-arrow action that moves the row to the previous box. */
+  moveUp?: GuestMoveTarget;
+  /** Shows a down-arrow action that moves the row to the next box. */
+  moveDown?: GuestMoveTarget;
   onViewNotes: (guest: ManagerGuestRow) => void;
   onEditGuest: (guest: ManagerGuestRow) => void;
 };
@@ -340,14 +426,42 @@ export function GuestRecordsTable({
   canDrag,
   disabled,
   emptyState,
+  showEmailAndSchool = true,
+  showHeader = true,
+  moveUp,
+  moveDown,
   onViewNotes,
   onEditGuest,
 }: GuestRecordsTableProps) {
-  const columnCount = showDragColumn ? 9 : 8;
+  const columnCount =
+    (showDragColumn ? 9 : 8) - (showEmailAndSchool ? 0 : 2);
 
   return (
-    <table className="w-full min-w-[64rem] text-left text-sm">
-      <thead className="border-b bg-muted/40 text-xs uppercase tracking-wide text-muted-foreground">
+    <table
+      className={cn(
+        "w-full table-fixed text-left text-sm",
+        showEmailAndSchool ? "min-w-[64rem]" : "min-w-[48rem]"
+      )}
+    >
+      {/* Fixed widths keep columns aligned across the guest list and team boxes. */}
+      <colgroup>
+        {showDragColumn ? <col className="w-11" /> : null}
+        <col />
+        <col className="w-44" />
+        {showEmailAndSchool ? <col className="w-56" /> : null}
+        <col className="w-20" />
+        {showEmailAndSchool ? <col className="w-44" /> : null}
+        <col className="w-36" />
+        <col className="w-32" />
+        <col className="w-44" />
+      </colgroup>
+      <thead
+        className={cn(
+          showHeader
+            ? "border-b bg-muted/40 text-xs uppercase tracking-wide text-muted-foreground"
+            : "sr-only"
+        )}
+      >
         <tr>
           {showDragColumn ? (
             <th className="w-10 px-2 py-3 font-medium">
@@ -356,9 +470,13 @@ export function GuestRecordsTable({
           ) : null}
           <th className="px-4 py-3 font-medium">Name</th>
           <th className="px-4 py-3 font-medium">Phone</th>
-          <th className="px-4 py-3 font-medium">Email</th>
+          {showEmailAndSchool ? (
+            <th className="px-4 py-3 font-medium">Email</th>
+          ) : null}
           <th className="px-4 py-3 font-medium">Age</th>
-          <th className="px-4 py-3 font-medium">School / uni</th>
+          {showEmailAndSchool ? (
+            <th className="px-4 py-3 font-medium">School / uni</th>
+          ) : null}
           <th className="px-4 py-3 font-medium">Status</th>
           <th className="px-4 py-3 font-medium">Created</th>
           <th className="px-4 py-3 font-medium">
@@ -384,6 +502,9 @@ export function GuestRecordsTable({
               showDragColumn={showDragColumn}
               draggable={canDrag}
               disabled={disabled}
+              showEmailAndSchool={showEmailAndSchool}
+              moveUp={moveUp}
+              moveDown={moveDown}
               onViewNotes={onViewNotes}
               onEditGuest={onEditGuest}
             />

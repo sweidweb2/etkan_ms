@@ -27,7 +27,6 @@ export const PERMISSION_FEATURES = [
   "final_exams",
   "grades",
   "semesters",
-  "equipment",
   "gallery",
   "projects",
   "blogs",
@@ -63,7 +62,6 @@ export const PERMISSION_FEATURE_LABELS: Record<PermissionFeature, string> = {
   final_exams: "Final Exams",
   grades: "Grades",
   semesters: "Semesters",
-  equipment: "Equipment",
   gallery: "Gallery",
   projects: "Projects",
   blogs: "Blogs",
@@ -142,6 +140,7 @@ export const PERMISSIONS = {
   SESSIONS_UPDATE: "sessions.update",
   SESSIONS_DELETE: "sessions.delete",
   SESSIONS_UPDATE_SETTINGS: "sessions.update_settings",
+  SESSIONS_SKIP: "sessions.skip",
 
   ATTENDANCE_VIEW: "attendance.view",
   ATTENDANCE_UPDATE: "attendance.update",
@@ -171,15 +170,6 @@ export const PERMISSIONS = {
   SEMESTERS_VIEW: "semesters.view",
   SEMESTERS_CREATE: "semesters.create",
   SEMESTERS_UPDATE: "semesters.update",
-
-  EQUIPMENT_VIEW: "equipment.view",
-  EQUIPMENT_CREATE: "equipment.create",
-  EQUIPMENT_UPDATE: "equipment.update",
-  EQUIPMENT_VIEW_BORROWS: "equipment.view_borrows",
-  EQUIPMENT_VIEW_OWN_BORROWS: "equipment.view_own_borrows",
-  EQUIPMENT_BORROW_CREATE: "equipment.borrow_create",
-  EQUIPMENT_BORROW_UPDATE: "equipment.borrow_update",
-  EQUIPMENT_BORROW_RETURN: "equipment.borrow_return",
 
   GALLERY_VIEW: "gallery.view",
   GALLERY_CREATE: "gallery.create",
@@ -625,6 +615,12 @@ export const PERMISSION_DEFINITIONS: readonly PermissionDefinition[] = [
     label: "Update session settings",
     access: PERMISSION_ACCESS.WRITE,
   },
+  {
+    key: PERMISSIONS.SESSIONS_SKIP,
+    feature: "sessions",
+    label: "Skip class week",
+    access: PERMISSION_ACCESS.WRITE,
+  },
 
   {
     key: PERMISSIONS.ATTENDANCE_VIEW,
@@ -772,55 +768,6 @@ export const PERMISSION_DEFINITIONS: readonly PermissionDefinition[] = [
     key: PERMISSIONS.SEMESTERS_UPDATE,
     feature: "semesters",
     label: "Edit semester",
-    access: PERMISSION_ACCESS.WRITE,
-  },
-
-  {
-    key: PERMISSIONS.EQUIPMENT_VIEW,
-    feature: "equipment",
-    label: "View equipment",
-    access: PERMISSION_ACCESS.READ,
-  },
-  {
-    key: PERMISSIONS.EQUIPMENT_CREATE,
-    feature: "equipment",
-    label: "Create equipment",
-    access: PERMISSION_ACCESS.WRITE,
-  },
-  {
-    key: PERMISSIONS.EQUIPMENT_UPDATE,
-    feature: "equipment",
-    label: "Edit equipment",
-    access: PERMISSION_ACCESS.WRITE,
-  },
-  {
-    key: PERMISSIONS.EQUIPMENT_VIEW_BORROWS,
-    feature: "equipment",
-    label: "View borrow history",
-    access: PERMISSION_ACCESS.READ,
-  },
-  {
-    key: PERMISSIONS.EQUIPMENT_VIEW_OWN_BORROWS,
-    feature: "equipment",
-    label: "View own borrow history",
-    access: PERMISSION_ACCESS.READ,
-  },
-  {
-    key: PERMISSIONS.EQUIPMENT_BORROW_CREATE,
-    feature: "equipment",
-    label: "Create borrow",
-    access: PERMISSION_ACCESS.WRITE,
-  },
-  {
-    key: PERMISSIONS.EQUIPMENT_BORROW_UPDATE,
-    feature: "equipment",
-    label: "Edit borrow",
-    access: PERMISSION_ACCESS.WRITE,
-  },
-  {
-    key: PERMISSIONS.EQUIPMENT_BORROW_RETURN,
-    feature: "equipment",
-    label: "Mark borrow returned / not returned",
     access: PERMISSION_ACCESS.WRITE,
   },
 

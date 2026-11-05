@@ -21,7 +21,6 @@
     "seed:rbac": "tsx --conditions=react-server scripts/seed-rbac.ts",
     "brand:assets": "tsx scripts/generate-brand-assets.ts",
     "seed:projects": "tsx --conditions=react-server scripts/seed-public-projects.ts",
-    "wipe:equipment": "tsx --conditions=react-server scripts/wipe-equipment-data.ts",
     "smoke:authz": "tsx --conditions=react-server scripts/smoke-authorization.ts",
     "smoke:gallery": "tsx --conditions=react-server scripts/smoke-gallery-storage.ts",
     "seed": "tsx --conditions=react-server scripts/seed-rbac.ts && tsx --conditions=react-server scripts/seed-admin.ts && tsx --conditions=react-server scripts/seed-manager.ts && tsx --conditions=react-server scripts/seed-demo-data.ts && tsx --conditions=react-server scripts/seed-public-projects.ts",

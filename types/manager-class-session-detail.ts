@@ -2,8 +2,6 @@ import type { StudentTaskStatusValue } from "@/lib/constants/manager-student-tas
 import type { AttendeeStatusValue } from "@/lib/constants/manager-attendee-status";
 import type { FieldErrors } from "@/types/auth";
 import type { ManagerClassSessionRow } from "@/types/manager-class-session";
-import type { ManagerSessionPhaseLink } from "@/types/manager-session-phase-link";
-
 /** class_tasks row for manager class/task surfaces. */
 export interface ManagerClassTaskRow {
   id: string;
@@ -97,7 +95,6 @@ export type UpdateSessionSettingsActionState = {
   message?: string;
   fieldErrors?: FieldErrors;
   session?: ManagerClassSessionRow;
-  linkedPhase?: ManagerSessionPhaseLink | null;
 };
 
 export type CreateClassTaskActionState = {

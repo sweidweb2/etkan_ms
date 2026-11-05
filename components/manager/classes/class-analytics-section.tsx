@@ -13,6 +13,8 @@ import type { ManagerClassAnalyticsPreview } from "@/types/manager-class-analyti
 type ClassAnalyticsSectionProps = {
   className: string;
   analytics: ManagerClassAnalyticsPreview;
+  /** When false, section stays open with no expand/collapse controls. */
+  collapsible?: boolean;
 };
 
 const NO_GRADED_TASKS_MESSAGE =
@@ -40,6 +42,7 @@ function formatTaskTooltipExtra(
 export function ClassAnalyticsSection({
   className,
   analytics,
+  collapsible = true,
 }: ClassAnalyticsSectionProps) {
   const hasGradedTaskData = analytics.taskGradeTrend.some(
     (point) => point.graded_count > 0
@@ -69,6 +72,7 @@ export function ClassAnalyticsSection({
       title="Class analytics"
       description={`Task grades, group grades, and attendance across sessions for ${className}.`}
       storageKey={COLLAPSIBLE_SECTION_STORAGE_KEYS.CLASS_DETAILS_ANALYTICS}
+      collapsible={collapsible}
     >
       <div className="grid gap-6 px-4 pt-2 pb-3 @2xl/panel:grid-cols-2">
         <AnalyticsChartCard
