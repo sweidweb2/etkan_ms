@@ -30,6 +30,18 @@ export const MANAGER_CLASS_STATUS_DOT_CLASSES: Record<ClassStatusValue, string> 
   stopped: "bg-rose-500",
 };
 
+/** Left accent on class cards; repeats on hover so card hover borders don't override it. */
+export const MANAGER_CLASS_STATUS_BORDER_LEFT_CLASSES: Record<
+  ClassStatusValue,
+  string
+> = {
+  scheduled: "border-l-violet-500 hover:border-l-violet-500",
+  in_progress: "border-l-sky-500 hover:border-l-sky-500",
+  done: "border-l-emerald-500 hover:border-l-emerald-500",
+  paused: "border-l-amber-500 hover:border-l-amber-500",
+  stopped: "border-l-rose-500 hover:border-l-rose-500",
+};
+
 export const MANAGER_CLASS_STATUS_ICON_CLASSES: Record<ClassStatusValue, string> = {
   scheduled: "bg-violet-500/10 text-violet-700 dark:text-violet-300",
   in_progress: "bg-sky-500/10 text-sky-700 dark:text-sky-300",

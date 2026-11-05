@@ -5,27 +5,28 @@ import {
   getClassSessionCompletionRate,
 } from "@/lib/constants/manager-semester-class-progress";
 import { FrostedGlassCard } from "@/components/ui/frosted-glass-card";
+import { MANAGER_CLASS_STATUS_BORDER_LEFT_CLASSES } from "@/lib/constants/manager-class-display";
 import { getManagerClassDetailRoute } from "@/lib/constants/routes";
 import { cn } from "@/lib/utils";
 import type { ManagerClassRow } from "@/types/manager-class-list";
 
 type ClassCardProps = {
   classRow: ManagerClassRow;
-  /** Overrides the class's own gradient (e.g. one colour per grid row). */
-  cardGradient?: string;
 };
 
-export function ClassCard({ classRow, cardGradient }: ClassCardProps) {
+export function ClassCard({ classRow }: ClassCardProps) {
   const sessionRate = getClassSessionCompletionRate(classRow);
   const sessionTone = getClassProgressTone(classRow);
   const detailHref = getManagerClassDetailRoute(classRow.id);
 
   return (
     <FrostedGlassCard
-      cardGradient={cardGradient ?? classRow.card_gradient}
       href={detailHref}
       hrefAriaLabel={`View ${classRow.name}`}
-      className="h-full"
+      className={cn(
+        "h-full border-l-4",
+        MANAGER_CLASS_STATUS_BORDER_LEFT_CLASSES[classRow.status]
+      )}
     >
       <div className="pointer-events-none relative z-10 flex min-h-32 flex-1 flex-col px-4 pt-5 pb-5">
         <h2
