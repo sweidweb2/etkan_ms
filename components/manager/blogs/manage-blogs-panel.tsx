@@ -212,7 +212,7 @@ export function ManageBlogsPanel({ initialBlogs }: ManageBlogsPanelProps) {
   return (
     <TooltipProvider>
       <div className="flex flex-col gap-4 md:gap-5">
-        <div className="flex w-full flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center sm:justify-end">
+        <div className="flex w-full flex-col gap-3 @lg/panel:flex-row @lg/panel:flex-wrap @lg/panel:items-center @lg/panel:justify-end">
           <Button
             variant="outline"
             nativeButton={false}
@@ -264,7 +264,7 @@ export function ManageBlogsPanel({ initialBlogs }: ManageBlogsPanelProps) {
           </Can>
         ) : (
           <>
-        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        <div className="grid gap-4 @lg/panel:grid-cols-2 @4xl/panel:grid-cols-4">
           <UserStatCard
             label="Total"
             value={stats.total}
@@ -288,10 +288,10 @@ export function ManageBlogsPanel({ initialBlogs }: ManageBlogsPanelProps) {
         </div>
 
         <Card>
-          <CardHeader className="gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <CardHeader className="gap-3 @lg/panel:flex-row @lg/panel:items-center @lg/panel:justify-between">
             <CardTitle>Blogs</CardTitle>
-            <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:items-center">
-              <div className="relative w-full sm:w-64">
+            <div className="flex w-full flex-col gap-2 @lg/panel:w-auto @lg/panel:flex-row @lg/panel:items-center">
+              <div className="relative w-full @lg/panel:w-64">
                 <SearchIcon className="pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-muted-foreground" />
                 <Input
                   value={search}
@@ -312,7 +312,7 @@ export function ManageBlogsPanel({ initialBlogs }: ManageBlogsPanelProps) {
                   }
                 }}
               >
-                <SelectTrigger className="w-full sm:w-36">
+                <SelectTrigger className="w-full @lg/panel:w-36">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -428,7 +428,7 @@ export function ManageBlogsPanel({ initialBlogs }: ManageBlogsPanelProps) {
               </table>
             </div>
 
-            <div className="flex flex-col gap-3 border-t px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex flex-col gap-3 border-t px-4 py-3 @lg/panel:flex-row @lg/panel:items-center @lg/panel:justify-between">
               <div className="flex items-center gap-2 text-sm text-muted-foreground">
                 <span>Rows per page</span>
                 <Select

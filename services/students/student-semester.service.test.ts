@@ -54,7 +54,6 @@ const studentProfileId = "b2b3c4d5-e6f7-8901-bcde-f12345678901";
 const studentRow = {
   user_id: "user-1",
   student_profile_id: studentProfileId,
-  username: "student1",
   email: "student@example.com",
   full_name: "Student One",
   birth_date: null,
@@ -115,7 +114,7 @@ describe("listSemesterStudentsForManager", () => {
       data: [
         {
           id: "user-1",
-          username: "student1",
+          full_name: "Student One",
           role: "student",
           created_at: "2026-01-01T00:00:00.000Z",
         },
@@ -251,7 +250,7 @@ describe("addStudentToSemesterForManager", () => {
       data: [
         {
           id: "user-1",
-          username: "student1",
+          full_name: "Student One",
           role: "student",
           created_at: "2026-01-01T00:00:00.000Z",
         },

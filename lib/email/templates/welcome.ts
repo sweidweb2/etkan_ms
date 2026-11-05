@@ -30,9 +30,6 @@ export function renderWelcomeEmail(vars: WelcomeTemplateVars): RenderedEmail {
     <p style="margin:0 0 8px;font-size:16px;line-height:1.5;color:${EMAIL_BRAND.bodyText};">
       <strong>${escapeHtml(chrome.labels.email)}:</strong> ${escapeHtml(vars.account_email)}
     </p>
-    <p style="margin:0 0 8px;font-size:16px;line-height:1.5;color:${EMAIL_BRAND.bodyText};">
-      <strong>${escapeHtml(chrome.labels.username)}:</strong> ${escapeHtml(vars.username)}
-    </p>
     <p style="margin:0 0 16px;font-size:16px;line-height:1.5;color:${EMAIL_BRAND.bodyText};">
       <strong>${escapeHtml(chrome.labels.temporaryPassword)}:</strong> ${escapeHtml(vars.temporary_password)}
     </p>
@@ -44,7 +41,6 @@ export function renderWelcomeEmail(vars: WelcomeTemplateVars): RenderedEmail {
   const textBody = `${intro}
 
 ${chrome.labels.email}: ${vars.account_email}
-${chrome.labels.username}: ${vars.username}
 ${chrome.labels.temporaryPassword}: ${vars.temporary_password}
 
 ${securityNote}`;

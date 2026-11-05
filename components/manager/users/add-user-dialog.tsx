@@ -79,45 +79,41 @@ export function AddUserDialog({
     schema: createStaffUserSchema,
     mode: "onBlur",
     defaultValues: {
-      username: "",
+      fullName: "",
       email: "",
       password: "",
       role: ROLES.TEACHER,
       is_instructor: false,
-      is_mentor: false,
     },
   });
 
   const selectedRole = watch("role");
   const isInstructor = watch("is_instructor");
-  const isMentor = watch("is_mentor");
 
   useEffect(() => {
     if (!open) {
       reset({
-        username: "",
+        fullName: "",
         email: "",
         password: "",
         role: ROLES.TEACHER,
         is_instructor: false,
-        is_mentor: false,
       });
     }
   }, [open, reset]);
 
   function onSubmit(values: CreateStaffUserFormInput) {
     const formData = new FormData();
-    formData.set("username", values.username.trim());
+    formData.set("fullName", values.fullName.trim());
     formData.set("email", values.email.trim());
     formData.set("password", values.password ?? "");
     formData.set("role", values.role);
     formData.set("is_instructor", String(values.is_instructor));
-    formData.set("is_mentor", String(values.is_mentor));
     formAction(formData);
   }
 
-  const usernameError =
-    errors.username?.message ?? state.fieldErrors?.username?.[0];
+  const fullNameError =
+    errors.fullName?.message ?? state.fieldErrors?.fullName?.[0];
   const emailError = errors.email?.message ?? state.fieldErrors?.email?.[0];
   const passwordError =
     errors.password?.message ?? state.fieldErrors?.password?.[0];
@@ -142,23 +138,23 @@ export function AddUserDialog({
         >
           <div className="flex flex-col gap-2">
             <FieldLabel
-              htmlFor="add-user-username"
-              label="Username"
-              hint={AUTH_FIELD_HINTS.username}
+              htmlFor="add-user-full-name"
+              label="Full name"
+              hint={AUTH_FIELD_HINTS.fullName}
             />
             <Input
-              id="add-user-username"
+              id="add-user-full-name"
               type="text"
-              autoComplete="username"
-              placeholder="staff_username"
-              minLength={AUTH_LIMITS.username.min}
-              maxLength={AUTH_LIMITS.username.max}
-              aria-invalid={!!usernameError}
+              autoComplete="name"
+              placeholder="Staff member's full name"
+              minLength={AUTH_LIMITS.fullName.min}
+              maxLength={AUTH_LIMITS.fullName.max}
+              aria-invalid={!!fullNameError}
               disabled={isPending}
-              {...register("username")}
+              {...register("fullName")}
             />
-            {usernameError ? (
-              <p className="text-sm text-destructive">{usernameError}</p>
+            {fullNameError ? (
+              <p className="text-sm text-destructive">{fullNameError}</p>
             ) : null}
           </div>
 
@@ -260,24 +256,6 @@ export function AddUserDialog({
               }
             />
             Instructor
-          </label>
-
-          <label
-            htmlFor="add-user-is-mentor"
-            className="flex items-center gap-2 text-sm"
-          >
-            <input
-              id="add-user-is-mentor"
-              type="checkbox"
-              checked={isMentor}
-              disabled={isPending}
-              onChange={(event) =>
-                setValue("is_mentor", event.target.checked, {
-                  shouldValidate: true,
-                })
-              }
-            />
-            Mentor
           </label>
         </form>
 

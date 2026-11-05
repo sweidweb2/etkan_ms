@@ -16,9 +16,6 @@ const GROUP_GRADE_VALUES = [
 ] as const;
 
 export const updateSessionSettingsSchema = z.object({
-  semester_id: z
-    .union([z.literal(""), z.string().uuid({ message: "Invalid semester." })])
-    .optional(),
   group_grade_level: z
     .union([
       z.literal(""),
@@ -52,7 +49,6 @@ export function parseUpdateSessionSettingsFormData(formData: FormData):
   }
 
   const parsed = updateSessionSettingsSchema.safeParse({
-    semester_id: formData.get("semester_id") ?? undefined,
     group_grade_level: formData.get("group_grade_level") ?? undefined,
     session_report: formData.has("session_report")
       ? String(formData.get("session_report") ?? "")

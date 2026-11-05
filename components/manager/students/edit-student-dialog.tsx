@@ -81,7 +81,6 @@ export function EditStudentDialog({
     schema: updateStudentSchema,
     mode: "onBlur",
     defaultValues: {
-      username: student.username ?? "",
       fullName: student.full_name,
       email: student.email,
       birthDate: student.birth_date ?? "",
@@ -95,7 +94,6 @@ export function EditStudentDialog({
   useEffect(() => {
     if (open) {
       reset({
-        username: student.username ?? "",
         fullName: student.full_name,
         email: student.email,
         birthDate: student.birth_date ?? "",
@@ -123,7 +121,6 @@ export function EditStudentDialog({
     const formData = new FormData();
     formData.set("studentProfileId", student.student_profile_id);
     formData.set("userId", student.user_id);
-    formData.set("username", values.username.trim());
     formData.set("fullName", values.fullName.trim());
     formData.set("email", values.email.trim());
     formData.set("birthDate", values.birthDate?.trim() ?? "");
@@ -135,8 +132,6 @@ export function EditStudentDialog({
     });
   }
 
-  const usernameError =
-    errors.username?.message ?? state.fieldErrors?.username?.[0];
   const fullNameError =
     errors.fullName?.message ?? state.fieldErrors?.fullName?.[0];
   const emailError = errors.email?.message ?? state.fieldErrors?.email?.[0];
@@ -164,28 +159,7 @@ export function EditStudentDialog({
           className="grid min-h-0 flex-1 grid-cols-1 gap-4 overflow-y-auto py-4 sm:grid-cols-2"
           noValidate
         >
-          <div className="flex flex-col gap-2">
-            <FieldLabel
-              htmlFor="edit-student-username"
-              label="Username"
-              hint={AUTH_FIELD_HINTS.username}
-            />
-            <Input
-              id="edit-student-username"
-              type="text"
-              autoComplete="username"
-              minLength={AUTH_LIMITS.username.min}
-              maxLength={AUTH_LIMITS.username.max}
-              aria-invalid={!!usernameError}
-              disabled={isPending}
-              {...register("username")}
-            />
-            {usernameError ? (
-              <FieldError>{usernameError}</FieldError>
-            ) : null}
-          </div>
-
-          <div className="flex flex-col gap-2">
+          <div className="flex flex-col gap-2 sm:col-span-2">
             <FieldLabel
               htmlFor="edit-student-full-name"
               label="Full name"

@@ -11,7 +11,6 @@ import type {
 
 export type FilterPanelNavigationOptions = {
   isInstructor?: boolean;
-  isMentor?: boolean;
 };
 
 function isManageWorkshopsHref(href: string): boolean {
@@ -26,6 +25,11 @@ function canViewNavItem(
   permissions: ReadonlySet<PermissionKey>,
   options: FilterPanelNavigationOptions
 ): boolean {
+  // Hub route: any manager-panel session can open Pages; cards inside are filtered.
+  if (item.href === ROUTES.MANAGER_PAGES) {
+    return true;
+  }
+
   const required = getRequiredViewPermissionForManagerPath(item.href);
 
   if (!required) {
@@ -77,7 +81,7 @@ function filterNavGroups(
 /**
  * Keep nav items whose href maps to a granted manager view permission,
  * plus role-native (non-manager) links.
- * Manage workshops also requires `is_instructor` and/or `is_mentor`.
+ * Manage workshops also requires `is_instructor`.
  */
 export function filterPanelNavigation(
   navigation: PanelNavigation,

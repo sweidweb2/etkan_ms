@@ -92,7 +92,7 @@ export function StudentTaskWorkspace({
           />
         </div>
       ) : (
-        <div className="flex min-h-[28rem] flex-col lg:flex-row">
+        <div className="flex min-h-[28rem] flex-col @2xl/panel:flex-row">
           <StudentTaskList
             students={sortedStudentTasks}
             selectedId={resolvedSelectedId}

@@ -34,7 +34,7 @@ export function ClassAttendanceSection({ detail }: ClassAttendanceSectionProps) 
       title="Attendance"
       description="Session attendance slots and cumulative attendance trend."
     >
-      <div className="grid min-h-[22rem] min-w-0 gap-6 p-5 lg:grid-cols-2 lg:items-stretch">
+      <div className="grid min-h-[22rem] min-w-0 gap-6 p-5 @2xl/panel:grid-cols-2 @2xl/panel:items-stretch">
         <div className="flex min-h-0 min-w-0 flex-col space-y-3">
           <div className="flex items-baseline justify-between gap-2">
             <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
@@ -53,7 +53,7 @@ export function ClassAttendanceSection({ detail }: ClassAttendanceSectionProps) 
           ) : (
             <div
               className={cn(
-                "grid min-h-0 flex-1 grid-cols-2 content-start gap-2.5 overflow-y-auto overscroll-y-contain sm:grid-cols-3",
+                "grid min-h-0 flex-1 grid-cols-2 content-start gap-2.5 overflow-y-auto overscroll-y-contain @lg/panel:grid-cols-3",
                 MANAGER_STUDENT_ATTENDANCE_SLOTS_MAX_HEIGHT_CLASS
               )}
             >

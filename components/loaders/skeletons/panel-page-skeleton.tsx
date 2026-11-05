@@ -5,7 +5,6 @@ import {
   SkeletonDetailSections,
   SkeletonFilterBar,
   SkeletonFormPanel,
-  SkeletonPageHeader,
   SkeletonStatRow,
   SkeletonTable,
 } from "@/components/loaders/skeletons/skeleton-primitives";
@@ -35,14 +34,10 @@ function PanelSkeletonShell({
   );
 }
 
-/** List pages: header + filters + table. */
+/** List pages: filters + table. */
 export function PanelListPageSkeleton({ className }: PanelPageSkeletonProps) {
   return (
     <PanelSkeletonShell className={className}>
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-        <SkeletonPageHeader />
-        <Skeleton className="hidden h-9 w-28 sm:block" />
-      </div>
       <SkeletonFilterBar />
       <SkeletonTable />
     </PanelSkeletonShell>
@@ -53,18 +48,16 @@ export function PanelListPageSkeleton({ className }: PanelPageSkeletonProps) {
 export function PanelCardsPageSkeleton({ className }: PanelPageSkeletonProps) {
   return (
     <PanelSkeletonShell className={className}>
-      <SkeletonPageHeader />
       <SkeletonFilterBar />
       <SkeletonCardGrid />
     </PanelSkeletonShell>
   );
 }
 
-/** Detail pages: header + meta/body sections. */
+/** Detail pages: meta/body sections. */
 export function PanelDetailPageSkeleton({ className }: PanelPageSkeletonProps) {
   return (
     <PanelSkeletonShell className={className}>
-      <SkeletonPageHeader />
       <SkeletonDetailSections />
     </PanelSkeletonShell>
   );
@@ -76,7 +69,6 @@ export function PanelCalendarPageSkeleton({
 }: PanelPageSkeletonProps) {
   return (
     <PanelSkeletonShell className={className}>
-      <SkeletonPageHeader />
       <SkeletonFilterBar />
       <SkeletonCalendar />
     </PanelSkeletonShell>
@@ -89,9 +81,8 @@ export function PanelDashboardPageSkeleton({
 }: PanelPageSkeletonProps) {
   return (
     <PanelSkeletonShell className={className}>
-      <SkeletonPageHeader />
       <SkeletonStatRow />
-      <div className="grid gap-4 lg:grid-cols-2">
+      <div className="grid gap-4 @2xl/panel:grid-cols-2">
         <div className="space-y-3 rounded-xl border p-4">
           <Skeleton className="h-5 w-40" />
           <Skeleton className="h-40 w-full" />
@@ -109,7 +100,6 @@ export function PanelDashboardPageSkeleton({
 export function PanelFormPageSkeleton({ className }: PanelPageSkeletonProps) {
   return (
     <PanelSkeletonShell className={className}>
-      <SkeletonPageHeader />
       <SkeletonFormPanel />
     </PanelSkeletonShell>
   );

@@ -1,15 +1,15 @@
 import "server-only";
 
 import type { RoleValue } from "@/lib/constants/roles";
+import { chunkedIn } from "@/repositories/_shared/chunked-in";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/types/supabase";
 
 type Supabase = SupabaseClient<Database>;
 
-const PROFILE_COLUMNS =
-  "id, username, role, is_instructor, is_mentor, created_at";
+const PROFILE_COLUMNS = "id, full_name, role, is_instructor, created_at";
 
-const PROFILE_OPTION_COLUMNS = "id, username";
+const PROFILE_OPTION_COLUMNS = "id, full_name";
 
 export async function findProfileById(client: Supabase, id: string) {
   return client
@@ -19,11 +19,24 @@ export async function findProfileById(client: Supabase, id: string) {
     .maybeSingle();
 }
 
-export async function findProfileByUsername(client: Supabase, username: string) {
+export async function findProfileAvatarUrlById(client: Supabase, id: string) {
   return client
     .from("profiles")
-    .select("id, username")
-    .eq("username", username)
+    .select("id, avatar_url")
+    .eq("id", id)
+    .maybeSingle();
+}
+
+export async function updateProfileAvatarUrl(
+  client: Supabase,
+  id: string,
+  avatarUrl: string | null
+) {
+  return client
+    .from("profiles")
+    .update({ avatar_url: avatarUrl })
+    .eq("id", id)
+    .select("id, avatar_url")
     .maybeSingle();
 }
 
@@ -35,22 +48,20 @@ export async function createProfile(
   client: Supabase,
   input: {
     id: string;
-    username: string;
+    full_name: string;
     role: RoleValue;
     is_instructor?: boolean;
-    is_mentor?: boolean;
   }
 ) {
   return client
     .from("profiles")
     .insert({
       id: input.id,
-      username: input.username,
+      full_name: input.full_name,
       role: input.role,
       is_instructor: input.is_instructor ?? false,
-      is_mentor: input.is_mentor ?? false,
     })
-    .select("id, role, is_instructor, is_mentor")
+    .select("id, role, is_instructor")
     .single();
 }
 
@@ -62,22 +73,18 @@ export async function updateProfileById(
   client: Supabase,
   id: string,
   input: {
-    username: string;
+    full_name: string;
     role?: RoleValue;
     is_instructor?: boolean;
-    is_mentor?: boolean;
   }
 ) {
   return client
     .from("profiles")
     .update({
-      username: input.username,
+      full_name: input.full_name,
       ...(input.role ? { role: input.role } : {}),
       ...(typeof input.is_instructor === "boolean"
         ? { is_instructor: input.is_instructor }
-        : {}),
-      ...(typeof input.is_mentor === "boolean"
-        ? { is_mentor: input.is_mentor }
         : {}),
     })
     .eq("id", id)
@@ -93,19 +100,6 @@ export async function updateProfileInstructorFlag(
   return client
     .from("profiles")
     .update({ is_instructor: isInstructor })
-    .eq("id", id)
-    .select(PROFILE_COLUMNS)
-    .single();
-}
-
-export async function updateProfileMentorFlag(
-  client: Supabase,
-  id: string,
-  isMentor: boolean
-) {
-  return client
-    .from("profiles")
-    .update({ is_mentor: isMentor })
     .eq("id", id)
     .select(PROFILE_COLUMNS)
     .single();
@@ -131,7 +125,7 @@ export async function listProfiles(
 
   const search = options?.search?.trim();
   if (search) {
-    query = query.ilike("username", `%${search}%`);
+    query = query.ilike("full_name", `%${search}%`);
   }
 
   return query;
@@ -142,16 +136,16 @@ export async function listInstructorProfiles(client: Supabase) {
     .from("profiles")
     .select(PROFILE_COLUMNS)
     .eq("is_instructor", true)
-    .order("username", { ascending: true });
+    .order("full_name", { ascending: true });
 }
 
-/** Slim rows for teacher/instructor pickers (`id`, `username` only). */
+/** Slim rows for teacher/instructor pickers (`id`, `full_name` only). */
 export async function listInstructorProfileOptions(client: Supabase) {
   return client
     .from("profiles")
     .select(PROFILE_OPTION_COLUMNS)
     .eq("is_instructor", true)
-    .order("username", { ascending: true });
+    .order("full_name", { ascending: true });
 }
 
 export async function listProfileOptionsByIds(client: Supabase, ids: string[]) {
@@ -171,43 +165,7 @@ export async function listNonInstructorProfiles(client: Supabase) {
     .from("profiles")
     .select(PROFILE_COLUMNS)
     .eq("is_instructor", false)
-    .order("username", { ascending: true });
-}
-
-export async function listMentorProfiles(client: Supabase) {
-  return client
-    .from("profiles")
-    .select(PROFILE_COLUMNS)
-    .eq("is_mentor", true)
-    .order("username", { ascending: true });
-}
-
-export async function listMentorProfileIds(client: Supabase) {
-  return client.from("profiles").select("id").eq("is_mentor", true);
-}
-
-export async function listNonMentorProfiles(client: Supabase) {
-  return client
-    .from("profiles")
-    .select(PROFILE_COLUMNS)
-    .eq("is_mentor", false)
-    .order("username", { ascending: true });
-}
-
-export async function setProfilesMentorFlag(
-  client: Supabase,
-  ids: string[],
-  isMentor: boolean
-) {
-  if (ids.length === 0) {
-    return { data: [], error: null };
-  }
-
-  return client
-    .from("profiles")
-    .update({ is_mentor: isMentor })
-    .in("id", ids)
-    .select(PROFILE_COLUMNS);
+    .order("full_name", { ascending: true });
 }
 
 export async function setProfilesInstructorFlag(
@@ -242,9 +200,7 @@ export async function countProfiles(
 }
 
 export async function listProfilesByIds(client: Supabase, ids: string[]) {
-  if (ids.length === 0) {
-    return { data: [], error: null };
-  }
-
-  return client.from("profiles").select(PROFILE_COLUMNS).in("id", ids);
+  return chunkedIn(ids, (chunk) =>
+    client.from("profiles").select(PROFILE_COLUMNS).in("id", chunk)
+  );
 }

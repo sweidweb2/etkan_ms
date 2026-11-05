@@ -44,7 +44,10 @@ type ImportFinancialAdjustmentDialogProps = {
   sppId: string;
   candidates: ManagerImportableAdjustmentRow[];
   isLoadingCandidates?: boolean;
-  onImported: (adjustment: ManagerFinancialAdjustmentRow) => void;
+  onImported: (
+    adjustment: ManagerFinancialAdjustmentRow,
+    spp: import("@/types/manager-student-payment").ManagerSppFinancialSnapshot
+  ) => void;
 };
 
 function formatAdjustmentValue(
@@ -86,8 +89,8 @@ export function ImportFinancialAdjustmentDialog({
 
   useActionStateSuccess(state, isPending, (nextState) => {
     onOpenChange(false);
-    if (nextState.adjustment) {
-      onImported(nextState.adjustment);
+    if (nextState.adjustment && nextState.spp) {
+      onImported(nextState.adjustment, nextState.spp);
     }
   });
 

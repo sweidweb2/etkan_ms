@@ -324,7 +324,7 @@ export function mapWorkshopInstructorRecord(
     wage_amount: record.wage_amount,
     notes: record.notes,
     created_at: record.created_at,
-    username: record.profiles?.username ?? null,
+    full_name: record.profiles?.full_name ?? null,
   };
 }
 

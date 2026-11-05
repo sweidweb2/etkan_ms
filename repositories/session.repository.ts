@@ -6,7 +6,7 @@ import type { Database } from "@/types/supabase";
 type Supabase = SupabaseClient<Database>;
 
 const SESSION_COLUMNS =
-  "id, class_id, nb_order, topic, session_report, starts_at, ends_at, semester_id, group_grade_level, created_at";
+  "id, class_id, nb_order, topic, session_report, starts_at, ends_at, group_grade_level, created_at";
 
 export type SessionRecord = {
   id: string;
@@ -16,7 +16,6 @@ export type SessionRecord = {
   session_report: string | null;
   starts_at: string;
   ends_at: string;
-  semester_id: string | null;
   group_grade_level: string | null;
   created_at: string;
 };
@@ -28,12 +27,10 @@ export type CreateSessionRecordInput = {
   session_report?: string | null;
   starts_at: string;
   ends_at: string;
-  semester_id?: string | null;
   group_grade_level?: string | null;
 };
 
 export type UpdateSessionSettingsInput = {
-  semester_id?: string | null;
   group_grade_level?: string | null;
   session_report?: string | null;
 };
@@ -113,7 +110,6 @@ export async function createSession(
       session_report: input.session_report ?? null,
       starts_at: input.starts_at,
       ends_at: input.ends_at,
-      semester_id: input.semester_id ?? null,
       group_grade_level: input.group_grade_level ?? null,
     })
     .select(SESSION_COLUMNS)
@@ -144,14 +140,9 @@ export async function updateSessionSettings(
   input: UpdateSessionSettingsInput
 ) {
   const patch: {
-    semester_id?: string | null;
     group_grade_level?: string | null;
     session_report?: string | null;
   } = {};
-
-  if ("semester_id" in input) {
-    patch.semester_id = input.semester_id ?? null;
-  }
 
   if ("group_grade_level" in input) {
     patch.group_grade_level = input.group_grade_level ?? null;

@@ -7,7 +7,6 @@ import {
 } from "@/lib/validators/manager/create-student";
 
 const validInput = {
-  username: "ada_lovelace",
   fullName: "Ada Lovelace",
   email: "ada@example.com",
   password: "",
@@ -82,7 +81,6 @@ describe("resolveCreateStudentInput", () => {
 describe("parseCreateStudentFormData", () => {
   it("parses the form and defaults empty passwords", () => {
     const formData = new FormData();
-    formData.set("username", "ada_lovelace");
     formData.set("fullName", "Ada Lovelace");
     formData.set("email", "ada@example.com");
     formData.set("password", "");

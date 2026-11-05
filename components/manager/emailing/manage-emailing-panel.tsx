@@ -26,6 +26,7 @@ import { listEmailingClassMemberUserIdsAction } from "@/app/manager/emailing/act
 import { Can } from "@/components/auth/can";
 import { UserRoleBadge } from "@/components/manager/users/user-role-badge";
 import { UserStatCard } from "@/components/manager/users/user-stat-card";
+import { PanelPageHeader } from "@/components/panels/panel-page-header";
 import { Button, buttonVariants } from "@/components/ui/button";
 import {
   Card,
@@ -118,7 +119,7 @@ function SelectionCheckbox({
 }
 
 function getUserDisplayName(user: ManagerUserRow) {
-  return user.username ?? user.student_full_name ?? "—";
+  return user.full_name || "—";
 }
 
 function matchesNameFilter(user: ManagerUserRow, query: string) {
@@ -127,9 +128,7 @@ function matchesNameFilter(user: ManagerUserRow, query: string) {
     return true;
   }
 
-  const username = user.username?.toLowerCase() ?? "";
-  const fullName = user.student_full_name?.toLowerCase() ?? "";
-  return username.includes(normalized) || fullName.includes(normalized);
+  return user.full_name.toLowerCase().includes(normalized);
 }
 
 function matchesEmailFilter(user: ManagerUserRow, query: string) {
@@ -381,13 +380,8 @@ export function ManageEmailingPanel({
   return (
     <TooltipProvider>
       <div className="flex flex-col gap-6">
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-          <div>
-            <h1 className="text-2xl font-semibold tracking-tight">Emailing</h1>
-            <p className="mt-1 text-sm text-muted-foreground">
-              Select users, pick a template, and send through Mailtrap.
-            </p>
-          </div>
+        <PanelPageHeader title="Emailing" />
+        <div className="flex flex-wrap items-center justify-end gap-2 empty:hidden">
           <Can permission={PERMISSIONS.EMAILING_SEND}>
             <Link
               href={ROUTES.MANAGER_EMAILING_COMPOSE}
@@ -409,7 +403,7 @@ export function ManageEmailingPanel({
           <CardContent className="p-4">
             <div className="flex flex-col gap-2">
               <Label htmlFor="custom-to-email">Recipient email</Label>
-              <div className="flex flex-col gap-2 sm:flex-row">
+              <div className="flex flex-col gap-2 @lg/panel:flex-row">
                 <Input
                   id="custom-to-email"
                   type="email"
@@ -455,7 +449,7 @@ export function ManageEmailingPanel({
           </CardContent>
         </Card>
 
-        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        <div className="grid gap-4 @lg/panel:grid-cols-2 @4xl/panel:grid-cols-4">
           <UserStatCard
             label="Total users"
             value={stats.total}
@@ -485,7 +479,7 @@ export function ManageEmailingPanel({
               Ready actions
             </CardTitle>
           </CardHeader>
-          <CardContent className="grid gap-3 p-4 sm:grid-cols-2 lg:grid-cols-3">
+          <CardContent className="grid gap-3 p-4 @lg/panel:grid-cols-2 @2xl/panel:grid-cols-3">
             {READY_ACTIONS.map((action) => {
               const Icon = action.icon;
               return (
@@ -560,7 +554,7 @@ export function ManageEmailingPanel({
             ) : null}
           </CardHeader>
           <CardContent className="px-0 pb-0">
-            <div className="grid gap-3 border-b px-4 pt-2 pb-3 sm:grid-cols-2 lg:grid-cols-4">
+            <div className="grid gap-3 border-b px-4 pt-2 pb-3 @lg/panel:grid-cols-2 @2xl/panel:grid-cols-4">
               <div className="relative min-w-0">
                 <SearchIcon className="pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-muted-foreground" />
                 <Input
@@ -672,7 +666,7 @@ export function ManageEmailingPanel({
                           ariaLabel="Select all users on this page"
                         />
                       </th>
-                      <th className="px-4 py-3 font-medium">Username</th>
+                      <th className="px-4 py-3 font-medium">Full name</th>
                       <th className="px-4 py-3 font-medium">Email</th>
                       <th className="px-4 py-3 font-medium">Role</th>
                       <th className="px-4 py-3 font-medium">Created</th>
@@ -773,7 +767,7 @@ export function ManageEmailingPanel({
               </div>
             )}
 
-            <div className="flex flex-col gap-3 border-t px-4 pt-2 pb-3 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex flex-col gap-3 border-t px-4 pt-2 pb-3 @lg/panel:flex-row @lg/panel:items-center @lg/panel:justify-between">
               <p className="text-sm text-muted-foreground">
                 Showing {rangeStart}–{rangeEnd} of {filteredUsers.length}
                 {filteredUsers.length !== initialUsers.length

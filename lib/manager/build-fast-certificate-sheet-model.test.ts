@@ -28,7 +28,6 @@ const student: ManagerClassStudentRow = {
   student_profile_id: "profile-1",
   user_id: "user-1",
   full_name: "Sara Ahmed",
-  username: "sara",
   email: "sara@example.com",
   phone: null,
   joined_at: "2026-02-01T00:00:00.000Z",

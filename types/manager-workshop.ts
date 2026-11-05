@@ -65,7 +65,7 @@ export interface ManagerWorkshopInstructorRow {
   notes: string | null;
   created_at: string;
   /** Joined profile display when loaded for UI. */
-  username?: string | null;
+  full_name?: string | null;
   email?: string | null;
 }
 
@@ -131,7 +131,7 @@ export type ManagerWorkshopPaymentsTotals = {
 
 export type ManagerWorkshopInstructorCandidate = {
   id: string;
-  username: string;
+  full_name: string;
 };
 
 export type ManagerWorkshopDetailPageData = {

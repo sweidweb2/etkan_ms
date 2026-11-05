@@ -153,10 +153,9 @@ export async function login(
     role,
     displayName: displayNameFromAuthUser(
       user,
-      profileResult.data?.username ?? null
+      profileResult.data?.full_name ?? null
     ),
     isInstructor: profileResult.data?.is_instructor === true,
-    isMentor: profileResult.data?.is_mentor === true,
     permissionKeys: [...permissions],
     cachedClaimsRole: claimsRole,
   });
@@ -250,7 +249,6 @@ export async function register(
   authClient: Supabase,
   adminClient: Supabase,
   input: {
-    username: string;
     fullName: string;
     email: string;
     password: string;
@@ -269,20 +267,7 @@ export async function register(
     };
   }
 
-  const { username, fullName, email, password, birthDate, phone } = parsed.data;
-
-  const existingUsername = await profileRepository.findProfileByUsername(
-    adminClient,
-    username
-  );
-
-  if (existingUsername.data) {
-    return {
-      success: false,
-      error: "This username is already taken.",
-      fieldErrors: { username: ["This username is already taken."] },
-    };
-  }
+  const { fullName, email, password, birthDate, phone } = parsed.data;
 
   const { data: authData, error: signUpError } = await authRepository.signUp(
     authClient,
@@ -290,7 +275,6 @@ export async function register(
       email,
       password,
       fullName,
-      username,
       emailRedirectTo: getAuthCallbackUrl(),
       role: ROLES.STUDENT,
     }
@@ -308,8 +292,6 @@ export async function register(
   try {
     await ensureStudentRegistration(adminClient, {
       authId: authUserId,
-      username,
-      email,
       fullName,
       birthDate,
       phone,

@@ -160,7 +160,7 @@ export function AddClassDialog({
     { value: TEACHER_UNASSIGNED, label: "No teacher" },
     ...teacherOptions.map((teacher) => ({
       value: teacher.id,
-      label: teacher.username?.trim() || "Unnamed user",
+      label: teacher.full_name.trim() || "Unnamed user",
     })),
   ];
 
@@ -379,7 +379,7 @@ export function AddClassDialog({
                 <SelectItem value={TEACHER_UNASSIGNED}>No teacher</SelectItem>
                 {teacherOptions.map((teacher) => (
                   <SelectItem key={teacher.id} value={teacher.id}>
-                    {teacher.username?.trim() || "Unnamed user"}
+                    {teacher.full_name.trim() || "Unnamed user"}
                   </SelectItem>
                 ))}
               </SelectContent>

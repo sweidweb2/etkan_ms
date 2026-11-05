@@ -6,6 +6,7 @@ import { useState } from "react";
 import { format } from "date-fns";
 import { CheckIcon, CopyIcon, SparklesIcon, UsersIcon } from "lucide-react";
 import { Can } from "@/components/auth/can";
+import { PanelPageHeader } from "@/components/panels/panel-page-header";
 import {
   Breadcrumb,
   BreadcrumbItem,
@@ -89,6 +90,7 @@ export function SentEmailDetailsPanel({
 
   return (
     <div className="flex flex-col gap-6">
+      <PanelPageHeader title={email.title} />
       <Breadcrumb>
         <BreadcrumbList>
           <BreadcrumbItem>
@@ -103,15 +105,7 @@ export function SentEmailDetailsPanel({
         </BreadcrumbList>
       </Breadcrumb>
 
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-        <div>
-          <h1 className="text-2xl font-semibold tracking-tight">
-            {email.title}
-          </h1>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Ref. {email.reference_code} · {email.template_label}
-          </p>
-        </div>
+      <div className="flex flex-wrap items-center justify-end gap-2 empty:hidden">
         <Can permission={PERMISSIONS.EMAILING_SEND}>
           <Link
             href={ROUTES.MANAGER_EMAILING_COMPOSE}
@@ -127,7 +121,7 @@ export function SentEmailDetailsPanel({
         <CardHeader className="border-b bg-muted/50 py-3">
           <CardTitle>Email details</CardTitle>
         </CardHeader>
-        <CardContent className="grid gap-4 p-4 sm:grid-cols-2 lg:grid-cols-3">
+        <CardContent className="grid gap-4 p-4 @lg/panel:grid-cols-2 @2xl/panel:grid-cols-3">
           <DetailField label="Reference" value={`Ref. ${email.reference_code}`} />
           <DetailField label="Template" value={email.template_label} />
           <DetailField

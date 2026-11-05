@@ -24,7 +24,6 @@ export type EmailSharedVars = {
 
 export type WelcomeTemplateVars = EmailSharedVars & {
   account_email: string;
-  username: string;
   temporary_password: string;
 };
 

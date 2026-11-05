@@ -6,11 +6,19 @@ import Link from "next/link";
 import { format } from "date-fns";
 import { ExternalLinkIcon, PencilIcon, Trash2Icon } from "lucide-react";
 import { deleteSubjectAction } from "@/app/manager/subjects/actions";
+import {
+  Tabs as TabsPrimitive,
+  TabsContent as TabsContentPrimitive,
+  TabsContents as TabsContentsPrimitive,
+  TabsList as TabsListPrimitive,
+  TabsTrigger as TabsTriggerPrimitive,
+} from "@/components/animate-ui/primitives/animate/tabs";
 import { Can } from "@/components/auth/can";
+import { usePermissions } from "@/components/auth/permissions-provider";
+import { hasPermissionInSet } from "@/lib/auth/permission-checks";
 import { EditSubjectDialog } from "@/components/manager/subjects/edit-subject-dialog";
 import { SubjectCatalogLinksSection } from "@/components/manager/subjects/subject-catalog-links-section";
 import { SubjectClassesSection } from "@/components/manager/subjects/subject-classes-section";
-import { SubjectCollapsibleSection } from "@/components/manager/subjects/subject-collapsible-section";
 import { SubjectTasksSection } from "@/components/manager/subjects/subject-tasks-section";
 import { InlineSpinner } from "@/components/loaders/inline-spinner";
 import {
@@ -22,13 +30,7 @@ import {
   BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb";
 import { Button, buttonVariants } from "@/components/ui/button";
-import {
-  Card,
-  CardAction,
-  CardContent,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import {
   Dialog,
   DialogContent,
@@ -66,14 +68,16 @@ const initialDeleteState: DeleteSubjectActionState = {};
 const SUBJECT_HAS_CLASSES_DELETE_ERROR =
   "Remove or reassign linked classes before deleting this subject.";
 
+type SubjectDetailTab = "details" | "catalog" | "tasks" | "classes";
 
-function DetailLink({
-  href,
-  label,
-}: {
-  href: string | null;
-  label: string;
-}) {
+const TAB_TRIGGER_CLASS = cn(
+  "inline-flex items-center rounded-full border px-3 py-1.5 text-xs font-medium transition-all duration-200 sm:px-4 sm:text-sm",
+  "border-transparent text-muted-foreground hover:border-border/60 hover:bg-background/80 hover:text-foreground hover:shadow-sm",
+  "data-[state=active]:border-border data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-md",
+  "focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50",
+);
+
+function DetailLink({ href, label }: { href: string | null; label: string }) {
   if (!href) {
     return <DetailField label={label} value="—" />;
   }
@@ -105,17 +109,23 @@ export function SubjectDetailsPanel({
   const [subject, setSubject] = useState<ManagerSubjectRow>(initialSubject);
   const [prevSubject, setPrevSubject] =
     useState<ManagerSubjectRow>(initialSubject);
+  const [activeTab, setActiveTab] = useState<SubjectDetailTab>("classes");
+  const permissions = usePermissions();
+  const canViewTasks = hasPermissionInSet(
+    permissions,
+    PERMISSIONS.SUBJECTS_TASKS_VIEW,
+  );
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
   const [isTransitionPending, startTransition] = useTransition();
   const [deleteState, deleteAction, isDeletePending] = useActionState(
     deleteSubjectAction,
-    initialDeleteState
+    initialDeleteState,
   );
   const isDeleteActionPending = isDeletePending || isTransitionPending;
   const handleDeleteOpenChange = usePendingAwareOpenChange(
     isDeleteActionPending,
-    setIsDeleteOpen
+    setIsDeleteOpen,
   );
 
   useActionStateToast(deleteState, isDeleteActionPending);
@@ -125,8 +135,7 @@ export function SubjectDetailsPanel({
     setSubject(initialSubject);
   }
 
-  const hasLinkedClasses =
-    subject.class_count > 0 || classes.length > 0;
+  const hasLinkedClasses = subject.class_count > 0 || classes.length > 0;
   const deleteBlockedReason = hasLinkedClasses
     ? SUBJECT_HAS_CLASSES_DELETE_ERROR
     : undefined;
@@ -145,7 +154,7 @@ export function SubjectDetailsPanel({
 
   return (
     <div className="flex flex-col gap-6">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+      <div className="flex flex-col gap-3 @lg/panel:flex-row @lg/panel:items-center @lg/panel:justify-between">
         <Breadcrumb>
           <BreadcrumbList>
             <BreadcrumbItem>
@@ -218,72 +227,113 @@ export function SubjectDetailsPanel({
         </DialogContent>
       </Dialog>
 
-      <Card className="gap-0 py-0">
-        <CardHeader className="border-b bg-muted/50 py-3">
-          <CardTitle className="text-xl">{subject.name}</CardTitle>
-          <CardAction className="flex items-center gap-2 self-center">
-            <Can permission={PERMISSIONS.SUBJECTS_UPDATE}>
-              <Button type="button" onClick={() => setIsEditOpen(true)}>
-                <PencilIcon data-icon="inline-start" />
-                Edit subject
-              </Button>
-            </Can>
-            <Can permission={PERMISSIONS.SUBJECTS_DELETE}>
-              <Button
-                type="button"
-                variant="destructive"
-                disabled={hasLinkedClasses || isDeleteActionPending}
-                title={deleteBlockedReason}
-                onClick={() => setIsDeleteOpen(true)}
-              >
-                <Trash2Icon data-icon="inline-start" />
-                Delete subject
-              </Button>
-            </Can>
-          </CardAction>
-        </CardHeader>
-        <CardContent className="pt-2 pb-4">
-          <dl className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            <DetailField label="Name" value={subject.name} />
-            <DetailLink label="Syllabus" href={subject.syllabus_link} />
-            <DetailLink label="Reference" href={subject.reference_link} />
-            <DetailLink label="Handout" href={subject.handout_link} />
-            <DetailField label="Classes" value={String(classes.length)} />
-            <DetailField
-              label="Planned sessions"
-              value={String(subject.nb_sessions)}
-            />
-            <DetailField
-              label="Created"
-              value={format(new Date(subject.created_at), "MMM d, yyyy 'at' h:mm a")}
-            />
-          </dl>
-        </CardContent>
-      </Card>
-
-      <SubjectCatalogLinksSection
-        subjectId={subject.id}
-        categories={categories}
-        exercises={exercises}
-        initialCategoryIds={linkedCategoryIds}
-        initialExerciseIds={linkedExerciseIds}
-      />
-
-      <Can permission={PERMISSIONS.SUBJECTS_TASKS_VIEW}>
-        <SubjectTasksSection
-          subjectId={subject.id}
-          subjectName={subject.name}
-          tasks={tasks}
-        />
-      </Can>
-
-      <SubjectCollapsibleSection
-        title="Classes"
-        description="Browse and filter classes in this subject."
-        defaultOpen
+      <TabsPrimitive
+        value={activeTab}
+        onValueChange={(value) => setActiveTab(value as SubjectDetailTab)}
+        className="flex flex-col gap-4"
       >
-        <SubjectClassesSection classes={classes} subjectName={subject.name} />
-      </SubjectCollapsibleSection>
+        <TabsListPrimitive className="flex h-auto w-full flex-wrap items-center justify-center gap-2 self-center rounded-full bg-muted/60 p-1 ring-1 ring-foreground/8 @lg/panel:w-fit">
+          <TabsTriggerPrimitive value="classes" className={TAB_TRIGGER_CLASS}>
+            Classes
+          </TabsTriggerPrimitive>
+          {canViewTasks ? (
+            <TabsTriggerPrimitive value="tasks" className={TAB_TRIGGER_CLASS}>
+              Tasks
+            </TabsTriggerPrimitive>
+          ) : null}
+          <TabsTriggerPrimitive value="details" className={TAB_TRIGGER_CLASS}>
+            Details
+          </TabsTriggerPrimitive>
+          <TabsTriggerPrimitive value="catalog" className={TAB_TRIGGER_CLASS}>
+            Categories & exercises
+          </TabsTriggerPrimitive>
+        </TabsListPrimitive>
+
+        <TabsContentsPrimitive>
+          <TabsContentPrimitive value="classes" className="outline-none">
+            <SubjectClassesSection
+              classes={classes}
+              subjectName={subject.name}
+            />
+          </TabsContentPrimitive>
+
+          {canViewTasks ? (
+            <TabsContentPrimitive value="tasks" className="outline-none">
+              <SubjectTasksSection
+                subjectId={subject.id}
+                subjectName={subject.name}
+                tasks={tasks}
+              />
+            </TabsContentPrimitive>
+          ) : null}
+
+          <TabsContentPrimitive value="details" className="outline-none">
+            <div className="flex flex-col gap-4">
+              <div className="flex flex-col gap-3 @lg/panel:flex-row @lg/panel:items-center @lg/panel:justify-between">
+                <h2 className="text-xl font-semibold">{subject.name}</h2>
+                <div className="flex items-center gap-2">
+                  <Can permission={PERMISSIONS.SUBJECTS_UPDATE}>
+                    <Button type="button" onClick={() => setIsEditOpen(true)}>
+                      <PencilIcon data-icon="inline-start" />
+                      Edit subject
+                    </Button>
+                  </Can>
+                  <Can permission={PERMISSIONS.SUBJECTS_DELETE}>
+                    <Button
+                      type="button"
+                      variant="destructive"
+                      disabled={hasLinkedClasses || isDeleteActionPending}
+                      title={deleteBlockedReason}
+                      onClick={() => setIsDeleteOpen(true)}
+                    >
+                      <Trash2Icon data-icon="inline-start" />
+                      Delete subject
+                    </Button>
+                  </Can>
+                </div>
+              </div>
+              <Card>
+                <CardContent>
+                  <dl className="grid gap-4 @lg/panel:grid-cols-2 @2xl/panel:grid-cols-3">
+                    <DetailField label="Name" value={subject.name} />
+                    <DetailLink label="Syllabus" href={subject.syllabus_link} />
+                    <DetailLink
+                      label="Reference"
+                      href={subject.reference_link}
+                    />
+                    <DetailLink label="Handout" href={subject.handout_link} />
+                    <DetailField
+                      label="Classes"
+                      value={String(classes.length)}
+                    />
+                    <DetailField
+                      label="Planned sessions"
+                      value={String(subject.nb_sessions)}
+                    />
+                    <DetailField
+                      label="Created"
+                      value={format(
+                        new Date(subject.created_at),
+                        "MMM d, yyyy 'at' h:mm a",
+                      )}
+                    />
+                  </dl>
+                </CardContent>
+              </Card>
+            </div>
+          </TabsContentPrimitive>
+
+          <TabsContentPrimitive value="catalog" className="outline-none">
+            <SubjectCatalogLinksSection
+              subjectId={subject.id}
+              categories={categories}
+              exercises={exercises}
+              initialCategoryIds={linkedCategoryIds}
+              initialExerciseIds={linkedExerciseIds}
+            />
+          </TabsContentPrimitive>
+        </TabsContentsPrimitive>
+      </TabsPrimitive>
     </div>
   );
 }

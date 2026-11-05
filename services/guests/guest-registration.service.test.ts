@@ -841,7 +841,7 @@ const applicationSummaryRecord = {
 
 const linkedProfile = {
   id: linkedUserId,
-  username: "ada",
+  full_name: "Ada Lovelace",
   role: "student",
   is_instructor: false,
   created_at: "2026-01-01T00:00:00.000Z",
@@ -1105,11 +1105,11 @@ describe("getGuestRegistrationLinkUserOption", () => {
     vi.resetAllMocks();
   });
 
-  it("returns a username and email for one user", async () => {
+  it("returns a full name and email for one user", async () => {
     vi.mocked(profileRepository.findProfileById).mockResolvedValue({
       data: {
         id: actor.userId,
-        username: "ada",
+        full_name: "Ada Lovelace",
         role: "student",
         is_instructor: false,
         created_at: "2026-01-01T00:00:00.000Z",
@@ -1125,7 +1125,7 @@ describe("getGuestRegistrationLinkUserOption", () => {
       getGuestRegistrationLinkUserOption(adminClient, actor.userId)
     ).resolves.toEqual({
       id: actor.userId,
-      username: "ada",
+      full_name: "Ada Lovelace",
       email: "ada@example.com",
     });
   });
@@ -1148,7 +1148,7 @@ describe("listUsersForGuestRegistrationLink", () => {
       data: [
         {
           id: actor.userId,
-          username: "ada",
+          full_name: "Ada Lovelace",
           role: "student",
           is_instructor: false,
           created_at: "2026-01-01T00:00:00.000Z",
@@ -1166,7 +1166,7 @@ describe("listUsersForGuestRegistrationLink", () => {
     ).resolves.toEqual([
       {
         id: actor.userId,
-        username: "ada",
+        full_name: "Ada Lovelace",
         email: "ada@example.com",
       },
     ]);

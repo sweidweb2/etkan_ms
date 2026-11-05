@@ -190,107 +190,42 @@ export type Database = {
           },
         ]
       }
-      borrow_equipment: {
+      class_session_skips: {
         Row: {
-          borrowed_at: string | null
-          equipment_id: string
-          id: string
-          quantity: number | null
-          returned_at: string | null
-          status: string | null
-          user_id: string
-        }
-        Insert: {
-          borrowed_at?: string | null
-          equipment_id: string
-          id?: string
-          quantity?: number | null
-          returned_at?: string | null
-          status?: string | null
-          user_id: string
-        }
-        Update: {
-          borrowed_at?: string | null
-          equipment_id?: string
-          id?: string
-          quantity?: number | null
-          returned_at?: string | null
-          status?: string | null
-          user_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "borrow_equipment_equipment_id_fkey"
-            columns: ["equipment_id"]
-            isOneToOne: false
-            referencedRelation: "equipments"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "borrow_equipment_user_id_fkey"
-            columns: ["user_id"]
-            isOneToOne: false
-            referencedRelation: "profiles"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      cloudflare_ai_usage: {
-        Row: {
-          completion_tokens: number | null
+          class_id: string
           created_at: string
-          error_message: string | null
-          feature: string
+          created_by: string | null
           id: string
-          metadata: Json | null
-          model: string
-          prompt: string
-          prompt_tokens: number | null
-          response: string | null
-          status: string
-          tool_rounds: number
-          total_tokens: number | null
-          user_id: string | null
-          user_label: string
+          reason: string | null
+          skip_date: string
         }
         Insert: {
-          completion_tokens?: number | null
+          class_id: string
           created_at?: string
-          error_message?: string | null
-          feature: string
+          created_by?: string | null
           id?: string
-          metadata?: Json | null
-          model: string
-          prompt: string
-          prompt_tokens?: number | null
-          response?: string | null
-          status: string
-          tool_rounds?: number
-          total_tokens?: number | null
-          user_id?: string | null
-          user_label?: string
+          reason?: string | null
+          skip_date: string
         }
         Update: {
-          completion_tokens?: number | null
+          class_id?: string
           created_at?: string
-          error_message?: string | null
-          feature?: string
+          created_by?: string | null
           id?: string
-          metadata?: Json | null
-          model?: string
-          prompt?: string
-          prompt_tokens?: number | null
-          response?: string | null
-          status?: string
-          tool_rounds?: number
-          total_tokens?: number | null
-          user_id?: string | null
-          user_label?: string
+          reason?: string | null
+          skip_date?: string
         }
         Relationships: [
           {
-            foreignKeyName: "cloudflare_ai_usage_user_id_fkey"
-            columns: ["user_id"]
+            foreignKeyName: "class_session_skips_class_id_fkey"
+            columns: ["class_id"]
+            isOneToOne: false
+            referencedRelation: "classes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "class_session_skips_created_by_fkey"
+            columns: ["created_by"]
             isOneToOne: false
             referencedRelation: "profiles"
             referencedColumns: ["id"]
@@ -626,33 +561,6 @@ export type Database = {
           status?: Database["public"]["Enums"]["exercise_status"]
           title?: string
           updated_at?: string
-        }
-        Relationships: []
-      }
-      equipments: {
-        Row: {
-          created_at: string | null
-          description: string | null
-          id: string
-          name: string
-          quantity: number | null
-          unit_price: number | null
-        }
-        Insert: {
-          created_at?: string | null
-          description?: string | null
-          id?: string
-          name: string
-          quantity?: number | null
-          unit_price?: number | null
-        }
-        Update: {
-          created_at?: string | null
-          description?: string | null
-          id?: string
-          name?: string
-          quantity?: number | null
-          unit_price?: number | null
         }
         Relationships: []
       }
@@ -994,63 +902,6 @@ export type Database = {
         }
         Relationships: []
       }
-      mentor_subject_capability: {
-        Row: {
-          created_at: string
-          id: string
-          mentor_subject_id: string
-          user_id: string
-        }
-        Insert: {
-          created_at?: string
-          id?: string
-          mentor_subject_id: string
-          user_id: string
-        }
-        Update: {
-          created_at?: string
-          id?: string
-          mentor_subject_id?: string
-          user_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "mentor_subject_capability_mentor_subject_id_fkey"
-            columns: ["mentor_subject_id"]
-            isOneToOne: false
-            referencedRelation: "mentor_subjects"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "mentor_subject_capability_user_id_fkey"
-            columns: ["user_id"]
-            isOneToOne: false
-            referencedRelation: "profiles"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      mentor_subjects: {
-        Row: {
-          created_at: string
-          id: string
-          name: string
-          sort_order: number
-        }
-        Insert: {
-          created_at?: string
-          id?: string
-          name: string
-          sort_order: number
-        }
-        Update: {
-          created_at?: string
-          id?: string
-          name?: string
-          sort_order?: number
-        }
-        Relationships: []
-      }
       notifications: {
         Row: {
           action_href: string | null
@@ -1193,28 +1044,28 @@ export type Database = {
       }
       profiles: {
         Row: {
+          avatar_url: string | null
           created_at: string | null
+          full_name: string
           id: string
           is_instructor: boolean
-          is_mentor: boolean
           role: string
-          username: string | null
         }
         Insert: {
+          avatar_url?: string | null
           created_at?: string | null
+          full_name: string
           id: string
           is_instructor?: boolean
-          is_mentor?: boolean
           role?: string
-          username?: string | null
         }
         Update: {
+          avatar_url?: string | null
           created_at?: string | null
+          full_name?: string
           id?: string
           is_instructor?: boolean
-          is_mentor?: boolean
           role?: string
-          username?: string | null
         }
         Relationships: []
       }
@@ -1372,7 +1223,6 @@ export type Database = {
           group_grade_level: string | null
           id: string
           nb_order: number
-          semester_id: string | null
           session_report: string | null
           starts_at: string
           topic: string
@@ -1384,7 +1234,6 @@ export type Database = {
           group_grade_level?: string | null
           id?: string
           nb_order: number
-          semester_id?: string | null
           session_report?: string | null
           starts_at: string
           topic: string
@@ -1396,7 +1245,6 @@ export type Database = {
           group_grade_level?: string | null
           id?: string
           nb_order?: number
-          semester_id?: string | null
           session_report?: string | null
           starts_at?: string
           topic?: string
@@ -1407,13 +1255,6 @@ export type Database = {
             columns: ["class_id"]
             isOneToOne: false
             referencedRelation: "classes"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "sessions_semester_id_fkey"
-            columns: ["semester_id"]
-            isOneToOne: false
-            referencedRelation: "semesters"
             referencedColumns: ["id"]
           },
         ]
@@ -1929,6 +1770,118 @@ export type Database = {
           },
         ]
       }
+      semester_drop_requests: {
+        Row: {
+          id: string
+          student_id: string
+          semester_id: string
+          class_id: string
+          payment_phase_id: string | null
+          spp_id: string | null
+          status: string
+          required_percent: number
+          required_amount: number
+          phase_amount_snapshot: number
+          requested_at: string
+          deadline_at: string
+          completed_at: string | null
+          refund_owed: number
+          refund_status: string
+          refunded_amount: number
+          requested_by: string | null
+          notes: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          student_id: string
+          semester_id: string
+          class_id: string
+          payment_phase_id?: string | null
+          spp_id?: string | null
+          status?: string
+          required_percent: number
+          required_amount: number
+          phase_amount_snapshot: number
+          requested_at?: string
+          deadline_at: string
+          completed_at?: string | null
+          refund_owed?: number
+          refund_status?: string
+          refunded_amount?: number
+          requested_by?: string | null
+          notes?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          student_id?: string
+          semester_id?: string
+          class_id?: string
+          payment_phase_id?: string | null
+          spp_id?: string | null
+          status?: string
+          required_percent?: number
+          required_amount?: number
+          phase_amount_snapshot?: number
+          requested_at?: string
+          deadline_at?: string
+          completed_at?: string | null
+          refund_owed?: number
+          refund_status?: string
+          refunded_amount?: number
+          requested_by?: string | null
+          notes?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "semester_drop_requests_student_id_fkey"
+            columns: ["student_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "semester_drop_requests_semester_id_fkey"
+            columns: ["semester_id"]
+            isOneToOne: false
+            referencedRelation: "semesters"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "semester_drop_requests_class_id_fkey"
+            columns: ["class_id"]
+            isOneToOne: false
+            referencedRelation: "classes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "semester_drop_requests_payment_phase_id_fkey"
+            columns: ["payment_phase_id"]
+            isOneToOne: false
+            referencedRelation: "payment_phases"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "semester_drop_requests_spp_id_fkey"
+            columns: ["spp_id"]
+            isOneToOne: false
+            referencedRelation: "student_payment_phases"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "semester_drop_requests_requested_by_fkey"
+            columns: ["requested_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       student_payments: {
         Row: {
           amount: number
@@ -1940,7 +1893,9 @@ export type Database = {
           receipt_number: string | null
           received_by: string
           received_by_management: boolean
+          semester_drop_request_id: string | null
           student_payment_phase_id: string
+          type: string
           updated_at: string
         }
         Insert: {
@@ -1953,7 +1908,9 @@ export type Database = {
           receipt_number?: string | null
           received_by: string
           received_by_management?: boolean
+          semester_drop_request_id?: string | null
           student_payment_phase_id: string
+          type?: string
           updated_at?: string
         }
         Update: {
@@ -1966,7 +1923,9 @@ export type Database = {
           receipt_number?: string | null
           received_by?: string
           received_by_management?: boolean
+          semester_drop_request_id?: string | null
           student_payment_phase_id?: string
+          type?: string
           updated_at?: string
         }
         Relationships: [
@@ -1975,6 +1934,13 @@ export type Database = {
             columns: ["student_payment_phase_id"]
             isOneToOne: false
             referencedRelation: "student_payment_phases"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "student_payments_semester_drop_request_id_fkey"
+            columns: ["semester_drop_request_id"]
+            isOneToOne: false
+            referencedRelation: "semester_drop_requests"
             referencedColumns: ["id"]
           },
         ]
@@ -3099,25 +3065,6 @@ export type Database = {
         Returns: Json
       }
       export_auth_schema_backup: { Args: never; Returns: Json }
-      reorder_mentor_subjects: {
-        Args: { p_ordered_ids: string[] }
-        Returns: {
-          created_at: string
-          id: string
-          name: string
-          sort_order: number
-        }[]
-        SetofOptions: {
-          from: "*"
-          to: "mentor_subjects"
-          isOneToOne: false
-          isSetofReturn: true
-        }
-      }
-      delete_mentor_subject_capability_pairs: {
-        Args: { p_user_ids: string[]; p_mentor_subject_ids: string[] }
-        Returns: number
-      }
       reorder_instructor_subjects: {
         Args: { p_ordered_ids: string[] }
         Returns: {
@@ -3138,10 +3085,6 @@ export type Database = {
         Returns: number
       }
       clear_instructor_related_data: {
-        Args: { p_user_id: string }
-        Returns: Json
-      }
-      clear_mentor_related_data: {
         Args: { p_user_id: string }
         Returns: Json
       }
@@ -3187,6 +3130,20 @@ export type Database = {
       renumber_sessions_after_delete: {
         Args: { p_class_id: string }
         Returns: number
+      }
+      create_next_weekly_session_for_class: {
+        Args: { p_class_id: string; p_lead_days?: number }
+        Returns: string | null
+      }
+      skip_class_week: {
+        Args: {
+          p_class_id: string
+          p_created_by: string | null
+          p_reason: string | null
+          p_session_id?: string | null
+          p_skip_date: string
+        }
+        Returns: string
       }
       copy_weekly_schedule_from_last_week: {
         Args: { p_week_start: string }
@@ -3266,7 +3223,68 @@ export type Database = {
         }
         Returns: Json
       }
+      create_semester_drop_request: {
+        Args: {
+          p_student_id: string
+          p_class_id: string
+          p_required_percent: number
+          p_requested_by?: string | null
+          p_notes?: string | null
+        }
+        Returns: Json
+      }
+      cancel_semester_drop_request: {
+        Args: { p_request_id: string }
+        Returns: Json
+      }
+      complete_semester_drop_request: {
+        Args: { p_request_id: string }
+        Returns: Json
+      }
+      try_complete_semester_drop_for_spp: {
+        Args: { p_spp_id: string }
+        Returns: Json
+      }
+      create_student_payment_debit_for_drop_refund: {
+        Args: {
+          p_drop_request_id: string
+          p_amount: number
+          p_payment_date: string
+          p_payment_method: string
+          p_received_by: string
+          p_received_by_management?: boolean
+          p_notes?: string | null
+        }
+        Returns: Json
+      }
       sum_student_payment_amounts: { Args: never; Returns: number }
+      sum_student_payment_amounts_between: {
+        Args: { p_from: string; p_to: string }
+        Returns: number
+      }
+      list_open_spps_missing_prior_adjustment: {
+        Args: { p_phase_ids: string[] }
+        Returns: {
+          full_name: string | null
+          payment_phase_id: string
+          spp_id: string
+          spp_status: string
+          student_id: string
+          student_profile_id: string | null
+        }[]
+      }
+      list_student_profiles_without_active_class: {
+        Args: never
+        Returns: {
+          full_name: string
+          id: string
+          phone: string | null
+          status: string | null
+          user_id: string
+        }[]
+      }
+      sum_student_payment_amounts_by_type: { Args: never; Returns: Json }
+      spp_net_total_paid: { Args: { p_spp_id: string }; Returns: number }
       aggregate_workshop_payment_totals: { Args: never; Returns: Json }
       sum_workshop_payment_nets: {
         Args: { p_workshop_ids: string[] }

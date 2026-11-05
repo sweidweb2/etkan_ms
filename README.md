@@ -70,7 +70,7 @@ See [docs/cmds/migrations.md](docs/cmds/migrations.md) for the full migration wo
 npm run seed:admin
 ```
 
-Optional overrides: `SEED_ADMIN_EMAIL`, `SEED_ADMIN_PASSWORD`, `SEED_ADMIN_USERNAME`.
+Optional overrides: `SEED_ADMIN_EMAIL`, `SEED_ADMIN_PASSWORD`, `SEED_ADMIN_FULL_NAME`.
 
 ### 5. Run the dev server
 

@@ -1,7 +1,7 @@
 import { notFound } from "next/navigation";
 import { SppDetailsPanel } from "@/components/manager/accounting/spp-details-panel";
 import { getSessionUser } from "@/lib/auth/session";
-import { createSupabaseAdminClient } from "@/lib/supabase/admin";
+import { getRequestAdminClient } from "@/lib/supabase/admin";
 import {
   getAdjustmentForSppForManager,
   listFormsForSppForManager,
@@ -22,35 +22,48 @@ export default async function ManagerSppDetailPage({
   params,
 }: ManagerSppDetailPageProps) {
   const { id: phaseId, sppId } = await params;
-  const adminClient = createSupabaseAdminClient();
+  const adminClient = getRequestAdminClient();
   const user = await getSessionUser();
   const actorUserId = user?.id ?? null;
 
-  const spp = await getSppDetailForManager(
+  const sppPromise = getSppDetailForManager(
     adminClient,
     actorUserId,
     phaseId,
     sppId
   );
+  const importablePromise = sppPromise.then((spp) =>
+    spp
+      ? listImportableAdjustmentsForManager(
+          adminClient,
+          actorUserId,
+          spp.student_id,
+          spp.id
+        )
+      : []
+  );
+
+  const [
+    spp,
+    payments,
+    schedules,
+    adjustment,
+    importableAdjustments,
+    forms,
+    invites,
+  ] = await Promise.all([
+    sppPromise,
+    listPaymentsForSppForManager(adminClient, actorUserId, sppId),
+    listStudentPaymentSchedulesForManager(adminClient, actorUserId, sppId),
+    getAdjustmentForSppForManager(adminClient, actorUserId, sppId),
+    importablePromise,
+    listFormsForSppForManager(adminClient, actorUserId, sppId),
+    listInvitesForSppForManager(adminClient, actorUserId, sppId),
+  ]);
 
   if (!spp) {
     notFound();
   }
-
-  const [payments, schedules, adjustment, importableAdjustments, forms, invites] =
-    await Promise.all([
-      listPaymentsForSppForManager(adminClient, actorUserId, sppId),
-      listStudentPaymentSchedulesForManager(adminClient, actorUserId, sppId),
-      getAdjustmentForSppForManager(adminClient, actorUserId, sppId),
-      listImportableAdjustmentsForManager(
-        adminClient,
-        actorUserId,
-        spp.student_id,
-        spp.id
-      ),
-      listFormsForSppForManager(adminClient, actorUserId, sppId),
-      listInvitesForSppForManager(adminClient, actorUserId, sppId),
-    ]);
 
   return (
     <SppDetailsPanel

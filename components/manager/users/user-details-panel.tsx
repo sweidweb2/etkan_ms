@@ -32,7 +32,7 @@ export function UserDetailsPanel({
   const [user, setUser] = useState(initialUser);
   const [isEditOpen, setIsEditOpen] = useState(false);
 
-  const displayName = user.username ?? user.email;
+  const displayName = user.full_name || user.email;
 
   return (
     <div className="flex flex-col gap-6">
@@ -70,8 +70,8 @@ export function UserDetailsPanel({
           </CardAction>
         </CardHeader>
         <CardContent>
-          <dl className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-            <DetailField label="Username" value={user.username ?? "—"} />
+          <dl className="grid gap-6 @lg/panel:grid-cols-2 @2xl/panel:grid-cols-3">
+            <DetailField label="Full name" value={user.full_name || "—"} />
             <DetailField label="Email" value={user.email} />
             <DetailField label="Role">
               <UserRoleBadge role={user.role} />

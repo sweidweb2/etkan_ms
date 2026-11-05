@@ -3,6 +3,7 @@ import type {
   FinancialAdjustmentType,
   FinancialAdjustmentValueType,
 } from "@/lib/manager/accounting/constants";
+import type { ManagerSppFinancialSnapshot } from "@/types/manager-student-payment";
 
 export type ManagerFinancialFormRow = {
   id: string;
@@ -89,6 +90,7 @@ export type CreateFinancialAdjustmentActionState = {
   message?: string;
   fieldErrors?: FieldErrors;
   adjustment?: ManagerFinancialAdjustmentRow;
+  spp?: ManagerSppFinancialSnapshot;
 };
 
 export type ImportFinancialAdjustmentActionState = {
@@ -97,6 +99,7 @@ export type ImportFinancialAdjustmentActionState = {
   message?: string;
   fieldErrors?: FieldErrors;
   adjustment?: ManagerFinancialAdjustmentRow;
+  spp?: ManagerSppFinancialSnapshot;
 };
 
 export type UpdateFinancialAdjustmentActionState = {
@@ -105,6 +108,7 @@ export type UpdateFinancialAdjustmentActionState = {
   message?: string;
   fieldErrors?: FieldErrors;
   adjustment?: ManagerFinancialAdjustmentRow;
+  spp?: ManagerSppFinancialSnapshot;
 };
 
 export type DeleteFinancialAdjustmentActionState = {
@@ -114,6 +118,7 @@ export type DeleteFinancialAdjustmentActionState = {
   fieldErrors?: FieldErrors;
   student_payment_phase_id?: string;
   payment_phase_id?: string;
+  spp?: ManagerSppFinancialSnapshot;
 };
 
 export type UpsertFinancialFormActionState = {

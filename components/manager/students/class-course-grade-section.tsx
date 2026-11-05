@@ -127,7 +127,7 @@ export function ClassCourseGradeSection({
               {formatCourseGradeValue(finalGrade)}
             </p>
           </div>
-          <dl className="grid gap-2 text-sm sm:grid-cols-2 sm:gap-x-6">
+          <dl className="grid gap-2 text-sm @lg/panel:grid-cols-2 sm:gap-x-6">
             <div>
               <dt className="text-xs text-muted-foreground">Grade type</dt>
               <dd className="font-medium">
@@ -143,7 +143,7 @@ export function ClassCourseGradeSection({
           </dl>
         </div>
 
-        <div className="grid min-h-[22rem] min-w-0 gap-6 lg:grid-cols-2 lg:items-stretch">
+        <div className="grid min-h-[22rem] min-w-0 gap-6 @2xl/panel:grid-cols-2 @2xl/panel:items-stretch">
           <div className="flex min-h-[20rem] min-w-0 flex-col space-y-3">
             <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
               Grade components

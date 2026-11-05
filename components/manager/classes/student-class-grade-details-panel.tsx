@@ -7,6 +7,7 @@ import Link from "next/link";
 import { useMemo, useState } from "react";
 import { Can } from "@/components/auth/can";
 import { InlineSpinner } from "@/components/loaders/inline-spinner";
+import { PanelPageHeader } from "@/components/panels/panel-page-header";
 import {
   ComputeFactorWeightsFields,
   type ComputeFactorWeightsValues,
@@ -114,7 +115,7 @@ function GroupGradesSection({ detail }: { detail: ManagerStudentClassTabDetail }
       title="Group grades"
       description="Per-session group grade levels from session settings, with a combined line graph."
     >
-      <div className="grid min-h-[22rem] min-w-0 gap-6 p-5 lg:grid-cols-2 lg:items-stretch">
+      <div className="grid min-h-[22rem] min-w-0 gap-6 p-5 @2xl/panel:grid-cols-2 @2xl/panel:items-stretch">
         <div className="flex min-h-0 min-w-0 flex-col space-y-3">
           <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
             Group grade slots
@@ -127,7 +128,7 @@ function GroupGradesSection({ detail }: { detail: ManagerStudentClassTabDetail }
           ) : (
             <div
               className={cn(
-                "grid h-full min-h-0 flex-1 grid-cols-2 content-start gap-2.5 overflow-y-auto overscroll-y-contain sm:grid-cols-3"
+                "grid h-full min-h-0 flex-1 grid-cols-2 content-start gap-2.5 overflow-y-auto overscroll-y-contain @lg/panel:grid-cols-3"
               )}
             >
               {groupSlots.map((slot) => (
@@ -203,7 +204,7 @@ function TaskGradesSection({ detail }: { detail: ManagerStudentClassTabDetail })
       title="Task grades"
       description="Task slots with status color theme, linked session, and grade trend."
     >
-      <div className="grid min-h-[22rem] min-w-0 gap-6 p-5 lg:grid-cols-2 lg:items-stretch">
+      <div className="grid min-h-[22rem] min-w-0 gap-6 p-5 @2xl/panel:grid-cols-2 @2xl/panel:items-stretch">
         <div className="flex min-h-0 min-w-0 flex-col space-y-3">
           <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
             Task slots
@@ -318,7 +319,7 @@ function FinalExamSection({
               {finalExam?.description ?? "No final exam description available yet."}
             </p>
           </div>
-          <div className="grid gap-4 px-4 pt-2 pb-3 sm:grid-cols-2 lg:grid-cols-4">
+          <div className="grid gap-4 px-4 pt-2 pb-3 @lg/panel:grid-cols-2 @2xl/panel:grid-cols-4">
             <DetailField
               label="Max grade"
               value={finalExam?.max_grade?.toString() ?? "—"}
@@ -364,14 +365,14 @@ function AttendanceGradesSection({ detail }: { detail: ManagerStudentClassTabDet
       title="Attendance"
       description="Attendance slots with status theme and a cumulative attendance line graph."
     >
-      <div className="grid min-h-[22rem] min-w-0 gap-6 p-5 lg:grid-cols-2 lg:items-stretch">
+      <div className="grid min-h-[22rem] min-w-0 gap-6 p-5 @2xl/panel:grid-cols-2 @2xl/panel:items-stretch">
         <div className="flex min-h-0 min-w-0 flex-col space-y-3">
           <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
             Attendance slots
           </p>
           <div
             className={cn(
-              "grid h-full min-h-0 flex-1 grid-cols-2 content-start gap-2.5 overflow-y-auto overscroll-y-contain sm:grid-cols-3"
+              "grid h-full min-h-0 flex-1 grid-cols-2 content-start gap-2.5 overflow-y-auto overscroll-y-contain @lg/panel:grid-cols-3"
             )}
           >
             {detail.attendanceSlots.length === 0 ? (
@@ -621,6 +622,7 @@ export function StudentClassGradeDetailsPanel({
 
   return (
     <div className="flex flex-col gap-6">
+      <PanelPageHeader title={student.full_name} />
       <Dialog
         open={isComputeDialogOpen}
         onOpenChange={(open) => {
@@ -750,15 +752,7 @@ export function StudentClassGradeDetailsPanel({
         </BreadcrumbList>
       </Breadcrumb>
 
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-        <div>
-          <h1 className="text-2xl font-semibold tracking-tight">
-            {student.full_name}
-          </h1>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Course grade breakdown for this student in {classRow.name}.
-          </p>
-        </div>
+      <div className="flex flex-wrap items-center justify-end gap-2 empty:hidden">
         <Button
           render={
             <Link
@@ -809,9 +803,8 @@ export function StudentClassGradeDetailsPanel({
           </p>
         </CardHeader>
         <CardContent className="py-6">
-          <dl className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+          <dl className="grid gap-6 @lg/panel:grid-cols-2 @2xl/panel:grid-cols-3">
             <DetailField label="Full name" value={student.full_name} />
-            <DetailField label="Username" value={student.username ?? "—"} />
             <DetailField label="Email" value={student.email} />
             <DetailField label="Phone" value={student.phone ?? "—"} />
             <DetailField label="Membership" value="Member" />

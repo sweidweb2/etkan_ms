@@ -26,7 +26,7 @@ export function ClassTasksSection({ detail }: ClassTasksSectionProps) {
       title="Tasks"
       description="Task grades for this class with a grade trend chart."
     >
-      <div className="grid min-h-[22rem] min-w-0 gap-6 p-5 lg:grid-cols-2 lg:items-stretch">
+      <div className="grid min-h-[22rem] min-w-0 gap-6 p-5 @2xl/panel:grid-cols-2 @2xl/panel:items-stretch">
         <div className="flex min-h-0 min-w-0 flex-col space-y-3">
           <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
             Task grades

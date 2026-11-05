@@ -41,7 +41,6 @@ import { WorkshopScheduleSlotsSection } from "@/components/manager/workshops/wor
 import { WorkshopSessionsSection } from "@/components/manager/workshops/workshop-sessions-section";
 import { WorkshopStatusBadge } from "@/components/manager/workshops/workshop-status-badge";
 import { WorkshopStatusStepper } from "@/components/manager/workshops/workshop-status-stepper";
-import { ScheduleAssistantPrompt } from "@/components/manager/instructor-schedules/schedule-assistant-prompt";
 import { ClassTabCollapsibleSection } from "@/components/manager/students/class-tab-collapsible-section";
 import { InlineSpinner } from "@/components/loaders/inline-spinner";
 import {
@@ -86,7 +85,7 @@ import type {
   ManagerWorkshopSessionRow,
 } from "@/types/manager-workshop";
 
-type WorkshopPageTabValue = "status" | "manage" | "assistant";
+type WorkshopPageTabValue = "status" | "manage";
 
 type WorkshopDetailsTabValue =
   | "schedule"
@@ -180,12 +179,6 @@ export function WorkshopDetailsPanel({
     permissions,
     PERMISSIONS.WORKSHOPS_PAYMENTS_VIEW
   );
-  const canUseScheduleAssistant = hasPermissionInSet(
-    permissions,
-    PERMISSIONS.CLOUDFLARE_AI_USAGE_VIEW
-  );
-  const resolvedPageTab =
-    pageTab === "assistant" && !canUseScheduleAssistant ? "status" : pageTab;
   const availableTabs = useMemo(() => {
     const tabs: WorkshopDetailsTabValue[] = [];
     if (canViewSchedule) {
@@ -356,22 +349,17 @@ export function WorkshopDetailsPanel({
       </Dialog>
 
       <Tabs
-        value={resolvedPageTab}
+        value={pageTab}
         onValueChange={(value) => setPageTab(value as WorkshopPageTabValue)}
         className="gap-4"
       >
-        <TabsList className="w-full sm:w-fit">
+        <TabsList className="w-full @lg/panel:w-fit">
           <TabsTrigger value="status" className="px-4">
             Status
           </TabsTrigger>
           <TabsTrigger value="manage" className="px-4">
             Manage
           </TabsTrigger>
-          {canUseScheduleAssistant ? (
-            <TabsTrigger value="assistant" className="px-4">
-              AI assistant
-            </TabsTrigger>
-          ) : null}
         </TabsList>
 
         <TabsContents>
@@ -383,12 +371,6 @@ export function WorkshopDetailsPanel({
                   setWorkshop(updated);
                 }}
               />
-            </Can>
-          </TabsContent>
-
-          <TabsContent value="assistant" className={PAGE_TAB_BODY_CLASS}>
-            <Can permission={PERMISSIONS.CLOUDFLARE_AI_USAGE_VIEW}>
-              <ScheduleAssistantPrompt bare />
             </Can>
           </TabsContent>
 
@@ -428,7 +410,7 @@ export function WorkshopDetailsPanel({
                       {paymentCount === 1 ? "" : "s"}).
                     </p>
                   ) : null}
-                  <div className="grid gap-x-5 gap-y-1 sm:grid-cols-2 lg:grid-cols-3">
+                  <div className="grid gap-x-5 gap-y-1 @lg/panel:grid-cols-2 @2xl/panel:grid-cols-3">
                     <dl className="min-w-0">
                       <DetailField
                         label="Type"
@@ -459,7 +441,7 @@ export function WorkshopDetailsPanel({
                         }
                       />
                     </dl>
-                    <dl className="min-w-0 sm:col-span-2 lg:col-span-1">
+                    <dl className="min-w-0 @lg/panel:col-span-2 @2xl/panel:col-span-1">
                       <DetailField
                         label="Start"
                         value={formatDate(workshop.start_date)}
@@ -502,7 +484,7 @@ export function WorkshopDetailsPanel({
                 className="flex flex-col gap-4"
               >
                 <div className="flex items-center justify-center">
-                  <TabsListPrimitive className="flex h-auto w-full flex-wrap items-center justify-center gap-2 rounded-full bg-muted/60 p-1 ring-1 ring-foreground/8 sm:w-fit">
+                  <TabsListPrimitive className="flex h-auto w-full flex-wrap items-center justify-center gap-2 rounded-full bg-muted/60 p-1 ring-1 ring-foreground/8 @lg/panel:w-fit">
                     {canViewSchedule ? (
                       <TabsTriggerPrimitive
                         value="schedule"

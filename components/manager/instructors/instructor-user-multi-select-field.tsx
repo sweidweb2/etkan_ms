@@ -25,7 +25,7 @@ type InstructorUserMultiSelectFieldProps = {
 };
 
 function getUserLabel(user: ManagerInstructorCandidateRow) {
-  return user.username ?? user.email ?? "User";
+  return user.full_name.trim() || user.email || "User";
 }
 
 export function InstructorUserMultiSelectField({
@@ -56,7 +56,7 @@ export function InstructorUserMultiSelectField({
     return unselected
       .filter((user) => {
         const haystack = [
-          user.username ?? "",
+          user.full_name,
           user.email,
           user.role,
           MANAGER_USER_ROLE_LABELS[user.role],
@@ -119,7 +119,7 @@ export function InstructorUserMultiSelectField({
             disabled={disabled}
             placeholder={
               selected.length === 0
-                ? "Type a username or email…"
+                ? "Type a name or email…"
                 : "Add another…"
             }
             className="h-8 min-w-[10rem] flex-1 border-0 bg-transparent px-1 shadow-none focus-visible:ring-0"

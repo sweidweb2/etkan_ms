@@ -1,4 +1,5 @@
 import type { ClassTaskGradeSummary } from "@/lib/manager/class-task-grade-summary";
+import type { ClassWeekSkipState } from "@/lib/manager/class-week-skips";
 import type { ClassStatusValue } from "@/lib/constants/manager-class-status";
 import type { ClassStudentRow } from "@/types/class-student";
 import type { ManagerClassSessionRow } from "@/types/manager-class-session";
@@ -42,6 +43,7 @@ export type TeacherClassDetailRow = {
 export type TeachingClassPageBundle = {
   classRow: TeacherClassDetailRow;
   sessions: ManagerClassSessionRow[];
+  weekSkipState: ClassWeekSkipState;
   tasks: ManagerClassTaskRow[];
   students: ClassStudentRow[];
   assignedAt: string | null;

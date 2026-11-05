@@ -98,7 +98,7 @@ function ClassTabPanel({
 
   return (
     <div className="flex min-w-0 flex-col gap-6">
-      <dl className="grid gap-4 rounded-lg bg-muted/20 p-4 sm:grid-cols-2 lg:grid-cols-4">
+      <dl className="grid gap-4 rounded-lg bg-muted/20 p-4 @lg/panel:grid-cols-2 @2xl/panel:grid-cols-4">
         <ClassDetailField label="Class name" value={classRow.name} />
         <ClassDetailField label="Subject" value={classRow.subject_name} />
         <ClassDetailField label="Class status">

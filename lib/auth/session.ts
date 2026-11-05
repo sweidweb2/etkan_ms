@@ -39,7 +39,6 @@ export type SessionPack = {
   role: RoleValue | null;
   displayName: string;
   isInstructor: boolean;
-  isMentor: boolean;
   permissions: ReadonlySet<PermissionKey>;
 };
 
@@ -48,7 +47,6 @@ const EMPTY_SESSION_PACK: SessionPack = {
   role: null,
   displayName: "User",
   isInstructor: false,
-  isMentor: false,
   permissions: EMPTY_PERMISSIONS,
 };
 
@@ -140,9 +138,8 @@ async function buildSessionShell(
   }
 
   const isInstructor = profile?.is_instructor === true;
-  const isMentor = profile?.is_mentor === true;
 
-  let displayName = displayNameFromAuthUser(user, profile?.username ?? null);
+  let displayName = displayNameFromAuthUser(user, profile?.full_name ?? null);
 
   // Students without JWT full_name: one student_profiles read (skip for staff).
   if (
@@ -164,7 +161,6 @@ async function buildSessionShell(
     role,
     displayName,
     isInstructor,
-    isMentor,
     permissionKeys: [...permissions],
     cachedClaimsRole: claimsRole,
   };
@@ -182,7 +178,6 @@ function packFromShell(
     role: shell.role,
     displayName: shell.displayName,
     isInstructor: shell.isInstructor,
-    isMentor: shell.isMentor,
     permissions: permissionsFromKeys(shell.permissionKeys),
   };
 }
@@ -291,16 +286,9 @@ export async function getSessionIsInstructor(): Promise<boolean> {
   return (await getSessionPack()).isInstructor;
 }
 
-export async function getSessionIsMentor(): Promise<boolean> {
-  return (await getSessionPack()).isMentor;
-}
-
 export async function getSessionCanAccessManageWorkshops(): Promise<boolean> {
   const pack = await getSessionPack();
-  return canAccessManageWorkshops({
-    isInstructor: pack.isInstructor,
-    isMentor: pack.isMentor,
-  });
+  return canAccessManageWorkshops({ isInstructor: pack.isInstructor });
 }
 
 export async function getSessionDisplayName(): Promise<string> {

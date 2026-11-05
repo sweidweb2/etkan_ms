@@ -6,7 +6,6 @@ import type { FieldErrors } from "@/types/auth";
 export interface ManagerStudentRow {
   user_id: string;
   student_profile_id: string;
-  username: string | null;
   email: string;
   full_name: string;
   birth_date: string | null;
@@ -16,7 +15,8 @@ export interface ManagerStudentRow {
   /** Account fields, present when the row is built from a profiles read. */
   role?: RoleValue;
   is_instructor?: boolean;
-  is_mentor?: boolean;
+  /** Public avatar URL; loaded on detail/profile reads only. */
+  avatar_url?: string | null;
 }
 
 export type ManagerStudentsListQuery = {

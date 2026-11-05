@@ -23,7 +23,6 @@ export type ManagerClassStudentGradeRow = {
   student_profile_id: string;
   user_id: string;
   full_name: string;
-  username: string | null;
   email: string;
   phone: string | null;
   enrollment_status: string;

@@ -18,7 +18,7 @@ import {
   type DragOverEvent,
 } from "@dnd-kit/react";
 import { CollisionPriority } from "@dnd-kit/abstract";
-import { ChevronLeftIcon, ChevronRightIcon, BellIcon, PlusIcon, SearchIcon } from "lucide-react";
+import { BellIcon, PlusIcon, SearchIcon } from "lucide-react";
 import {
   assignGuestToTeamAction,
   deleteTeamAction,
@@ -37,10 +37,10 @@ import {
 import { TeamFormDialog } from "@/components/manager/guests/team-form-dialog";
 import { TeamsSection } from "@/components/manager/guests/teams-section";
 import { ViewGuestNotesDialog } from "@/components/manager/guests/view-guest-notes-dialog";
-import { UserStatCard } from "@/components/manager/users/user-stat-card";
 import { InlineSpinner } from "@/components/loaders/inline-spinner";
+import { PanelPageHeader } from "@/components/panels/panel-page-header";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
   Dialog,
@@ -81,37 +81,12 @@ import type {
   ManagerTeamRow,
 } from "@/types/manager-team";
 
-const PAGE_SIZE_OPTIONS = [5, 10, 25] as const;
+const GUEST_LIST_BATCH_SIZE = 15;
+const GUEST_LIST_MAX_ROWS = 100;
 
 const FILTER_ALL = "all";
-
-function getPageNumbers(currentPage: number, totalPages: number) {
-  if (totalPages <= 7) {
-    return Array.from({ length: totalPages }, (_, index) => index + 1);
-  }
-
-  const pages = new Set<number>([1, totalPages, currentPage]);
-
-  for (let offset = -1; offset <= 1; offset += 1) {
-    const page = currentPage + offset;
-    if (page > 1 && page < totalPages) {
-      pages.add(page);
-    }
-  }
-
-  const sortedPages = [...pages].sort((a, b) => a - b);
-  const result: Array<number | "ellipsis"> = [];
-
-  sortedPages.forEach((page, index) => {
-    const previousPage = sortedPages[index - 1];
-    if (previousPage !== undefined && page - previousPage > 1) {
-      result.push("ellipsis");
-    }
-    result.push(page);
-  });
-
-  return result;
-}
+/** Guest list filters are hidden for now; flip to bring them back. */
+const SHOW_GUEST_FILTERS = false;
 
 function uniqueGuestsById(rows: ManagerGuestRow[]) {
   const seen = new Set<string>();
@@ -154,7 +129,7 @@ type GuestMove = {
 /** Pure move used for both the optimistic render and the committed result. */
 function applyGuestMove(
   teams: ManagerTeamRow[],
-  { guest, targetGroup }: GuestMove
+  { guest, targetGroup }: GuestMove,
 ): ManagerTeamRow[] {
   return teams.map((team) => {
     const withoutGuest = team.guests.filter((row) => row.id !== guest.id);
@@ -177,7 +152,7 @@ type DropTargetContext = {
 
 function resolveGuestDropTarget(
   operation: DragEndEvent["operation"],
-  context: DropTargetContext
+  context: DropTargetContext,
 ): string | null {
   const { source, target } = operation;
   if (!source) {
@@ -242,13 +217,13 @@ function GuestTeamDragMonitor({
       "dragover",
       (event: DragOverEvent) => {
         onDragOverRef.current(event);
-      }
+      },
     );
     const unsubscribeEnd = manager.monitor.addEventListener(
       "dragend",
       (event: DragEndEvent) => {
         onDragEndRef.current(event);
-      }
+      },
     );
 
     return () => {
@@ -273,7 +248,7 @@ function UnassignedDropZone({ children }: { children: React.ReactNode }) {
       ref={ref}
       className={cn(
         "overflow-x-auto transition-colors",
-        isDropTarget && "bg-primary/5 ring-2 ring-inset ring-primary/40"
+        isDropTarget && "bg-primary/5 ring-2 ring-inset ring-primary/40",
       )}
     >
       {children}
@@ -302,10 +277,7 @@ export function ManageGuestsPanel({
   const [statusFilter, setStatusFilter] = useState(FILTER_ALL);
   const [serviceFilter, setServiceFilter] = useState(FILTER_ALL);
   const [showClosedStatuses, setShowClosedStatuses] = useState(false);
-  const [pageSize, setPageSize] = useState<(typeof PAGE_SIZE_OPTIONS)[number]>(
-    10
-  );
-  const [currentPage, setCurrentPage] = useState(1);
+  const [visibleCount, setVisibleCount] = useState(GUEST_LIST_BATCH_SIZE);
   const [isAddOpen, setIsAddOpen] = useState(false);
   const [isRegistrationNotifsOpen, setIsRegistrationNotifsOpen] =
     useState(false);
@@ -316,7 +288,7 @@ export function ManageGuestsPanel({
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [isTeamFormOpen, setIsTeamFormOpen] = useState(false);
   const [teamFormTarget, setTeamFormTarget] = useState<ManagerTeamRow | null>(
-    null
+    null,
   );
   const [deleteTeamTarget, setDeleteTeamTarget] =
     useState<ManagerTeamRow | null>(null);
@@ -324,18 +296,19 @@ export function ManageGuestsPanel({
   const [isAssignTransitionPending, startAssignTransition] = useTransition();
   const [assignState, assignFormAction, isAssignActionPending] = useActionState(
     assignGuestToTeamAction,
-    initialAssignState
+    initialAssignState,
   );
   const isAssignPending = isAssignActionPending || isAssignTransitionPending;
 
   const permissions = usePermissions();
   const canAssignGuests = hasPermissionInSet(
     permissions,
-    PERMISSIONS.TEAMS_ASSIGN_GUEST
+    PERMISSIONS.TEAMS_ASSIGN_GUEST,
   );
+  const canViewTeams = hasPermissionInSet(permissions, PERMISSIONS.TEAMS_VIEW);
   const canViewNotifications = hasPermissionInSet(
     permissions,
-    PERMISSIONS.NOTIFICATIONS_VIEW
+    PERMISSIONS.NOTIFICATIONS_VIEW,
   );
 
   useEffect(() => {
@@ -375,7 +348,7 @@ export function ManageGuestsPanel({
   const [optimisticTeams, applyOptimisticMove] = useOptimistic(
     teams,
     (current: ManagerTeamRow[], move: GuestMove) =>
-      applyGuestMove(current, move)
+      applyGuestMove(current, move),
   );
 
   useActionStateToast(assignState, isAssignActionPending);
@@ -394,7 +367,7 @@ export function ManageGuestsPanel({
       applyGuestMove(current, {
         guest,
         targetGroup: teamId ?? UNASSIGNED_GROUP,
-      })
+      }),
     );
   });
 
@@ -404,7 +377,7 @@ export function ManageGuestsPanel({
     () => {
       setTeams(initialTeams);
     },
-    (nextState) => nextState.success === false
+    (nextState) => nextState.success === false,
   );
 
   useActionStateSuccess(deleteTeamState, isDeleteTeamPending, (nextState) => {
@@ -421,7 +394,7 @@ export function ManageGuestsPanel({
       if (!open) {
         setDeleteTeamTarget(null);
       }
-    }
+    },
   );
 
   const teamIdByGuestId = useMemo(() => {
@@ -439,17 +412,8 @@ export function ManageGuestsPanel({
   /** The main table only lists guests that are not in a team. */
   const guestsById = useMemo(
     () => allGuests.filter((row) => !teamIdByGuestId.has(row.id)),
-    [allGuests, teamIdByGuestId]
+    [allGuests, teamIdByGuestId],
   );
-
-  const stats = useMemo(() => {
-    return {
-      total: allGuests.length,
-      scheduled: allGuests.filter((row) => row.status === "scheduled").length,
-      finished: allGuests.filter((row) => row.status === "finished").length,
-      cancelled: allGuests.filter((row) => row.status === "cancelled").length,
-    };
-  }, [allGuests]);
 
   const filteredGuests = useMemo(() => {
     return guestsById.filter((guest) => {
@@ -478,11 +442,9 @@ export function ManageGuestsPanel({
     showClosedStatuses,
   ]);
 
-  const totalPages = Math.max(1, Math.ceil(filteredGuests.length / pageSize));
-  const safePage = Math.min(currentPage, totalPages);
-  const pageStart = (safePage - 1) * pageSize;
-  const pageRows = filteredGuests.slice(pageStart, pageStart + pageSize);
-  const pageNumbers = getPageNumbers(safePage, totalPages);
+  const pageRows = filteredGuests.slice(0, visibleCount);
+  const canShowMore =
+    visibleCount < GUEST_LIST_MAX_ROWS && filteredGuests.length > visibleCount;
 
   const dropTargetContext = useMemo<DropTargetContext>(() => {
     const teamIds = new Set(optimisticTeams.map((team) => team.id));
@@ -493,7 +455,9 @@ export function ManageGuestsPanel({
       }
     }
     const unassignedGuestIds = new Set(
-      allGuests.filter((row) => !guestTeamById.has(row.id)).map((row) => row.id)
+      allGuests
+        .filter((row) => !guestTeamById.has(row.id))
+        .map((row) => row.id),
     );
     return { teamIds, guestTeamById, unassignedGuestIds };
   }, [optimisticTeams, allGuests]);
@@ -512,7 +476,7 @@ export function ManageGuestsPanel({
       formData.set("guest_id", guestId);
       formData.set(
         "team_id",
-        targetGroup === UNASSIGNED_GROUP ? "" : targetGroup
+        targetGroup === UNASSIGNED_GROUP ? "" : targetGroup,
       );
 
       startAssignTransition(() => {
@@ -522,7 +486,7 @@ export function ManageGuestsPanel({
         assignFormAction(formData);
       });
     },
-    [allGuests, applyOptimisticMove, assignFormAction, startAssignTransition]
+    [allGuests, applyOptimisticMove, assignFormAction, startAssignTransition],
   );
 
   const handleGuestDragOver = useCallback(
@@ -532,13 +496,13 @@ export function ManageGuestsPanel({
       }
       const targetGroup = resolveGuestDropTarget(
         event.operation,
-        dropTargetContext
+        dropTargetContext,
       );
       if (targetGroup) {
         pendingDropTargetRef.current = targetGroup;
       }
     },
-    [dropTargetContext]
+    [dropTargetContext],
   );
 
   const handleGuestDragEnd = useCallback(
@@ -568,7 +532,7 @@ export function ManageGuestsPanel({
 
       moveGuest(guestId, targetGroup);
     },
-    [dropTargetContext, moveGuest]
+    [dropTargetContext, moveGuest],
   );
 
   function handleConfirmDeleteTeam() {
@@ -590,21 +554,15 @@ export function ManageGuestsPanel({
           onDragOver={handleGuestDragOver}
           onDragEnd={handleGuestDragEnd}
         />
-      <div className="flex flex-col gap-6">
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-          <div>
-            <h1 className="text-2xl font-semibold tracking-tight">Guests</h1>
-            <p className="text-sm text-muted-foreground">
-              Pre-user intake cards before registration and team handoff.
-            </p>
-          </div>
-          <div className="flex flex-wrap items-center gap-2">
+        <div className="flex flex-col gap-6">
+          <PanelPageHeader title="Guests" />
+          <div className="flex flex-wrap items-center justify-end gap-2 empty:hidden">
             <Can permission={PERMISSIONS.NOTIFICATIONS_VIEW}>
               <Button
                 type="button"
                 variant="outline"
-                onClick={() => setIsRegistrationNotifsOpen(true)}
-                className="relative"
+              onClick={() => setIsRegistrationNotifsOpen(true)}
+              className="relative mr-auto"
                 aria-label={
                   registrationUnreadCount > 0
                     ? `Registration alerts, ${registrationUnreadCount} unread`
@@ -621,6 +579,22 @@ export function ManageGuestsPanel({
                 ) : null}
               </Button>
             </Can>
+            {canViewTeams ? (
+              <Can permission={PERMISSIONS.TEAMS_CREATE}>
+                <Button
+                  type="button"
+                  variant="secondary"
+                  disabled={isDeleteTeamPending}
+                  onClick={() => {
+                    setTeamFormTarget(null);
+                    setIsTeamFormOpen(true);
+                  }}
+                >
+                  <PlusIcon data-icon="inline-start" />
+                  Create team
+                </Button>
+              </Can>
+            ) : null}
             <Can permission={PERMISSIONS.GUESTS_CREATE}>
               <Button type="button" onClick={() => setIsAddOpen(true)}>
                 <PlusIcon data-icon="inline-start" />
@@ -628,77 +602,57 @@ export function ManageGuestsPanel({
               </Button>
             </Can>
           </div>
-        </div>
 
-        <GuestRegistrationNotificationsSheet
-          open={isRegistrationNotifsOpen}
-          onOpenChange={setIsRegistrationNotifsOpen}
-          onUnreadCountChange={setRegistrationUnreadCount}
-        />
+          <GuestRegistrationNotificationsSheet
+            open={isRegistrationNotifsOpen}
+            onOpenChange={setIsRegistrationNotifsOpen}
+            onUnreadCountChange={setRegistrationUnreadCount}
+          />
 
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-          <UserStatCard
-            label="Total"
-            value={stats.total}
-            accentClassName="border-l-sky-500"
-          />
-          <UserStatCard
-            label="Scheduled"
-            value={stats.scheduled}
-            accentClassName="border-l-violet-500"
-          />
-          <UserStatCard
-            label="Finished"
-            value={stats.finished}
-            accentClassName="border-l-emerald-500"
-          />
-          <UserStatCard
-            label="Cancelled"
-            value={stats.cancelled}
-            accentClassName="border-l-amber-500"
-          />
-        </div>
-
-        <Card>
-          <CardHeader className="gap-4 border-b">
-            <CardTitle className="text-base">Guest list</CardTitle>
-            <div className="flex w-full flex-col gap-3 sm:flex-row sm:items-end">
-              <div className="grid w-full gap-1.5 sm:w-56">
-                <Label htmlFor="guest-filter-search">Search</Label>
-                <div className="relative">
-                  <SearchIcon className="pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-muted-foreground" />
-                  <Input
-                    id="guest-filter-search"
-                    value={searchQuery}
-                    onChange={(event) => {
-                      setSearchQuery(event.target.value);
-                      setCurrentPage(1);
-                    }}
-                    placeholder="Name or phone"
-                    className="pl-8"
-                  />
-                </div>
+          {SHOW_GUEST_FILTERS ? (
+            <div className="flex w-full flex-col gap-3 @lg/panel:flex-row @lg/panel:flex-wrap @lg/panel:items-center">
+              <div className="relative w-full @lg/panel:w-56">
+                <SearchIcon className="pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-muted-foreground" />
+                <Input
+                  id="guest-filter-search"
+                  value={searchQuery}
+                  onChange={(event) => {
+                    setSearchQuery(event.target.value);
+                    setVisibleCount(GUEST_LIST_BATCH_SIZE);
+                  }}
+                  placeholder="Search name or phone…"
+                  aria-label="Search guests"
+                  className="pl-8"
+                />
               </div>
-              <div className="grid w-full gap-1.5 sm:w-44">
-                <Label htmlFor="guest-filter-status">Status</Label>
+              <div className="w-full @lg/panel:w-44">
                 <Select
                   value={statusFilter}
                   onValueChange={(value) => {
                     if (!value) return;
                     setStatusFilter(value);
-                    setCurrentPage(1);
+                    setVisibleCount(GUEST_LIST_BATCH_SIZE);
                   }}
                 >
                   <SelectTrigger
                     id="guest-filter-status"
+                    aria-label="Filter by status"
                     className="w-full"
                   >
-                    <SelectValue placeholder="All statuses" />
+                    <SelectValue placeholder="Status">
+                      {(value) =>
+                        !value || value === FILTER_ALL
+                          ? "Status"
+                          : (GUEST_CURRENT_STATUS_LABELS[
+                              value as GuestCurrentStatus
+                            ] ?? String(value))
+                      }
+                    </SelectValue>
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value={FILTER_ALL}>All statuses</SelectItem>
                     {GUEST_CURRENT_STATUS_VALUES.filter(
-                      (value) => showClosedStatuses || !isClosedStatus(value)
+                      (value) => showClosedStatuses || !isClosedStatus(value),
                     ).map((value) => (
                       <SelectItem key={value} value={value}>
                         {GUEST_CURRENT_STATUS_LABELS[value]}
@@ -707,21 +661,29 @@ export function ManageGuestsPanel({
                   </SelectContent>
                 </Select>
               </div>
-              <div className="grid w-full gap-1.5 sm:w-44">
-                <Label htmlFor="guest-filter-service">Service</Label>
+              <div className="w-full @lg/panel:w-44">
                 <Select
                   value={serviceFilter}
                   onValueChange={(value) => {
                     if (!value) return;
                     setServiceFilter(value);
-                    setCurrentPage(1);
+                    setVisibleCount(GUEST_LIST_BATCH_SIZE);
                   }}
                 >
                   <SelectTrigger
                     id="guest-filter-service"
+                    aria-label="Filter by service"
                     className="w-full"
                   >
-                    <SelectValue placeholder="All services" />
+                    <SelectValue placeholder="Service">
+                      {(value) =>
+                        !value || value === FILTER_ALL
+                          ? "Service"
+                          : (GUEST_INTERESTED_SERVICE_LABELS[
+                              value as keyof typeof GUEST_INTERESTED_SERVICE_LABELS
+                            ] ?? String(value))
+                      }
+                    </SelectValue>
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value={FILTER_ALL}>All services</SelectItem>
@@ -746,7 +708,7 @@ export function ManageGuestsPanel({
                     ) {
                       setStatusFilter(FILTER_ALL);
                     }
-                    setCurrentPage(1);
+                    setVisibleCount(GUEST_LIST_BATCH_SIZE);
                   }}
                 />
                 <Label
@@ -757,255 +719,215 @@ export function ManageGuestsPanel({
                 </Label>
               </div>
             </div>
-          </CardHeader>
-          <CardContent className="p-0">
-            <UnassignedDropZone>
-              <GuestRecordsTable
-                guests={pageRows}
-                showDragColumn={canAssignGuests}
-                canDrag={canAssignGuests}
-                disabled={isAssignPending}
-                onViewNotes={(guest) => {
-                  setNotesGuest(guest);
-                  setIsNotesOpen(true);
-                }}
-                onEditGuest={(guest) => {
-                  setEditGuest(guest);
-                  setIsEditOpen(true);
-                }}
-                emptyState={
-                  guestsById.length === 0 ? (
-                    <div className="mx-auto flex max-w-sm flex-col items-center gap-3">
-                      <p>
-                        No guests yet. Create the first intake card to start
-                        follow-up.
-                      </p>
-                      <Can permission={PERMISSIONS.GUESTS_CREATE}>
-                        <Button type="button" onClick={() => setIsAddOpen(true)}>
-                          <PlusIcon data-icon="inline-start" />
-                          Create guest
-                        </Button>
-                      </Can>
-                    </div>
-                  ) : (
-                    "No guests match these filters."
-                  )
-                }
-              />
-            </UnassignedDropZone>
+          ) : null}
 
-            <div className="flex flex-col gap-3 border-t px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
-              <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                <span>
-                  {filteredGuests.length} guest
-                  {filteredGuests.length === 1 ? "" : "s"}
-                </span>
-                <Select
-                  value={String(pageSize)}
-                  onValueChange={(value) => {
-                    if (!value) return;
-                    setPageSize(
-                      Number(value) as (typeof PAGE_SIZE_OPTIONS)[number]
-                    );
-                    setCurrentPage(1);
+          <Card className="gap-0 py-0">
+            <CardContent className="p-0">
+              <UnassignedDropZone>
+                <GuestRecordsTable
+                  guests={pageRows}
+                  showDragColumn={canAssignGuests}
+                  canDrag={canAssignGuests}
+                  disabled={isAssignPending}
+                  showEmailAndSchool={false}
+                  onViewNotes={(guest) => {
+                    setNotesGuest(guest);
+                    setIsNotesOpen(true);
                   }}
-                >
-                  <SelectTrigger className="h-8 w-[4.5rem]">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {PAGE_SIZE_OPTIONS.map((size) => (
-                      <SelectItem key={size} value={String(size)}>
-                        {size}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div className="flex items-center gap-1">
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="icon-sm"
-                  disabled={safePage <= 1}
-                  onClick={() => setCurrentPage((page) => Math.max(1, page - 1))}
-                >
-                  <ChevronLeftIcon />
-                </Button>
-                {pageNumbers.map((page, index) =>
-                  page === "ellipsis" ? (
-                    <span
-                      key={`ellipsis-${index}`}
-                      className="px-2 text-muted-foreground"
-                    >
-                      …
-                    </span>
-                  ) : (
-                    <Button
-                      key={page}
-                      type="button"
-                      variant={page === safePage ? "default" : "outline"}
-                      size="icon-sm"
-                      onClick={() => setCurrentPage(page)}
-                    >
-                      {page}
-                    </Button>
-                  )
-                )}
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="icon-sm"
-                  disabled={safePage >= totalPages}
-                  onClick={() =>
-                    setCurrentPage((page) => Math.min(totalPages, page + 1))
+                  onEditGuest={(guest) => {
+                    setEditGuest(guest);
+                    setIsEditOpen(true);
+                  }}
+                  moveDown={
+                    canAssignGuests && canViewTeams && optimisticTeams[0]
+                      ? {
+                          label: `Move to ${optimisticTeams[0].name}`,
+                          onMove: (guest) =>
+                            moveGuest(guest.id, optimisticTeams[0].id),
+                        }
+                      : undefined
                   }
-                >
-                  <ChevronRightIcon />
-                </Button>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+                  emptyState={
+                    guestsById.length === 0 ? (
+                      <div className="mx-auto flex max-w-sm flex-col items-center gap-3">
+                        <p>
+                          No guests yet. Create the first intake card to start
+                          follow-up.
+                        </p>
+                        <Can permission={PERMISSIONS.GUESTS_CREATE}>
+                          <Button
+                            type="button"
+                            onClick={() => setIsAddOpen(true)}
+                          >
+                            <PlusIcon data-icon="inline-start" />
+                            Create guest
+                          </Button>
+                        </Can>
+                      </div>
+                    ) : (
+                      "No guests match these filters."
+                    )
+                  }
+                />
+              </UnassignedDropZone>
 
-        <Can permission={PERMISSIONS.TEAMS_VIEW}>
-          <TeamsSection
-            teams={optimisticTeams}
-            canDrag={canAssignGuests}
-            isSaving={isAssignPending}
-            dragDisabled={isAssignPending}
-            disabled={isDeleteTeamPending}
-            onCreate={() => {
-              setTeamFormTarget(null);
-              setIsTeamFormOpen(true);
-            }}
-            onEdit={(team) => {
-              setTeamFormTarget(team);
-              setIsTeamFormOpen(true);
-            }}
-            onDelete={(team) => setDeleteTeamTarget(team)}
-            onViewNotes={(guest) => {
-              setNotesGuest(guest);
-              setIsNotesOpen(true);
-            }}
-            onEditGuest={(guest) => {
-              setEditGuest(guest);
-              setIsEditOpen(true);
-            }}
-          />
-        </Can>
+              {canShowMore ? (
+                <div className="flex justify-center border-t px-4 py-2">
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={() =>
+                      setVisibleCount((count) =>
+                        Math.min(
+                          count + GUEST_LIST_BATCH_SIZE,
+                          GUEST_LIST_MAX_ROWS,
+                        ),
+                      )
+                    }
+                  >
+                    Show more
+                  </Button>
+                </div>
+              ) : null}
+            </CardContent>
+          </Card>
 
-        <TeamFormDialog
-          open={isTeamFormOpen}
-          onOpenChange={(open) => {
-            setIsTeamFormOpen(open);
-            if (!open) {
-              setTeamFormTarget(null);
-            }
-          }}
-          team={teamFormTarget}
-          onSaved={(team) => {
-            setTeams((current) =>
-              current.some((row) => row.id === team.id)
-                ? current.map((row) => (row.id === team.id ? team : row))
-                : [team, ...current]
-            );
-          }}
-        />
-
-        <Dialog
-          open={deleteTeamTarget !== null}
-          onOpenChange={handleDeleteTeamOpenChange}
-        >
-          <DialogContent showCloseButton={!isDeleteTeamPending}>
-            <DialogHeader>
-              <DialogTitle>Delete team</DialogTitle>
-              <DialogDescription>
-                {deleteTeamTarget
-                  ? `"${deleteTeamTarget.name}" will be deleted. ${
-                      deleteTeamTarget.guests.length === 0
-                        ? "It has no guests."
-                        : `Its ${deleteTeamTarget.guests.length} guest${
-                            deleteTeamTarget.guests.length === 1 ? "" : "s"
-                          } will move back to the guest list.`
-                    }`
-                  : null}
-              </DialogDescription>
-            </DialogHeader>
-            <DialogFooter className="sm:justify-end">
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => handleDeleteTeamOpenChange(false)}
-                disabled={isDeleteTeamPending}
-              >
-                Cancel
-              </Button>
-              <Button
-                type="button"
-                variant="destructive"
-                onClick={handleConfirmDeleteTeam}
-                disabled={isDeleteTeamPending}
-              >
-                {isDeleteTeamPending ? (
-                  <>
-                    <InlineSpinner />
-                    Deleting
-                  </>
-                ) : (
-                  "Delete team"
-                )}
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
-
-        <AddGuestDialog
-          open={isAddOpen}
-          onOpenChange={setIsAddOpen}
-          onGuestCreated={(guest) => {
-            setGuests((current) => {
-              if (current.some((row) => row.id === guest.id)) {
-                return current;
+          <Can permission={PERMISSIONS.TEAMS_VIEW}>
+            <TeamsSection
+              teams={optimisticTeams}
+              canDrag={canAssignGuests}
+              dragDisabled={isAssignPending}
+              disabled={isDeleteTeamPending}
+              onEdit={(team) => {
+                setTeamFormTarget(team);
+                setIsTeamFormOpen(true);
+              }}
+              onDelete={(team) => setDeleteTeamTarget(team)}
+              onMoveGuest={(guest, targetGroup) =>
+                moveGuest(guest.id, targetGroup)
               }
+              onViewNotes={(guest) => {
+                setNotesGuest(guest);
+                setIsNotesOpen(true);
+              }}
+              onEditGuest={(guest) => {
+                setEditGuest(guest);
+                setIsEditOpen(true);
+              }}
+            />
+          </Can>
 
-              return [guest, ...current];
-            });
-            setCurrentPage(1);
-          }}
-        />
-
-        <ViewGuestNotesDialog
-          open={isNotesOpen}
-          onOpenChange={(open) => {
-            setIsNotesOpen(open);
-            if (!open) {
-              setNotesGuest(null);
-            }
-          }}
-          guest={notesGuest}
-        />
-
-        {editGuest ? (
-          <EditGuestDialog
-            open={isEditOpen}
+          <TeamFormDialog
+            open={isTeamFormOpen}
             onOpenChange={(open) => {
-              setIsEditOpen(open);
+              setIsTeamFormOpen(open);
               if (!open) {
-                setEditGuest(null);
+                setTeamFormTarget(null);
               }
             }}
-            guest={editGuest}
-            onGuestUpdated={(guest) => {
-              setGuests((current) =>
-                current.map((row) => (row.id === guest.id ? guest : row))
+            team={teamFormTarget}
+            onSaved={(team) => {
+              setTeams((current) =>
+                current.some((row) => row.id === team.id)
+                  ? current.map((row) => (row.id === team.id ? team : row))
+                  : [team, ...current],
               );
-              setEditGuest(guest);
             }}
           />
-        ) : null}
-      </div>
+
+          <Dialog
+            open={deleteTeamTarget !== null}
+            onOpenChange={handleDeleteTeamOpenChange}
+          >
+            <DialogContent showCloseButton={!isDeleteTeamPending}>
+              <DialogHeader>
+                <DialogTitle>Delete team</DialogTitle>
+                <DialogDescription>
+                  {deleteTeamTarget
+                    ? `"${deleteTeamTarget.name}" will be deleted. ${
+                        deleteTeamTarget.guests.length === 0
+                          ? "It has no guests."
+                          : `Its ${deleteTeamTarget.guests.length} guest${
+                              deleteTeamTarget.guests.length === 1 ? "" : "s"
+                            } will move back to the guest list.`
+                      }`
+                    : null}
+                </DialogDescription>
+              </DialogHeader>
+              <DialogFooter className="sm:justify-end">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => handleDeleteTeamOpenChange(false)}
+                  disabled={isDeleteTeamPending}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  type="button"
+                  variant="destructive"
+                  onClick={handleConfirmDeleteTeam}
+                  disabled={isDeleteTeamPending}
+                >
+                  {isDeleteTeamPending ? (
+                    <>
+                      <InlineSpinner />
+                      Deleting
+                    </>
+                  ) : (
+                    "Delete team"
+                  )}
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+
+          <AddGuestDialog
+            open={isAddOpen}
+            onOpenChange={setIsAddOpen}
+            onGuestCreated={(guest) => {
+              setGuests((current) => {
+                if (current.some((row) => row.id === guest.id)) {
+                  return current;
+                }
+
+                return [guest, ...current];
+              });
+              setVisibleCount(GUEST_LIST_BATCH_SIZE);
+            }}
+          />
+
+          <ViewGuestNotesDialog
+            open={isNotesOpen}
+            onOpenChange={(open) => {
+              setIsNotesOpen(open);
+              if (!open) {
+                setNotesGuest(null);
+              }
+            }}
+            guest={notesGuest}
+          />
+
+          {editGuest ? (
+            <EditGuestDialog
+              open={isEditOpen}
+              onOpenChange={(open) => {
+                setIsEditOpen(open);
+                if (!open) {
+                  setEditGuest(null);
+                }
+              }}
+              guest={editGuest}
+              onGuestUpdated={(guest) => {
+                setGuests((current) =>
+                  current.map((row) => (row.id === guest.id ? guest : row)),
+                );
+                setEditGuest(guest);
+              }}
+            />
+          ) : null}
+        </div>
       </DragDropProvider>
     </TooltipProvider>
   );

@@ -1,6 +1,5 @@
 import { describe, expect, it } from "vitest";
 import {
-  isSharedManagerCloudflareAiUsagePath,
   isSharedManagerInstructorsPath,
   isSharedManagerPath,
   isSharedManagerWorkshopPath,
@@ -38,16 +37,6 @@ describe("shared manager routes", () => {
     expect(
       isSharedManagerPath(ROUTES.MANAGER_INSTRUCTOR_SCHEDULES_DETAILS)
     ).toBe(true);
-  });
-
-  it("matches cloudflare AI usage", () => {
-    expect(
-      isSharedManagerCloudflareAiUsagePath(ROUTES.MANAGER_CLOUDFLARE_AI_USAGE)
-    ).toBe(true);
-    expect(isSharedManagerPath(ROUTES.MANAGER_CLOUDFLARE_AI_USAGE)).toBe(true);
-    expect(
-      isSharedManagerWorkshopPath(ROUTES.MANAGER_CLOUDFLARE_AI_USAGE)
-    ).toBe(false);
   });
 
   it("matches income statement analytics without instructor flag", () => {

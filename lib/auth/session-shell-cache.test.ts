@@ -14,7 +14,6 @@ const payload: SessionShellPayload = {
   role: ROLES.CEO,
   displayName: "Ceo User",
   isInstructor: true,
-  isMentor: false,
   permissionKeys: [PERMISSIONS.INSTRUCTORS_VIEW, PERMISSIONS.WORKSHOPS_VIEW],
   cachedClaimsRole: ROLES.CEO,
 };

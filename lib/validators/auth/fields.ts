@@ -36,19 +36,6 @@ export const fullNameField = z
     message: `Full name must be at most ${AUTH_LIMITS.fullName.max} characters.`,
   });
 
-export const usernameField = z
-  .string()
-  .trim()
-  .min(AUTH_LIMITS.username.min, {
-    message: `Username must be at least ${AUTH_LIMITS.username.min} characters.`,
-  })
-  .max(AUTH_LIMITS.username.max, {
-    message: `Username must be at most ${AUTH_LIMITS.username.max} characters.`,
-  })
-  .regex(/^[a-zA-Z0-9_]+$/, {
-    message: "Username may only contain letters, numbers, and underscores.",
-  });
-
 export const phoneField = z
   .string()
   .trim()

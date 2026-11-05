@@ -198,9 +198,9 @@ export function ProjectDetailsPanel({ project }: ProjectDetailsPanelProps) {
           </CardAction>
         </CardHeader>
         <CardContent className="p-4 sm:p-6">
-          <div className="grid items-start gap-6 md:grid-cols-[minmax(0,1fr)_minmax(16rem,20rem)] lg:grid-cols-[minmax(0,1fr)_minmax(18rem,22rem)] lg:gap-10">
-            <dl className="order-2 flex min-w-0 flex-col gap-5 md:order-1">
-              <div className="grid gap-3 sm:grid-cols-2">
+          <div className="grid items-start gap-6 @xl/panel:grid-cols-[minmax(0,1fr)_minmax(16rem,20rem)] @2xl/panel:grid-cols-[minmax(0,1fr)_minmax(18rem,22rem)] lg:gap-10">
+            <dl className="order-2 flex min-w-0 flex-col gap-5 @xl/panel:order-1">
+              <div className="grid gap-3 @lg/panel:grid-cols-2">
                 <div className="rounded-lg border border-border/80 bg-muted/30 px-3 py-2.5">
                   <DetailField
                     label="Classification"
@@ -227,7 +227,7 @@ export function ProjectDetailsPanel({ project }: ProjectDetailsPanelProps) {
                 <ProjectHrefValue href={project.href} />
               </DetailField>
 
-              <div className="grid gap-4 border-t border-border/70 pt-4 sm:grid-cols-2">
+              <div className="grid gap-4 border-t border-border/70 pt-4 @lg/panel:grid-cols-2">
                 <DetailField
                   label="Created"
                   value={format(
@@ -245,7 +245,7 @@ export function ProjectDetailsPanel({ project }: ProjectDetailsPanelProps) {
               </div>
             </dl>
 
-            <figure className="order-1 mx-auto w-full max-w-sm md:order-2 md:mx-0 md:max-w-none">
+            <figure className="order-1 mx-auto w-full max-w-sm @xl/panel:order-2 md:mx-0 @xl/panel:max-w-none">
               <div className="overflow-hidden rounded-xl border border-border bg-muted/40 p-2 shadow-sm">
                 <PublicCoverImage
                   src={project.image_url}

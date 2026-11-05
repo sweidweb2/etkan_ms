@@ -5,7 +5,6 @@ import {
   emailField,
   fullNameField,
   phoneField,
-  usernameField,
 } from "@/lib/validators/auth/fields";
 import {
   addOptionalPasswordPairIssues,
@@ -22,7 +21,6 @@ function parseBooleanFormValue(value: unknown): boolean {
 export const createStudentFromGuestSchema = z
   .object({
     guest_id: z.string().uuid({ message: "Invalid guest id." }),
-    username: usernameField,
     fullName: fullNameField,
     email: emailField,
     password: optionalPasswordInput,
@@ -58,7 +56,6 @@ export function resolveCreateStudentFromGuestInput(
 
   return {
     guest_id: data.guest_id,
-    username: data.username,
     fullName: data.fullName,
     email: data.email,
     password,
@@ -74,7 +71,6 @@ export function parseCreateStudentFromGuestFormData(formData: FormData):
   | { success: false; error: string; fieldErrors?: FieldErrors } {
   const parsed = createStudentFromGuestSchema.safeParse({
     guest_id: formData.get("guest_id"),
-    username: formData.get("username"),
     fullName: formData.get("fullName"),
     email: formData.get("email"),
     password: formData.get("password") ?? "",

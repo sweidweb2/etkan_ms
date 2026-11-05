@@ -110,7 +110,7 @@ export function SemesterClassesSection({
         </CardDescription>
       </CardHeader>
       <CardContent className="flex flex-col gap-4 pt-4 pb-4">
-        <div className="grid gap-4 sm:grid-cols-2">
+        <div className="grid gap-4 @lg/panel:grid-cols-2">
           <UserStatCard
             label="Linked classes"
             value={classes.length}
@@ -142,7 +142,7 @@ export function SemesterClassesSection({
             No classes linked to this semester.
           </p>
         ) : (
-          <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+          <div className="grid gap-4 @lg/panel:grid-cols-2 @4xl/panel:grid-cols-3">
             {paginatedClasses.map((classRow) => (
               <Link
                 key={classRow.id}
@@ -157,7 +157,7 @@ export function SemesterClassesSection({
           </div>
         )}
 
-        <div className="flex flex-col gap-3 border-t pt-4 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex flex-col gap-3 border-t pt-4 @lg/panel:flex-row @lg/panel:items-center @lg/panel:justify-between">
           <p className="text-sm text-muted-foreground">
             Showing {rangeStart}–{rangeEnd} of {filteredClasses.length}
           </p>

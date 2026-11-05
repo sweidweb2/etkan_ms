@@ -14,6 +14,7 @@ import {
 } from "@/app/manager/rbac/actions";
 import { Can } from "@/components/auth/can";
 import { InlineSpinner } from "@/components/loaders/inline-spinner";
+import { PanelPageHeader } from "@/components/panels/panel-page-header";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -44,6 +45,7 @@ type ManagerRbacPanelProps = {
 const initialActionState: UpdateRolePermissionsActionState = {};
 const SCROLL_TOP_THRESHOLD_PX = 320;
 const SEARCH_RESULT_LIMIT = 12;
+const GROUP_FILTER_ALL = "all";
 
 function sortedKeys(keys: Iterable<PermissionKey>): PermissionKey[] {
   return [...keys].sort();
@@ -83,6 +85,9 @@ export function ManagerRbacPanel({
   const [editsByRole, setEditsByRole] = useState<
     Partial<Record<RoleValue, PermissionKey[]>>
   >({});
+  const [groupFilter, setGroupFilter] = useState<
+    PermissionFeature | typeof GROUP_FILTER_ALL
+  >(GROUP_FILTER_ALL);
   const [searchQuery, setSearchQuery] = useState("");
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [activeSearchIndex, setActiveSearchIndex] = useState(0);
@@ -97,7 +102,7 @@ export function ManagerRbacPanel({
   );
   useActionStateToast(state, isActionPending);
 
-  const grouped = useMemo(() => {
+  const allGroups = useMemo(() => {
     return PERMISSION_FEATURES.map((feature) => ({
       feature,
       definitions: catalog.filter(
@@ -106,6 +111,13 @@ export function ManagerRbacPanel({
     })).filter((group) => group.definitions.length > 0);
   }, [catalog]);
 
+  const grouped = useMemo(() => {
+    if (groupFilter === GROUP_FILTER_ALL) {
+      return allGroups;
+    }
+    return allGroups.filter((group) => group.feature === groupFilter);
+  }, [allGroups, groupFilter]);
+
   const normalizedSearch = searchQuery.trim().toLowerCase();
 
   const searchResults = useMemo(() => {
@@ -113,9 +125,14 @@ export function ManagerRbacPanel({
       return [];
     }
     return catalog
-      .filter((definition) => matchesPermission(definition, normalizedSearch))
+      .filter(
+        (definition) =>
+          (groupFilter === GROUP_FILTER_ALL ||
+            definition.feature === groupFilter) &&
+          matchesPermission(definition, normalizedSearch)
+      )
       .slice(0, SEARCH_RESULT_LIMIT);
-  }, [catalog, normalizedSearch]);
+  }, [catalog, groupFilter, normalizedSearch]);
 
   const savedKeys = initialGrantsByRole[selectedRole] ?? [];
   const draftKeys = editsByRole[selectedRole] ?? savedKeys;
@@ -266,21 +283,15 @@ export function ManagerRbacPanel({
   const showSearchDropdown = isSearchOpen && normalizedSearch.length > 0;
 
   return (
-    <div className="flex flex-col gap-6 pb-24">
-      <div ref={pageTopRef}>
-        <h1 className="text-2xl font-semibold tracking-tight">Permissions</h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Grant or revoke permissions for each role. Changes apply on the next
-          request.
-        </p>
-      </div>
+    <div ref={pageTopRef} className="flex flex-col gap-6 pb-24">
+      <PanelPageHeader title="Permissions" />
 
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+      <div className="flex flex-col gap-3 @lg/panel:flex-row @lg/panel:items-center">
         <Select value={selectedRole} onValueChange={handleRoleChange}>
           <SelectTrigger
             id="rbac-role"
             aria-label="Select role"
-            className="w-full sm:w-48"
+            className="w-full @lg/panel:w-48"
           >
             <SelectValue placeholder="Role" />
           </SelectTrigger>
@@ -288,6 +299,39 @@ export function ManagerRbacPanel({
             {ROLE_VALUES.map((role) => (
               <SelectItem key={role} value={role}>
                 {MANAGER_USER_ROLE_LABELS[role]}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+
+        <Select
+          value={groupFilter}
+          onValueChange={(value) => {
+            setGroupFilter(
+              (value ?? GROUP_FILTER_ALL) as
+                | PermissionFeature
+                | typeof GROUP_FILTER_ALL
+            );
+            setActiveSearchIndex(0);
+          }}
+        >
+          <SelectTrigger
+            aria-label="Filter by group"
+            className="w-full @lg/panel:w-48"
+          >
+            <SelectValue placeholder="All groups">
+              {(value) =>
+                !value || value === GROUP_FILTER_ALL
+                  ? "All groups"
+                  : PERMISSION_FEATURE_LABELS[value as PermissionFeature]
+              }
+            </SelectValue>
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value={GROUP_FILTER_ALL}>All groups</SelectItem>
+            {allGroups.map(({ feature }) => (
+              <SelectItem key={feature} value={feature}>
+                {PERMISSION_FEATURE_LABELS[feature]}
               </SelectItem>
             ))}
           </SelectContent>

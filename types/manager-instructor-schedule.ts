@@ -15,7 +15,7 @@ export type InstructorScheduleSlotPresetColor =
 
 export type ManagerInstructorScheduleTab = {
   id: string;
-  username: string | null;
+  full_name: string;
 };
 
 export type ManagerScheduleWorkshopTab = {

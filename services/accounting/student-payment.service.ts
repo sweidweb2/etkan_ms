@@ -10,6 +10,8 @@ import {
   type StudentPaymentPhaseStatus,
 } from "@/lib/manager/accounting/constants";
 import { resolveInProgressClassForSemester } from "@/lib/manager/accounting/resolve-in-progress-class";
+import { SPP_PAYMENT_LOCK_MESSAGES } from "@/lib/manager/accounting/semester-drop-messages";
+import { deriveSppLocks } from "@/lib/manager/accounting/semester-drop-status";
 import { isPhaseUpfrontWindowActive } from "@/lib/manager/accounting/upfront-window";
 import { PERMISSIONS } from "@/lib/constants/permissions";
 import { createNavStepTimer } from "@/lib/debug/nav-timing";
@@ -27,6 +29,7 @@ import * as studentPaymentPhaseRepository from "@/repositories/student-payment-p
 import type { StudentPaymentRecord } from "@/repositories/student-payment.repository";
 import * as studentPaymentRepository from "@/repositories/student-payment.repository";
 import * as studentProfileRepository from "@/repositories/student-profile.repository";
+import * as semesterDropRequestRepository from "@/repositories/semester-drop-request.repository";
 import {
   recordManagerAuditLog,
   type AuditActor,
@@ -69,6 +72,7 @@ export type CreateStudentPaymentResult =
 export type UpdateStudentPaymentSuccess = {
   success: true;
   payment: ManagerStudentPaymentRow;
+  spp: ManagerSppFinancialSnapshot;
   message: string;
   payment_phase_id: string;
 };
@@ -88,6 +92,7 @@ export type DeleteStudentPaymentSuccess = {
   message: string;
   student_payment_phase_id: string;
   payment_phase_id: string;
+  spp: ManagerSppFinancialSnapshot;
 };
 
 export type DeleteStudentPaymentFailure = {
@@ -145,8 +150,12 @@ function mapPaymentWriteError(
 
   const known = [
     "Student payment phase not found.",
-    "Cannot record payments on a cancelled payment phase.",
-    "Cannot record payments on a cancelled student assignment.",
+    SPP_PAYMENT_LOCK_MESSAGES.PHASE_CANCELLED,
+    SPP_PAYMENT_LOCK_MESSAGES.SPP_CANCELLED,
+    SPP_PAYMENT_LOCK_MESSAGES.SPP_PAID,
+    SPP_PAYMENT_LOCK_MESSAGES.DROP_COMPLETED,
+    "Only credit payments can be updated here.",
+    "Only credit payments can be deleted here.",
     "Payment not found.",
     "Payment does not belong to this student.",
     "This student payment phase has payments. Delete all payments first.",
@@ -169,6 +178,7 @@ function mapPaymentRecordToRow(
     student_payment_phase_id: record.student_payment_phase_id,
     payment_date: record.payment_date,
     amount: Number(record.amount),
+    type: record.type === "debit" ? "debit" : "credit",
     payment_method: isPaymentMethod(record.payment_method)
       ? record.payment_method
       : PAYMENT_METHODS.OTHER,
@@ -176,8 +186,34 @@ function mapPaymentRecordToRow(
     received_by_management: Boolean(record.received_by_management),
     receipt_number: record.receipt_number,
     notes: record.notes,
+    semester_drop_request_id: record.semester_drop_request_id ?? null,
     created_at: record.created_at,
   };
+}
+
+/**
+ * Post-write SPP row: the RPC-returned one when present, otherwise one
+ * `findSppById` read (DBs without the `spp` field in write RPC results).
+ */
+async function resolveSppAfterWrite(
+  adminClient: Supabase,
+  sppId: string,
+  returnedSpp: StudentPaymentPhaseRecord | null | undefined
+): Promise<{ record: StudentPaymentPhaseRecord } | { error: string }> {
+  if (returnedSpp) {
+    return { record: returnedSpp };
+  }
+
+  const result = await studentPaymentPhaseRepository.findSppById(
+    adminClient,
+    sppId
+  );
+  if (result?.error || !result?.data) {
+    return {
+      error: result?.error?.message ?? "Unable to load updated student balance.",
+    };
+  }
+  return { record: result.data as StudentPaymentPhaseRecord };
 }
 
 function mapSppRecordToFinancialSnapshot(
@@ -209,10 +245,10 @@ async function resolveStudentMeta(
 
   const studentProfile = studentProfiles?.[0];
   const fullName = studentProfile?.full_name?.trim();
-  const username = profile?.username?.trim();
+  const profileName = profile?.full_name?.trim();
 
   return {
-    label: fullName || username || studentId,
+    label: fullName || profileName || studentId,
     student_profile_id: studentProfile?.id ?? null,
   };
 }
@@ -256,11 +292,19 @@ export async function getSppDetailForManager(
   const { loadActiveClearanceDtoBySppId } = await import(
     "@/services/accounting/spp-clearance.service"
   );
-  const [studentMeta, billingClass, currentClearance] = await Promise.all([
-    resolveStudentMeta(adminClient, sppRecord.student_id),
-    resolveInProgressClassForSemester(adminClient, phaseRecord.semester_id),
-    loadActiveClearanceDtoBySppId(adminClient, sppRecord.id),
-  ]);
+  const [studentMeta, billingClass, currentClearance, completedDropResult] =
+    await Promise.all([
+      resolveStudentMeta(adminClient, sppRecord.student_id),
+      resolveInProgressClassForSemester(adminClient, phaseRecord.semester_id),
+      loadActiveClearanceDtoBySppId(adminClient, sppRecord.id),
+      semesterDropRequestRepository.findCompletedDropBySppId(
+        adminClient,
+        sppRecord.id
+      ),
+    ]);
+  if (completedDropResult.error) {
+    throw new Error(completedDropResult.error.message);
+  }
   const phaseStatus = isPaymentPhaseStatus(phaseRecord.status)
     ? phaseRecord.status
     : PAYMENT_PHASE_STATUSES.OPENED;
@@ -268,6 +312,12 @@ export async function getSppDetailForManager(
     ? sppRecord.status
     : STUDENT_PAYMENT_PHASE_STATUSES.PENDING;
   const remaining = Number(sppRecord.remaining_amount);
+  const dropCompleted = Boolean(completedDropResult.data);
+  const locks = deriveSppLocks({
+    phaseStatus,
+    sppStatus,
+    dropCompleted,
+  });
 
   return {
     id: sppRecord.id,
@@ -296,9 +346,9 @@ export async function getSppDetailForManager(
     total_paid: Number(sppRecord.total_paid),
     remaining_amount: remaining,
     has_credit: remaining < 0,
-    payments_blocked:
-      phaseStatus === PAYMENT_PHASE_STATUSES.CANCELLED ||
-      sppStatus === STUDENT_PAYMENT_PHASE_STATUSES.CANCELLED,
+    drop_completed: dropCompleted,
+    payments_blocked: locks.payments_blocked,
+    adjustments_blocked: locks.adjustments_blocked,
     assigned_at: sppRecord.assigned_at,
     created_at: sppRecord.created_at,
     current_clearance: currentClearance,
@@ -328,7 +378,7 @@ export async function listPaymentsForSppForManager(
   return ((data ?? []) as StudentPaymentRecord[]).map(mapPaymentRecordToRow);
 }
 
-/** Sum of `student_payments.amount` whose `payment_date` falls in the given month (local calendar). */
+/** Net student payments (credits - refund debits) with `payment_date` in the given month (local calendar). */
 export async function sumStudentPaymentsForMonthForManager(
   adminClient: Supabase,
   actorUserId: string | null,
@@ -346,7 +396,7 @@ export async function sumStudentPaymentsForMonthForManager(
   );
 
   const { data, error } =
-    await studentPaymentRepository.listPaymentAmountsBetween(
+    await studentPaymentRepository.sumPaymentAmountsBetween(
       adminClient,
       fromInclusive,
       toExclusive
@@ -356,10 +406,7 @@ export async function sumStudentPaymentsForMonthForManager(
     throw new Error(error.message);
   }
 
-  return (data ?? []).reduce(
-    (sum, row) => sum + Math.max(0, Number(row.amount) || 0),
-    0
-  );
+  return Math.max(0, data);
 }
 
 export async function createStudentPaymentForManager(
@@ -427,21 +474,18 @@ export async function createStudentPaymentForManager(
 
     const created = data.payment;
 
-    const { data: sppRecord, error: sppError } = await timer.step(
-      "loadSpp",
-      () =>
-        studentPaymentPhaseRepository.findSppById(
-          adminClient,
-          created.student_payment_phase_id
-        )
+    const sppAfterWrite = await timer.step("loadSpp", () =>
+      resolveSppAfterWrite(
+        adminClient,
+        created.student_payment_phase_id,
+        data.spp
+      )
     );
 
-    if (sppError || !sppRecord) {
-      return {
-        success: false,
-        error: sppError?.message ?? "Unable to load updated student balance.",
-      };
+    if ("error" in sppAfterWrite) {
+      return { success: false, error: sppAfterWrite.error };
     }
+    const sppRecord = sppAfterWrite.record;
 
     await timer.step("audit", () =>
       recordManagerAuditLog(adminClient, actor, {
@@ -537,6 +581,17 @@ export async function updateStudentPaymentForManager(
   const updated = data.payment;
   const previous = data.previous;
 
+  const sppAfterWrite = await resolveSppAfterWrite(
+    adminClient,
+    updated.student_payment_phase_id,
+    data.spp
+  );
+
+  if ("error" in sppAfterWrite) {
+    return { success: false, error: sppAfterWrite.error };
+  }
+  const sppRecord = sppAfterWrite.record;
+
   await recordManagerAuditLog(adminClient, actor, {
     action: "update",
     severity: "info",
@@ -562,6 +617,9 @@ export async function updateStudentPaymentForManager(
   return {
     success: true,
     payment: mapPaymentRecordToRow(updated),
+    spp: mapSppRecordToFinancialSnapshot(
+      sppRecord as StudentPaymentPhaseRecord
+    ),
     message: "Payment updated.",
     payment_phase_id: data.paymentPhaseId,
   };
@@ -644,11 +702,25 @@ export async function deleteStudentPaymentForManager(
     Boolean(parsed.data.also_delete_clearance)
   );
 
+  const sppAfterWrite = await resolveSppAfterWrite(
+    adminClient,
+    data.studentPaymentPhaseId,
+    data.spp
+  );
+
+  if ("error" in sppAfterWrite) {
+    return { success: false, error: sppAfterWrite.error };
+  }
+  const sppRecord = sppAfterWrite.record;
+
   return {
     success: true,
     message: "Payment deleted.",
     student_payment_phase_id: data.studentPaymentPhaseId,
     payment_phase_id: data.paymentPhaseId,
+    spp: mapSppRecordToFinancialSnapshot(
+      sppRecord as StudentPaymentPhaseRecord
+    ),
   };
 }
 
@@ -949,7 +1021,12 @@ export async function getSppDetailForSelf(
     total_paid: Number(sppRecord.total_paid),
     remaining_amount: remaining,
     has_credit: remaining < 0,
-    payments_blocked: false,
+    ...deriveSppLocks({
+      phaseStatus,
+      sppStatus,
+      dropCompleted: false,
+    }),
+    drop_completed: false,
     assigned_at: sppRecord.assigned_at,
     created_at: sppRecord.created_at,
     current_clearance: currentClearance,

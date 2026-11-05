@@ -4,7 +4,6 @@ import { PERMISSIONS } from "@/lib/constants/permissions";
 import { getUnauthorizedError } from "@/services/auth/authorization.service";
 import { updateClassSessionSchema } from "@/lib/validators/manager/update-class-session";
 import { updateSessionSettingsSchema } from "@/lib/validators/manager/update-session-settings";
-import * as semesterRepository from "@/repositories/semester.repository";
 import * as sessionRepository from "@/repositories/session.repository";
 import type { SessionRecord } from "@/repositories/session.repository";
 import {
@@ -22,13 +21,11 @@ import {
 } from "@/services/classes/session-shared";
 import { assertAssignedTeacherForClassMutation } from "@/services/classes/teacher-class-scope.service";
 import type { ManagerClassSessionRow } from "@/types/manager-class-session";
-import type { ManagerSessionPhaseLink } from "@/types/manager-session-phase-link";
 
 export type UpdateSessionSettingsResult =
   | {
       success: true;
       session: ManagerClassSessionRow;
-      linkedPhase: ManagerSessionPhaseLink | null;
       message: string;
     }
   | MutationFailure;
@@ -40,7 +37,6 @@ export async function updateSessionSettingsForManager(
   input: {
     session_id: string;
     class_id: string;
-    semester_id?: string;
     group_grade_level?: string;
     session_report?: string;
   }
@@ -51,7 +47,6 @@ export async function updateSessionSettingsForManager(
   }
 
   const parsed = updateSessionSettingsSchema.safeParse({
-    semester_id: input.semester_id,
     group_grade_level: input.group_grade_level,
     session_report: input.session_report,
   });
@@ -87,15 +82,9 @@ export async function updateSessionSettingsForManager(
   }
 
   const patch: {
-    semester_id?: string | null;
     group_grade_level?: string | null;
     session_report?: string | null;
   } = {};
-
-  if (parsed.data.semester_id !== undefined) {
-    patch.semester_id =
-      parsed.data.semester_id === "" ? null : parsed.data.semester_id;
-  }
 
   if (parsed.data.group_grade_level !== undefined) {
     patch.group_grade_level =
@@ -109,20 +98,16 @@ export async function updateSessionSettingsForManager(
   }
 
   if (
-    patch.semester_id === undefined &&
     patch.group_grade_level === undefined &&
     patch.session_report === undefined
   ) {
     return {
       success: false,
-      error: "Provide a phase, group grade, or session report to update.",
+      error: "Provide a group grade or session report to update.",
     };
   }
 
-  const touchesStructure =
-    patch.semester_id !== undefined || patch.group_grade_level !== undefined;
-
-  if (touchesStructure) {
+  if (patch.group_grade_level !== undefined) {
     const structureGuard = await assertClassStructureUnlockedForComputedGrades(
       adminClient,
       input.class_id
@@ -131,29 +116,6 @@ export async function updateSessionSettingsForManager(
     if (!structureGuard.ok) {
       return { success: false, error: structureGuard.error };
     }
-  }
-
-  let validatedSemester: { id: string; name: string } | null = null;
-
-  if (patch.semester_id) {
-    const semesterResult = await semesterRepository.findSemesterById(
-      adminClient,
-      patch.semester_id
-    );
-    if (semesterResult.error) {
-      return { success: false, error: semesterResult.error.message };
-    }
-    if (!semesterResult.data) {
-      return {
-        success: false,
-        error: "Please fix the errors below.",
-        fieldErrors: { semester_id: ["Semester not found."] },
-      };
-    }
-    validatedSemester = {
-      id: semesterResult.data.id,
-      name: semesterResult.data.name,
-    };
   }
 
   const { data, error } = await sessionRepository.updateSessionSettings(
@@ -170,27 +132,6 @@ export async function updateSessionSettingsForManager(
   }
 
   const session = mapSessionRecord(data as SessionRecord);
-  let linkedPhase: ManagerSessionPhaseLink | null = null;
-
-  if (session.semester_id) {
-    if (validatedSemester && validatedSemester.id === session.semester_id) {
-      linkedPhase = {
-        phase_id: validatedSemester.id,
-        phase_name: validatedSemester.name,
-      };
-    } else {
-      const semesterResult = await semesterRepository.findSemesterById(
-        adminClient,
-        session.semester_id
-      );
-      if (semesterResult.data) {
-        linkedPhase = {
-          phase_id: semesterResult.data.id,
-          phase_name: semesterResult.data.name,
-        };
-      }
-    }
-  }
 
   await recordManagerAuditLog(adminClient, actor, {
     action: "update",
@@ -198,12 +139,10 @@ export async function updateSessionSettingsForManager(
     table_name: "sessions",
     record_id: session.id,
     old_data: {
-      semester_id: existing.data.semester_id,
       group_grade_level: existing.data.group_grade_level,
       session_report: existing.data.session_report,
     },
     new_data: {
-      semester_id: session.semester_id,
       group_grade_level: session.group_grade_level,
       session_report: session.session_report,
     },
@@ -213,7 +152,6 @@ export async function updateSessionSettingsForManager(
   return {
     success: true,
     session,
-    linkedPhase,
     message: "Session settings saved.",
   };
 }
@@ -444,7 +382,6 @@ export async function deleteClassSessionForManager(
       topic: session.topic,
       starts_at: session.starts_at,
       ends_at: session.ends_at,
-      semester_id: session.semester_id,
       group_grade_level: session.group_grade_level,
     },
     metadata: { note: "Class session deleted." },

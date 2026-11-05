@@ -17,12 +17,12 @@ import {
   type AddInstructorScheduleSlotDefaults,
 } from "@/components/manager/instructor-schedules/add-instructor-schedule-slot-dialog";
 import { EditInstructorScheduleSlotDialog } from "@/components/manager/instructor-schedules/edit-instructor-schedule-slot-dialog";
-import { ScheduleAssistantPrompt } from "@/components/manager/instructor-schedules/schedule-assistant-prompt";
 import {
   ScheduleTanks,
   type ScheduleTankDay,
   type ScheduleTankSegment,
 } from "@/components/manager/instructor-schedules/schedule-tanks";
+import { PanelPageHeader } from "@/components/panels/panel-page-header";
 import { Button, buttonVariants } from "@/components/ui/button";
 import {
   Dialog,
@@ -286,7 +286,7 @@ export function InstructorSchedulesPanel({
     return (
       data.instructors.find(
         (instructor) => instructor.id === instructorFilter
-      )?.username ?? "Unknown"
+      )?.full_name ?? "Unknown"
     );
   }, [instructorFilter, data.instructors, isAllInstructors]);
 
@@ -301,7 +301,7 @@ export function InstructorSchedulesPanel({
     for (const instructor of data.instructors) {
       map.set(
         entityMapKey(ENTITY_SCHEDULE_TYPE_INSTRUCTOR, instructor.id),
-        instructor.username?.trim() || "Unknown"
+        instructor.full_name.trim() || "Unknown"
       );
     }
     return map;
@@ -637,14 +637,7 @@ export function InstructorSchedulesPanel({
   if (data.instructors.length === 0) {
     return (
       <div className="flex flex-col gap-6">
-        <div className="min-w-0">
-          <h1 className="text-2xl font-semibold tracking-tight">
-            Instructor schedules
-          </h1>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Free and busy slots for instructors.
-          </p>
-        </div>
+        <PanelPageHeader title="Instructor schedules" />
         <div className="rounded-xl border px-6 py-12 text-center">
           <p className="text-sm text-muted-foreground">
             No instructors yet. Add one first, then manage schedule slots here.
@@ -664,21 +657,8 @@ export function InstructorSchedulesPanel({
 
   return (
     <div className="flex flex-col gap-6">
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-        <div className="min-w-0">
-          <h1 className="text-2xl font-semibold tracking-tight">
-            Instructor schedules
-          </h1>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Weekly free and busy slots for instructors, shown as one tank per
-            day from 8 AM to 7 PM. Slots repeat every week until edited or
-            deleted
-            {canUpdate
-              ? ". Click a slot to edit it, or drag its top/bottom edge to change its time"
-              : ""}
-            .
-          </p>
-        </div>
+      <PanelPageHeader title="Instructor schedules" />
+      <div className="flex flex-wrap items-center justify-end gap-2 empty:hidden">
         <Can permission={PERMISSIONS.INSTRUCTOR_SCHEDULES_DETAILS_VIEW}>
           <Link
             href={ROUTES.MANAGER_INSTRUCTOR_SCHEDULES_DETAILS}
@@ -690,11 +670,7 @@ export function InstructorSchedulesPanel({
         </Can>
       </div>
 
-      <Can permission={PERMISSIONS.CLOUDFLARE_AI_USAGE_VIEW}>
-        <ScheduleAssistantPrompt />
-      </Can>
-
-      <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
+      <div className="flex flex-col gap-2 @lg/panel:flex-row @lg/panel:flex-wrap @lg/panel:items-center @lg/panel:justify-between">
         <div className="flex min-w-0 flex-wrap items-center gap-2">
           <Select
             value={instructorFilter}
@@ -702,7 +678,7 @@ export function InstructorSchedulesPanel({
           >
             <SelectTrigger
               size="sm"
-              className="min-w-40 max-w-full sm:min-w-48"
+              className="min-w-40 max-w-full @lg/panel:min-w-48"
               aria-label="Select instructor"
             >
               <SelectValue placeholder="Select instructor">
@@ -713,7 +689,7 @@ export function InstructorSchedulesPanel({
               <SelectItem value={FILTER_ALL}>All</SelectItem>
               {data.instructors.map((instructor) => (
                 <SelectItem key={instructor.id} value={instructor.id}>
-                  {instructor.username ?? "Unknown"}
+                  {instructor.full_name || "Unknown"}
                 </SelectItem>
               ))}
             </SelectContent>
@@ -724,7 +700,7 @@ export function InstructorSchedulesPanel({
           <Button
             type="button"
             size="sm"
-            className="shrink-0 self-start sm:self-auto"
+            className="shrink-0 self-start @lg/panel:self-auto"
             disabled={!canCreate}
             onClick={() => openCreate()}
           >

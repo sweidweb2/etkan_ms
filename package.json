@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev",
+    "dev": "next dev --disable-source-maps",
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
@@ -21,12 +21,14 @@
     "seed:rbac": "tsx --conditions=react-server scripts/seed-rbac.ts",
     "brand:assets": "tsx scripts/generate-brand-assets.ts",
     "seed:projects": "tsx --conditions=react-server scripts/seed-public-projects.ts",
-    "wipe:equipment": "tsx --conditions=react-server scripts/wipe-equipment-data.ts",
     "smoke:authz": "tsx --conditions=react-server scripts/smoke-authorization.ts",
     "smoke:gallery": "tsx --conditions=react-server scripts/smoke-gallery-storage.ts",
     "seed": "tsx --conditions=react-server scripts/seed-rbac.ts && tsx --conditions=react-server scripts/seed-admin.ts && tsx --conditions=react-server scripts/seed-manager.ts && tsx --conditions=react-server scripts/seed-demo-data.ts && tsx --conditions=react-server scripts/seed-public-projects.ts",
     "test:mailtrap": "tsx --conditions=react-server scripts/test-mailtrap.ts",
-    "gen:types": "supabase gen types typescript --project-id diqqcfnrysgzeiqfadic > types/supabase.ts"
+    "gen:types": "supabase gen types typescript --project-id diqqcfnrysgzeiqfadic > types/supabase.ts",
+    "db:migrate:local": "supabase migration up",
+    "db:reset:local": "supabase db reset",
+    "db:migrate:remote": "supabase db push"
   },
   "dependencies": {
     "@base-ui/react": "^1.5.0",
@@ -59,7 +61,7 @@
     "lucide-react": "^1.17.0",
     "mailtrap": "^4.8.0",
     "motion": "^12.42.2",
-    "next": "^16.2.7",
+    "next": "^16.4.3",
     "next-themes": "^0.4.6",
     "ogl": "^1.0.11",
     "react": "^19.2.4",
@@ -90,7 +92,7 @@
     "@types/react-dom": "^19",
     "@types/three": "^0.185.1",
     "eslint": "^9",
-    "eslint-config-next": "16.2.7",
+    "eslint-config-next": "^16.4.3",
     "pg": "^8.23.0",
     "tailwindcss": "^4",
     "tsx": "^4.23.0",

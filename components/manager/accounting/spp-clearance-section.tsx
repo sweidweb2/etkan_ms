@@ -198,7 +198,7 @@ export function SppClearanceSection({
                 : "Cancelled assignments cannot receive a Month paid marker."}
             </p>
           ) : clearance ? (
-            <dl className="grid gap-2 sm:grid-cols-2">
+            <dl className="grid gap-2 @lg/panel:grid-cols-2">
               <div>
                 <dt className="text-xs uppercase tracking-wide">Duration</dt>
                 <dd className="text-foreground">
@@ -212,7 +212,7 @@ export function SppClearanceSection({
                   {format(new Date(clearance.expires_at), "MMM d, yyyy HH:mm")}
                 </dd>
               </div>
-              <div className="sm:col-span-2">
+              <div className="@lg/panel:col-span-2">
                 <dt className="text-xs uppercase tracking-wide">Notes</dt>
                 <dd className="text-foreground">
                   {clearance.notes?.trim() ? clearance.notes : "—"}

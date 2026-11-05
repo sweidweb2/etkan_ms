@@ -143,7 +143,6 @@ async function fetchStudentRowByProfileId(
   return {
     user_id: studentProfile.user_id,
     student_profile_id: studentProfile.id,
-    username: profile.username,
     email: emailResult.data.get(studentProfile.user_id) ?? "",
     full_name: studentProfile.full_name,
     birth_date: studentProfile.birth_date,
@@ -230,7 +229,6 @@ export async function listSemesterStudentsForManager(
     const student: ManagerStudentRow = {
       user_id: studentProfile.user_id,
       student_profile_id: studentProfile.id,
-      username: authProfile.username ?? "",
       email: emailByUserId.get(studentProfile.user_id) ?? "",
       full_name: studentProfile.full_name,
       birth_date: studentProfile.birth_date,

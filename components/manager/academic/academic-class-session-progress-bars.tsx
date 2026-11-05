@@ -17,7 +17,7 @@ import { cn } from "@/lib/utils";
 import { truncateText } from "@/lib/utils/truncate-text";
 import type { ManagerAcademicAnalysisClassSessionPoint } from "@/types/manager-academic-analysis";
 
-const GUTTER_CLASS = "w-40 shrink-0 sm:w-52";
+const GUTTER_CLASS = "w-40 shrink-0 @lg/panel:w-52";
 const LANE_HEIGHT_CLASS = "h-10";
 const BAR_MIN_LABEL_WIDTH_PERCENT = 18;
 

@@ -69,7 +69,6 @@ const enrolledStudent = {
   student_profile_id: studentProfileId,
   user_id: studentUserId,
   full_name: "Sara Ahmed",
-  username: "sara",
   email: "sara@example.com",
   phone: null,
   joined_at: "2026-02-01T00:00:00.000Z",

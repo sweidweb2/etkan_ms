@@ -555,14 +555,14 @@ describe("getInstructorSchedulesPageForManager first instructor", () => {
         data: [
           {
             id: firstId,
-            username: "alice",
+            full_name: "Alice",
             role: "teacher",
             is_instructor: true,
             created_at: "2026-01-01T00:00:00.000Z",
           },
           {
             id: secondId,
-            username: "bob",
+            full_name: "Bob",
             role: "teacher",
             is_instructor: true,
             created_at: "2026-01-01T00:00:00.000Z",

@@ -46,6 +46,7 @@ export default async function TeacherClassDetailPage({
     <TeacherClassDetailsPanel
       classRow={bundle.classRow}
       initialSessions={bundle.sessions}
+      initialWeekSkipState={bundle.weekSkipState}
       initialTasks={bundle.tasks}
       initialStudents={bundle.students}
       hasComputedGrades={bundle.hasComputedGrades}

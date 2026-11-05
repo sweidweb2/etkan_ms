@@ -30,7 +30,12 @@ export type ManagerSppDetail = {
   total_paid: number;
   remaining_amount: number;
   has_credit: boolean;
+  /** Cancelled, paid, or completed semester drop — no credit payment UI. */
   payments_blocked: boolean;
+  /** Cancelled or completed semester drop — no adjustment / form UI. */
+  adjustments_blocked: boolean;
+  /** Completed semester drop on this SPP. */
+  drop_completed: boolean;
   assigned_at: string;
   created_at: string;
   current_clearance: ManagerSppClearanceDto | null;
@@ -63,11 +68,14 @@ export type ManagerStudentPaymentRow = {
   student_payment_phase_id: string;
   payment_date: string;
   amount: number;
+  /** credit (default) or debit (drop refund). */
+  type: "credit" | "debit";
   payment_method: PaymentMethod;
   received_by: string;
   received_by_management: boolean;
   receipt_number: string | null;
   notes: string | null;
+  semester_drop_request_id?: string | null;
   created_at: string;
 };
 
@@ -97,6 +105,7 @@ export type UpdateStudentPaymentActionState = {
   message?: string;
   fieldErrors?: FieldErrors;
   payment?: ManagerStudentPaymentRow;
+  spp?: ManagerSppFinancialSnapshot;
 };
 
 export type DeleteStudentPaymentActionState = {
@@ -106,6 +115,7 @@ export type DeleteStudentPaymentActionState = {
   fieldErrors?: FieldErrors;
   student_payment_phase_id?: string;
   payment_phase_id?: string;
+  spp?: ManagerSppFinancialSnapshot;
 };
 
 export type DeleteStudentPaymentPhaseActionState = {

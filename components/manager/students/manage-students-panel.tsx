@@ -22,11 +22,13 @@ import { AddStudentDialog } from "@/components/manager/students/add-student-dial
 import { StudentStatusBadge } from "@/components/manager/students/student-status-badge";
 import { EditUserDialog } from "@/components/manager/users/edit-user-dialog";
 import { UserStatCard } from "@/components/manager/users/user-stat-card";
+import { PanelPageHeader } from "@/components/panels/panel-page-header";
 import { Button } from "@/components/ui/button";
 import { Card, CardAction, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { CopyTextButton } from "@/components/ui/copy-text-button";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Input } from "@/components/ui/input";
+import { LetterAvatar } from "@/components/ui/letter-avatar";
 import {
   Select,
   SelectContent,
@@ -62,7 +64,6 @@ import type { ManagerUserRow } from "@/types/manager-user";
 const PAGE_SIZE_OPTIONS = [5, 10, 25] as const;
 const COLUMN_LIMITS = {
   fullName: 24,
-  username: 20,
   email: 32,
   phone: 18,
 } as const;
@@ -168,11 +169,10 @@ function StudentViewAction({ student }: { student: ManagerStudentRow }) {
 function toManagerUserRow(student: ManagerStudentRow): ManagerUserRow {
   return {
     id: student.user_id,
-    username: student.username,
+    full_name: student.full_name,
     email: student.email,
     role: student.role ?? ROLES.STUDENT,
     is_instructor: student.is_instructor ?? false,
-    is_mentor: student.is_mentor ?? false,
     created_at: student.created_at,
     student_profile_id: student.student_profile_id,
     student_full_name: student.full_name,
@@ -188,12 +188,10 @@ function mergeUpdatedUserIntoStudent(
 ): ManagerStudentRow {
   return {
     ...student,
-    username: user.username,
     email: user.email,
     role: user.role,
     is_instructor: user.is_instructor,
-    is_mentor: user.is_mentor,
-    full_name: user.student_full_name ?? student.full_name,
+    full_name: user.student_full_name ?? user.full_name,
     birth_date: user.student_birth_date ?? null,
     phone: user.student_phone ?? null,
     status: user.student_status ?? student.status,
@@ -444,14 +442,9 @@ export function ManageStudentsPanel({
   return (
     <TooltipProvider>
       <div className="flex flex-col gap-6">
-        <div>
-          <h1 className="text-2xl font-semibold tracking-tight">Manage students</h1>
-          <p className="mt-1 text-sm text-muted-foreground">
-            View and create student accounts for your school.
-          </p>
-        </div>
+        <PanelPageHeader title="Manage students" />
 
-        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        <div className="grid gap-4 @lg/panel:grid-cols-2 @4xl/panel:grid-cols-4">
           <UserStatCard
             label="Total students"
             value={stats.total}
@@ -533,7 +526,7 @@ export function ManageStudentsPanel({
             </CardAction>
           </CardHeader>
           <CardContent className="px-0 pb-0">
-            <div className="flex flex-col gap-3 border-b px-4 pt-2 pb-3 sm:flex-row sm:items-center">
+            <div className="flex flex-col gap-3 border-b px-4 pt-2 pb-3 @lg/panel:flex-row @lg/panel:items-center">
               <div className="relative min-w-0 flex-1">
                 <SearchIcon className="pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-muted-foreground" />
                 <Input
@@ -546,7 +539,7 @@ export function ManageStudentsPanel({
               </div>
               <Select value={statusFilter} onValueChange={handleStatusFilterChange}>
                 <SelectTrigger
-                  className="w-full sm:w-44"
+                  className="w-full @lg/panel:w-44"
                   aria-label="Filter by status"
                 >
                   <SelectValue placeholder="All statuses" />
@@ -579,21 +572,20 @@ export function ManageStudentsPanel({
               />
             ) : (
               <div className="overflow-x-auto">
-                <table className="w-full min-w-[720px] text-sm">
+                <table className="w-full min-w-[800px] text-sm">
                   <thead>
                     <tr className="border-b bg-muted/40 text-left">
+                      <th className="w-12 px-4 py-3 font-medium">#</th>
                       <th className="px-4 py-3 font-medium">Full name</th>
-                      <th className="px-4 py-3 font-medium">Username</th>
                       <th className="px-4 py-3 font-medium">Email</th>
                       <th className="px-4 py-3 font-medium">Phone</th>
                       <th className="px-4 py-3 font-medium">Birth date</th>
                       <th className="px-4 py-3 font-medium">Status</th>
-                      <th className="px-4 py-3 font-medium">Joined</th>
                       <th className="px-4 py-3 font-medium text-right">Actions</th>
                     </tr>
                   </thead>
                   <tbody className={cn(isLoading && "opacity-60")}>
-                    {students.map((student) => (
+                    {students.map((student, index) => (
                       <tr
                         key={student.student_profile_id}
                         className={STUDENT_ROW_CLASS}
@@ -605,17 +597,21 @@ export function ManageStudentsPanel({
                           handleStudentRowKeyDown(event, student)
                         }
                       >
-                        <td className="max-w-[12rem] px-4 py-3">
-                          <TruncatedCell
-                            value={student.full_name}
-                            maxLength={COLUMN_LIMITS.fullName}
-                          />
+                        <td className="px-4 py-3 text-muted-foreground tabular-nums">
+                          {rangeStart + index}
                         </td>
-                        <td className="max-w-[10rem] px-4 py-3">
-                          <TruncatedCell
-                            value={student.username ?? "—"}
-                            maxLength={COLUMN_LIMITS.username}
-                          />
+                        <td className="max-w-[14rem] px-4 py-3">
+                          <div className="flex min-w-0 items-center gap-2">
+                            <LetterAvatar
+                              name={student.full_name}
+                              seed={student.student_profile_id}
+                            />
+                            <TruncatedCell
+                              value={student.full_name}
+                              maxLength={COLUMN_LIMITS.fullName}
+                              className="min-w-0"
+                            />
+                          </div>
                         </td>
                         <td className="max-w-[14rem] px-4 py-3">
                           <div className="flex min-w-0 items-center gap-1">
@@ -644,9 +640,6 @@ export function ManageStudentsPanel({
                         <td className="px-4 py-3">
                           <StudentStatusBadge status={student.status} />
                         </td>
-                        <td className="whitespace-nowrap px-4 py-3 text-muted-foreground">
-                          {format(new Date(student.created_at), "MMM d, yyyy")}
-                        </td>
                         <td
                           className="px-4 py-3 text-right"
                           onClick={(event) => event.stopPropagation()}
@@ -674,7 +667,7 @@ export function ManageStudentsPanel({
               </div>
             )}
 
-            <div className="flex flex-col gap-3 border-t px-4 pt-2 pb-3 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex flex-col gap-3 border-t px-4 pt-2 pb-3 @lg/panel:flex-row @lg/panel:items-center @lg/panel:justify-between">
               <div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
                 <span className="inline-flex items-center gap-2">
                   Showing {rangeStart}–{rangeEnd} of {totalCount}

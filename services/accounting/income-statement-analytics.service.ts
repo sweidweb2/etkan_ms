@@ -1,5 +1,6 @@
 import "server-only";
 
+import { cache } from "react";
 import { PERMISSIONS } from "@/lib/constants/permissions";
 import { financialAdjustmentAmountInDollars } from "@/lib/manager/accounting/adjustment-amount";
 import {
@@ -50,6 +51,14 @@ import type { Database } from "@/types/supabase";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 type Supabase = SupabaseClient<Database>;
+
+/**
+ * Active unpaid SPP snapshot (paged). The tables and next-month Suspense
+ * sections both need it; sharing one request client dedupes the load.
+ */
+const loadActiveUnpaidSppsForRequest = cache((adminClient: Supabase) =>
+  studentPaymentPhaseRepository.listActiveUnpaidSpps(adminClient)
+);
 
 const MONTH_LABELS = [
   "Jan",
@@ -312,17 +321,25 @@ export async function getIncomeStatementAnalyticsSummaryForManager(
   let creditsTotal = 0;
   let debitsTotal = 0;
   let adjustmentsTotal = 0;
+  let cashTransactionsTotal = 0;
+  let whishTransactionsTotal = 0;
 
   for (const row of scopedPayments) {
     const amount = Number(row.amount);
-    paymentsTotal += amount;
+    const isDebit = "type" in row && row.type === "debit";
     const part =
       month === null
         ? monthFromDate(row.payment_date)
         : dayFromDate(row.payment_date);
     if (!part) continue;
     const bucket = periodMap.get(String(part).padStart(2, "0"));
-    if (bucket) bucket.payments += amount;
+    if (isDebit) {
+      debitsTotal += amount;
+      if (bucket) bucket.debits += amount;
+    } else {
+      paymentsTotal += amount;
+      if (bucket) bucket.payments += amount;
+    }
   }
 
   for (const row of scopedTransactions) {
@@ -340,6 +357,14 @@ export async function getIncomeStatementAnalyticsSummaryForManager(
     } else if (row.type === TRANSACTION_TYPES.DEBIT) {
       debitsTotal += amount;
       if (bucket) bucket.debits += amount;
+    }
+
+    const signedAmount =
+      row.type === TRANSACTION_TYPES.DEBIT ? -amount : amount;
+    if (row.payment_method === PAYMENT_METHODS.CASH) {
+      cashTransactionsTotal += signedAmount;
+    } else if (row.payment_method === PAYMENT_METHODS.WHISH) {
+      whishTransactionsTotal += signedAmount;
     }
   }
 
@@ -388,6 +413,8 @@ export async function getIncomeStatementAnalyticsSummaryForManager(
       credits: creditsTotal,
       debits: debitsTotal,
       adjustments: adjustmentsTotal,
+      cashTransactions: cashTransactionsTotal,
+      whishTransactions: whishTransactionsTotal,
     },
   };
 }
@@ -426,8 +453,8 @@ async function loadStudentLabelsByIds(
     ),
   ]);
 
-  const usernameById = new Map(
-    (profiles ?? []).map((profile) => [profile.id, profile.username])
+  const profileNameById = new Map(
+    (profiles ?? []).map((profile) => [profile.id, profile.full_name])
   );
   const fullNameByUserId = new Map(
     (studentProfiles ?? []).map((profile) => [
@@ -438,8 +465,8 @@ async function loadStudentLabelsByIds(
 
   for (const studentId of studentIds) {
     const fullName = fullNameByUserId.get(studentId)?.trim();
-    const username = usernameById.get(studentId)?.trim();
-    labelByStudentId.set(studentId, fullName || username || studentId);
+    const profileName = profileNameById.get(studentId)?.trim();
+    labelByStudentId.set(studentId, fullName || profileName || studentId);
   }
 
   return labelByStudentId;
@@ -510,7 +537,7 @@ async function getYearWideUnpaidAnalyticsTables(
       fromInclusive,
       toExclusive
     ),
-    studentPaymentPhaseRepository.listActiveUnpaidSpps(adminClient),
+    loadActiveUnpaidSppsForRequest(adminClient),
   ]);
 
   if (paidSppIdsResult.error) {
@@ -610,7 +637,7 @@ export async function getIncomeStatementAnalyticsTablesForManager(
         fromInclusive,
         toExclusive
       ),
-      studentPaymentPhaseRepository.listActiveUnpaidSpps(adminClient),
+      loadActiveUnpaidSppsForRequest(adminClient),
     ]);
 
   if (paymentsResult.error) throw new Error(paymentsResult.error.message);
@@ -849,7 +876,7 @@ export async function getNextMonthIncomeForecastForManager(
   const creditsRange = lastCompletedMonthsRange(CREDIT_SAMPLE_MONTHS);
 
   const [unpaidSppsResult, phasesResult, creditsResult] = await Promise.all([
-    studentPaymentPhaseRepository.listActiveUnpaidSpps(adminClient),
+    loadActiveUnpaidSppsForRequest(adminClient),
     paymentPhaseRepository.listOpenedPaymentPhases(adminClient),
     transactionRepository.listTransactionAmountsBetween(
       adminClient,

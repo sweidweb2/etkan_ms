@@ -4,10 +4,12 @@ export type ClassStudentRow = {
   student_profile_id: string;
   user_id: string;
   full_name: string;
-  username: string | null;
   email: string;
   phone: string | null;
   joined_at: string;
+  /** Pending semester drop request id when present. */
+  pending_drop_request_id?: string | null;
+  has_pending_drop?: boolean;
 };
 
 /** @deprecated Prefer `ClassStudentRow`. */

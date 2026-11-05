@@ -20,6 +20,7 @@ import { AddPublicProjectDialog } from "@/components/manager/projects/add-public
 import { EditPublicProjectDialog } from "@/components/manager/projects/edit-public-project-dialog";
 import { UserStatCard } from "@/components/manager/users/user-stat-card";
 import { InlineSpinner } from "@/components/loaders/inline-spinner";
+import { PanelPageHeader } from "@/components/panels/panel-page-header";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
@@ -284,15 +285,8 @@ export function ManageProjectsPanel({
   return (
     <TooltipProvider>
       <div className="flex flex-col gap-6">
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-          <div>
-            <h1 className="text-2xl font-semibold tracking-tight">
-              Manage projects
-            </h1>
-            <p className="mt-1 text-sm text-muted-foreground">
-              Project cards shown on the public projects page.
-            </p>
-          </div>
+        <PanelPageHeader title="Manage projects" />
+        <div className="flex flex-wrap items-center justify-end gap-2 empty:hidden">
           <Can permission={PERMISSIONS.PROJECTS_CREATE}>
             <Button type="button" onClick={() => setIsAddOpen(true)}>
               <PlusIcon data-icon="inline-start" />
@@ -364,7 +358,7 @@ export function ManageProjectsPanel({
           </DialogContent>
         </Dialog>
 
-        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        <div className="grid gap-4 @lg/panel:grid-cols-2 @4xl/panel:grid-cols-4">
           <UserStatCard
             label="Total"
             value={stats.total}
@@ -516,7 +510,7 @@ export function ManageProjectsPanel({
               </div>
             )}
 
-            <div className="flex flex-col gap-3 border-t px-4 pt-2 pb-3 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex flex-col gap-3 border-t px-4 pt-2 pb-3 @lg/panel:flex-row @lg/panel:items-center @lg/panel:justify-between">
               <div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
                 <span>
                   Showing {rangeStart}–{rangeEnd} of {filteredProjects.length}

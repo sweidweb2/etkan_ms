@@ -49,7 +49,10 @@ type CreateFinancialAdjustmentDialogProps = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   sppId: string;
-  onCreated: (adjustment: ManagerFinancialAdjustmentRow) => void;
+  onCreated: (
+    adjustment: ManagerFinancialAdjustmentRow,
+    spp: import("@/types/manager-student-payment").ManagerSppFinancialSnapshot
+  ) => void;
 };
 
 export function CreateFinancialAdjustmentDialog({
@@ -116,8 +119,8 @@ export function CreateFinancialAdjustmentDialog({
 
   useActionStateSuccess(state, isPending, (nextState) => {
     onOpenChange(false);
-    if (nextState.adjustment) {
-      onCreated(nextState.adjustment);
+    if (nextState.adjustment && nextState.spp) {
+      onCreated(nextState.adjustment, nextState.spp);
     }
   });
 

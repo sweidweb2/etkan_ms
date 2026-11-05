@@ -341,7 +341,7 @@ export function SessionTaskUploadsSection({
             />
           ) : (
             <>
-              <div className="flex flex-col gap-2 sm:max-w-md">
+              <div className="flex flex-col gap-2 @lg/panel:max-w-md">
                 <FieldLabel
                   htmlFor="session-task-upload-student"
                   label="Student"
@@ -384,7 +384,7 @@ export function SessionTaskUploadsSection({
               <Can permission={PERMISSIONS.TASKS_UPDATE_STUDENT}>
                 <form
                   ref={formRef}
-                  className="flex flex-col gap-3 sm:max-w-md"
+                  className="flex flex-col gap-3 @lg/panel:max-w-md"
                   onSubmit={onUploadSubmit}
                   noValidate
                 >

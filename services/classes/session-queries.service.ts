@@ -5,7 +5,6 @@ import { assertPermission } from "@/services/auth/authorization.service";
 import * as attendeeRepository from "@/repositories/attendee.repository";
 import type { AttendeeRecord } from "@/repositories/attendee.repository";
 import * as classRepository from "@/repositories/class.repository";
-import * as semesterRepository from "@/repositories/semester.repository";
 import * as sessionRepository from "@/repositories/session.repository";
 import type { SessionRecord } from "@/repositories/session.repository";
 import * as studentTaskRepository from "@/repositories/student-task.repository";
@@ -32,7 +31,6 @@ import type {
   ManagerStudentTaskRow,
   ManagerStudentTaskUploadRow,
 } from "@/types/manager-class-session-detail";
-import type { ManagerSessionPhaseLink } from "@/types/manager-session-phase-link";
 
 export async function listClassTasksForManager(
   adminClient: Supabase,
@@ -71,8 +69,6 @@ export async function listClassTasksForManager(
 export type ManagerSessionDetailBundle = {
   session: ManagerClassSessionRow;
   classRow: Pick<ManagerClassRow, "id" | "name" | "semester_id" | "semester_name">;
-  linkedPhase: ManagerSessionPhaseLink | null;
-  phaseOptions: ManagerSessionPhaseLink[];
   /** @deprecated Sessions no longer own tasks; always empty. */
   tasks: ManagerClassTaskRow[];
   attendees: ManagerSessionAttendeeRow[];
@@ -117,17 +113,13 @@ export async function getSessionDetailForManager(
     classId
   );
 
-  const [attendeesResult, semestersResult] = await Promise.all([
-    attendeeRepository.listAttendeesBySessionId(adminClient, sessionId),
-    semesterRepository.listSemesters(adminClient),
-  ]);
+  const attendeesResult = await attendeeRepository.listAttendeesBySessionId(
+    adminClient,
+    sessionId
+  );
 
   if (attendeesResult.error) {
     throw new Error(attendeesResult.error.message);
-  }
-
-  if (semestersResult.error) {
-    throw new Error(semestersResult.error.message);
   }
 
   const attendeeRecords = (attendeesResult.data ?? []) as AttendeeRecord[];
@@ -137,15 +129,6 @@ export async function getSessionDetailForManager(
   );
 
   const session = mapSessionRecord(sessionResult.data as SessionRecord);
-  const phaseOptions: ManagerSessionPhaseLink[] = (semestersResult.data ?? []).map(
-    (row) => ({
-      phase_id: row.id,
-      phase_name: row.name,
-    })
-  );
-
-  const linkedPhase =
-    phaseOptions.find((phase) => phase.phase_id === session.semester_id) ?? null;
 
   return {
     session,
@@ -155,8 +138,6 @@ export async function getSessionDetailForManager(
       semester_id: classResult.data.semester_id,
       semester_name: classResult.data.semesters?.name ?? null,
     },
-    linkedPhase,
-    phaseOptions,
     tasks: [],
     attendees: attendeeRecords.map((row) => {
       const display = displayByUserId.get(row.student_id);

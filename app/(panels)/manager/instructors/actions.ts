@@ -4,18 +4,11 @@ import { getSessionAuditActor } from "@/lib/auth/session";
 import { revalidateManagerScheduleInstructors } from "@/lib/cache/instructor-schedule-cache";
 import {
   revalidateManagerInstructorsList,
-  revalidateManagerMentorSubjects,
-  revalidateManagerMentorsList,
   revalidateManagerUsersList,
 } from "@/lib/cache/manager-list-cache";
-import {
-  SUBJECT_SCOPES,
-  isSubjectScope,
-  type SubjectScope,
-} from "@/lib/constants/subject-scope";
+import { isSubjectScope, type SubjectScope } from "@/lib/constants/subject-scope";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { parseAddInstructorsFormData } from "@/lib/validators/manager/add-instructors";
-import { parseAddMentorsFormData } from "@/lib/validators/manager/add-mentors";
 import { parseCreateCapabilitySubjectFormData } from "@/lib/validators/manager/create-capability-subject";
 import { parseSaveCapabilitySubjectOrderFormData } from "@/lib/validators/manager/save-capability-subject-order";
 import { parseSetSubjectCapabilityInput } from "@/lib/validators/manager/set-subject-capability";
@@ -26,12 +19,6 @@ import {
   removeInstructorForManager,
 } from "@/services/instructors/instructor.service";
 import {
-  addMentorsForManager,
-  getMentorSubjectsPageForManager,
-  listMentorCandidatesForManager,
-  removeMentorForManager,
-} from "@/services/mentors/mentor.service";
-import {
   createSubjectForManager,
   deleteSubjectForManager,
   listSubjectCapabilitiesForManager,
@@ -39,11 +26,6 @@ import {
   setSubjectCapabilityForManager,
   updateSubjectForManager,
 } from "@/services/subjects/subject-catalog.service";
-import type {
-  AddMentorsActionState,
-  ManagerMentorCandidateRow,
-  RemoveMentorActionState,
-} from "@/types/manager-mentor";
 import type {
   AddInstructorsActionState,
   ManagerInstructorCandidateRow,
@@ -53,20 +35,10 @@ import type {
   CreateSubjectActionState,
   DeleteSubjectActionState,
   ManagerSubjectCapabilityPair,
-  ManagerSubjectScopeData,
   SaveSubjectOrderActionState,
   SetSubjectCapabilityResult,
   UpdateSubjectActionState,
 } from "@/types/manager-capability-subject";
-
-/** Subject mutations only invalidate their own scope's cache. */
-function revalidateSubjectScope(scope: SubjectScope): void {
-  if (scope === SUBJECT_SCOPES.MENTOR) {
-    revalidateManagerMentorSubjects();
-    return;
-  }
-  revalidateManagerInstructorsList();
-}
 
 export async function loadInstructorCandidatesAction(): Promise<
   ManagerInstructorCandidateRow[]
@@ -104,21 +76,6 @@ export async function loadSubjectCapabilitiesAction(
   }
 }
 
-/** Lazy payload for the Mentors tab (catalog + matrix), fetched on first switch. */
-export async function loadMentorSubjectsPageAction(): Promise<ManagerSubjectScopeData | null> {
-  const actor = await getSessionAuditActor();
-  if (!actor.userId) {
-    return null;
-  }
-
-  const adminClient = createSupabaseAdminClient();
-  try {
-    return await getMentorSubjectsPageForManager(adminClient, actor.userId);
-  } catch {
-    return null;
-  }
-}
-
 export async function setSubjectCapabilityAction(
   input: unknown
 ): Promise<SetSubjectCapabilityResult> {
@@ -143,7 +100,7 @@ export async function setSubjectCapabilityAction(
     return { success: false, error: result.error };
   }
 
-  revalidateSubjectScope(scope);
+  revalidateManagerInstructorsList();
 
   return {
     success: true,
@@ -186,7 +143,7 @@ export async function createSubjectAction(
     };
   }
 
-  revalidateSubjectScope(parsed.scope);
+  revalidateManagerInstructorsList();
 
   return {
     success: true,
@@ -226,7 +183,7 @@ export async function updateSubjectAction(
     };
   }
 
-  revalidateSubjectScope(parsed.scope);
+  revalidateManagerInstructorsList();
 
   return {
     success: true,
@@ -262,7 +219,7 @@ export async function deleteSubjectAction(
     return { success: false, error: result.error };
   }
 
-  revalidateSubjectScope(scope);
+  revalidateManagerInstructorsList();
 
   return {
     success: true,
@@ -294,7 +251,7 @@ export async function saveSubjectOrderAction(
     return { success: false, error: result.error };
   }
 
-  revalidateSubjectScope(parsed.scope);
+  revalidateManagerInstructorsList();
 
   return {
     success: true,
@@ -333,86 +290,6 @@ export async function removeInstructorAction(
     success: true,
     message: result.message,
     userId: result.userId,
-  };
-}
-
-export async function loadMentorCandidatesAction(): Promise<
-  ManagerMentorCandidateRow[]
-> {
-  const actor = await getSessionAuditActor();
-  if (!actor.userId) {
-    return [];
-  }
-
-  const adminClient = createSupabaseAdminClient();
-  try {
-    return await listMentorCandidatesForManager(adminClient, actor.userId);
-  } catch {
-    return [];
-  }
-}
-
-export async function removeMentorAction(
-  _prevState: RemoveMentorActionState,
-  formData: FormData
-): Promise<RemoveMentorActionState> {
-  const actor = await getSessionAuditActor();
-  const userId = String(formData.get("userId") ?? "").trim();
-
-  if (!userId) {
-    return { success: false, error: "Mentor not found." };
-  }
-
-  const adminClient = createSupabaseAdminClient();
-  const result = await removeMentorForManager(
-    adminClient,
-    actor.userId,
-    userId
-  );
-
-  if (!result.success) {
-    return { success: false, error: result.error };
-  }
-
-  revalidateManagerMentorsList();
-  revalidateManagerUsersList();
-
-  return {
-    success: true,
-    message: result.message,
-    userId: result.userId,
-  };
-}
-
-export async function addMentorsAction(
-  _prevState: AddMentorsActionState,
-  formData: FormData
-): Promise<AddMentorsActionState> {
-  const actor = await getSessionAuditActor();
-  const parsed = parseAddMentorsFormData(formData);
-
-  if (!parsed.success) {
-    return { success: false, error: parsed.error };
-  }
-
-  const adminClient = createSupabaseAdminClient();
-  const result = await addMentorsForManager(
-    adminClient,
-    actor.userId,
-    parsed.data
-  );
-
-  if (!result.success) {
-    return { success: false, error: result.error };
-  }
-
-  revalidateManagerMentorsList();
-  revalidateManagerUsersList();
-
-  return {
-    success: true,
-    message: result.message,
-    addedCount: result.addedCount,
   };
 }
 

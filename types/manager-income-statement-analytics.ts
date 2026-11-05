@@ -88,6 +88,10 @@ export type ManagerIncomeStatementAnalyticsData = {
     credits: number;
     debits: number;
     adjustments: number;
+    /** External cash transactions, credits − debits. */
+    cashTransactions: number;
+    /** External Whish transactions, credits − debits. */
+    whishTransactions: number;
   };
   payments: ManagerIncomeAnalyticsPaymentRow[];
   transactions: ManagerIncomeAnalyticsTransactionRow[];

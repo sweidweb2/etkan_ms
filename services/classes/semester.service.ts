@@ -91,6 +91,68 @@ function mapSemesterRecordToRow(record: SemesterRecord): ManagerSemesterRow {
   };
 }
 
+const FORM_ERROR_MESSAGE = "Please fix the errors below.";
+const SEMESTER_NAME_TAKEN_MESSAGE = "A semester with this name already exists.";
+const SEMESTER_CODE_TAKEN_MESSAGE = "This semester code is already in use.";
+
+function isSemesterCodeConflictError(message: string | undefined): boolean {
+  const normalized = (message ?? "").toLowerCase();
+  return (
+    normalized.includes("semester_code") &&
+    (normalized.includes("duplicate") || normalized.includes("unique"))
+  );
+}
+
+function semesterCodeTakenFailure(): CreateSemesterFailure {
+  return {
+    success: false,
+    error: FORM_ERROR_MESSAGE,
+    fieldErrors: { semester_code: [SEMESTER_CODE_TAKEN_MESSAGE] },
+  };
+}
+
+/** Name/code uniqueness checks; `excludeSemesterId` skips the semester being edited. */
+async function findSemesterConflicts(
+  adminClient: Supabase,
+  input: {
+    name: string | null;
+    semesterCode: string | null;
+    excludeSemesterId?: string;
+  }
+): Promise<
+  | { success: true; fieldErrors: FieldErrors | null }
+  | { success: false; error: string }
+> {
+  const [nameResult, codeResult] = await Promise.all([
+    input.name
+      ? semesterRepository.findSemesterByName(adminClient, input.name)
+      : null,
+    input.semesterCode
+      ? semesterRepository.findSemesterByCode(adminClient, input.semesterCode)
+      : null,
+  ]);
+
+  const lookupError = nameResult?.error ?? codeResult?.error;
+  if (lookupError) {
+    return { success: false, error: mapCreateSemesterError(lookupError.message) };
+  }
+
+  const fieldErrors: FieldErrors = {};
+
+  if (nameResult?.data && nameResult.data.id !== input.excludeSemesterId) {
+    fieldErrors.name = [SEMESTER_NAME_TAKEN_MESSAGE];
+  }
+
+  if (codeResult?.data && codeResult.data.id !== input.excludeSemesterId) {
+    fieldErrors.semester_code = [SEMESTER_CODE_TAKEN_MESSAGE];
+  }
+
+  return {
+    success: true,
+    fieldErrors: Object.keys(fieldErrors).length ? fieldErrors : null,
+  };
+}
+
 function mapCreateSemesterError(message: string): string {
   const normalized = message.toLowerCase();
 
@@ -231,6 +293,8 @@ export async function createSemesterForManager(
   actor: AuditActor,
   input: {
     name: string;
+    /** Blank or omitted → a unique code is generated. */
+    semester_code?: string;
   }
 ): Promise<CreateSemesterResult> {
   const unauthorized = await getUnauthorizedError(
@@ -253,39 +317,47 @@ export async function createSemesterForManager(
   }
 
   const normalizedName = parsed.data.name.trim();
+  const requestedCode = parsed.data.semester_code?.trim() || null;
 
-  const existing = await semesterRepository.findSemesterByName(
-    adminClient,
-    normalizedName
-  );
+  const conflicts = await findSemesterConflicts(adminClient, {
+    name: normalizedName,
+    semesterCode: requestedCode,
+  });
 
-  if (existing.error) {
+  if (!conflicts.success) {
+    return { success: false, error: conflicts.error };
+  }
+
+  if (conflicts.fieldErrors) {
     return {
       success: false,
-      error: mapCreateSemesterError(existing.error.message),
+      error: FORM_ERROR_MESSAGE,
+      fieldErrors: conflicts.fieldErrors,
     };
   }
 
-  if (existing.data) {
-    return {
-      success: false,
-      error: "Please fix the errors below.",
-      fieldErrors: { name: ["A semester with this name already exists."] },
-    };
-  }
+  let semesterCode = requestedCode;
 
-  const codeAllocation = await allocateUniqueSemesterCode(adminClient);
+  if (!semesterCode) {
+    const codeAllocation = await allocateUniqueSemesterCode(adminClient);
 
-  if (!codeAllocation.success) {
-    return { success: false, error: codeAllocation.error };
+    if (!codeAllocation.success) {
+      return { success: false, error: codeAllocation.error };
+    }
+
+    semesterCode = codeAllocation.semesterCode;
   }
 
   const { data, error } = await semesterRepository.createSemester(adminClient, {
     name: normalizedName,
-    semester_code: codeAllocation.semesterCode,
+    semester_code: semesterCode,
   });
 
   if (error || !data) {
+    if (requestedCode && isSemesterCodeConflictError(error?.message)) {
+      return semesterCodeTakenFailure();
+    }
+
     return {
       success: false,
       error: mapCreateSemesterError(error?.message ?? "Unknown error"),
@@ -318,6 +390,7 @@ export async function updateSemesterForManager(
   input: {
     id: string;
     name: string;
+    semester_code: string;
   }
 ): Promise<UpdateSemesterResult> {
   const unauthorized = await getUnauthorizedError(
@@ -340,6 +413,7 @@ export async function updateSemesterForManager(
   }
 
   const normalizedName = parsed.data.name.trim();
+  const nextCode = parsed.data.semester_code.trim();
 
   const existing = await semesterRepository.findSemesterById(
     adminClient,
@@ -357,26 +431,25 @@ export async function updateSemesterForManager(
     return { success: false, error: "Semester not found." };
   }
 
-  if (normalizedName !== existing.data.name.trim()) {
-    const nameConflict = await semesterRepository.findSemesterByName(
-      adminClient,
-      normalizedName
-    );
+  const isNameChanged = normalizedName !== existing.data.name.trim();
+  const isCodeChanged = nextCode !== existing.data.semester_code;
 
-    if (nameConflict.error) {
-      return {
-        success: false,
-        error: mapCreateSemesterError(nameConflict.error.message),
-      };
-    }
+  const conflicts = await findSemesterConflicts(adminClient, {
+    name: isNameChanged ? normalizedName : null,
+    semesterCode: isCodeChanged ? nextCode : null,
+    excludeSemesterId: parsed.data.id,
+  });
 
-    if (nameConflict.data && nameConflict.data.id !== parsed.data.id) {
-      return {
-        success: false,
-        error: "Please fix the errors below.",
-        fieldErrors: { name: ["A semester with this name already exists."] },
-      };
-    }
+  if (!conflicts.success) {
+    return { success: false, error: conflicts.error };
+  }
+
+  if (conflicts.fieldErrors) {
+    return {
+      success: false,
+      error: FORM_ERROR_MESSAGE,
+      fieldErrors: conflicts.fieldErrors,
+    };
   }
 
   const { data, error } = await semesterRepository.updateSemester(
@@ -384,10 +457,15 @@ export async function updateSemesterForManager(
     parsed.data.id,
     {
       name: normalizedName,
+      semester_code: nextCode,
     }
   );
 
   if (error || !data) {
+    if (isCodeChanged && isSemesterCodeConflictError(error?.message)) {
+      return semesterCodeTakenFailure();
+    }
+
     return {
       success: false,
       error: mapCreateSemesterError(error?.message ?? "Unknown error"),
@@ -409,7 +487,10 @@ export async function updateSemesterForManager(
     },
     metadata: {
       note: "Semester updated.",
-      changed_fields: ["name"],
+      changed_fields: [
+        ...(isNameChanged ? ["name"] : []),
+        ...(isCodeChanged ? ["semester_code"] : []),
+      ],
     },
   });
 

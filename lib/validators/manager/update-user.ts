@@ -8,7 +8,6 @@ import {
   emailField,
   fullNameField,
   phoneField,
-  usernameField,
 } from "@/lib/validators/auth/fields";
 import { zodFieldErrors } from "@/lib/validators/auth/parse-form";
 import {
@@ -19,14 +18,12 @@ import type { FieldErrors } from "@/types/auth";
 
 export const updateManagerUserSchema = z
   .object({
-    username: usernameField,
+    fullName: fullNameField,
     email: emailField,
     role: z.enum(MANAGER_USER_EDITABLE_ROLES, {
       message: "Please select a role.",
     }),
     is_instructor: z.boolean(),
-    is_mentor: z.boolean(),
-    fullName: z.string().optional(),
     birthDate: birthDateField,
     phone: phoneField,
     status: z
@@ -42,17 +39,6 @@ export const updateManagerUserSchema = z
 
     if (values.role !== ROLES.STUDENT) {
       return;
-    }
-
-    const fullNameResult = fullNameField.safeParse(values.fullName ?? "");
-    if (!fullNameResult.success) {
-      for (const issue of fullNameResult.error.issues) {
-        ctx.addIssue({
-          code: "custom",
-          message: issue.message,
-          path: ["fullName"],
-        });
-      }
     }
 
     if (!values.status) {
@@ -88,12 +74,10 @@ export function parseUpdateManagerUserFormData(formData: FormData):
   }
 
   const parsed = updateManagerUserSchema.safeParse({
-    username: formData.get("username"),
+    fullName: formData.get("fullName"),
     email: formData.get("email"),
     role: formData.get("role"),
     is_instructor: formData.get("is_instructor") === "true",
-    is_mentor: formData.get("is_mentor") === "true",
-    fullName: formData.get("fullName") ?? undefined,
     birthDate: formData.get("birthDate") ?? "",
     phone: formData.get("phone") ?? "",
     status: formData.get("status") || undefined,

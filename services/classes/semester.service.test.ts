@@ -252,6 +252,110 @@ describe("createSemesterForManager", () => {
       })
     );
   });
+
+  it("creates a semester with a manager-provided code", async () => {
+    vi.mocked(semesterRepository.findSemesterByName).mockResolvedValue({
+      data: null,
+      error: null,
+    } as never);
+    vi.mocked(semesterRepository.findSemesterByCode).mockResolvedValue({
+      data: null,
+      error: null,
+    } as never);
+    vi.mocked(semesterRepository.createSemester).mockResolvedValue({
+      data: { ...semesterRecord, semester_code: "1234" },
+      error: null,
+    } as never);
+
+    const result = await createSemesterForManager(
+      adminClient,
+      actor.userId,
+      actor,
+      { ...validCreateInput, semester_code: "1234" }
+    );
+
+    expect(result.success).toBe(true);
+    expect(semesterRepository.findSemesterByCode).toHaveBeenCalledTimes(1);
+    expect(semesterRepository.findSemesterByCode).toHaveBeenCalledWith(
+      adminClient,
+      "1234"
+    );
+    expect(semesterRepository.createSemester).toHaveBeenCalledWith(
+      adminClient,
+      { name: "Fall 2026 Core Semester", semester_code: "1234" }
+    );
+  });
+
+  it("rejects a code that is not 4 digits", async () => {
+    const result = await createSemesterForManager(
+      adminClient,
+      actor.userId,
+      actor,
+      { ...validCreateInput, semester_code: "12a" }
+    );
+
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(result.fieldErrors?.semester_code).toBeDefined();
+    }
+    expect(semesterRepository.createSemester).not.toHaveBeenCalled();
+  });
+
+  it("rejects a code that is already in use", async () => {
+    vi.mocked(semesterRepository.findSemesterByName).mockResolvedValue({
+      data: null,
+      error: null,
+    } as never);
+    vi.mocked(semesterRepository.findSemesterByCode).mockResolvedValue({
+      data: { id: "other-semester", semester_code: "4821" },
+      error: null,
+    } as never);
+
+    const result = await createSemesterForManager(
+      adminClient,
+      actor.userId,
+      actor,
+      { ...validCreateInput, semester_code: "4821" }
+    );
+
+    expect(result).toEqual({
+      success: false,
+      error: "Please fix the errors below.",
+      fieldErrors: { semester_code: ["This semester code is already in use."] },
+    });
+    expect(semesterRepository.createSemester).not.toHaveBeenCalled();
+  });
+
+  it("maps a unique-violation race on the code to a field error", async () => {
+    vi.mocked(semesterRepository.findSemesterByName).mockResolvedValue({
+      data: null,
+      error: null,
+    } as never);
+    vi.mocked(semesterRepository.findSemesterByCode).mockResolvedValue({
+      data: null,
+      error: null,
+    } as never);
+    vi.mocked(semesterRepository.createSemester).mockResolvedValue({
+      data: null,
+      error: {
+        message:
+          'duplicate key value violates unique constraint "semesters_semester_code_unique"',
+      },
+    } as never);
+
+    const result = await createSemesterForManager(
+      adminClient,
+      actor.userId,
+      actor,
+      { ...validCreateInput, semester_code: "4821" }
+    );
+
+    expect(result).toEqual({
+      success: false,
+      error: "Please fix the errors below.",
+      fieldErrors: { semester_code: ["This semester code is already in use."] },
+    });
+  });
 });
 
 describe("updateSemesterForManager", () => {
@@ -284,6 +388,7 @@ describe("updateSemesterForManager", () => {
       {
         id: semesterId,
         name: "Fall 2026 Renamed",
+        semester_code: "4821",
       }
     );
 
@@ -297,5 +402,61 @@ describe("updateSemesterForManager", () => {
       },
       message: "Semester updated.",
     });
+    expect(semesterRepository.findSemesterByCode).not.toHaveBeenCalled();
+  });
+
+  it("updates semester code when it is free", async () => {
+    vi.mocked(semesterRepository.findSemesterById).mockResolvedValue({
+      data: semesterRecord,
+      error: null,
+    } as never);
+    vi.mocked(semesterRepository.findSemesterByCode).mockResolvedValue({
+      data: null,
+      error: null,
+    } as never);
+    vi.mocked(semesterRepository.updateSemester).mockResolvedValue({
+      data: { ...semesterRecord, semester_code: "0007" },
+      error: null,
+    } as never);
+
+    const result = await updateSemesterForManager(
+      adminClient,
+      actor.userId,
+      actor,
+      { id: semesterId, name: semesterRecord.name, semester_code: "0007" }
+    );
+
+    expect(result.success).toBe(true);
+    expect(semesterRepository.findSemesterByName).not.toHaveBeenCalled();
+    expect(semesterRepository.updateSemester).toHaveBeenCalledWith(
+      adminClient,
+      semesterId,
+      { name: semesterRecord.name, semester_code: "0007" }
+    );
+  });
+
+  it("rejects a code used by another semester", async () => {
+    vi.mocked(semesterRepository.findSemesterById).mockResolvedValue({
+      data: semesterRecord,
+      error: null,
+    } as never);
+    vi.mocked(semesterRepository.findSemesterByCode).mockResolvedValue({
+      data: { id: "other-semester", semester_code: "1111" },
+      error: null,
+    } as never);
+
+    const result = await updateSemesterForManager(
+      adminClient,
+      actor.userId,
+      actor,
+      { id: semesterId, name: semesterRecord.name, semester_code: "1111" }
+    );
+
+    expect(result).toEqual({
+      success: false,
+      error: "Please fix the errors below.",
+      fieldErrors: { semester_code: ["This semester code is already in use."] },
+    });
+    expect(semesterRepository.updateSemester).not.toHaveBeenCalled();
   });
 });

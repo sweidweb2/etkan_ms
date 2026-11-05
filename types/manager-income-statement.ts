@@ -35,8 +35,11 @@ export type ManagerIncomeTransactionRow = {
 
 export type ManagerIncomeStatementStats = {
   paymentCount: number;
+  /** Period SPP credit payments (money in). */
   totalPaymentsAmount: number;
-  /** All-time sum of SPP student payment amounts (no date filter). */
+  /** Period SPP debit payments (drop refunds / money out). */
+  totalSppDebitsAmount: number;
+  /** All-time net of SPP student payments (credits − debits). */
   totalSppPaymentsAmount: number;
   totalScholarshipAmount: number;
   adjustmentPeopleCount: number;
@@ -48,7 +51,7 @@ export type ManagerIncomeStatementStats = {
   transactionCount: number;
   totalCreditsAmount: number;
   totalDebitsAmount: number;
-  /** Period payments + external credits − external debits. */
+  /** Period SPP net + external credits − external debits. */
   availableMoney: number;
 };
 

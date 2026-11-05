@@ -341,7 +341,7 @@ export function WorkshopSessionsSection({
         }
       >
         <div className="flex flex-col gap-4 px-3 py-4 sm:px-4">
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+          <div className="flex flex-col gap-3 @lg/panel:flex-row @lg/panel:items-center">
             <div className="relative min-w-0 flex-1">
               <SearchIcon className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
               <Input
@@ -361,7 +361,7 @@ export function WorkshopSessionsSection({
                 setPage(1);
               }}
             >
-              <SelectTrigger className="w-full sm:w-44">
+              <SelectTrigger className="w-full @lg/panel:w-44">
                 <SelectValue placeholder="Status" />
               </SelectTrigger>
               <SelectContent>

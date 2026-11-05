@@ -109,7 +109,7 @@ export function WorkshopPaymentsTotalsSection({
         </p>
       </div>
 
-      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
+      <div className="grid gap-3 @lg/panel:grid-cols-2 @4xl/panel:grid-cols-5">
         <TotalsStatCard
           label="Credits"
           value={formatPaymentPhaseMoney(totals.credits)}

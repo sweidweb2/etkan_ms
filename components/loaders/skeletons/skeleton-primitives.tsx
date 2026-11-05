@@ -20,7 +20,7 @@ export function SkeletonFilterBar({ className }: ClassNameProps) {
   return (
     <div
       className={cn(
-        "flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between",
+        "flex flex-col gap-2 @lg/panel:flex-row @lg/panel:flex-wrap @lg/panel:items-center @lg/panel:justify-between",
         className
       )}
     >
@@ -28,7 +28,7 @@ export function SkeletonFilterBar({ className }: ClassNameProps) {
         <Skeleton className="h-9 w-40 rounded-full" />
         <Skeleton className="h-9 w-44" />
       </div>
-      <Skeleton className="h-9 w-28 shrink-0 self-start sm:self-auto" />
+      <Skeleton className="h-9 w-28 shrink-0 self-start @lg/panel:self-auto" />
     </div>
   );
 }
@@ -41,7 +41,7 @@ export function SkeletonStatRow({
   return (
     <div
       className={cn(
-        "grid gap-3 sm:grid-cols-2 lg:grid-cols-4",
+        "grid gap-3 @lg/panel:grid-cols-2 @2xl/panel:grid-cols-4",
         className
       )}
     >
@@ -104,7 +104,7 @@ export function SkeletonCardGrid({
   return (
     <div
       className={cn(
-        "grid gap-4 sm:grid-cols-2 xl:grid-cols-3",
+        "grid gap-4 @lg/panel:grid-cols-2 @4xl/panel:grid-cols-3",
         className
       )}
     >
@@ -146,7 +146,7 @@ export function SkeletonDetailSections({ className }: ClassNameProps) {
   return (
     <div
       className={cn(
-        "grid gap-6 lg:grid-cols-[minmax(0,280px)_minmax(0,1fr)]",
+        "grid gap-6 @2xl/panel:grid-cols-[minmax(0,280px)_minmax(0,1fr)]",
         className
       )}
     >

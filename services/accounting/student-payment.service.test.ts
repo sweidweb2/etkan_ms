@@ -6,6 +6,7 @@ import * as studentPaymentPhaseRepository from "@/repositories/student-payment-p
 import * as studentPaymentRepository from "@/repositories/student-payment.repository";
 import * as studentProfileRepository from "@/repositories/student-profile.repository";
 import * as clearanceRepository from "@/repositories/student-payment-phase-clearance.repository";
+import * as semesterDropRequestRepository from "@/repositories/semester-drop-request.repository";
 import * as auditLogService from "@/services/ops/audit-log.service";
 import type { AuditActor } from "@/services/ops/audit-log.service";
 import {
@@ -29,6 +30,7 @@ vi.mock("@/repositories/profile.repository");
 vi.mock("@/repositories/student-payment-phase.repository");
 vi.mock("@/repositories/student-payment.repository");
 vi.mock("@/repositories/student-profile.repository");
+vi.mock("@/repositories/semester-drop-request.repository");
 vi.mock("@/repositories/student-payment-phase-clearance.repository", () => ({
   findClearanceBySppId: vi.fn().mockResolvedValue({ data: null, error: null }),
   findClearancesBySppIds: vi.fn().mockResolvedValue({ data: [], error: null }),
@@ -181,15 +183,15 @@ describe("createStudentPaymentForManager", () => {
     vi.mocked(
       studentPaymentRepository.createStudentPaymentWithRecalc
     ).mockResolvedValue({
-      data: { payment: paymentRecord, paymentPhaseId: phaseId },
-      error: null,
-    } as never);
-    vi.mocked(studentPaymentPhaseRepository.findSppById).mockResolvedValue({
       data: {
-        ...sppRecord,
-        status: "paid",
-        total_paid: 1000,
-        remaining_amount: 0,
+        payment: paymentRecord,
+        paymentPhaseId: phaseId,
+        spp: {
+          ...sppRecord,
+          status: "paid",
+          total_paid: 1000,
+          remaining_amount: 0,
+        },
       },
       error: null,
     } as never);
@@ -223,6 +225,7 @@ describe("createStudentPaymentForManager", () => {
     expect(
       studentPaymentRepository.createStudentPaymentWithRecalc
     ).toHaveBeenCalled();
+    expect(studentPaymentPhaseRepository.findSppById).not.toHaveBeenCalled();
     expect(
       studentPaymentPhaseRepository.updateStudentPaymentPhaseFinancials
     ).not.toHaveBeenCalled();
@@ -272,6 +275,12 @@ describe("getSppDetailForManager", () => {
       data: null,
       error: null,
     } as never);
+    vi.mocked(
+      semesterDropRequestRepository.findCompletedDropBySppId
+    ).mockResolvedValue({
+      data: null,
+      error: null,
+    } as never);
   });
 
   it("sets has_credit when remaining amount is negative (E9)", async () => {
@@ -297,7 +306,7 @@ describe("getSppDetailForManager", () => {
     vi.mocked(profileRepository.findProfileById).mockResolvedValue({
       data: {
         id: "student-1",
-        username: "student",
+        full_name: "Student",
         role: "student",
         created_at: "",
       },
@@ -339,6 +348,8 @@ describe("getSppDetailForManager", () => {
     expect(detail?.remaining_amount).toBe(-200);
     expect(detail?.has_credit).toBe(true);
     expect(detail?.status).toBe("paid");
+    expect(detail?.payments_blocked).toBe(true);
+    expect(detail?.drop_completed).toBe(false);
     expect(detail?.student_profile_id).toBe("sp-1");
   });
 });
@@ -357,6 +368,7 @@ describe("deleteStudentPaymentForManager", () => {
         deleted: paymentRecord,
         studentPaymentPhaseId: sppId,
         paymentPhaseId: phaseId,
+        spp: sppRecord,
       },
       error: null,
     } as never);
@@ -369,6 +381,7 @@ describe("deleteStudentPaymentForManager", () => {
     );
 
     expect(result.success).toBe(true);
+    expect(studentPaymentPhaseRepository.findSppById).not.toHaveBeenCalled();
     expect(
       studentPaymentRepository.deleteStudentPaymentWithRecalc
     ).toHaveBeenCalledWith(adminClient, paymentId, sppId);
@@ -376,6 +389,41 @@ describe("deleteStudentPaymentForManager", () => {
       paymentPhaseRepository.updatePaymentPhaseStatus
     ).not.toHaveBeenCalled();
     expect(auditLogService.recordManagerAuditLog).toHaveBeenCalled();
+  });
+});
+
+describe("payment snapshot fallback", () => {
+  beforeEach(() => {
+    vi.resetAllMocks();
+    vi.mocked(auditLogService.recordManagerAuditLog).mockResolvedValue(null);
+  });
+
+  it("reads the SPP once when the RPC result has no spp", async () => {
+    vi.mocked(
+      studentPaymentRepository.deleteStudentPaymentWithRecalc
+    ).mockResolvedValue({
+      data: {
+        deleted: paymentRecord,
+        studentPaymentPhaseId: sppId,
+        paymentPhaseId: phaseId,
+        spp: null,
+      },
+      error: null,
+    } as never);
+    vi.mocked(studentPaymentPhaseRepository.findSppById).mockResolvedValue({
+      data: sppRecord,
+      error: null,
+    } as never);
+
+    const result = await deleteStudentPaymentForManager(
+      adminClient,
+      actor.userId,
+      actor,
+      { id: paymentId, student_payment_phase_id: sppId }
+    );
+
+    expect(result.success).toBe(true);
+    expect(studentPaymentPhaseRepository.findSppById).toHaveBeenCalledTimes(1);
   });
 });
 
@@ -467,19 +515,10 @@ describe("sumStudentPaymentsForMonthForManager", () => {
     vi.resetAllMocks();
   });
 
-  it("sums payment amounts for the current calendar month", async () => {
+  it("returns the DB net total for the current calendar month", async () => {
     vi.mocked(
-      studentPaymentRepository.listPaymentAmountsBetween
-    ).mockResolvedValue({
-      data: [
-        { payment_date: "2026-08-02", amount: 100 },
-        { payment_date: "2026-08-15", amount: 250.5 },
-      ],
-      error: null,
-      count: null,
-      status: 200,
-      statusText: "OK",
-    } as never);
+      studentPaymentRepository.sumPaymentAmountsBetween
+    ).mockResolvedValue({ data: 350.5, error: null });
 
     const total = await sumStudentPaymentsForMonthForManager(
       adminClient,
@@ -489,8 +528,25 @@ describe("sumStudentPaymentsForMonthForManager", () => {
 
     expect(total).toBe(350.5);
     expect(
-      studentPaymentRepository.listPaymentAmountsBetween
+      studentPaymentRepository.sumPaymentAmountsBetween
     ).toHaveBeenCalledWith(adminClient, "2026-08-01", "2026-09-01");
+    expect(
+      studentPaymentRepository.listPaymentAmountsBetween
+    ).not.toHaveBeenCalled();
+  });
+
+  it("never reports a negative month when refunds exceed credits", async () => {
+    vi.mocked(
+      studentPaymentRepository.sumPaymentAmountsBetween
+    ).mockResolvedValue({ data: -40, error: null });
+
+    const total = await sumStudentPaymentsForMonthForManager(
+      adminClient,
+      actor.userId,
+      new Date("2026-08-16T12:00:00")
+    );
+
+    expect(total).toBe(0);
   });
 });
 
@@ -583,7 +639,7 @@ describe("getSppDetailForSelf", () => {
     vi.mocked(profileRepository.findProfileById).mockResolvedValue({
       data: {
         id: studentUserId,
-        username: "student",
+        full_name: "Student",
         role: "student",
         created_at: "",
       },

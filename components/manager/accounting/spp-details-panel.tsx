@@ -8,6 +8,13 @@ import {
   deleteStudentPaymentPhaseAction,
   createFinancialFormInviteAction,
 } from "@/app/manager/accounting/actions";
+import {
+  Tabs as TabsPrimitive,
+  TabsContent as TabsContentPrimitive,
+  TabsContents as TabsContentsPrimitive,
+  TabsList as TabsListPrimitive,
+  TabsTrigger as TabsTriggerPrimitive,
+} from "@/components/animate-ui/primitives/animate/tabs";
 import { Can } from "@/components/auth/can";
 import { CreateFinancialAdjustmentDialog } from "@/components/manager/accounting/create-financial-adjustment-dialog";
 import { CreateStudentPaymentDialog } from "@/components/manager/accounting/create-student-payment-dialog";
@@ -58,9 +65,6 @@ import { formatPaymentPhaseMoney } from "@/lib/constants/manager-payment-phase-d
 import { PERMISSIONS } from "@/lib/constants/permissions";
 import {
   getManagerAccountingPhaseDetailRoute,
-  getManagerClassDetailRoute,
-  getManagerSemesterDetailRoute,
-  getManagerStudentDetailRoute,
   ROUTES,
 } from "@/lib/constants/routes";
 import {
@@ -68,14 +72,14 @@ import {
   FINANCIAL_ADJUSTMENT_VALUE_TYPE_LABELS,
   FINANCIAL_ADJUSTMENT_VALUE_TYPES,
   PAYMENT_METHOD_LABELS,
+  STUDENT_PAYMENT_PHASE_STATUSES,
   type FinancialAdjustmentType,
   type FinancialAdjustmentValueType,
   type PaymentMethod,
 } from "@/lib/manager/accounting/constants";
 import { resolveSppDisplayStatus } from "@/lib/manager/accounting/spp-display-status";
 import { isPaymentScheduleEditable } from "@/lib/manager/accounting/schedule-editable";
-import { computeSppFinancials } from "@/lib/manager/accounting/spp-financials";
-import { deriveSppStatus } from "@/lib/manager/accounting/spp-status";
+import { applySppFinancialSnapshot } from "@/lib/manager/accounting/apply-spp-financial-snapshot";
 import { useActionStateSuccess } from "@/hooks/use-action-state-success";
 import { useActionStateToast } from "@/hooks/use-action-state-toast";
 import { usePendingAwareOpenChange } from "@/hooks/use-pending-aware-open-change";
@@ -114,7 +118,6 @@ import {
   PlusIcon,
   Trash2Icon,
 } from "lucide-react";
-import Link from "next/link";
 import { useActionState, useState, useTransition } from "react";
 import { format } from "date-fns";
 
@@ -136,6 +139,13 @@ type SppDetailsPanelProps = {
   initialForms: ManagerFinancialFormRow[];
   initialInvites: ManagerFinancialFormInviteRow[];
 };
+
+const TAB_TRIGGER_CLASS = cn(
+  "inline-flex items-center rounded-full border px-3 py-1.5 text-xs font-medium transition-all duration-200 sm:px-4 sm:text-sm",
+  "border-transparent text-muted-foreground hover:border-border/60 hover:bg-background/80 hover:text-foreground hover:shadow-sm",
+  "data-[state=active]:border-border data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-md",
+  "focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50"
+);
 
 function TruncatedCell({
   value,
@@ -185,32 +195,6 @@ function sortPayments(rows: ManagerStudentPaymentRow[]) {
       b.payment_date.localeCompare(a.payment_date) ||
       b.created_at.localeCompare(a.created_at)
   );
-}
-
-function applySppFinancials(
-  spp: ManagerSppDetail,
-  adjustment: ManagerFinancialAdjustmentRow | null,
-  payments: ManagerStudentPaymentRow[]
-): ManagerSppDetail {
-  const financials = computeSppFinancials(
-    spp.phase_amount,
-    adjustment
-      ? { value_type: adjustment.value_type, value: adjustment.value }
-      : null,
-    payments.map((payment) => payment.amount)
-  );
-  const status = deriveSppStatus(financials, spp.status);
-
-  return {
-    ...spp,
-    original_amount: financials.original,
-    adjustment_amount: financials.adjustmentAmount,
-    final_amount_due: financials.finalDue,
-    total_paid: financials.totalPaid,
-    remaining_amount: financials.remaining,
-    has_credit: financials.remaining < 0,
-    status,
-  };
 }
 
 export function SppDetailsPanel({
@@ -330,31 +314,42 @@ export function SppDetailsPanel({
   );
 
   useActionStateToast(deletePaymentState, isDeletePaymentActionPending);
-  useActionStateSuccess(deletePaymentState, isDeletePaymentActionPending, () => {
-    const removedId = deletingPayment?.id;
-    const shouldClearClearance = alsoDeleteClearance;
-    setDeletingPayment(null);
-    setAlsoDeleteClearance(false);
-    if (removedId) {
-      const nextPayments = payments.filter((payment) => payment.id !== removedId);
-      setPayments(sortPayments(nextPayments));
-      setSpp((current) => {
-        const next = applySppFinancials(current, adjustment, nextPayments);
-        return shouldClearClearance
-          ? { ...next, current_clearance: null }
-          : next;
-      });
+  useActionStateSuccess(
+    deletePaymentState,
+    isDeletePaymentActionPending,
+    (nextState) => {
+      const removedId = deletingPayment?.id;
+      const shouldClearClearance = alsoDeleteClearance;
+      setDeletingPayment(null);
+      setAlsoDeleteClearance(false);
+      if (removedId) {
+        setPayments((current) =>
+          sortPayments(current.filter((payment) => payment.id !== removedId))
+        );
+      }
+      if (nextState.spp) {
+        setSpp((current) => {
+          const next = applySppFinancialSnapshot(current, nextState.spp!);
+          return shouldClearClearance
+            ? { ...next, current_clearance: null }
+            : next;
+        });
+      }
     }
-  });
+  );
 
   useActionStateToast(deleteAdjustmentState, isDeleteAdjustmentActionPending);
   useActionStateSuccess(
     deleteAdjustmentState,
     isDeleteAdjustmentActionPending,
-    () => {
+    (nextState) => {
       setIsDeleteAdjustmentOpen(false);
       setAdjustment(null);
-      setSpp((current) => applySppFinancials(current, null, payments));
+      if (nextState.spp) {
+        setSpp((current) =>
+          applySppFinancialSnapshot(current, nextState.spp!)
+        );
+      }
     }
   );
 
@@ -429,34 +424,33 @@ export function SppDetailsPanel({
     setPayments((current) =>
       sortPayments(appendUniqueById(current, payment))
     );
-    setSpp((current) => ({
-      ...current,
-      status: snapshot.status,
-      original_amount: snapshot.original_amount,
-      adjustment_amount: snapshot.adjustment_amount,
-      final_amount_due: snapshot.final_amount_due,
-      total_paid: snapshot.total_paid,
-      remaining_amount: snapshot.remaining_amount,
-      has_credit: snapshot.remaining_amount < 0,
-    }));
+    setSpp((current) => applySppFinancialSnapshot(current, snapshot));
   };
 
-  const handlePaymentUpdated = (payment: ManagerStudentPaymentRow) => {
-    const nextPayments = sortPayments(
-      payments.map((row) => (row.id === payment.id ? payment : row))
+  const handlePaymentUpdated = (
+    payment: ManagerStudentPaymentRow,
+    snapshot: ManagerSppFinancialSnapshot
+  ) => {
+    setPayments((current) =>
+      sortPayments(current.map((row) => (row.id === payment.id ? payment : row)))
     );
-    setPayments(nextPayments);
-    setSpp((current) => applySppFinancials(current, adjustment, nextPayments));
+    setSpp((current) => applySppFinancialSnapshot(current, snapshot));
   };
 
-  const handleAdjustmentCreated = (nextAdjustment: ManagerFinancialAdjustmentRow) => {
+  const handleAdjustmentCreated = (
+    nextAdjustment: ManagerFinancialAdjustmentRow,
+    snapshot: ManagerSppFinancialSnapshot
+  ) => {
     setAdjustment(nextAdjustment);
-    setSpp((current) => applySppFinancials(current, nextAdjustment, payments));
+    setSpp((current) => applySppFinancialSnapshot(current, snapshot));
   };
 
-  const handleAdjustmentUpdated = (nextAdjustment: ManagerFinancialAdjustmentRow) => {
+  const handleAdjustmentUpdated = (
+    nextAdjustment: ManagerFinancialAdjustmentRow,
+    snapshot: ManagerSppFinancialSnapshot
+  ) => {
     setAdjustment(nextAdjustment);
-    setSpp((current) => applySppFinancials(current, nextAdjustment, payments));
+    setSpp((current) => applySppFinancialSnapshot(current, snapshot));
   };
 
   const handleFormSaved = (form: ManagerFinancialFormRow) => {
@@ -588,20 +582,43 @@ export function SppDetailsPanel({
               </BreadcrumbItem>
             </BreadcrumbList>
           </Breadcrumb>
-          <Can permission={PERMISSIONS.ACCOUNTING_SPP_DELETE}>
-            <Button
-              type="button"
-              variant="destructive"
-              size="sm"
-              disabled={hasPayments || isDeleteSppActionPending}
-              title={sppDeleteBlockedReason}
-              onClick={() => setIsDeleteSppOpen(true)}
-            >
-              <Trash2Icon data-icon="inline-start" />
-              Delete SPP
-            </Button>
-          </Can>
+          <div className="flex flex-wrap items-center justify-end gap-2">
+            <SppStatusBadge
+              status={resolveSppDisplayStatus(
+                { status: spp.status, totalPaid: spp.total_paid },
+                {
+                  upfrontWindowActive: spp.upfront_window_active,
+                  upfrontAmount: spp.phase_upfront_amount,
+                }
+              )}
+            />
+            <SppCurrentBadge clearance={spp.current_clearance} />
+            <PaymentPhaseStatusBadge status={spp.payment_phase_status} />
+            <Can permission={PERMISSIONS.ACCOUNTING_SPP_DELETE}>
+              <Button
+                type="button"
+                variant="destructive"
+                size="sm"
+                disabled={hasPayments || isDeleteSppActionPending}
+                title={sppDeleteBlockedReason}
+                onClick={() => setIsDeleteSppOpen(true)}
+              >
+                <Trash2Icon data-icon="inline-start" />
+                Delete SPP
+              </Button>
+            </Can>
+          </div>
         </div>
+
+        {spp.drop_completed || spp.payments_blocked ? (
+          <p className="rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-sm text-amber-700 dark:text-amber-300">
+            {spp.drop_completed
+              ? "Payments, schedules, and adjustments are locked because this student completed a semester drop."
+              : spp.status === STUDENT_PAYMENT_PHASE_STATUSES.PAID
+                ? "Payments are locked because this student assignment is already paid."
+                : "Payments and adjustments are blocked because this phase or student assignment is cancelled."}
+          </p>
+        ) : null}
 
         <CreateStudentPaymentDialog
           open={isCreatePaymentOpen}
@@ -853,67 +870,7 @@ export function SppDetailsPanel({
           </DialogContent>
         </Dialog>
 
-        <Card>
-          <CardHeader>
-            <CardTitle>
-              {spp.student_profile_id ? (
-                <Link
-                  href={getManagerStudentDetailRoute(spp.student_profile_id)}
-                  className="inline-flex items-center rounded-lg border border-border bg-card px-2.5 py-1 text-base font-semibold text-foreground shadow-sm transition-colors hover:bg-muted"
-                >
-                  {spp.student_label}
-                </Link>
-              ) : (
-                spp.student_label
-              )}
-            </CardTitle>
-            <CardAction className="flex flex-wrap items-center gap-2">
-              <SppStatusBadge
-                status={resolveSppDisplayStatus(
-                  { status: spp.status, totalPaid: spp.total_paid },
-                  {
-                    upfrontWindowActive: spp.upfront_window_active,
-                    upfrontAmount: spp.phase_upfront_amount,
-                  }
-                )}
-              />
-              <SppCurrentBadge clearance={spp.current_clearance} />
-              <PaymentPhaseStatusBadge status={spp.payment_phase_status} />
-            </CardAction>
-          </CardHeader>
-          <CardContent className="flex flex-col gap-3 text-sm text-muted-foreground">
-            <div className="flex flex-wrap items-center gap-2">
-              <Link
-                href={getManagerAccountingPhaseDetailRoute(spp.payment_phase_id)}
-                className="inline-flex max-w-[16rem] items-center truncate rounded-lg border border-border bg-card px-2.5 py-1 text-xs font-medium text-foreground shadow-sm transition-colors hover:bg-muted"
-              >
-                Phase · {spp.payment_phase_name}
-              </Link>
-              <Link
-                href={getManagerSemesterDetailRoute(spp.semester_id)}
-                className="inline-flex max-w-[16rem] items-center truncate rounded-lg border border-border bg-card px-2.5 py-1 text-xs font-medium text-foreground shadow-sm transition-colors hover:bg-muted"
-              >
-                Semester · {spp.semester_name}
-              </Link>
-              {spp.billing_class_id && spp.billing_class_name ? (
-                <Link
-                  href={getManagerClassDetailRoute(spp.billing_class_id)}
-                  className="inline-flex max-w-[16rem] items-center truncate rounded-lg border border-border bg-card px-2.5 py-1 text-xs font-medium text-foreground shadow-sm transition-colors hover:bg-muted"
-                >
-                  Class · {spp.billing_class_name}
-                </Link>
-              ) : null}
-            </div>
-            {spp.payments_blocked ? (
-              <p className="text-amber-700 dark:text-amber-300">
-                Payments and adjustments are blocked because this phase or
-                student assignment is cancelled.
-              </p>
-            ) : null}
-          </CardContent>
-        </Card>
-
-        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
+        <div className="grid gap-4 @lg/panel:grid-cols-2 @4xl/panel:grid-cols-5">
           <UserStatCard
             label="Original"
             value={formatPaymentPhaseMoney(spp.original_amount)}
@@ -951,470 +908,495 @@ export function SppDetailsPanel({
           </div>
         </div>
 
-        <Card className="py-0">
-          <CardHeader className="border-b py-3">
-            <CardTitle>Payments</CardTitle>
-            {!spp.payments_blocked ? (
-              <CardAction>
-                <Can permission={PERMISSIONS.ACCOUNTING_PAYMENTS_CREATE}>
-                  <Button
-                    type="button"
-                    size="sm"
-                    onClick={() => setIsCreatePaymentOpen(true)}
-                  >
-                    <PlusIcon data-icon="inline-start" />
-                    Record payment
-                  </Button>
-                </Can>
-              </CardAction>
-            ) : null}
-          </CardHeader>
-          <CardContent className="px-0 pb-0">
-            {payments.length === 0 ? (
-              <div className="px-4 py-4">
-                <EmptyState
-                  size="sm"
-                  icon={CreditCardIcon}
-                  title="No payments recorded yet"
-                  description="Record a payment to track progress on this assignment."
+        <TabsPrimitive defaultValue="payment" className="flex flex-col gap-6">
+          <TabsListPrimitive className="flex h-auto w-full flex-wrap items-center justify-center gap-2 rounded-full bg-muted/60 p-1 ring-1 ring-foreground/8 @lg/panel:w-fit @lg/panel:self-center">
+            <TabsTriggerPrimitive value="payment" className={TAB_TRIGGER_CLASS}>
+              Payment
+            </TabsTriggerPrimitive>
+            <TabsTriggerPrimitive
+              value="financial-aid"
+              className={TAB_TRIGGER_CLASS}
+            >
+              Financial aid
+            </TabsTriggerPrimitive>
+          </TabsListPrimitive>
+
+          <TabsContentsPrimitive>
+            <TabsContentPrimitive value="payment" className="outline-none">
+              <div className="flex flex-col gap-6">
+                <Card className="py-0">
+                  <CardHeader className="border-b py-3">
+                    <CardTitle>Payments</CardTitle>
+                    {!spp.payments_blocked ? (
+                      <CardAction>
+                        <Can permission={PERMISSIONS.ACCOUNTING_PAYMENTS_CREATE}>
+                          <Button
+                            type="button"
+                            size="sm"
+                            onClick={() => setIsCreatePaymentOpen(true)}
+                          >
+                            <PlusIcon data-icon="inline-start" />
+                            Record payment
+                          </Button>
+                        </Can>
+                      </CardAction>
+                    ) : null}
+                  </CardHeader>
+                  <CardContent className="px-0 pb-0">
+                    {payments.length === 0 ? (
+                      <div className="px-4 py-4">
+                        <EmptyState
+                          size="sm"
+                          icon={CreditCardIcon}
+                          title="No payments recorded yet"
+                          description="Record a payment to track progress on this assignment."
+                        />
+                      </div>
+                    ) : (
+                      <div className="overflow-x-auto">
+                        <table className="w-full min-w-[920px] text-sm">
+                          <thead>
+                            <tr className="border-b bg-muted/40 text-left">
+                              <th className="px-4 py-3 font-medium">Date</th>
+                              <th className="px-4 py-3 font-medium text-right">
+                                Amount
+                              </th>
+                              <th className="px-4 py-3 font-medium">Method</th>
+                              <th className="px-4 py-3 font-medium">Received by</th>
+                              <th className="px-4 py-3 font-medium">Management</th>
+                              <th className="px-4 py-3 font-medium">Notes</th>
+                              <th className="px-4 py-3 font-medium text-right">
+                                Actions
+                              </th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {payments.map((payment) => (
+                              <tr
+                                key={payment.id}
+                                className="border-b last:border-b-0 hover:bg-muted/30"
+                              >
+                                <td className="whitespace-nowrap px-4 py-3">
+                                  {format(
+                                    new Date(payment.payment_date),
+                                    "MMM d, yyyy"
+                                  )}
+                                </td>
+                                <td className="whitespace-nowrap px-4 py-3 text-right tabular-nums">
+                                  {formatPaymentPhaseMoney(payment.amount)}
+                                </td>
+                                <td className="whitespace-nowrap px-4 py-3">
+                                  {
+                                    PAYMENT_METHOD_LABELS[
+                                      payment.payment_method as PaymentMethod
+                                    ]
+                                  }
+                                </td>
+                                <td className="max-w-[10rem] px-4 py-3">
+                                  <TruncatedCell
+                                    value={payment.received_by}
+                                    maxLength={24}
+                                  />
+                                </td>
+                                <td className="whitespace-nowrap px-4 py-3 text-muted-foreground">
+                                  {payment.received_by_management ? "Yes" : "No"}
+                                </td>
+                                <td className="max-w-[10rem] px-4 py-3 text-muted-foreground">
+                                  <TruncatedCell
+                                    value={payment.notes ?? "—"}
+                                    maxLength={24}
+                                  />
+                                </td>
+                                <td className="px-4 py-3">
+                                  <div className="flex items-center justify-end gap-1">
+                                    {!spp.payments_blocked ? (
+                                      <>
+                                        <Can
+                                          permission={
+                                            PERMISSIONS.ACCOUNTING_PAYMENTS_UPDATE
+                                          }
+                                        >
+                                          <Button
+                                            type="button"
+                                            variant="ghost"
+                                            size="icon-sm"
+                                            aria-label="Edit payment"
+                                            onClick={() => setEditingPayment(payment)}
+                                          >
+                                            <PencilIcon />
+                                          </Button>
+                                        </Can>
+                                        <Can
+                                          permission={
+                                            PERMISSIONS.ACCOUNTING_PAYMENTS_DELETE
+                                          }
+                                        >
+                                          <Button
+                                            type="button"
+                                            variant="ghost"
+                                            size="icon-sm"
+                                            aria-label="Delete payment"
+                                            onClick={() => setDeletingPayment(payment)}
+                                          >
+                                            <Trash2Icon />
+                                          </Button>
+                                        </Can>
+                                      </>
+                                    ) : null}
+                                  </div>
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+        
+                <PaymentScheduleSection
+                  sppId={spp.id}
+                  paymentPhaseId={spp.payment_phase_id}
+                  remainingAmount={spp.remaining_amount}
+                  totalPaid={spp.total_paid}
+                  isScheduleEditable={isPaymentScheduleEditable({
+                    spp_status: spp.status,
+                    payment_phase_status: spp.payment_phase_status,
+                    drop_completed: spp.drop_completed,
+                  })}
+                  initialSchedules={initialSchedules}
+                />
+        
+                <SppClearanceSection
+                  key={spp.current_clearance?.id ?? "no-clearance"}
+                  sppId={spp.id}
+                  paymentPhaseId={spp.payment_phase_id}
+                  sppStatus={spp.status}
+                  initialClearance={spp.current_clearance}
+                  onClearanceChange={(clearance) => {
+                    setSpp((current) => ({
+                      ...current,
+                      current_clearance: clearance,
+                    }));
+                  }}
                 />
               </div>
-            ) : (
-              <div className="overflow-x-auto">
-                <table className="w-full min-w-[920px] text-sm">
-                  <thead>
-                    <tr className="border-b bg-muted/40 text-left">
-                      <th className="px-4 py-3 font-medium">Date</th>
-                      <th className="px-4 py-3 font-medium text-right">
-                        Amount
-                      </th>
-                      <th className="px-4 py-3 font-medium">Method</th>
-                      <th className="px-4 py-3 font-medium">Received by</th>
-                      <th className="px-4 py-3 font-medium">Management</th>
-                      <th className="px-4 py-3 font-medium">Notes</th>
-                      <th className="px-4 py-3 font-medium text-right">
-                        Actions
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {payments.map((payment) => (
-                      <tr
-                        key={payment.id}
-                        className="border-b last:border-b-0 hover:bg-muted/30"
-                      >
-                        <td className="whitespace-nowrap px-4 py-3">
-                          {format(
-                            new Date(payment.payment_date),
-                            "MMM d, yyyy"
-                          )}
-                        </td>
-                        <td className="whitespace-nowrap px-4 py-3 text-right tabular-nums">
-                          {formatPaymentPhaseMoney(payment.amount)}
-                        </td>
-                        <td className="whitespace-nowrap px-4 py-3">
-                          {
-                            PAYMENT_METHOD_LABELS[
-                              payment.payment_method as PaymentMethod
-                            ]
-                          }
-                        </td>
-                        <td className="max-w-[10rem] px-4 py-3">
-                          <TruncatedCell
-                            value={payment.received_by}
-                            maxLength={24}
-                          />
-                        </td>
-                        <td className="whitespace-nowrap px-4 py-3 text-muted-foreground">
-                          {payment.received_by_management ? "Yes" : "No"}
-                        </td>
-                        <td className="max-w-[10rem] px-4 py-3 text-muted-foreground">
-                          <TruncatedCell
-                            value={payment.notes ?? "—"}
-                            maxLength={24}
-                          />
-                        </td>
-                        <td className="px-4 py-3">
-                          <div className="flex items-center justify-end gap-1">
-                            {!spp.payments_blocked ? (
-                              <>
-                                <Can
-                                  permission={
-                                    PERMISSIONS.ACCOUNTING_PAYMENTS_UPDATE
-                                  }
-                                >
-                                  <Button
-                                    type="button"
-                                    variant="ghost"
-                                    size="icon-sm"
-                                    aria-label="Edit payment"
-                                    onClick={() => setEditingPayment(payment)}
-                                  >
-                                    <PencilIcon />
-                                  </Button>
-                                </Can>
-                                <Can
-                                  permission={
-                                    PERMISSIONS.ACCOUNTING_PAYMENTS_DELETE
-                                  }
-                                >
-                                  <Button
-                                    type="button"
-                                    variant="ghost"
-                                    size="icon-sm"
-                                    aria-label="Delete payment"
-                                    onClick={() => setDeletingPayment(payment)}
-                                  >
-                                    <Trash2Icon />
-                                  </Button>
-                                </Can>
-                              </>
-                            ) : null}
-                          </div>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
-          </CardContent>
-        </Card>
+            </TabsContentPrimitive>
 
-        <PaymentScheduleSection
-          sppId={spp.id}
-          paymentPhaseId={spp.payment_phase_id}
-          remainingAmount={spp.remaining_amount}
-          totalPaid={spp.total_paid}
-          isScheduleEditable={isPaymentScheduleEditable({
-            spp_status: spp.status,
-            payment_phase_status: spp.payment_phase_status,
-          })}
-          initialSchedules={initialSchedules}
-        />
-
-        <SppClearanceSection
-          key={spp.current_clearance?.id ?? "no-clearance"}
-          sppId={spp.id}
-          paymentPhaseId={spp.payment_phase_id}
-          sppStatus={spp.status}
-          initialClearance={spp.current_clearance}
-          onClearanceChange={(clearance) => {
-            setSpp((current) => ({
-              ...current,
-              current_clearance: clearance,
-            }));
-          }}
-        />
-
-        <Card>
-          <CardHeader>
-            <CardTitle>Financial adjustment</CardTitle>
-            {!spp.payments_blocked && !adjustment ? (
-              <CardAction className="flex flex-wrap gap-2">
-                <Can permission={PERMISSIONS.ACCOUNTING_ADJUSTMENTS_CREATE}>
-                  <Button
-                    type="button"
-                    size="sm"
-                    onClick={() => setIsCreateAdjustmentOpen(true)}
-                  >
-                    <PlusIcon data-icon="inline-start" />
-                    Add adjustment
-                  </Button>
-                  <Button
-                    type="button"
-                    size="sm"
-                    variant="outline"
-                    disabled={importableAdjustments.length === 0}
-                    title={
-                      importableAdjustments.length === 0
-                        ? "No prior adjustments for this student."
-                        : undefined
-                    }
-                    onClick={() => setIsImportAdjustmentOpen(true)}
-                  >
-                    <ImportIcon data-icon="inline-start" />
-                    Import adjustment
-                  </Button>
-                </Can>
-              </CardAction>
-            ) : null}
-            {!spp.payments_blocked && adjustment ? (
-              <CardAction className="flex flex-wrap gap-2">
-                <Can permission={PERMISSIONS.ACCOUNTING_ADJUSTMENTS_UPDATE}>
-                  <Button
-                    type="button"
-                    size="sm"
-                    variant="outline"
-                    onClick={() => setIsEditAdjustmentOpen(true)}
-                  >
-                    <PencilIcon data-icon="inline-start" />
-                    Edit
-                  </Button>
-                </Can>
-                <Can permission={PERMISSIONS.ACCOUNTING_ADJUSTMENTS_DELETE}>
-                  <Button
-                    type="button"
-                    size="sm"
-                    variant="outline"
-                    onClick={() => setIsDeleteAdjustmentOpen(true)}
-                  >
-                    <Trash2Icon data-icon="inline-start" />
-                    Delete
-                  </Button>
-                </Can>
-              </CardAction>
-            ) : null}
-          </CardHeader>
-          <CardContent>
-            {!adjustment ? (
-              <p className="text-sm text-muted-foreground">
-                No financial adjustment on this student payment phase.
-              </p>
-            ) : (
-              <dl className="grid gap-3 text-sm sm:grid-cols-2">
-                <div>
-                  <dt className="text-muted-foreground">Type</dt>
-                  <dd className="font-medium">
-                    {
-                      FINANCIAL_ADJUSTMENT_TYPE_LABELS[
-                        adjustment.type as FinancialAdjustmentType
-                      ]
-                    }
-                  </dd>
-                </div>
-                <div>
-                  <dt className="text-muted-foreground">Value type</dt>
-                  <dd className="font-medium">
-                    {
-                      FINANCIAL_ADJUSTMENT_VALUE_TYPE_LABELS[
-                        adjustment.value_type as FinancialAdjustmentValueType
-                      ]
-                    }
-                  </dd>
-                </div>
-                <div>
-                  <dt className="text-muted-foreground">Value</dt>
-                  <dd className="font-medium tabular-nums">
-                    {formatAdjustmentValue(
-                      adjustment.value_type as FinancialAdjustmentValueType,
-                      adjustment.value
-                    )}
-                  </dd>
-                </div>
-                <div>
-                  <dt className="text-muted-foreground">Effective date</dt>
-                  <dd className="font-medium">
-                    {format(
-                      new Date(adjustment.effective_date),
-                      "MMM d, yyyy"
-                    )}
-                  </dd>
-                </div>
-                <div className="sm:col-span-2">
-                  <dt className="text-muted-foreground">Reason</dt>
-                  <dd className="font-medium">{adjustment.reason ?? "—"}</dd>
-                </div>
-              </dl>
-            )}
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle>Financial form invites</CardTitle>
-            {!spp.payments_blocked ? (
-              <CardAction>
-                <Can permission={PERMISSIONS.ACCOUNTING_ADJUSTMENTS_UPDATE}>
-                  <Button
-                    type="button"
-                    size="sm"
-                    onClick={handleGenerateInvite}
-                    disabled={isInviteActionPending}
-                  >
-                    {isInviteActionPending ? (
-                      <InlineSpinner />
-                    ) : (
-                      <LinkIcon data-icon="inline-start" />
-                    )}
-                    Generate invite link
-                  </Button>
-                </Can>
-              </CardAction>
-            ) : null}
-          </CardHeader>
-          <CardContent className="space-y-3">
-            <p className="text-sm text-muted-foreground">
-              One-shot public links. Each link expires after the first
-              submission.
-            </p>
-            {invites.length === 0 ? (
-              <EmptyState
-                size="sm"
-                icon={FileTextIcon}
-                title="No invite links yet"
-                description="Generate a one-shot public link for financial form submission."
-              />
-            ) : (
-              <ul className="space-y-2">
-                {invites.map((invite) => (
-                  <li
-                    key={invite.id}
-                    className="flex flex-col gap-2 rounded-lg border px-3 py-2 sm:flex-row sm:items-center sm:justify-between"
-                  >
-                    <div className="min-w-0">
-                      <p className="truncate text-sm font-medium">
-                        {invite.is_used ? "Used" : "Active"} ·{" "}
-                        {format(new Date(invite.created_at), "MMM d, yyyy HH:mm")}
-                      </p>
-                      {!invite.is_used ? (
-                        <p className="truncate text-xs text-muted-foreground">
-                          {invite.url}
-                        </p>
-                      ) : null}
-                    </div>
-                    {!invite.is_used && !spp.payments_blocked ? (
-                      <div className="flex shrink-0 gap-2">
-                        <Button
-                          type="button"
-                          size="sm"
-                          variant="outline"
-                          onClick={() => void handleCopyInviteUrl(invite.url)}
-                        >
-                          <CopyIcon data-icon="inline-start" />
-                          Copy
-                        </Button>
-                        <Button
-                          type="button"
-                          size="sm"
-                          variant="outline"
-                          onClick={() => handleOpenWhatsApp(invite.url)}
-                        >
-                          WhatsApp
-                        </Button>
-                        <Can
-                          permission={PERMISSIONS.ACCOUNTING_ADJUSTMENTS_DELETE}
-                        >
+            <TabsContentPrimitive value="financial-aid" className="outline-none">
+              <div className="flex flex-col gap-6">
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Financial adjustment</CardTitle>
+                    {!spp.adjustments_blocked && !adjustment ? (
+                      <CardAction className="flex flex-wrap gap-2">
+                        <Can permission={PERMISSIONS.ACCOUNTING_ADJUSTMENTS_CREATE}>
+                          <Button
+                            type="button"
+                            size="sm"
+                            onClick={() => setIsCreateAdjustmentOpen(true)}
+                          >
+                            <PlusIcon data-icon="inline-start" />
+                            Add adjustment
+                          </Button>
                           <Button
                             type="button"
                             size="sm"
                             variant="outline"
-                            aria-label="Delete invite link"
-                            onClick={() => setDeletingInvite(invite)}
+                            disabled={importableAdjustments.length === 0}
+                            title={
+                              importableAdjustments.length === 0
+                                ? "No prior adjustments for this student."
+                                : undefined
+                            }
+                            onClick={() => setIsImportAdjustmentOpen(true)}
+                          >
+                            <ImportIcon data-icon="inline-start" />
+                            Import adjustment
+                          </Button>
+                        </Can>
+                      </CardAction>
+                    ) : null}
+                    {!spp.adjustments_blocked && adjustment ? (
+                      <CardAction className="flex flex-wrap gap-2">
+                        <Can permission={PERMISSIONS.ACCOUNTING_ADJUSTMENTS_UPDATE}>
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant="outline"
+                            onClick={() => setIsEditAdjustmentOpen(true)}
+                          >
+                            <PencilIcon data-icon="inline-start" />
+                            Edit
+                          </Button>
+                        </Can>
+                        <Can permission={PERMISSIONS.ACCOUNTING_ADJUSTMENTS_DELETE}>
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant="outline"
+                            onClick={() => setIsDeleteAdjustmentOpen(true)}
                           >
                             <Trash2Icon data-icon="inline-start" />
                             Delete
                           </Button>
                         </Can>
-                      </div>
+                      </CardAction>
                     ) : null}
-                  </li>
-                ))}
-              </ul>
-            )}
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle>Financial forms</CardTitle>
-            {!spp.payments_blocked ? (
-              <CardAction>
-                <Can permission={PERMISSIONS.ACCOUNTING_ADJUSTMENTS_UPDATE}>
-                  <Button
-                    type="button"
-                    size="sm"
-                    onClick={handleOpenCreateForm}
-                  >
-                    <PlusIcon data-icon="inline-start" />
-                    Add financial form
-                  </Button>
-                </Can>
-              </CardAction>
-            ) : null}
-          </CardHeader>
-          <CardContent>
-            {forms.length === 0 ? (
-              <EmptyState
-                size="sm"
-                icon={FileTextIcon}
-                title="No financial forms yet"
-                description="Forms do not change amounts."
-              />
-            ) : (
-              <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-                {forms.map((formRow) => (
-                  <div
-                    key={formRow.id}
-                    className="rounded-lg border bg-card px-3 py-3 shadow-sm"
-                  >
-                    <div className="mb-2 flex items-start justify-between gap-2">
-                      <p className="min-w-0 truncate text-sm font-medium">
-                        {formRow.full_name}
+                  </CardHeader>
+                  <CardContent>
+                    {!adjustment ? (
+                      <p className="text-sm text-muted-foreground">
+                        No financial adjustment on this student payment phase.
                       </p>
-                      {!spp.payments_blocked ? (
-                        <div className="flex shrink-0 gap-1">
-                          <Can
-                            permission={PERMISSIONS.ACCOUNTING_ADJUSTMENTS_UPDATE}
-                          >
-                            <Button
-                              type="button"
-                              size="icon-sm"
-                              variant="ghost"
-                              aria-label="Edit financial form"
-                              onClick={() => handleOpenEditForm(formRow)}
-                            >
-                              <PencilIcon />
-                            </Button>
-                          </Can>
-                          <Can
-                            permission={PERMISSIONS.ACCOUNTING_ADJUSTMENTS_DELETE}
-                          >
-                            <Button
-                              type="button"
-                              size="icon-sm"
-                              variant="ghost"
-                              aria-label="Delete financial form"
-                              onClick={() => setDeletingForm(formRow)}
-                            >
-                              <Trash2Icon />
-                            </Button>
-                          </Can>
+                    ) : (
+                      <dl className="grid gap-3 text-sm @lg/panel:grid-cols-2">
+                        <div>
+                          <dt className="text-muted-foreground">Type</dt>
+                          <dd className="font-medium">
+                            {
+                              FINANCIAL_ADJUSTMENT_TYPE_LABELS[
+                                adjustment.type as FinancialAdjustmentType
+                              ]
+                            }
+                          </dd>
                         </div>
-                      ) : null}
-                    </div>
-                    <dl className="grid gap-2 text-xs sm:text-sm">
-                      <div>
-                        <dt className="text-muted-foreground">Agreed to rules</dt>
-                        <dd className="font-medium">
-                          {formRow.agreed_to_rules ? "Yes" : "No"}
-                        </dd>
+                        <div>
+                          <dt className="text-muted-foreground">Value type</dt>
+                          <dd className="font-medium">
+                            {
+                              FINANCIAL_ADJUSTMENT_VALUE_TYPE_LABELS[
+                                adjustment.value_type as FinancialAdjustmentValueType
+                              ]
+                            }
+                          </dd>
+                        </div>
+                        <div>
+                          <dt className="text-muted-foreground">Value</dt>
+                          <dd className="font-medium tabular-nums">
+                            {formatAdjustmentValue(
+                              adjustment.value_type as FinancialAdjustmentValueType,
+                              adjustment.value
+                            )}
+                          </dd>
+                        </div>
+                        <div>
+                          <dt className="text-muted-foreground">Effective date</dt>
+                          <dd className="font-medium">
+                            {format(
+                              new Date(adjustment.effective_date),
+                              "MMM d, yyyy"
+                            )}
+                          </dd>
+                        </div>
+                        <div className="@lg/panel:col-span-2">
+                          <dt className="text-muted-foreground">Reason</dt>
+                          <dd className="font-medium">{adjustment.reason ?? "—"}</dd>
+                        </div>
+                      </dl>
+                    )}
+                  </CardContent>
+                </Card>
+        
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Financial form invites</CardTitle>
+                    {!spp.adjustments_blocked ? (
+                      <CardAction>
+                        <Can permission={PERMISSIONS.ACCOUNTING_ADJUSTMENTS_UPDATE}>
+                          <Button
+                            type="button"
+                            size="sm"
+                            onClick={handleGenerateInvite}
+                            disabled={isInviteActionPending}
+                          >
+                            {isInviteActionPending ? (
+                              <InlineSpinner />
+                            ) : (
+                              <LinkIcon data-icon="inline-start" />
+                            )}
+                            Generate invite link
+                          </Button>
+                        </Can>
+                      </CardAction>
+                    ) : null}
+                  </CardHeader>
+                  <CardContent className="space-y-3">
+                    <p className="text-sm text-muted-foreground">
+                      One-shot public links. Each link expires after the first
+                      submission.
+                    </p>
+                    {invites.length === 0 ? (
+                      <EmptyState
+                        size="sm"
+                        icon={FileTextIcon}
+                        title="No invite links yet"
+                        description="Generate a one-shot public link for financial form submission."
+                      />
+                    ) : (
+                      <ul className="space-y-2">
+                        {invites.map((invite) => (
+                          <li
+                            key={invite.id}
+                            className="flex flex-col gap-2 rounded-lg border px-3 py-2 @lg/panel:flex-row @lg/panel:items-center @lg/panel:justify-between"
+                          >
+                            <div className="min-w-0">
+                              <p className="truncate text-sm font-medium">
+                                {invite.is_used ? "Used" : "Active"} ·{" "}
+                                {format(new Date(invite.created_at), "MMM d, yyyy HH:mm")}
+                              </p>
+                              {!invite.is_used ? (
+                                <p className="truncate text-xs text-muted-foreground">
+                                  {invite.url}
+                                </p>
+                              ) : null}
+                            </div>
+                            {!invite.is_used && !spp.adjustments_blocked ? (
+                              <div className="flex shrink-0 gap-2">
+                                <Button
+                                  type="button"
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={() => void handleCopyInviteUrl(invite.url)}
+                                >
+                                  <CopyIcon data-icon="inline-start" />
+                                  Copy
+                                </Button>
+                                <Button
+                                  type="button"
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={() => handleOpenWhatsApp(invite.url)}
+                                >
+                                  WhatsApp
+                                </Button>
+                                <Can
+                                  permission={PERMISSIONS.ACCOUNTING_ADJUSTMENTS_DELETE}
+                                >
+                                  <Button
+                                    type="button"
+                                    size="sm"
+                                    variant="outline"
+                                    aria-label="Delete invite link"
+                                    onClick={() => setDeletingInvite(invite)}
+                                  >
+                                    <Trash2Icon data-icon="inline-start" />
+                                    Delete
+                                  </Button>
+                                </Can>
+                              </div>
+                            ) : null}
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                  </CardContent>
+                </Card>
+        
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Financial forms</CardTitle>
+                    {!spp.adjustments_blocked ? (
+                      <CardAction>
+                        <Can permission={PERMISSIONS.ACCOUNTING_ADJUSTMENTS_UPDATE}>
+                          <Button
+                            type="button"
+                            size="sm"
+                            onClick={handleOpenCreateForm}
+                          >
+                            <PlusIcon data-icon="inline-start" />
+                            Add financial form
+                          </Button>
+                        </Can>
+                      </CardAction>
+                    ) : null}
+                  </CardHeader>
+                  <CardContent>
+                    {forms.length === 0 ? (
+                      <EmptyState
+                        size="sm"
+                        icon={FileTextIcon}
+                        title="No financial forms yet"
+                        description="Forms do not change amounts."
+                      />
+                    ) : (
+                      <div className="grid gap-3 @lg/panel:grid-cols-2 @4xl/panel:grid-cols-3">
+                        {forms.map((formRow) => (
+                          <div
+                            key={formRow.id}
+                            className="rounded-lg border bg-card px-3 py-3 shadow-sm"
+                          >
+                            <div className="mb-2 flex items-start justify-between gap-2">
+                              <p className="min-w-0 truncate text-sm font-medium">
+                                {formRow.full_name}
+                              </p>
+                              {!spp.adjustments_blocked ? (
+                                <div className="flex shrink-0 gap-1">
+                                  <Can
+                                    permission={PERMISSIONS.ACCOUNTING_ADJUSTMENTS_UPDATE}
+                                  >
+                                    <Button
+                                      type="button"
+                                      size="icon-sm"
+                                      variant="ghost"
+                                      aria-label="Edit financial form"
+                                      onClick={() => handleOpenEditForm(formRow)}
+                                    >
+                                      <PencilIcon />
+                                    </Button>
+                                  </Can>
+                                  <Can
+                                    permission={PERMISSIONS.ACCOUNTING_ADJUSTMENTS_DELETE}
+                                  >
+                                    <Button
+                                      type="button"
+                                      size="icon-sm"
+                                      variant="ghost"
+                                      aria-label="Delete financial form"
+                                      onClick={() => setDeletingForm(formRow)}
+                                    >
+                                      <Trash2Icon />
+                                    </Button>
+                                  </Can>
+                                </div>
+                              ) : null}
+                            </div>
+                            <dl className="grid gap-2 text-xs sm:text-sm">
+                              <div>
+                                <dt className="text-muted-foreground">Agreed to rules</dt>
+                                <dd className="font-medium">
+                                  {formRow.agreed_to_rules ? "Yes" : "No"}
+                                </dd>
+                              </div>
+                              <div>
+                                <dt className="text-muted-foreground">
+                                  School / university
+                                </dt>
+                                <dd className="font-medium">
+                                  {formRow.school_or_university ?? "—"}
+                                </dd>
+                              </div>
+                              <div>
+                                <dt className="text-muted-foreground">Phone</dt>
+                                <dd className="font-medium">{formRow.phone ?? "—"}</dd>
+                              </div>
+                              <div>
+                                <dt className="text-muted-foreground">Submitted</dt>
+                                <dd className="font-medium">
+                                  {format(new Date(formRow.created_at), "MMM d, yyyy")}
+                                </dd>
+                              </div>
+                            </dl>
+                          </div>
+                        ))}
                       </div>
-                      <div>
-                        <dt className="text-muted-foreground">
-                          School / university
-                        </dt>
-                        <dd className="font-medium">
-                          {formRow.school_or_university ?? "—"}
-                        </dd>
-                      </div>
-                      <div>
-                        <dt className="text-muted-foreground">Phone</dt>
-                        <dd className="font-medium">{formRow.phone ?? "—"}</dd>
-                      </div>
-                      <div>
-                        <dt className="text-muted-foreground">Submitted</dt>
-                        <dd className="font-medium">
-                          {format(new Date(formRow.created_at), "MMM d, yyyy")}
-                        </dd>
-                      </div>
-                    </dl>
-                  </div>
-                ))}
+                    )}
+                  </CardContent>
+                </Card>
               </div>
-            )}
-          </CardContent>
-        </Card>
+            </TabsContentPrimitive>
+          </TabsContentsPrimitive>
+        </TabsPrimitive>
       </div>
     </TooltipProvider>
   );

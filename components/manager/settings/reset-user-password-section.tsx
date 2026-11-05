@@ -42,9 +42,9 @@ type ResetUserPasswordSectionProps = {
 function userOptionLabel(user: PasswordResetUserOption): string {
   const roleLabel = MANAGER_USER_ROLE_LABELS[user.role] ?? user.role;
   if (user.email) {
-    return `${user.username} · ${user.email} (${roleLabel})`;
+    return `${user.full_name} · ${user.email} (${roleLabel})`;
   }
-  return `${user.username} (${roleLabel})`;
+  return `${user.full_name} (${roleLabel})`;
 }
 
 export function ResetUserPasswordSection({
@@ -75,7 +75,7 @@ export function ResetUserPasswordSection({
     }
 
     return users.filter((user) => {
-      const haystack = `${user.username} ${user.email} ${user.role}`.toLowerCase();
+      const haystack = `${user.full_name} ${user.email} ${user.role}`.toLowerCase();
       return haystack.includes(query);
     });
   }, [userFilter, users]);

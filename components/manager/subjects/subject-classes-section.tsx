@@ -8,7 +8,6 @@ import {
   SearchIcon,
 } from "lucide-react";
 import { SubjectClassCard } from "@/components/manager/subjects/subject-class-card";
-import { UserStatCard } from "@/components/manager/users/user-stat-card";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Input } from "@/components/ui/input";
@@ -19,11 +18,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { CLASS_STATUSES, CLASS_STATUS_VALUES } from "@/lib/constants/manager-class-status";
+import { CLASS_STATUS_VALUES } from "@/lib/constants/manager-class-status";
 import { MANAGER_CLASS_STATUS_LABELS } from "@/lib/constants/manager-class-display";
 import type { ManagerSubjectClassRow } from "@/types/manager-subject-class";
 
-const PAGE_SIZE_OPTIONS = [3, 6, 9] as const;
+const PAGE_SIZE = 30;
+const MAX_PAGES = 100;
 const STATUS_FILTER_ALL = "all";
 
 type SubjectClassesSectionProps = {
@@ -78,24 +78,8 @@ export function SubjectClassesSection({
 }: SubjectClassesSectionProps) {
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState(STATUS_FILTER_ALL);
-  const [pageSize, setPageSize] = useState<(typeof PAGE_SIZE_OPTIONS)[number]>(
-    6
-  );
   const [currentPage, setCurrentPage] = useState(1);
-
-  const stats = useMemo(
-    () => ({
-      total: classes.length,
-      inProgress: classes.filter((row) => row.status === CLASS_STATUSES.IN_PROGRESS)
-        .length,
-      scheduled: classes.filter((row) => row.status === CLASS_STATUSES.SCHEDULED).length,
-      onHold: classes.filter(
-        (row) =>
-          row.status === CLASS_STATUSES.PAUSED || row.status === CLASS_STATUSES.STOPPED
-      ).length,
-    }),
-    [classes]
-  );
+  const pageSize = PAGE_SIZE;
 
   const filteredClasses = useMemo(() => {
     return classes.filter((classRow) => {
@@ -105,7 +89,11 @@ export function SubjectClassesSection({
     });
   }, [classes, searchQuery, statusFilter]);
 
-  const totalPages = Math.max(1, Math.ceil(filteredClasses.length / pageSize));
+  const totalPages = Math.min(
+    MAX_PAGES,
+    Math.max(1, Math.ceil(filteredClasses.length / pageSize)),
+  );
+  const shownCount = Math.min(filteredClasses.length, MAX_PAGES * pageSize);
   const safeCurrentPage = Math.min(currentPage, totalPages);
 
   const paginatedClasses = useMemo(() => {
@@ -116,7 +104,7 @@ export function SubjectClassesSection({
   const pageNumbers = getPageNumbers(safeCurrentPage, totalPages);
   const rangeStart =
     filteredClasses.length === 0 ? 0 : (safeCurrentPage - 1) * pageSize + 1;
-  const rangeEnd = Math.min(safeCurrentPage * pageSize, filteredClasses.length);
+  const rangeEnd = Math.min(safeCurrentPage * pageSize, shownCount);
 
   const handleSearchChange = (value: string) => {
     setSearchQuery(value);
@@ -128,176 +116,117 @@ export function SubjectClassesSection({
     setCurrentPage(1);
   };
 
-  const handlePageSizeChange = (value: string | null) => {
-    if (!value) {
-      return;
-    }
-
-    setPageSize(Number(value) as (typeof PAGE_SIZE_OPTIONS)[number]);
-    setCurrentPage(1);
-  };
-
   return (
     <div className="flex flex-col gap-6">
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-          <UserStatCard
-            label="Total classes"
-            value={stats.total}
-            accentClassName="border-l-sky-500"
-          />
-          <UserStatCard
-            label="In progress"
-            value={stats.inProgress}
-            accentClassName="border-l-sky-500"
-          />
-          <UserStatCard
-            label="Scheduled"
-            value={stats.scheduled}
-            accentClassName="border-l-violet-500"
-          />
-          <UserStatCard
-            label="On hold"
-            value={stats.onHold}
-            accentClassName="border-l-amber-500"
+      <div className="flex flex-col gap-3 @lg/panel:flex-row @lg/panel:items-center">
+          <div className="relative w-full @lg/panel:w-72">
+          <SearchIcon className="pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-muted-foreground" />
+          <Input
+            value={searchQuery}
+            onChange={(event) => handleSearchChange(event.target.value)}
+            placeholder="Search class name, ID, or status…"
+            className="pl-8"
+            aria-label="Search classes"
           />
         </div>
-
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-          <div className="relative min-w-0 flex-1">
-            <SearchIcon className="pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-muted-foreground" />
-            <Input
-              value={searchQuery}
-              onChange={(event) => handleSearchChange(event.target.value)}
-              placeholder="Search class name, ID, or status…"
-              className="pl-8"
-              aria-label="Search classes"
-            />
-          </div>
-          <Select value={statusFilter} onValueChange={handleStatusFilterChange}>
-            <SelectTrigger
-              className="w-full sm:w-40"
-              aria-label="Filter by status"
-            >
-              <SelectValue placeholder="All statuses" />
-            </SelectTrigger>
-            <SelectContent align="end">
-              <SelectItem value={STATUS_FILTER_ALL}>All statuses</SelectItem>
-              {CLASS_STATUS_VALUES.map((status) => (
-                <SelectItem key={status} value={status}>
-                  {MANAGER_CLASS_STATUS_LABELS[status]}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-
-        {paginatedClasses.length === 0 ? (
-          <EmptyState
-            size="sm"
-            icon={classes.length === 0 ? GraduationCapIcon : SearchIcon}
-            title={
-              classes.length === 0 ? "No classes yet" : "No matching classes"
-            }
-            description={
-              classes.length === 0
-                ? "No classes created for this subject yet."
-                : "No classes match your filters."
-            }
-          />
-        ) : (
-          <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-            {paginatedClasses.map((classRow) => (
-              <SubjectClassCard
-                key={classRow.id}
-                classRow={classRow}
-                subjectName={subjectName}
-              />
+        <Select value={statusFilter} onValueChange={handleStatusFilterChange}>
+          <SelectTrigger
+            className="w-full @lg/panel:w-40"
+            aria-label="Filter by status"
+          >
+            <SelectValue placeholder="All statuses" />
+          </SelectTrigger>
+          <SelectContent align="end">
+            <SelectItem value={STATUS_FILTER_ALL}>All statuses</SelectItem>
+            {CLASS_STATUS_VALUES.map((status) => (
+              <SelectItem key={status} value={status}>
+                {MANAGER_CLASS_STATUS_LABELS[status]}
+              </SelectItem>
             ))}
-          </div>
-        )}
+          </SelectContent>
+        </Select>
+      </div>
 
-        {filteredClasses.length > 0 ? (
-          <div className="flex flex-col gap-3 border-t pt-4 sm:flex-row sm:items-center sm:justify-between">
-            <div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
-              <span>
-                Showing {rangeStart}–{rangeEnd} of {filteredClasses.length}
-              </span>
-              <span aria-hidden="true">·</span>
-              <div className="flex items-center gap-2">
-                <span>Cards</span>
-                <Select
-                  value={String(pageSize)}
-                  onValueChange={handlePageSizeChange}
+      {paginatedClasses.length === 0 ? (
+        <EmptyState
+          size="sm"
+          icon={classes.length === 0 ? GraduationCapIcon : SearchIcon}
+          title={
+            classes.length === 0 ? "No classes yet" : "No matching classes"
+          }
+          description={
+            classes.length === 0
+              ? "No classes created for this subject yet."
+              : "No classes match your filters."
+          }
+        />
+      ) : (
+        <div className="grid gap-4 @lg/panel:grid-cols-2 @4xl/panel:grid-cols-3">
+          {paginatedClasses.map((classRow) => (
+            <SubjectClassCard
+              key={classRow.id}
+              classRow={classRow}
+              subjectName={subjectName}
+            />
+          ))}
+        </div>
+      )}
+
+      {filteredClasses.length > 0 ? (
+        <div className="flex flex-col gap-3 border-t pt-4 @lg/panel:flex-row @lg/panel:items-center @lg/panel:justify-between">
+          <span className="text-sm text-muted-foreground">
+            Showing {rangeStart}–{rangeEnd} of {shownCount}
+          </span>
+
+          <div className="flex items-center gap-1">
+            <Button
+              type="button"
+              variant="outline"
+              size="icon-sm"
+              disabled={safeCurrentPage <= 1}
+              onClick={() => setCurrentPage((page) => page - 1)}
+              aria-label="Previous page"
+            >
+              <ChevronLeftIcon />
+            </Button>
+
+            {pageNumbers.map((page, index) =>
+              page === "ellipsis" ? (
+                <span
+                  key={`ellipsis-${index}`}
+                  className="px-1 text-sm text-muted-foreground"
                 >
-                  <SelectTrigger
-                    size="sm"
-                    className="w-16"
-                    aria-label="Cards per page"
-                  >
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent align="start">
-                    {PAGE_SIZE_OPTIONS.map((option) => (
-                      <SelectItem key={option} value={String(option)}>
-                        {option}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
+                  …
+                </span>
+              ) : (
+                <Button
+                  key={page}
+                  type="button"
+                  variant={page === safeCurrentPage ? "default" : "outline"}
+                  size="icon-sm"
+                  className="min-w-7"
+                  onClick={() => setCurrentPage(page)}
+                  aria-label={`Page ${page}`}
+                  aria-current={page === safeCurrentPage ? "page" : undefined}
+                >
+                  {page}
+                </Button>
+              ),
+            )}
 
-            <div className="flex items-center gap-1">
-              <Button
-                type="button"
-                variant="outline"
-                size="icon-sm"
-                disabled={safeCurrentPage <= 1}
-                onClick={() => setCurrentPage((page) => page - 1)}
-                aria-label="Previous page"
-              >
-                <ChevronLeftIcon />
-              </Button>
-
-              {pageNumbers.map((page, index) =>
-                page === "ellipsis" ? (
-                  <span
-                    key={`ellipsis-${index}`}
-                    className="px-1 text-sm text-muted-foreground"
-                  >
-                    …
-                  </span>
-                ) : (
-                  <Button
-                    key={page}
-                    type="button"
-                    variant={page === safeCurrentPage ? "default" : "outline"}
-                    size="icon-sm"
-                    className="min-w-7"
-                    onClick={() => setCurrentPage(page)}
-                    aria-label={`Page ${page}`}
-                    aria-current={
-                      page === safeCurrentPage ? "page" : undefined
-                    }
-                  >
-                    {page}
-                  </Button>
-                )
-              )}
-
-              <Button
-                type="button"
-                variant="outline"
-                size="icon-sm"
-                disabled={safeCurrentPage >= totalPages}
-                onClick={() => setCurrentPage((page) => page + 1)}
-                aria-label="Next page"
-              >
-                <ChevronRightIcon />
-              </Button>
-            </div>
+            <Button
+              type="button"
+              variant="outline"
+              size="icon-sm"
+              disabled={safeCurrentPage >= totalPages}
+              onClick={() => setCurrentPage((page) => page + 1)}
+              aria-label="Next page"
+            >
+              <ChevronRightIcon />
+            </Button>
           </div>
-        ) : null}
+        </div>
+      ) : null}
     </div>
   );
 }

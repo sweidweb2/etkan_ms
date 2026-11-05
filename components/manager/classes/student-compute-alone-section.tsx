@@ -252,7 +252,7 @@ export function StudentComputeAloneSection({
             </p>
           </div>
 
-          <div className="grid gap-4 md:grid-cols-2">
+          <div className="grid gap-4 @xl/panel:grid-cols-2">
             <div className="flex flex-col gap-2">
               <FieldLabel
                 htmlFor="compute-alone-tasks-weight"
@@ -315,7 +315,7 @@ export function StudentComputeAloneSection({
               No tasks found for this class yet.
             </p>
           ) : (
-            <div className="grid gap-3 sm:grid-cols-2">
+            <div className="grid gap-3 @lg/panel:grid-cols-2">
               {classTasks.map((task) => (
                 <div
                   key={task.id}

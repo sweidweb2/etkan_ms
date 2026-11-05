@@ -40,14 +40,13 @@ import {
 import type { ManagerClassRow } from "@/types/manager-class-list";
 import type { ManagerClassSessionRow } from "@/types/manager-class-session";
 import {
-  PAYMENT_SYNC_FAILURE_WARNING,
   isUuid,
   loadClassDetailCounts,
   mapClassDetailToRowWithCounts,
   mapSessionRecord,
   normalizeOptionalString,
-  recordPaymentSyncFailure,
   toIsoOrNull,
+  withPaymentSync,
   type MutationFailure,
   type Supabase,
 } from "@/services/classes/class-shared";
@@ -761,21 +760,22 @@ export async function updateClassStatusForManager(
     nextStatus === CLASS_STATUSES.IN_PROGRESS &&
     previousStatus !== CLASS_STATUSES.IN_PROGRESS
   ) {
-    try {
-      await backfillSppsForClassBecomeInProgress(
-        adminClient,
-        input.class_id,
-        actor
-      );
-    } catch (syncError) {
-      await recordPaymentSyncFailure(adminClient, actor, {
+    const sync = await withPaymentSync(
+      adminClient,
+      actor,
+      {
         studentId: "",
         classId: input.class_id,
         operation: "class_status_in_progress_backfill",
-        error: syncError,
-      });
-      warning = PAYMENT_SYNC_FAILURE_WARNING;
-    }
+      },
+      () =>
+        backfillSppsForClassBecomeInProgress(
+          adminClient,
+          input.class_id,
+          actor
+        )
+    );
+    warning = sync.warning;
   }
 
   return {
@@ -880,7 +880,6 @@ export async function createClassSessionForManager(
     session_report: normalizeOptionalString(parsed.data.session_report),
     starts_at: startsAt,
     ends_at: endsAt,
-    semester_id: existing.data.semester_id,
   });
 
   if (error || !data) {

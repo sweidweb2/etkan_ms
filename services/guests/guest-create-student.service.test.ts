@@ -99,7 +99,6 @@ const applicationRecord = {
 const student: ManagerStudentRow = {
   user_id: studentUserId,
   student_profile_id: "e5e6f7a8-b9c0-1234-ef01-345678901234",
-  username: "ada_lovelace",
   email: "ada@example.com",
   full_name: "Ada Lovelace",
   birth_date: "2001-12-10",
@@ -110,7 +109,6 @@ const student: ManagerStudentRow = {
 
 const input: CreateStudentFromGuestInput = {
   guest_id: guestId,
-  username: "ada_lovelace",
   fullName: "Ada Lovelace",
   email: "ada@example.com",
   password: DEFAULT_CREATED_STUDENT_PASSWORD,
@@ -250,7 +248,7 @@ describe("createStudentFromGuestRegistrationForManager", () => {
       actor.userId,
       actor,
       expect.objectContaining({
-        username: "ada_lovelace",
+        fullName: "Ada Lovelace",
         password: DEFAULT_CREATED_STUDENT_PASSWORD,
       }),
       { skipStudentsCreatePermission: true }

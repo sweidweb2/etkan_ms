@@ -36,7 +36,6 @@ export async function signupAction(
   const adminClient = createSupabaseAdminClient();
 
   const result = await register(authClient, adminClient, {
-    username: parsed.data.username,
     fullName: parsed.data.fullName,
     email: parsed.data.email,
     password: parsed.data.password,

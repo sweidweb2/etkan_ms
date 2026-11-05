@@ -23,7 +23,6 @@ import {
   recordManagerAuditLog,
   type AuditActor,
 } from "@/services/ops/audit-log.service";
-import type { FieldErrors } from "@/types/auth";
 import type {
   ManagerClassFinalExamRow,
   ManagerStudentFinalExamGradeRow,
@@ -31,17 +30,13 @@ import type {
 import type { ManagerClassRow } from "@/types/manager-class-list";
 import type { ManagerClassSessionRow } from "@/types/manager-class-session";
 import type { SessionGroupGradeLevelValue } from "@/types/manager-session-group-grade";
-import type { SupabaseClient } from "@supabase/supabase-js";
-import type { Database } from "@/types/supabase";
 import { z } from "zod";
 
-export type Supabase = SupabaseClient<Database>;
-
-export type MutationFailure = {
-  success: false;
-  error: string;
-  fieldErrors?: FieldErrors;
-};
+export type {
+  MutationFailure,
+  Supabase,
+} from "@/services/shared/mutation";
+import type { Supabase } from "@/services/shared/mutation";
 
 export const PAYMENT_SYNC_FAILURE_WARNING =
   "Payment sync failed. Check Accounting → Missing assignments.";
@@ -72,6 +67,35 @@ export async function recordPaymentSyncFailure(
       error: errorMessage,
     },
   });
+}
+
+type PaymentSyncTimer = {
+  step: <T>(name: string, fn: () => Promise<T>) => Promise<T>;
+};
+
+/**
+ * Run accounting sync after membership mutations. Failures are audited and
+ * surfaced as a warning; the enrollment change itself is kept.
+ */
+export async function withPaymentSync<T>(
+  adminClient: Supabase,
+  actor: AuditActor,
+  input: { studentId: string; classId: string; operation: string },
+  run: () => Promise<T>,
+  options?: { timer?: PaymentSyncTimer; stepName?: string }
+): Promise<{ result?: T; warning?: string }> {
+  try {
+    const result = options?.timer
+      ? await options.timer.step(options.stepName ?? "paymentSync", run)
+      : await run();
+    return { result };
+  } catch (error) {
+    await recordPaymentSyncFailure(adminClient, actor, {
+      ...input,
+      error,
+    });
+    return { warning: PAYMENT_SYNC_FAILURE_WARNING };
+  }
 }
 
 export function mapClassStatus(status: string | null): ClassStatusValue {
@@ -136,7 +160,6 @@ export function mapSessionRecord(record: SessionRecord): ManagerClassSessionRow 
     session_report: record.session_report,
     starts_at: record.starts_at,
     ends_at: record.ends_at,
-    semester_id: record.semester_id,
     group_grade_level: mapGroupGradeLevel(record.group_grade_level),
     created_at: record.created_at,
   };

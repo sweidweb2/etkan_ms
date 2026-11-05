@@ -23,7 +23,6 @@ import { updateManagerUserSchema } from "@/lib/validators/manager/update-user";
 import * as authRepository from "@/repositories/auth.repository";
 import { clearInstructorWorkshopRelatedData } from "@/lib/manager/instructors/clear-instructor-related";
 import * as profileRepository from "@/repositories/profile.repository";
-import { clearMentorRelatedData } from "@/repositories/clear-mentor-related.repository";
 import * as studentProfileRepository from "@/repositories/student-profile.repository";
 import {
   recordManagerAuditLog,
@@ -39,7 +38,7 @@ type Supabase = SupabaseClient<Database>;
 
 type StaffWelcomeEmailPayload = {
   email: string;
-  username: string;
+  fullName: string;
   password: string;
   role: RoleValue;
 };
@@ -171,10 +170,9 @@ async function fetchUsersForManager(
   return profiles.map((profile) => {
     const user: ManagerUserRow = {
       id: profile.id,
-      username: profile.username,
+      full_name: profile.full_name,
       role: profile.role as RoleValue,
       is_instructor: profile.is_instructor,
-      is_mentor: profile.is_mentor,
       created_at: profile.created_at ?? "",
       email: emailById.get(profile.id) ?? "",
     };
@@ -238,12 +236,11 @@ export async function createStaffUser(
   actorUserId: string | null,
   actor: AuditActor,
   input: {
-    username: string;
+    fullName: string;
     email: string;
     password: string;
     role: string;
     is_instructor: boolean;
-    is_mentor: boolean;
   }
 ): Promise<CreateStaffUserResult> {
   const unauthorized = await getUnauthorizedError(adminClient, actorUserId, PERMISSIONS.USERS_CREATE);
@@ -261,7 +258,7 @@ export async function createStaffUser(
     };
   }
 
-  const { username, email, password, role, is_instructor, is_mentor } =
+  const { fullName, email, password, role, is_instructor } =
     resolveCreateStaffUserInput(parsed.data);
 
   if (!MANAGER_CREATABLE_ROLES.includes(role)) {
@@ -272,21 +269,13 @@ export async function createStaffUser(
     };
   }
 
-  const normalizedUsername = username.trim();
+  const normalizedFullName = fullName.trim();
   const normalizedEmail = email.trim();
 
-  const [existingUsername, existingEmail] = await Promise.all([
-    profileRepository.findProfileByUsername(adminClient, normalizedUsername),
-    authRepository.findAuthUserByEmail(adminClient, normalizedEmail),
-  ]);
-
-  if (existingUsername.data) {
-    return {
-      success: false,
-      error: "Please fix the errors below.",
-      fieldErrors: { username: ["This username is already taken."] },
-    };
-  }
+  const existingEmail = await authRepository.findAuthUserByEmail(
+    adminClient,
+    normalizedEmail
+  );
 
   if (existingEmail.error) {
     return {
@@ -307,8 +296,7 @@ export async function createStaffUser(
     await authRepository.createAuthUser(adminClient, {
       email: normalizedEmail,
       password,
-      username: normalizedUsername,
-      fullName: normalizedUsername,
+      fullName: normalizedFullName,
       role,
     });
 
@@ -341,10 +329,9 @@ export async function createStaffUser(
       adminClient,
       {
         id: authUserId,
-        username: normalizedUsername,
+        full_name: normalizedFullName,
         role,
         is_instructor,
-        is_mentor,
       }
     );
 
@@ -356,10 +343,9 @@ export async function createStaffUser(
 
     const user: ManagerUserRow = {
       id: authUserId,
-      username: normalizedUsername,
+      full_name: normalizedFullName,
       role,
       is_instructor,
-      is_mentor,
       created_at: authData.user.created_at,
       email: normalizedEmail,
     };
@@ -367,7 +353,7 @@ export async function createStaffUser(
     try {
       await notifyStaffUserCreated({
         email: normalizedEmail,
-        username: normalizedUsername,
+        fullName: normalizedFullName,
         password,
         role,
       });
@@ -381,11 +367,10 @@ export async function createStaffUser(
       table_name: "profiles",
       record_id: authUserId,
       new_data: {
-        username: normalizedUsername,
+        full_name: normalizedFullName,
         role,
         email: normalizedEmail,
         is_instructor,
-        is_mentor,
       },
       metadata: { note: "Staff account created." },
     });
@@ -411,12 +396,10 @@ export async function updateManagerUser(
   actor: AuditActor,
   input: {
     userId: string;
-    username: string;
+    fullName: string;
     email: string;
     role: string;
     is_instructor: boolean;
-    is_mentor: boolean;
-    fullName?: string;
     birthDate?: string | null;
     phone?: string | null;
     status?: string;
@@ -430,12 +413,10 @@ export async function updateManagerUser(
   }
 
   const parsed = updateManagerUserSchema.safeParse({
-    username: input.username,
+    fullName: input.fullName,
     email: input.email,
     role: input.role,
     is_instructor: input.is_instructor,
-    is_mentor: input.is_mentor,
-    fullName: input.fullName,
     birthDate: input.birthDate ?? "",
     phone: input.phone ?? "",
     status: input.status,
@@ -452,10 +433,9 @@ export async function updateManagerUser(
   }
 
   const { userId } = input;
-  const { username, email, role, is_instructor, is_mentor } = parsed.data;
-  const normalizedUsername = username.trim();
+  const { fullName, email, role, is_instructor } = parsed.data;
+  const normalizedFullName = fullName.trim();
   const normalizedEmail = email.trim();
-  const normalizedFullName = normalizeOptionalString(parsed.data.fullName);
   const normalizedBirthDate = normalizeOptionalString(parsed.data.birthDate);
   const normalizedPhone = normalizeOptionalString(parsed.data.phone);
   const studentStatus = mapStudentStatus(parsed.data.status);
@@ -470,7 +450,6 @@ export async function updateManagerUser(
   }
 
   const preUpdateLookups = await Promise.all([
-    profileRepository.findProfileByUsername(adminClient, normalizedUsername),
     authRepository.findAuthUserByEmail(adminClient, normalizedEmail),
     authRepository.getAuthUserById(adminClient, userId),
     ...(role === ROLES.STUDENT
@@ -483,23 +462,14 @@ export async function updateManagerUser(
       : []),
   ]);
 
-  const existingUsername = preUpdateLookups[0];
-  const existingEmail = preUpdateLookups[1];
-  const authUserResult = preUpdateLookups[2];
+  const existingEmail = preUpdateLookups[0];
+  const authUserResult = preUpdateLookups[1];
   const existingStudentResult =
     role === ROLES.STUDENT
-      ? (preUpdateLookups[3] as Awaited<
+      ? (preUpdateLookups[2] as Awaited<
           ReturnType<typeof studentProfileRepository.findStudentProfileByUserId>
         >)
       : null;
-
-  if (existingUsername.data && existingUsername.data.id !== userId) {
-    return {
-      success: false,
-      error: "Please fix the errors below.",
-      fieldErrors: { username: ["This username is already taken."] },
-    };
-  }
 
   if (existingEmail.error) {
     return {
@@ -522,15 +492,13 @@ export async function updateManagerUser(
 
   const previousRole = existingProfile.data.role as RoleValue;
   const previousIsInstructor = existingProfile.data.is_instructor;
-  const previousIsMentor = existingProfile.data.is_mentor;
   const previousEmail = authUserResult.data.user.email ?? null;
 
   const { data: updatedProfile, error: profileError } =
     await profileRepository.updateProfileById(adminClient, userId, {
-      username: normalizedUsername,
+      full_name: normalizedFullName,
       role,
       is_instructor,
-      is_mentor,
     });
 
   if (profileError || !updatedProfile) {
@@ -555,25 +523,12 @@ export async function updateManagerUser(
     }
   }
 
-  if (previousIsMentor && !is_mentor) {
-    const mentorClear = await clearMentorRelatedData(adminClient, userId);
-    if (mentorClear.error) {
-      return {
-        success: false,
-        error: mapUpdateManagerUserError(
-          mentorClear.error.message || "Unable to clear mentor-related data."
-        ),
-      };
-    }
-  }
-
   const { error: authError } = await authRepository.updateAuthUserByAdmin(
     adminClient,
     userId,
     {
       email: normalizedEmail,
-      username: normalizedUsername,
-      ...(normalizedFullName ? { fullName: normalizedFullName } : {}),
+      fullName: normalizedFullName,
     }
   );
 
@@ -621,14 +576,6 @@ export async function updateManagerUser(
   let studentStatusValue: StudentStatusValue | null = null;
 
   if (role === ROLES.STUDENT) {
-    if (!normalizedFullName) {
-      return {
-        success: false,
-        error: "Please fix the errors below.",
-        fieldErrors: { fullName: ["Full name is required."] },
-      };
-    }
-
     if (existingStudentResult?.error) {
       return {
         success: false,
@@ -710,10 +657,9 @@ export async function updateManagerUser(
 
   const user: ManagerUserRow = {
     id: userId,
-    username: updatedProfile.username,
+    full_name: updatedProfile.full_name,
     role,
     is_instructor,
-    is_mentor,
     created_at:
       updatedProfile.created_at ?? authUserResult.data.user.created_at,
     email: normalizedEmail,
@@ -734,18 +680,16 @@ export async function updateManagerUser(
     table_name: "profiles",
     record_id: userId,
     old_data: {
-      username: existingProfile.data.username,
+      full_name: existingProfile.data.full_name,
       role: previousRole,
       email: previousEmail,
       is_instructor: previousIsInstructor,
-      is_mentor: previousIsMentor,
     },
     new_data: {
-      username: normalizedUsername,
+      full_name: normalizedFullName,
       role,
       email: normalizedEmail,
       is_instructor,
-      is_mentor,
       password_changed: Boolean(nextPassword),
       ...(studentProfileId
         ? {

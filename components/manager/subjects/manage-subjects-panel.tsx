@@ -12,8 +12,8 @@ import {
 import { Can } from "@/components/auth/can";
 import { AddSubjectDialog } from "@/components/manager/subjects/add-subject-dialog";
 import { SubjectCard } from "@/components/manager/subjects/subject-card";
+import { PanelPageHeader } from "@/components/panels/panel-page-header";
 import { Button, buttonVariants } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Input } from "@/components/ui/input";
 import {
@@ -29,7 +29,7 @@ import { cn } from "@/lib/utils";
 import { prependUniqueById } from "@/lib/utils/prepend-unique-by-id";
 import type { ManagerSubjectRow } from "@/types/manager-subject";
 
-const PAGE_SIZE = 15;
+const PAGE_SIZE = 42;
 
 const CLASS_SORT_MOST = "most";
 const CLASS_SORT_LEAST = "least";
@@ -268,32 +268,23 @@ export function ManageSubjectsPanel({
 
   return (
     <div className="flex flex-col gap-6">
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-        <div>
-          <h1 className="text-2xl font-semibold tracking-tight">
-            Manage subjects
-          </h1>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Subjects and linked class counts from your school catalog.
-          </p>
-        </div>
-        <div className="flex flex-wrap items-center gap-2">
-          <Can permission={PERMISSIONS.SUBJECTS_VIEW}>
-            <Link
-              href={ROUTES.MANAGER_SUBJECTS_CATALOG}
-              prefetch={false}
-              className={cn(buttonVariants({ variant: "outline" }))}
-            >
-              Categories & exercises
-            </Link>
-          </Can>
-          <Can permission={PERMISSIONS.SUBJECTS_CREATE}>
-            <Button type="button" onClick={() => setIsAddOpen(true)}>
-              <PlusIcon data-icon="inline-start" />
-              Add subject
-            </Button>
-          </Can>
-        </div>
+      <PanelPageHeader title="Manage subjects" />
+      <div className="flex flex-wrap items-center justify-end gap-2 empty:hidden">
+        <Can permission={PERMISSIONS.SUBJECTS_VIEW}>
+          <Link
+            href={ROUTES.MANAGER_SUBJECTS_CATALOG}
+            prefetch={false}
+            className={cn(buttonVariants({ variant: "outline" }))}
+          >
+            Categories & exercises
+          </Link>
+        </Can>
+        <Can permission={PERMISSIONS.SUBJECTS_CREATE}>
+          <Button type="button" onClick={() => setIsAddOpen(true)}>
+            <PlusIcon data-icon="inline-start" />
+            Add subject
+          </Button>
+        </Can>
       </div>
 
       <AddSubjectDialog
@@ -302,76 +293,69 @@ export function ManageSubjectsPanel({
         onSubjectCreated={handleSubjectCreated}
       />
 
-      <Card className="py-0">
-        <CardHeader className="border-b bg-muted/50 py-3">
-          <CardTitle>Subjects</CardTitle>
-        </CardHeader>
-        <CardContent className="flex flex-col gap-6 px-4 pt-2 pb-3">
-          <SubjectsPagination position="top" {...paginationProps} />
+      <div className="flex flex-col gap-6">
+        <SubjectsPagination position="top" {...paginationProps} />
 
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-            <div className="relative min-w-0 flex-1">
-              <SearchIcon className="pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-muted-foreground" />
-              <Input
-                value={searchQuery}
-                onChange={(event) => handleSearchChange(event.target.value)}
-                placeholder="Search subject name or links…"
-                className="pl-8"
-                aria-label="Search subjects"
-              />
-            </div>
-            <Select value={classSort} onValueChange={handleClassSortChange}>
-              <SelectTrigger
-                className="w-full sm:w-52"
-                aria-label="Sort by class count"
-              >
-                <SelectValue placeholder="Sort by classes">
-                  {(value) =>
-                    CLASS_SORT_LABELS[value as ClassSortValue] ??
-                    "Sort by classes"
-                  }
-                </SelectValue>
-              </SelectTrigger>
-              <SelectContent align="end">
-                <SelectItem value={CLASS_SORT_MOST}>
-                  {CLASS_SORT_LABELS[CLASS_SORT_MOST]}
-                </SelectItem>
-                <SelectItem value={CLASS_SORT_LEAST}>
-                  {CLASS_SORT_LABELS[CLASS_SORT_LEAST]}
-                </SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-
-          {paginatedSubjects.length === 0 ? (
-            <EmptyState
-              icon={
-                subjects.length === 0 || !searchQuery.trim()
-                  ? BookOpenIcon
-                  : SearchIcon
-              }
-              title={
-                subjects.length === 0
-                  ? "No subjects yet"
-                  : "No matching subjects"
-              }
-              description={
-                subjects.length === 0
-                  ? "Create a subject to get started."
-                  : "No subjects match your search."
-              }
+        <div className="flex flex-col gap-3 @lg/panel:flex-row @lg/panel:items-center">
+          <div className="relative w-full @lg/panel:w-72">
+            <SearchIcon className="pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              value={searchQuery}
+              onChange={(event) => handleSearchChange(event.target.value)}
+              placeholder="Search subject name or links…"
+              className="pl-8"
+              aria-label="Search subjects"
             />
-          ) : (
-            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-              {paginatedSubjects.map((subject) => (
-                <SubjectCard key={subject.id} subject={subject} />
-              ))}
-            </div>
-          )}
+          </div>
+          <Select value={classSort} onValueChange={handleClassSortChange}>
+            <SelectTrigger
+              className="w-full @lg/panel:w-52"
+              aria-label="Sort by class count"
+            >
+              <SelectValue placeholder="Sort by classes">
+                {(value) =>
+                  CLASS_SORT_LABELS[value as ClassSortValue] ??
+                  "Sort by classes"
+                }
+              </SelectValue>
+            </SelectTrigger>
+            <SelectContent align="end">
+              <SelectItem value={CLASS_SORT_MOST}>
+                {CLASS_SORT_LABELS[CLASS_SORT_MOST]}
+              </SelectItem>
+              <SelectItem value={CLASS_SORT_LEAST}>
+                {CLASS_SORT_LABELS[CLASS_SORT_LEAST]}
+              </SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
 
-          <SubjectsPagination position="bottom" {...paginationProps} />
-        </CardContent>
-      </Card>
+        {paginatedSubjects.length === 0 ? (
+          <EmptyState
+            icon={
+              subjects.length === 0 || !searchQuery.trim()
+                ? BookOpenIcon
+                : SearchIcon
+            }
+            title={
+              subjects.length === 0 ? "No subjects yet" : "No matching subjects"
+            }
+            description={
+              subjects.length === 0
+                ? "Create a subject to get started."
+                : "No subjects match your search."
+            }
+          />
+        ) : (
+          <div className="grid grid-cols-2 gap-4 @2xl/panel:grid-cols-3 @4xl/panel:grid-cols-4 @6xl/panel:grid-cols-5">
+            {paginatedSubjects.map((subject) => (
+              <SubjectCard key={subject.id} subject={subject} />
+            ))}
+          </div>
+        )}
+
+        <SubjectsPagination position="bottom" {...paginationProps} />
+      </div>
     </div>
   );
 }

@@ -94,7 +94,6 @@ export async function createStudentFromGuestRegistrationForManager(
   const {
     guest_id: guestId,
     markGuestAsFinished,
-    username,
     fullName,
     email,
     password,
@@ -136,7 +135,6 @@ export async function createStudentFromGuestRegistrationForManager(
     actorUserId,
     actor,
     {
-      username,
       fullName,
       email,
       password,

@@ -9,7 +9,7 @@ const WORKSHOP_INSTRUCTOR_COLUMNS =
   "id, workshop_id, user_id, role, wage_type, wage_amount, notes, created_at";
 
 const WORKSHOP_INSTRUCTOR_WITH_PROFILE_COLUMNS =
-  "id, workshop_id, user_id, role, wage_type, wage_amount, notes, created_at, profiles(username)";
+  "id, workshop_id, user_id, role, wage_type, wage_amount, notes, created_at, profiles(full_name)";
 
 export type WorkshopInstructorRecord = {
   id: string;
@@ -23,7 +23,7 @@ export type WorkshopInstructorRecord = {
 };
 
 export type WorkshopInstructorWithProfileRecord = WorkshopInstructorRecord & {
-  profiles: { username: string } | null;
+  profiles: { full_name: string } | null;
 };
 
 export type CreateWorkshopInstructorRecordInput = {

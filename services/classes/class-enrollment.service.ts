@@ -24,7 +24,6 @@ import * as classTeacherRepository from "@/repositories/class-teacher.repository
 import * as finalExamRepository from "@/repositories/final-exam.repository";
 import type { StudentFinalExamGradeRecord } from "@/repositories/final-exam.repository";
 import * as paymentPhaseRepository from "@/repositories/payment-phase.repository";
-import * as profileRepository from "@/repositories/profile.repository";
 import * as sessionRepository from "@/repositories/session.repository";
 import * as studentClassRepository from "@/repositories/student-class.repository";
 import * as studentProfileRepository from "@/repositories/student-profile.repository";
@@ -55,6 +54,7 @@ import {
   mapClassDetailRecordToRow,
   mapStudentFinalExamGradeRecord,
   recordPaymentSyncFailure,
+  withPaymentSync,
   type MutationFailure,
   type Supabase,
 } from "@/services/classes/class-shared";
@@ -223,28 +223,15 @@ export async function addStudentToClassForManager(
 
     const data = enrollResult.data.enrollment;
 
-    const [profileResult, authResult] = await Promise.all([
-      timer.step("hydrateProfile", () =>
-        profileRepository.findProfileById(adminClient, userId)
-      ),
-      timer.step("hydrateAuth", () =>
-        authRepository.getAuthUserById(adminClient, userId)
-      ),
-    ]);
-
-    if (profileResult.error || !profileResult.data) {
-      return {
-        success: false,
-        error: profileResult.error?.message ?? "Unable to load student profile.",
-      };
-    }
+    const authResult = await timer.step("hydrateAuth", () =>
+      authRepository.getAuthUserById(adminClient, userId)
+    );
 
     const student: ManagerClassStudentRow = {
       id: data.id,
       student_profile_id: studentProfile.id,
       user_id: userId,
       full_name: studentProfile.full_name,
-      username: profileResult.data.username,
       email: authResult.data.user?.email ?? "",
       phone: studentProfile.phone,
       joined_at: data.joined_at ?? new Date().toISOString(),
@@ -252,13 +239,35 @@ export async function addStudentToClassForManager(
 
     let studentGrade: ManagerStudentFinalExamGradeRow | undefined;
 
-    const gradeResult = await timer.step("examGrade", () =>
-      finalExamRepository.ensureEnrollmentFinalExamGrade(
-        adminClient,
-        input.class_id,
-        userId
-      )
-    );
+    const [gradeResult, attendeesError, tasksError] = await Promise.all([
+      timer.step("examGrade", () =>
+        finalExamRepository.ensureEnrollmentFinalExamGrade(
+          adminClient,
+          input.class_id,
+          userId
+        )
+      ),
+      timer
+        .step("attendees", () =>
+          seedLateJoinAttendeesForStudent(adminClient, input.class_id, userId)
+        )
+        .then(
+          () => null,
+          (err: unknown) => err
+        ),
+      timer
+        .step("tasks", () =>
+          seedLateJoinStudentTasksForStudent(
+            adminClient,
+            input.class_id,
+            userId
+          )
+        )
+        .then(
+          () => null,
+          (err: unknown) => err
+        ),
+    ]);
 
     if (gradeResult.error) {
       return {
@@ -269,43 +278,31 @@ export async function addStudentToClassForManager(
       };
     }
 
+    if (attendeesError) {
+      return {
+        success: false,
+        error:
+          attendeesError instanceof Error
+            ? attendeesError.message
+            : "Student enrolled, but attendance rows could not be created.",
+      };
+    }
+
+    if (tasksError) {
+      return {
+        success: false,
+        error:
+          tasksError instanceof Error
+            ? tasksError.message
+            : "Student enrolled, but task grade rows could not be created.",
+      };
+    }
+
     if (gradeResult.data) {
       studentGrade = mapStudentFinalExamGradeRecord(
         gradeResult.data as StudentFinalExamGradeRecord,
         student.full_name
       );
-    }
-
-    try {
-      await timer.step("attendees", () =>
-        seedLateJoinAttendeesForStudent(adminClient, input.class_id, userId)
-      );
-    } catch (err) {
-      return {
-        success: false,
-        error:
-          err instanceof Error
-            ? err.message
-            : "Student enrolled, but attendance rows could not be created.",
-      };
-    }
-
-    try {
-      await timer.step("tasks", () =>
-        seedLateJoinStudentTasksForStudent(
-          adminClient,
-          input.class_id,
-          userId
-        )
-      );
-    } catch (err) {
-      return {
-        success: false,
-        error:
-          err instanceof Error
-            ? err.message
-            : "Student enrolled, but task grade rows could not be created.",
-      };
     }
 
     const classRow = mapClassDetailRecordToRow(classRecord, {
@@ -328,25 +325,43 @@ export async function addStudentToClassForManager(
 
     let warning: string | undefined;
 
+    const semesterId = classRecord.semester_id;
+    const reactivatePromise = semesterId
+      ? import("@/services/classes/drop-semester.service")
+          .then(({ reactivateSemesterAfterRejoin }) =>
+            reactivateSemesterAfterRejoin(
+              adminClient,
+              userId,
+              semesterId,
+              studentProfile.id
+            )
+          )
+          .catch(() => {
+            // Non-fatal: membership already created.
+          })
+      : Promise.resolve();
+
     if (!options?.skipPaymentSync) {
-      try {
-        await timer.step("paymentSync", () =>
+      const sync = await withPaymentSync(
+        adminClient,
+        actor,
+        {
+          studentId: userId,
+          classId: input.class_id,
+          operation: "enroll_join_sync",
+        },
+        () =>
           onStudentJoinedClass(
             adminClient,
             { studentId: userId, classId: input.class_id },
             actor
-          )
-        );
-      } catch (syncError) {
-        await recordPaymentSyncFailure(adminClient, actor, {
-          studentId: userId,
-          classId: input.class_id,
-          operation: "enroll_join_sync",
-          error: syncError,
-        });
-        warning = PAYMENT_SYNC_FAILURE_WARNING;
-      }
+          ),
+        { timer }
+      );
+      warning = sync.warning;
     }
+
+    await reactivatePromise;
 
     return {
       success: true,
@@ -512,15 +527,12 @@ async function enrollStudentsInClassCore(
     let gradeResult: Awaited<
       ReturnType<typeof finalExamRepository.ensureEnrollmentFinalExamGrades>
     >;
-    let profilesResult: Awaited<
-      ReturnType<typeof profileRepository.listProfilesByIds>
-    >;
     let emailsResult: Awaited<
       ReturnType<typeof authRepository.listAuthEmailsByIds>
     >;
 
     try {
-      [gradeResult, , , profilesResult, emailsResult] = await timer.step(
+      [gradeResult, , , emailsResult] = await timer.step(
         "hydrate",
         () =>
           Promise.all([
@@ -539,7 +551,6 @@ async function enrollStudentsInClassCore(
               input.class_id,
               insertedUserIds
             ),
-            profileRepository.listProfilesByIds(adminClient, insertedUserIds),
             authRepository.listAuthEmailsByIds(adminClient, insertedUserIds),
           ])
       );
@@ -562,13 +573,6 @@ async function enrollStudentsInClassCore(
       };
     }
 
-    if (profilesResult.error) {
-      return {
-        success: false,
-        error: profilesResult.error.message ?? "Unable to load student profile.",
-      };
-    }
-
     if (emailsResult.error) {
       return {
         success: false,
@@ -576,9 +580,6 @@ async function enrollStudentsInClassCore(
       };
     }
 
-    const usernameByUserId = new Map(
-      (profilesResult.data ?? []).map((row) => [row.id, row.username])
-    );
     const emailByUserId = emailsResult.data;
     const gradeByStudentId = new Map(
       (gradeResult.data ?? []).map((row) => [row.student_id, row])
@@ -602,7 +603,6 @@ async function enrollStudentsInClassCore(
         student_profile_id: profile.id,
         user_id: profile.user_id,
         full_name: profile.full_name,
-        username: usernameByUserId.get(profile.user_id) ?? null,
         email: emailByUserId.get(profile.user_id) ?? "",
         phone: profile.phone,
         joined_at: enrollment.joined_at ?? new Date().toISOString(),
@@ -644,6 +644,21 @@ async function enrollStudentsInClassCore(
     let warning: string | undefined;
     let joinItems: StudentJoinSyncItem[] = [];
 
+    const semesterId = classRecord.semester_id;
+    const reactivatePromise = semesterId
+      ? import("@/services/classes/drop-semester.service")
+          .then(({ reactivateSemestersAfterRejoin }) =>
+            reactivateSemestersAfterRejoin(
+              adminClient,
+              students.map((student) => student.student_profile_id),
+              semesterId
+            )
+          )
+          .catch(() => {
+            // Non-fatal: memberships already created.
+          })
+      : Promise.resolve();
+
     try {
       joinItems = await timer.step("paymentSync", () =>
         onStudentsJoinedClass(
@@ -679,6 +694,8 @@ async function enrollStudentsInClassCore(
       );
       warning = PAYMENT_SYNC_FAILURE_WARNING;
     }
+
+    await reactivatePromise;
 
     let autoAssignedPhase: { id: string; name: string } | undefined;
     let optionalPaymentPhases: Array<{ id: string; name: string }> | undefined;
@@ -878,28 +895,21 @@ async function resolveActiveStudentDiff(
     return { success: true, students: [] };
   }
 
-  const [profilesResult, usernamesResult, emailsResult] = await Promise.all([
+  const [profilesResult, emailsResult] = await Promise.all([
     studentProfileRepository.listStudentProfileDetailsByUserIds(
       adminClient,
       sourceUserIds
     ),
-    profileRepository.listProfilesByIds(adminClient, sourceUserIds),
     authRepository.listAuthEmailsByIds(adminClient, sourceUserIds),
   ]);
 
   if (profilesResult.error) {
     return { success: false, error: profilesResult.error.message };
   }
-  if (usernamesResult.error) {
-    return { success: false, error: usernamesResult.error.message };
-  }
   if (emailsResult.error) {
     return { success: false, error: emailsResult.error.message };
   }
 
-  const usernameById = new Map(
-    (usernamesResult.data ?? []).map((row) => [row.id, row.username])
-  );
   const emailById = emailsResult.data;
 
   const students: ManagerStudentRow[] = (profilesResult.data ?? [])
@@ -907,7 +917,6 @@ async function resolveActiveStudentDiff(
     .map((row) => ({
       user_id: row.user_id,
       student_profile_id: row.id,
-      username: usernameById.get(row.user_id) ?? null,
       email: emailById.get(row.user_id) ?? "",
       full_name: row.full_name,
       birth_date: row.birth_date,
@@ -1099,31 +1108,28 @@ export async function removeStudentFromClassForManager(
       })
     );
 
-    let warning: string | undefined;
-
-    try {
-      await timer.step("paymentSync", () =>
+    const sync = await withPaymentSync(
+      adminClient,
+      actor,
+      {
+        studentId: deleted.user_id,
+        classId: parsed.data.class_id,
+        operation: "enrollment_leave_sync",
+      },
+      () =>
         onStudentLeftClass(
           adminClient,
           { studentId: deleted.user_id, classId: parsed.data.class_id },
           actor
-        )
-      );
-    } catch (syncError) {
-      await recordPaymentSyncFailure(adminClient, actor, {
-        studentId: deleted.user_id,
-        classId: parsed.data.class_id,
-        operation: "enrollment_leave_sync",
-        error: syncError,
-      });
-      warning = PAYMENT_SYNC_FAILURE_WARNING;
-    }
+        ),
+      { timer }
+    );
 
     return {
       success: true,
       removedStudentId: deleted.id,
       message: "Student removed from class.",
-      warning,
+      warning: sync.warning,
     };
   } finally {
     timer.end();
@@ -1247,6 +1253,25 @@ export async function transferStudentBetweenClassesForManager(
     const studentProfile = studentProfileResult.data;
     const userId = studentProfile.user_id;
 
+    const sourceSemesterId = fromClassResult.data.semester_id;
+    if (sourceSemesterId) {
+      const { studentHasPendingSemesterDrop } = await import(
+        "@/services/classes/drop-semester.service"
+      );
+      const hasPendingDrop = await studentHasPendingSemesterDrop(
+        adminClient,
+        userId,
+        sourceSemesterId
+      );
+      if (hasPendingDrop) {
+        return {
+          success: false,
+          error:
+            "Cannot transfer while a semester drop is pending for this student.",
+        };
+      }
+    }
+
     const transferResult = await timer.step("transfer", () =>
       studentClassRepository.transferStudentBetweenClasses(
         adminClient,
@@ -1294,29 +1319,24 @@ export async function transferStudentBetweenClassesForManager(
     const destEnrollment = transferResult.data.to;
     const fromEnrollment = transferResult.data.from;
 
-    let warning: string | undefined;
-
-    try {
-      await timer.step("leaveSync", () =>
+    const leaveSync = await withPaymentSync(
+      adminClient,
+      actor,
+      {
+        studentId: userId,
+        classId: from_class_id,
+        operation: "transfer_leave_sync",
+      },
+      () =>
         onStudentLeftClass(
           adminClient,
           { studentId: userId, classId: from_class_id },
           actor
-        )
-      );
-    } catch (syncError) {
-      await recordPaymentSyncFailure(adminClient, actor, {
-        studentId: userId,
-        classId: from_class_id,
-        operation: "transfer_leave_sync",
-        error: syncError,
-      });
-      warning = PAYMENT_SYNC_FAILURE_WARNING;
-    }
+        ),
+      { timer, stepName: "leaveSync" }
+    );
+    const warning = leaveSync.warning;
 
-    let profileResult: Awaited<
-      ReturnType<typeof profileRepository.findProfileById>
-    >;
     let authResult: Awaited<
       ReturnType<typeof authRepository.getAuthUserById>
     >;
@@ -1325,11 +1345,10 @@ export async function transferStudentBetweenClassesForManager(
     >;
 
     try {
-      [profileResult, authResult, gradeResult] = await timer.step(
+      [authResult, gradeResult] = await timer.step(
         "destHydrate",
         () =>
           Promise.all([
-            profileRepository.findProfileById(adminClient, userId),
             authRepository.getAuthUserById(adminClient, userId),
             finalExamRepository.ensureEnrollmentFinalExamGrade(
               adminClient,
@@ -1342,7 +1361,7 @@ export async function transferStudentBetweenClassesForManager(
               to_class_id,
               userId
             ),
-          ]).then(([profile, auth, grade]) => [profile, auth, grade] as const)
+          ]).then(([auth, grade]) => [auth, grade] as const)
       );
     } catch (err) {
       return {
@@ -1351,13 +1370,6 @@ export async function transferStudentBetweenClassesForManager(
           err instanceof Error
             ? err.message
             : "Student transferred, but destination attendance or task rows could not be created.",
-      };
-    }
-
-    if (profileResult.error || !profileResult.data) {
-      return {
-        success: false,
-        error: profileResult.error?.message ?? "Unable to load student profile.",
       };
     }
 
@@ -1375,7 +1387,6 @@ export async function transferStudentBetweenClassesForManager(
       student_profile_id: studentProfile.id,
       user_id: userId,
       full_name: studentProfile.full_name,
-      username: profileResult.data.username,
       email: authResult.data.user?.email ?? "",
       phone: studentProfile.phone,
       joined_at: destEnrollment.joined_at ?? new Date().toISOString(),

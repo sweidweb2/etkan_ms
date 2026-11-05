@@ -519,7 +519,7 @@ export function ScheduleTanks({
     <TooltipProvider delay={120}>
       <div
         className={cn(
-          "grid h-[60vh] min-h-[20rem] grid-cols-[2.5rem_repeat(7,minmax(0,1fr))] grid-rows-[auto_minmax(0,1fr)_auto] gap-x-1.5 gap-y-2 overflow-hidden sm:grid-cols-[3.25rem_repeat(7,minmax(0,1fr))] sm:gap-x-2.5",
+          "grid h-[60vh] min-h-[20rem] grid-cols-[2.5rem_repeat(7,minmax(0,1fr))] grid-rows-[auto_minmax(0,1fr)_auto] gap-x-1.5 gap-y-2 overflow-hidden @lg/panel:grid-cols-[3.25rem_repeat(7,minmax(0,1fr))] sm:gap-x-2.5",
           className
         )}
       >
@@ -529,7 +529,7 @@ export function ScheduleTanks({
             <span className="hidden text-sm font-medium tracking-tight lg:inline">
               {day.label}
             </span>
-            <span className="text-xs font-medium tracking-tight lg:hidden">
+            <span className="text-xs font-medium tracking-tight @2xl/panel:hidden">
               {day.shortLabel}
             </span>
           </div>

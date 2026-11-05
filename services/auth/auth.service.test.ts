@@ -45,7 +45,6 @@ const authUser = {
 } as User;
 
 const validRegisterInput = {
-  username: "jane",
   fullName: "Jane Doe",
   email: "jane@school.com",
   password: "secret123",
@@ -69,7 +68,7 @@ describe("login", () => {
     vi.mocked(profileRepository.findProfileById).mockResolvedValue({
       data: {
         id: "user-1",
-        username: "jane",
+        full_name: "Jane Doe",
         role,
         is_instructor: false,
         created_at: "2026-01-01T00:00:00.000Z",
@@ -234,26 +233,7 @@ describe("register", () => {
     vi.resetAllMocks();
   });
 
-  it("rejects taken usernames before creating auth user", async () => {
-    vi.mocked(profileRepository.findProfileByUsername).mockResolvedValue({
-      data: { id: "existing", username: "jane" },
-      error: null,
-    });
-
-    const result = await register(authClient, adminClient, validRegisterInput);
-
-    expect(result.success).toBe(false);
-    if (!result.success) {
-      expect(result.error).toBe("This username is already taken.");
-    }
-    expect(authRepository.signUp).not.toHaveBeenCalled();
-  });
-
   it("creates auth user and student records on success", async () => {
-    vi.mocked(profileRepository.findProfileByUsername).mockResolvedValue({
-      data: null,
-      error: null,
-    });
     vi.mocked(authRepository.signUp).mockResolvedValue({
       data: {
         user: authUser,
@@ -274,7 +254,18 @@ describe("register", () => {
       expect(result.redirectTo).toContain(ROUTES.STUDENT_ROOT);
       expect(result.redirectTo).toContain("toast=signed_up");
     }
-    expect(profileService.ensureStudentRegistration).toHaveBeenCalled();
+    expect(authRepository.signUp).toHaveBeenCalledWith(
+      authClient,
+      expect.objectContaining({
+        email: "jane@school.com",
+        fullName: "Jane Doe",
+        role: ROLES.STUDENT,
+      })
+    );
+    expect(profileService.ensureStudentRegistration).toHaveBeenCalledWith(
+      adminClient,
+      expect.objectContaining({ authId: "user-1", fullName: "Jane Doe" })
+    );
     expect(roleService.syncAuthUserRole).toHaveBeenCalledWith(
       adminClient,
       "user-1",
@@ -283,10 +274,6 @@ describe("register", () => {
   });
 
   it("deletes auth user when profile creation fails", async () => {
-    vi.mocked(profileRepository.findProfileByUsername).mockResolvedValue({
-      data: null,
-      error: null,
-    });
     vi.mocked(authRepository.signUp).mockResolvedValue({
       data: {
         user: authUser,
@@ -315,10 +302,6 @@ describe("register", () => {
   });
 
   it("returns confirm-email flow when session is missing", async () => {
-    vi.mocked(profileRepository.findProfileByUsername).mockResolvedValue({
-      data: null,
-      error: null,
-    });
     vi.mocked(authRepository.signUp).mockResolvedValue({
       data: {
         user: authUser,

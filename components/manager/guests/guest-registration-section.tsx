@@ -81,7 +81,7 @@ type GuestRegistrationSectionProps = {
 };
 
 function userOptionLabel(user: GuestRegistrationLinkUserOption): string {
-  const name = user.username?.trim() || "Unnamed user";
+  const name = user.full_name.trim() || "Unnamed user";
   return user.email ? `${name} (${user.email})` : name;
 }
 

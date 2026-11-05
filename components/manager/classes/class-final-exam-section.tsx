@@ -37,6 +37,8 @@ type ClassFinalExamSectionProps = {
   onStudentGradesChange: (grades: ManagerStudentFinalExamGradeRow[]) => void;
   hasComputedGrades?: boolean;
   lockedUserIds?: string[];
+  /** When false, section stays open with no expand/collapse controls. */
+  collapsible?: boolean;
 };
 
 function TruncatedCell({
@@ -88,6 +90,7 @@ export function ClassFinalExamSection({
   onStudentGradesChange,
   hasComputedGrades = false,
   lockedUserIds = [],
+  collapsible = true,
 }: ClassFinalExamSectionProps) {
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [isEditExamOpen, setIsEditExamOpen] = useState(false);
@@ -170,6 +173,7 @@ export function ClassFinalExamSection({
         description="One final exam per class with a grade row per enrolled student."
         storageKey={COLLAPSIBLE_SECTION_STORAGE_KEYS.CLASS_DETAILS_FINAL_EXAM}
         defaultOpen
+        collapsible={collapsible}
         action={
           !finalExam ? (
             <Can permission={PERMISSIONS.FINAL_EXAMS_CREATE}>
@@ -221,7 +225,7 @@ export function ClassFinalExamSection({
         ) : (
           <>
             <div className="border-b bg-muted/20 px-4 pt-2 pb-3">
-              <dl className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+              <dl className="grid gap-4 @lg/panel:grid-cols-2 @2xl/panel:grid-cols-4">
                 <div>
                   <dt className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
                     Title

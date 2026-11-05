@@ -1,8 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { parseAddStudentToSemesterFormData } from "@/lib/validators/manager/add-student-to-semester";
 import { parseConnectSemesterClassFormData } from "@/lib/validators/manager/connect-semester-class";
-import { parseCreateBorrowsFormData } from "@/lib/validators/manager/create-borrows";
-import { parseCreateEquipmentFormData } from "@/lib/validators/manager/create-equipment";
 import { parseCreatePhaseFormData } from "@/lib/validators/manager/create-phase";
 import { parseCreateSessionTaskFormData } from "@/lib/validators/manager/create-session-task";
 import { parseUpdateSessionTaskFormData } from "@/lib/validators/manager/update-session-task";
@@ -10,7 +8,6 @@ import { parseCreateSubjectFormData } from "@/lib/validators/manager/create-subj
 import { parseEditStudentTaskFormData, createEditStudentTaskSchema } from "@/lib/validators/manager/edit-student-task";
 import { createEditStudentFinalExamGradeSchema } from "@/lib/validators/manager/edit-student-finalexam-grade";
 import { parseUpdateAttendeeFormData } from "@/lib/validators/manager/update-attendee";
-import { parseUpdateEquipmentFormData } from "@/lib/validators/manager/update-equipment";
 import { parseUpdateSessionSettingsFormData } from "@/lib/validators/manager/update-session-settings";
 import { parseUpdateClassSessionFormData } from "@/lib/validators/manager/update-class-session";
 import {
@@ -87,8 +84,28 @@ describe("parseCreatePhaseFormData", () => {
       success: true,
       data: {
         name: "Fall 2026 Core Semester",
+        semester_code: "",
       },
     });
+  });
+
+  it("accepts a manager-provided 4-digit code and rejects other formats", () => {
+    const valid = new FormData();
+    valid.set("name", "Fall 2026 Core Semester");
+    valid.set("semester_code", "0427");
+    expect(parseCreatePhaseFormData(valid)).toEqual({
+      success: true,
+      data: { name: "Fall 2026 Core Semester", semester_code: "0427" },
+    });
+
+    const invalid = new FormData();
+    invalid.set("name", "Fall 2026 Core Semester");
+    invalid.set("semester_code", "42a");
+    const result = parseCreatePhaseFormData(invalid);
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(result.fieldErrors?.semester_code).toBeDefined();
+    }
   });
 
   it("rejects missing semester name", () => {
@@ -134,105 +151,6 @@ describe("parseConnectSemesterClassFormData", () => {
       expect(result.data.classId).toBe(sampleId);
       expect(result.data.semester_id).toBe(sampleId);
     }
-  });
-});
-
-describe("parseCreateEquipmentFormData", () => {
-  it("parses valid equipment form data", () => {
-    const formData = new FormData();
-    formData.set("name", "Microscope");
-    formData.set("description", "Lab equipment");
-    formData.set("quantity", "10");
-    formData.set("unit_price", "250");
-
-    const result = parseCreateEquipmentFormData(formData);
-
-    expect(result.success).toBe(true);
-    if (result.success) {
-      expect(result.data.name).toBe("Microscope");
-      expect(result.data.quantity).toBe(10);
-      expect(result.data.unit_price).toBe(250);
-    }
-  });
-
-  it("rejects missing name", () => {
-    const formData = new FormData();
-    formData.set("name", "");
-    formData.set("quantity", "10");
-    formData.set("unit_price", "250");
-
-    const result = parseCreateEquipmentFormData(formData);
-
-    expect(result.success).toBe(false);
-    if (!result.success) {
-      expect(result.fieldErrors?.name).toBeDefined();
-    }
-  });
-});
-
-describe("parseUpdateEquipmentFormData", () => {
-  it("parses valid update equipment form data", () => {
-    const formData = new FormData();
-    formData.set("id", sampleId);
-    formData.set("name", "Microscope");
-    formData.set("description", "");
-    formData.set("quantity", "8");
-    formData.set("unit_price", "300");
-
-    const result = parseUpdateEquipmentFormData(formData);
-
-    expect(result.success).toBe(true);
-    if (result.success) {
-      expect(result.data.id).toBe(sampleId);
-      expect(result.data.quantity).toBe(8);
-    }
-  });
-
-  it("rejects missing id", () => {
-    const formData = new FormData();
-    formData.set("name", "Microscope");
-    formData.set("quantity", "8");
-    formData.set("unit_price", "300");
-
-    const result = parseUpdateEquipmentFormData(formData);
-
-    expect(result.success).toBe(false);
-    if (!result.success) {
-      expect(result.fieldErrors?.id).toBeDefined();
-    }
-  });
-});
-
-describe("parseCreateBorrowsFormData", () => {
-  it("parses valid borrow items JSON", () => {
-    const formData = new FormData();
-    formData.set(
-      "items",
-      JSON.stringify([
-        {
-          user_id: sampleId,
-          equipment_id: sampleId,
-          quantity: 2,
-        },
-      ])
-    );
-
-    const result = parseCreateBorrowsFormData(formData);
-
-    expect(result.success).toBe(true);
-    if (result.success) {
-      expect(result.data.items).toHaveLength(1);
-      expect(result.data.items[0]?.quantity).toBe(2);
-    }
-  });
-
-  it("rejects empty items", () => {
-    const formData = new FormData();
-    formData.set("items", JSON.stringify([]));
-
-    const result = parseCreateBorrowsFormData(formData);
-
-    expect(result.success).toBe(false);
   });
 });
 
@@ -324,7 +242,7 @@ describe("parseMarkNotificationReadFormData", () => {
 });
 
 describe("parseUpdateSessionSettingsFormData", () => {
-  it("parses phase link fields", () => {
+  it("ignores fields that are no longer session settings", () => {
     const formData = new FormData();
     formData.set("session_id", sampleId);
     formData.set("class_id", sampleId);
@@ -334,14 +252,14 @@ describe("parseUpdateSessionSettingsFormData", () => {
 
     expect(result.success).toBe(true);
     if (result.success) {
-      expect(result.data.semester_id).toBe(sampleId);
+      expect(result.data).not.toHaveProperty("semester_id");
       expect(result.data.group_grade_level).toBeUndefined();
     }
   });
 
   it("rejects missing session or class", () => {
     const formData = new FormData();
-    formData.set("semester_id", sampleId);
+    formData.set("group_grade_level", "medium");
 
     const result = parseUpdateSessionSettingsFormData(formData);
 

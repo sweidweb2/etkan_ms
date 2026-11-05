@@ -1,15 +1,9 @@
 "use client";
 
-import {
-  useActionState,
-  useMemo,
-  useState,
-  useTransition,
-} from "react";
+import { useActionState, useState, useTransition } from "react";
 import {
   ClipboardCheckIcon,
   FileTextIcon,
-  LayersIcon,
   UsersRoundIcon,
 } from "lucide-react";
 import { updateSessionSettingsAction } from "@/app/manager/classes/actions";
@@ -19,13 +13,6 @@ import { FieldLabel } from "@/components/auth/field-label";
 import { SessionAttendanceBoard } from "@/components/manager/classes/session-attendance-board";
 import { InlineSpinner } from "@/components/loaders/inline-spinner";
 import { Button } from "@/components/ui/button";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import {
   SESSION_GROUP_GRADE_LEVEL_DOT_CLASSES,
   SESSION_GROUP_GRADE_LEVEL_LABELS,
@@ -45,65 +32,33 @@ import type {
   UpdateSessionSettingsActionState,
 } from "@/types/manager-class-session-detail";
 import type { SessionGroupGradeLevelValue } from "@/types/manager-session-group-grade";
-import type { ManagerSessionPhaseLink } from "@/types/manager-session-phase-link";
 
 const initialState: UpdateSessionSettingsActionState = {};
 
-type SaveTarget = "phase" | "groupGrade" | "sessionReport";
+type SaveTarget = "groupGrade" | "sessionReport";
 
 type SessionDetailsActionsProps = {
   classId: string;
   sessionId: string;
-  linkedPhase: ManagerSessionPhaseLink | null;
-  phaseOptions: ManagerSessionPhaseLink[];
-  defaultPhaseId?: string | null;
   groupGradeLevel: SessionGroupGradeLevelValue | null;
   sessionReport?: string | null;
   hasComputedGrades?: boolean;
   attendees: ManagerSessionAttendeeRow[];
   lockedUserIds?: string[];
   onAttendeeUpdated: (attendee: ManagerSessionAttendeeRow) => void;
-  /** Hide phase linking (e.g. teacher session surface). */
-  hidePhase?: boolean;
-  onSettingsUpdated: (
-    session: ManagerClassSessionRow,
-    linkedPhase?: ManagerSessionPhaseLink | null
-  ) => void;
+  onSettingsUpdated: (session: ManagerClassSessionRow) => void;
   className?: string;
 };
-
-function getInitialPhaseId(
-  linkedPhase: ManagerSessionPhaseLink | null,
-  defaultPhaseId: string | null | undefined,
-  phaseOptions: ManagerSessionPhaseLink[]
-) {
-  if (linkedPhase?.phase_id) {
-    return linkedPhase.phase_id;
-  }
-
-  if (
-    defaultPhaseId &&
-    phaseOptions.some((phase) => phase.phase_id === defaultPhaseId)
-  ) {
-    return defaultPhaseId;
-  }
-
-  return "";
-}
 
 export function SessionDetailsActions({
   classId,
   sessionId,
-  linkedPhase,
-  phaseOptions,
-  defaultPhaseId,
   groupGradeLevel,
   sessionReport = null,
   hasComputedGrades = false,
   attendees,
   lockedUserIds = [],
   onAttendeeUpdated,
-  hidePhase = false,
   onSettingsUpdated,
   className,
 }: SessionDetailsActionsProps) {
@@ -119,41 +74,22 @@ export function SessionDetailsActions({
     PERMISSIONS.SESSIONS_UPDATE_SETTINGS
   );
   const [saveTarget, setSaveTarget] = useState<SaveTarget | null>(null);
-  const isPhasePending = isPending && saveTarget === "phase";
   const isGroupGradePending = isPending && saveTarget === "groupGrade";
   const isSessionReportPending = isPending && saveTarget === "sessionReport";
 
   useActionStateToast(state, isPending);
 
-  const initialPhaseId = useMemo(
-    () => getInitialPhaseId(linkedPhase, defaultPhaseId, phaseOptions),
-    [defaultPhaseId, linkedPhase, phaseOptions]
-  );
-  const phaseSelectItems = useMemo(
-    () =>
-      Object.fromEntries(
-        phaseOptions.map((phase) => [phase.phase_id, phase.phase_name])
-      ),
-    [phaseOptions]
-  );
-  const [selectedPhaseId, setSelectedPhaseId] = useState(initialPhaseId);
   const [selectedGroupGrade, setSelectedGroupGrade] =
     useState<SessionGroupGradeLevelValue | null>(groupGradeLevel);
   const [sessionReportValue, setSessionReportValue] = useState(
     sessionReport ?? ""
   );
-  const [phaseSyncKey, setPhaseSyncKey] = useState(initialPhaseId);
   const [groupGradeSyncKey, setGroupGradeSyncKey] = useState(
     groupGradeLevel ?? "none"
   );
   const [sessionReportSyncKey, setSessionReportSyncKey] = useState(
     sessionReport ?? ""
   );
-
-  if (initialPhaseId !== phaseSyncKey) {
-    setPhaseSyncKey(initialPhaseId);
-    setSelectedPhaseId(initialPhaseId);
-  }
 
   const nextGroupGradeSyncKey = groupGradeLevel ?? "none";
   if (nextGroupGradeSyncKey !== groupGradeSyncKey) {
@@ -187,26 +123,10 @@ export function SessionDetailsActions({
         return;
       }
 
-      onSettingsUpdated(nextState.session, nextState.linkedPhase);
+      onSettingsUpdated(nextState.session);
     },
     (nextState) => Boolean(nextState.success && nextState.session)
   );
-
-  function handleSavePhase() {
-    if (!selectedPhaseId) {
-      return;
-    }
-
-    const formData = new FormData();
-    formData.set("class_id", classId);
-    formData.set("session_id", sessionId);
-    formData.set("semester_id", selectedPhaseId);
-
-    setSaveTarget("phase");
-    startTransition(() => {
-      formAction(formData);
-    });
-  }
 
   function handleSelectGroupGrade(level: SessionGroupGradeLevelValue) {
     if (
@@ -270,7 +190,7 @@ export function SessionDetailsActions({
         />
       </div>
 
-      <div className="grid gap-4 lg:grid-cols-2">
+      <div className="grid gap-4 @2xl/panel:grid-cols-2">
         <div className="flex flex-col gap-4 rounded-xl border border-foreground/10 bg-muted/20 p-4">
           <div className="flex items-center gap-2">
             <div className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-violet-500/10 text-violet-700 dark:text-violet-300">
@@ -411,75 +331,6 @@ export function SessionDetailsActions({
             </Can>
           </div>
         </div>
-
-        {hidePhase ? null : (
-          <div className="flex flex-col gap-4 rounded-xl border border-foreground/10 bg-muted/20 p-4 lg:max-w-md">
-            <div className="flex items-center gap-2">
-              <div className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-sky-500/10 text-sky-700 dark:text-sky-300">
-                <LayersIcon className="size-4" />
-              </div>
-              <div>
-                <h3 className="text-sm font-medium">Add to phase</h3>
-                <p className="text-xs text-muted-foreground">
-                  {linkedPhase
-                    ? `Linked to ${linkedPhase.phase_name}.`
-                    : "Link this session to a semester phase."}
-                </p>
-              </div>
-            </div>
-
-            <div className="flex flex-col gap-2">
-              <FieldLabel
-                htmlFor="session-phase-select"
-                label="Phase"
-                hint={linkedPhase ? "Linked" : "Required to save"}
-              />
-              <Select
-                value={selectedPhaseId || null}
-                items={phaseSelectItems}
-                disabled={isPending || hasComputedGrades}
-                onValueChange={(value) => {
-                  if (value) {
-                    setSelectedPhaseId(value);
-                  }
-                }}
-              >
-                <SelectTrigger id="session-phase-select" className="w-full">
-                  <SelectValue placeholder="Select a phase" />
-                </SelectTrigger>
-                <SelectContent align="start">
-                  {phaseOptions.map((phase) => (
-                    <SelectItem key={phase.phase_id} value={phase.phase_id}>
-                      {phase.phase_name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            <Can permission={PERMISSIONS.SESSIONS_UPDATE_SETTINGS}>
-              <Button
-                type="button"
-                className="self-start"
-                disabled={isPending || !selectedPhaseId || hasComputedGrades}
-                onClick={handleSavePhase}
-                title={
-                  hasComputedGrades
-                    ? CLASS_COMPUTED_GRADES_STRUCTURE_LOCKED_ERROR
-                    : undefined
-                }
-              >
-                {isPhasePending ? <InlineSpinner /> : null}
-                Save phase link
-              </Button>
-            </Can>
-            {hasComputedGrades ? (
-              <p className="text-xs text-muted-foreground">
-                {CLASS_COMPUTED_GRADES_STRUCTURE_LOCKED_ERROR}
-              </p>
-            ) : null}
-          </div>
-        )}
     </div>
   );
 }
