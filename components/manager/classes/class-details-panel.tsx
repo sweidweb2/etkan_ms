@@ -4,6 +4,13 @@ import Link from "next/link";
 import { useMemo, useState } from "react";
 import { format } from "date-fns";
 import { LibraryIcon, LineChartIcon, PencilIcon, RefreshCwIcon } from "lucide-react";
+import {
+  Tabs as TabsPrimitive,
+  TabsContent as TabsContentPrimitive,
+  TabsContents as TabsContentsPrimitive,
+  TabsList as TabsListPrimitive,
+  TabsTrigger as TabsTriggerPrimitive,
+} from "@/components/animate-ui/primitives/animate/tabs";
 import { Can } from "@/components/auth/can";
 import { DetailField } from "@/components/manager/shared/detail-field";
 import { AssignClassTeachersDropdown } from "@/components/manager/classes/assign-class-teachers-dropdown";
@@ -70,6 +77,20 @@ import type {
 import type { ManagerClassTaskRow } from "@/types/manager-class-session-detail";
 import type { ManagerStudentRow } from "@/types/manager-student";
 
+type ClassDetailsTab =
+  | "sessions"
+  | "tasks"
+  | "students"
+  | "final-exam"
+  | "progress";
+
+const TAB_TRIGGER_CLASS = cn(
+  "inline-flex items-center rounded-full border px-3 py-1.5 text-xs font-medium transition-all duration-200 sm:px-4 sm:text-sm",
+  "border-transparent text-muted-foreground hover:border-border/60 hover:bg-background/80 hover:text-foreground hover:shadow-sm",
+  "data-[state=active]:border-border data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-md",
+  "focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50"
+);
+
 type ClassDetailsPanelProps = {
   classRow: ManagerClassRow;
   initialSessions: ManagerClassSessionRow[];
@@ -116,6 +137,8 @@ export function ClassDetailsPanel({
     initialAvailableStudents
   );
   const [teachers, setTeachers] = useState(initialTeachers);
+  const [activeTab, setActiveTab] = useState<ClassDetailsTab>("sessions");
+  const showProgressTab = classRow.subject_nb_sessions > 0;
 
   const sessionRate = getClassSessionCompletionRate(classRow);
   const sessionTone = getClassProgressTone(classRow);
@@ -256,7 +279,7 @@ export function ClassDetailsPanel({
         }
       >
         <div className="px-4 pt-2 pb-4">
-          <dl className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+          <dl className="grid gap-6 @lg/panel:grid-cols-2 @2xl/panel:grid-cols-3">
             <DetailField label="Name" value={classRow.name} />
             <DetailField label="Status">
               <span
@@ -333,58 +356,114 @@ export function ClassDetailsPanel({
         </div>
       ) : null}
 
-      <ClassSessionsSection
-        classId={classRow.id}
-        className={classRow.name}
-        sessions={sessions}
-        onSessionsChange={setSessions}
-        onClassUpdated={setClassRow}
-        hasComputedGrades={hasComputedGrades}
-      />
+      <TabsPrimitive
+        value={activeTab}
+        onValueChange={(value) => setActiveTab(value as ClassDetailsTab)}
+        className="flex flex-col gap-4"
+      >
+        <TabsListPrimitive className="flex h-auto w-full flex-wrap items-center gap-2 rounded-full bg-muted/60 p-1 ring-1 ring-foreground/8 @lg/panel:w-fit">
+          <TabsTriggerPrimitive value="sessions" className={TAB_TRIGGER_CLASS}>
+            Sessions
+          </TabsTriggerPrimitive>
+          {canViewTasks ? (
+            <TabsTriggerPrimitive value="tasks" className={TAB_TRIGGER_CLASS}>
+              Tasks
+            </TabsTriggerPrimitive>
+          ) : null}
+          <TabsTriggerPrimitive value="students" className={TAB_TRIGGER_CLASS}>
+            Students
+          </TabsTriggerPrimitive>
+          <TabsTriggerPrimitive
+            value="final-exam"
+            className={TAB_TRIGGER_CLASS}
+          >
+            Final exam
+          </TabsTriggerPrimitive>
+          {showProgressTab ? (
+            <TabsTriggerPrimitive
+              value="progress"
+              className={TAB_TRIGGER_CLASS}
+            >
+              Session progress
+            </TabsTriggerPrimitive>
+          ) : null}
+        </TabsListPrimitive>
 
-      {canViewTasks ? (
-        <ClassTasksSection
-          classId={classRow.id}
-          className={classRow.name}
-          tasks={initialTasks}
-          hasSubject={Boolean(classRow.subject_id)}
-          hasComputedGrades={hasComputedGrades}
-        />
-      ) : null}
+        <TabsContentsPrimitive>
+          <TabsContentPrimitive value="sessions" className="outline-none">
+            <ClassSessionsSection
+              classId={classRow.id}
+              className={classRow.name}
+              sessions={sessions}
+              onSessionsChange={setSessions}
+              onClassUpdated={setClassRow}
+              hasComputedGrades={hasComputedGrades}
+              collapsible={false}
+            />
+          </TabsContentPrimitive>
 
-      <ClassStudentsSection
-        classId={classRow.id}
-        className={classRow.name}
-        semesterId={classRow.semester_id}
-        initialStudents={students}
-        availableStudents={availableStudents}
-        transferClassOptions={transferClassOptions}
-        onStudentsChange={setStudents}
-        onAvailableStudentsChange={setAvailableStudents}
-        onClassUpdated={setClassRow}
-        onStudentGradeAdded={(grade) => {
-          setStudentGrades((current) => {
-            if (current.some((row) => row.id === grade.id)) {
-              return current;
-            }
+          {canViewTasks ? (
+            <TabsContentPrimitive value="tasks" className="outline-none">
+              <ClassTasksSection
+                classId={classRow.id}
+                className={classRow.name}
+                tasks={initialTasks}
+                hasSubject={Boolean(classRow.subject_id)}
+                hasComputedGrades={hasComputedGrades}
+                collapsible={false}
+              />
+            </TabsContentPrimitive>
+          ) : null}
 
-            return [...current, grade];
-          });
-        }}
-      />
+          <TabsContentPrimitive value="students" className="outline-none">
+            <ClassStudentsSection
+              classId={classRow.id}
+              className={classRow.name}
+              semesterId={classRow.semester_id}
+              initialStudents={students}
+              availableStudents={availableStudents}
+              transferClassOptions={transferClassOptions}
+              onStudentsChange={setStudents}
+              onAvailableStudentsChange={setAvailableStudents}
+              onClassUpdated={setClassRow}
+              onStudentGradeAdded={(grade) => {
+                setStudentGrades((current) => {
+                  if (current.some((row) => row.id === grade.id)) {
+                    return current;
+                  }
 
-      <ClassFinalExamSection
-        classId={classRow.id}
-        className={classRow.name}
-        finalExam={finalExam}
-        studentGrades={studentGrades}
-        onFinalExamChange={setFinalExam}
-        onStudentGradesChange={setStudentGrades}
-        hasComputedGrades={hasComputedGrades}
-        lockedUserIds={lockedUserIds}
-      />
+                  return [...current, grade];
+                });
+              }}
+              collapsible={false}
+            />
+          </TabsContentPrimitive>
 
-      <ClassSessionProgressTrack classRow={classRow} sessions={sessions} />
+          <TabsContentPrimitive value="final-exam" className="outline-none">
+            <ClassFinalExamSection
+              classId={classRow.id}
+              className={classRow.name}
+              finalExam={finalExam}
+              studentGrades={studentGrades}
+              onFinalExamChange={setFinalExam}
+              onStudentGradesChange={setStudentGrades}
+              hasComputedGrades={hasComputedGrades}
+              lockedUserIds={lockedUserIds}
+              collapsible={false}
+            />
+          </TabsContentPrimitive>
+
+          {showProgressTab ? (
+            <TabsContentPrimitive value="progress" className="outline-none">
+              <ClassSessionProgressTrack
+                classRow={classRow}
+                sessions={sessions}
+                collapsible={false}
+              />
+            </TabsContentPrimitive>
+          ) : null}
+        </TabsContentsPrimitive>
+      </TabsPrimitive>
     </div>
     </TooltipProvider>
   );

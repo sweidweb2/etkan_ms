@@ -162,7 +162,7 @@ export function TeamsSection({
 }: TeamsSectionProps) {
   return (
     <section className="flex w-full flex-col gap-4">
-      <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
+      <div className="flex flex-col gap-1 @lg/panel:flex-row @lg/panel:items-center @lg/panel:justify-between">
         <div>
           <h2 className="flex items-center gap-2 text-lg font-semibold tracking-tight">
             Teams

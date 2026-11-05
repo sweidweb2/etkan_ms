@@ -280,6 +280,7 @@ export const PERMISSIONS = {
   BACKUP_DOWNLOAD: "backup.download",
 
   LOGS_VIEW: "logs.view",
+  LOGS_DELETE: "logs.delete",
 
   CLOUDFLARE_AI_USAGE_VIEW: "cloudflare_ai_usage.view",
 
@@ -1343,6 +1344,12 @@ export const PERMISSION_DEFINITIONS: readonly PermissionDefinition[] = [
     feature: "logs",
     label: "View audit logs",
     access: PERMISSION_ACCESS.READ,
+  },
+  {
+    key: PERMISSIONS.LOGS_DELETE,
+    feature: "logs",
+    label: "Delete audit logs",
+    access: PERMISSION_ACCESS.WRITE,
   },
 
   {

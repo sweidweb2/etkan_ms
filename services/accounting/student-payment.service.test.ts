@@ -183,15 +183,15 @@ describe("createStudentPaymentForManager", () => {
     vi.mocked(
       studentPaymentRepository.createStudentPaymentWithRecalc
     ).mockResolvedValue({
-      data: { payment: paymentRecord, paymentPhaseId: phaseId },
-      error: null,
-    } as never);
-    vi.mocked(studentPaymentPhaseRepository.findSppById).mockResolvedValue({
       data: {
-        ...sppRecord,
-        status: "paid",
-        total_paid: 1000,
-        remaining_amount: 0,
+        payment: paymentRecord,
+        paymentPhaseId: phaseId,
+        spp: {
+          ...sppRecord,
+          status: "paid",
+          total_paid: 1000,
+          remaining_amount: 0,
+        },
       },
       error: null,
     } as never);
@@ -225,6 +225,7 @@ describe("createStudentPaymentForManager", () => {
     expect(
       studentPaymentRepository.createStudentPaymentWithRecalc
     ).toHaveBeenCalled();
+    expect(studentPaymentPhaseRepository.findSppById).not.toHaveBeenCalled();
     expect(
       studentPaymentPhaseRepository.updateStudentPaymentPhaseFinancials
     ).not.toHaveBeenCalled();
@@ -367,6 +368,45 @@ describe("deleteStudentPaymentForManager", () => {
         deleted: paymentRecord,
         studentPaymentPhaseId: sppId,
         paymentPhaseId: phaseId,
+        spp: sppRecord,
+      },
+      error: null,
+    } as never);
+
+    const result = await deleteStudentPaymentForManager(
+      adminClient,
+      actor.userId,
+      actor,
+      { id: paymentId, student_payment_phase_id: sppId }
+    );
+
+    expect(result.success).toBe(true);
+    expect(studentPaymentPhaseRepository.findSppById).not.toHaveBeenCalled();
+    expect(
+      studentPaymentRepository.deleteStudentPaymentWithRecalc
+    ).toHaveBeenCalledWith(adminClient, paymentId, sppId);
+    expect(
+      paymentPhaseRepository.updatePaymentPhaseStatus
+    ).not.toHaveBeenCalled();
+    expect(auditLogService.recordManagerAuditLog).toHaveBeenCalled();
+  });
+});
+
+describe("payment snapshot fallback", () => {
+  beforeEach(() => {
+    vi.resetAllMocks();
+    vi.mocked(auditLogService.recordManagerAuditLog).mockResolvedValue(null);
+  });
+
+  it("reads the SPP once when the RPC result has no spp", async () => {
+    vi.mocked(
+      studentPaymentRepository.deleteStudentPaymentWithRecalc
+    ).mockResolvedValue({
+      data: {
+        deleted: paymentRecord,
+        studentPaymentPhaseId: sppId,
+        paymentPhaseId: phaseId,
+        spp: null,
       },
       error: null,
     } as never);
@@ -383,13 +423,7 @@ describe("deleteStudentPaymentForManager", () => {
     );
 
     expect(result.success).toBe(true);
-    expect(
-      studentPaymentRepository.deleteStudentPaymentWithRecalc
-    ).toHaveBeenCalledWith(adminClient, paymentId, sppId);
-    expect(
-      paymentPhaseRepository.updatePaymentPhaseStatus
-    ).not.toHaveBeenCalled();
-    expect(auditLogService.recordManagerAuditLog).toHaveBeenCalled();
+    expect(studentPaymentPhaseRepository.findSppById).toHaveBeenCalledTimes(1);
   });
 });
 
@@ -481,19 +515,10 @@ describe("sumStudentPaymentsForMonthForManager", () => {
     vi.resetAllMocks();
   });
 
-  it("sums payment amounts for the current calendar month", async () => {
+  it("returns the DB net total for the current calendar month", async () => {
     vi.mocked(
-      studentPaymentRepository.listPaymentAmountsBetween
-    ).mockResolvedValue({
-      data: [
-        { payment_date: "2026-08-02", amount: 100 },
-        { payment_date: "2026-08-15", amount: 250.5 },
-      ],
-      error: null,
-      count: null,
-      status: 200,
-      statusText: "OK",
-    } as never);
+      studentPaymentRepository.sumPaymentAmountsBetween
+    ).mockResolvedValue({ data: 350.5, error: null });
 
     const total = await sumStudentPaymentsForMonthForManager(
       adminClient,
@@ -503,8 +528,25 @@ describe("sumStudentPaymentsForMonthForManager", () => {
 
     expect(total).toBe(350.5);
     expect(
-      studentPaymentRepository.listPaymentAmountsBetween
+      studentPaymentRepository.sumPaymentAmountsBetween
     ).toHaveBeenCalledWith(adminClient, "2026-08-01", "2026-09-01");
+    expect(
+      studentPaymentRepository.listPaymentAmountsBetween
+    ).not.toHaveBeenCalled();
+  });
+
+  it("never reports a negative month when refunds exceed credits", async () => {
+    vi.mocked(
+      studentPaymentRepository.sumPaymentAmountsBetween
+    ).mockResolvedValue({ data: -40, error: null });
+
+    const total = await sumStudentPaymentsForMonthForManager(
+      adminClient,
+      actor.userId,
+      new Date("2026-08-16T12:00:00")
+    );
+
+    expect(total).toBe(0);
   });
 });
 

@@ -21,6 +21,7 @@ import { Can } from "@/components/auth/can";
 import { loadWorkshopsPageAction } from "@/app/manager/workshops/actions";
 import { AddWorkshopDialog } from "@/components/manager/workshops/add-workshop-dialog";
 import { WorkshopCard } from "@/components/manager/workshops/workshop-card";
+import { PanelPageHeader } from "@/components/panels/panel-page-header";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -189,53 +190,44 @@ export function ManageWorkshopsPanel({
 
   return (
     <div className="flex flex-col gap-6">
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-        <div>
-          <h1 className="text-2xl font-semibold tracking-tight">
-            Manage workshops
-          </h1>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Create and manage workshop offerings.
-          </p>
-        </div>
-        <div className="flex shrink-0 items-center gap-2">
-          <Can permission={PERMISSIONS.WORKSHOPS_CREATE}>
-            <Button type="button" onClick={() => setIsCreateOpen(true)}>
-              <PlusIcon data-icon="inline-start" />
-              Add workshop
+      <PanelPageHeader title="Manage workshops" />
+      <div className="flex flex-wrap items-center justify-end gap-2 empty:hidden">
+        <Can permission={PERMISSIONS.WORKSHOPS_CREATE}>
+          <Button type="button" onClick={() => setIsCreateOpen(true)}>
+            <PlusIcon data-icon="inline-start" />
+            Add workshop
+          </Button>
+        </Can>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button
+              type="button"
+              variant="outline"
+              size="icon"
+              aria-label="Workshop actions"
+            >
+              <MoreHorizontalIcon />
             </Button>
-          </Can>
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button
-                type="button"
-                variant="outline"
-                size="icon"
-                aria-label="Workshop actions"
-              >
-                <MoreHorizontalIcon />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-48">
-              <Can permission={PERMISSIONS.WORKSHOPS_PAYMENTS_VIEW}>
-                <DropdownMenuItem asChild>
-                  <Link href={ROUTES.MANAGER_WORKSHOPS_PAYMENTS}>
-                    <ReceiptIcon />
-                    Total payments
-                  </Link>
-                </DropdownMenuItem>
-              </Can>
-              <Can permission={PERMISSIONS.INSTRUCTOR_SCHEDULES_VIEW}>
-                <DropdownMenuItem asChild>
-                  <Link href={ROUTES.MANAGER_INSTRUCTOR_SCHEDULES}>
-                    <CalendarDaysIcon />
-                    View schedule
-                  </Link>
-                </DropdownMenuItem>
-              </Can>
-            </DropdownMenuContent>
-          </DropdownMenu>
-        </div>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="w-48">
+            <Can permission={PERMISSIONS.WORKSHOPS_PAYMENTS_VIEW}>
+              <DropdownMenuItem asChild>
+                <Link href={ROUTES.MANAGER_WORKSHOPS_PAYMENTS}>
+                  <ReceiptIcon />
+                  Total payments
+                </Link>
+              </DropdownMenuItem>
+            </Can>
+            <Can permission={PERMISSIONS.INSTRUCTOR_SCHEDULES_VIEW}>
+              <DropdownMenuItem asChild>
+                <Link href={ROUTES.MANAGER_INSTRUCTOR_SCHEDULES}>
+                  <CalendarDaysIcon />
+                  View schedule
+                </Link>
+              </DropdownMenuItem>
+            </Can>
+          </DropdownMenuContent>
+        </DropdownMenu>
       </div>
 
       <TabsPrimitive
@@ -246,7 +238,7 @@ export function ManageWorkshopsPanel({
         }}
         className="flex flex-col gap-3"
       >
-        <TabsListPrimitive className="mx-auto flex h-auto w-full flex-wrap items-center justify-center gap-2 rounded-full bg-muted/60 p-1 ring-1 ring-foreground/8 sm:w-fit">
+        <TabsListPrimitive className="mx-auto flex h-auto w-full flex-wrap items-center justify-center gap-2 rounded-full bg-muted/60 p-1 ring-1 ring-foreground/8 @lg/panel:w-fit">
           {TYPE_TAB_ORDER.map((type) => (
             <TabsTriggerPrimitive
               key={type}
@@ -264,7 +256,7 @@ export function ManageWorkshopsPanel({
         </TabsListPrimitive>
       </TabsPrimitive>
 
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+      <div className="flex flex-col gap-3 @lg/panel:flex-row @lg/panel:items-center">
         <div className="relative min-w-0 flex-1">
           <SearchIcon className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
           <Input
@@ -284,7 +276,7 @@ export function ManageWorkshopsPanel({
             setPage(1);
           }}
         >
-          <SelectTrigger className="w-full sm:w-48">
+          <SelectTrigger className="w-full @lg/panel:w-48">
             <SelectValue placeholder="Status" />
           </SelectTrigger>
           <SelectContent>
@@ -342,7 +334,7 @@ export function ManageWorkshopsPanel({
       ) : (
         <div
           className={cn(
-            "grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4",
+            "grid gap-3 @lg/panel:grid-cols-2 @2xl/panel:grid-cols-3 @4xl/panel:grid-cols-4",
             isLoading && "opacity-60"
           )}
         >

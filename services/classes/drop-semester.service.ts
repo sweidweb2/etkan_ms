@@ -334,20 +334,43 @@ export async function studentHasPendingSemesterDrop(
 export async function reactivateSemesterAfterRejoin(
   adminClient: Supabase,
   studentUserId: string,
-  semesterId: string
+  semesterId: string,
+  knownStudentProfileId?: string
 ): Promise<void> {
-  const profileResult =
-    await studentProfileRepository.findStudentProfileByUserId(
-      adminClient,
-      studentUserId
-    );
-  if (!profileResult.data?.id) {
+  let studentProfileId = knownStudentProfileId;
+  if (!studentProfileId) {
+    const profileResult =
+      await studentProfileRepository.findStudentProfileByUserId(
+        adminClient,
+        studentUserId
+      );
+    studentProfileId = profileResult.data?.id;
+  }
+  if (!studentProfileId) {
     return;
   }
   await studentSemesterRepository.updateEnrollmentStatus(
     adminClient,
-    profileResult.data.id,
+    studentProfileId,
     semesterId,
     STUDENT_SEMESTER_STATUSES.ACTIVE
   );
+}
+
+/** Batch rejoin: one UPDATE for all students re-entering the semester. */
+export async function reactivateSemestersAfterRejoin(
+  adminClient: Supabase,
+  studentProfileIds: string[],
+  semesterId: string
+): Promise<void> {
+  const { error } =
+    await studentSemesterRepository.updateEnrollmentStatusForProfiles(
+      adminClient,
+      studentProfileIds,
+      semesterId,
+      STUDENT_SEMESTER_STATUSES.ACTIVE
+    );
+  if (error) {
+    throw new Error(error.message);
+  }
 }

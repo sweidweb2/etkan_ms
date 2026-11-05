@@ -253,13 +253,35 @@ export async function addStudentToClassForManager(
 
     let studentGrade: ManagerStudentFinalExamGradeRow | undefined;
 
-    const gradeResult = await timer.step("examGrade", () =>
-      finalExamRepository.ensureEnrollmentFinalExamGrade(
-        adminClient,
-        input.class_id,
-        userId
-      )
-    );
+    const [gradeResult, attendeesError, tasksError] = await Promise.all([
+      timer.step("examGrade", () =>
+        finalExamRepository.ensureEnrollmentFinalExamGrade(
+          adminClient,
+          input.class_id,
+          userId
+        )
+      ),
+      timer
+        .step("attendees", () =>
+          seedLateJoinAttendeesForStudent(adminClient, input.class_id, userId)
+        )
+        .then(
+          () => null,
+          (err: unknown) => err
+        ),
+      timer
+        .step("tasks", () =>
+          seedLateJoinStudentTasksForStudent(
+            adminClient,
+            input.class_id,
+            userId
+          )
+        )
+        .then(
+          () => null,
+          (err: unknown) => err
+        ),
+    ]);
 
     if (gradeResult.error) {
       return {
@@ -270,43 +292,31 @@ export async function addStudentToClassForManager(
       };
     }
 
+    if (attendeesError) {
+      return {
+        success: false,
+        error:
+          attendeesError instanceof Error
+            ? attendeesError.message
+            : "Student enrolled, but attendance rows could not be created.",
+      };
+    }
+
+    if (tasksError) {
+      return {
+        success: false,
+        error:
+          tasksError instanceof Error
+            ? tasksError.message
+            : "Student enrolled, but task grade rows could not be created.",
+      };
+    }
+
     if (gradeResult.data) {
       studentGrade = mapStudentFinalExamGradeRecord(
         gradeResult.data as StudentFinalExamGradeRecord,
         student.full_name
       );
-    }
-
-    try {
-      await timer.step("attendees", () =>
-        seedLateJoinAttendeesForStudent(adminClient, input.class_id, userId)
-      );
-    } catch (err) {
-      return {
-        success: false,
-        error:
-          err instanceof Error
-            ? err.message
-            : "Student enrolled, but attendance rows could not be created.",
-      };
-    }
-
-    try {
-      await timer.step("tasks", () =>
-        seedLateJoinStudentTasksForStudent(
-          adminClient,
-          input.class_id,
-          userId
-        )
-      );
-    } catch (err) {
-      return {
-        success: false,
-        error:
-          err instanceof Error
-            ? err.message
-            : "Student enrolled, but task grade rows could not be created.",
-      };
     }
 
     const classRow = mapClassDetailRecordToRow(classRecord, {
@@ -329,6 +339,22 @@ export async function addStudentToClassForManager(
 
     let warning: string | undefined;
 
+    const semesterId = classRecord.semester_id;
+    const reactivatePromise = semesterId
+      ? import("@/services/classes/drop-semester.service")
+          .then(({ reactivateSemesterAfterRejoin }) =>
+            reactivateSemesterAfterRejoin(
+              adminClient,
+              userId,
+              semesterId,
+              studentProfile.id
+            )
+          )
+          .catch(() => {
+            // Non-fatal: membership already created.
+          })
+      : Promise.resolve();
+
     if (!options?.skipPaymentSync) {
       const sync = await withPaymentSync(
         adminClient,
@@ -349,20 +375,7 @@ export async function addStudentToClassForManager(
       warning = sync.warning;
     }
 
-    if (classRecord.semester_id) {
-      try {
-        const { reactivateSemesterAfterRejoin } = await import(
-          "@/services/classes/drop-semester.service"
-        );
-        await reactivateSemesterAfterRejoin(
-          adminClient,
-          userId,
-          classRecord.semester_id
-        );
-      } catch {
-        // Non-fatal: membership already created.
-      }
-    }
+    await reactivatePromise;
 
     return {
       success: true,
@@ -660,24 +673,20 @@ async function enrollStudentsInClassCore(
     let warning: string | undefined;
     let joinItems: StudentJoinSyncItem[] = [];
 
-    if (classRecord.semester_id) {
-      try {
-        const { reactivateSemesterAfterRejoin } = await import(
-          "@/services/classes/drop-semester.service"
-        );
-        await Promise.all(
-          insertedUserIds.map((userId) =>
-            reactivateSemesterAfterRejoin(
+    const semesterId = classRecord.semester_id;
+    const reactivatePromise = semesterId
+      ? import("@/services/classes/drop-semester.service")
+          .then(({ reactivateSemestersAfterRejoin }) =>
+            reactivateSemestersAfterRejoin(
               adminClient,
-              userId,
-              classRecord.semester_id!
+              students.map((student) => student.student_profile_id),
+              semesterId
             )
           )
-        );
-      } catch {
-        // Non-fatal: memberships already created.
-      }
-    }
+          .catch(() => {
+            // Non-fatal: memberships already created.
+          })
+      : Promise.resolve();
 
     try {
       joinItems = await timer.step("paymentSync", () =>
@@ -714,6 +723,8 @@ async function enrollStudentsInClassCore(
       );
       warning = PAYMENT_SYNC_FAILURE_WARNING;
     }
+
+    await reactivatePromise;
 
     let autoAssignedPhase: { id: string; name: string } | undefined;
     let optionalPaymentPhases: Array<{ id: string; name: string }> | undefined;

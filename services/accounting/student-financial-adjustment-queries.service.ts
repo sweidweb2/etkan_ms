@@ -1,9 +1,6 @@
 import "server-only";
 
-import {
-  PAYMENT_PHASE_STATUSES,
-  STUDENT_PAYMENT_PHASE_STATUSES,
-} from "@/lib/manager/accounting/constants";
+import { PAYMENT_PHASE_STATUSES } from "@/lib/manager/accounting/constants";
 import { PERMISSIONS } from "@/lib/constants/permissions";
 import type { AdjustmentWithSourceSppRecord, FinancialAdjustmentRecord } from "@/repositories/student-financial-adjustment.repository";
 import * as adjustmentRepository from "@/repositories/student-financial-adjustment.repository";
@@ -13,8 +10,6 @@ import type { FinancialFormRecord } from "@/repositories/student-financial-form.
 import * as formRepository from "@/repositories/student-financial-form.repository";
 import type { StudentPaymentPhaseRecord } from "@/repositories/student-payment-phase.repository";
 import * as studentPaymentPhaseRepository from "@/repositories/student-payment-phase.repository";
-import * as profileRepository from "@/repositories/profile.repository";
-import * as studentProfileRepository from "@/repositories/student-profile.repository";
 import {
   assertPermission,
   assertStudentSelfAccess,
@@ -162,102 +157,34 @@ export async function listOpenSppsMissingPriorAdjustmentForManager(
   }
 
   const phaseById = new Map(openedPhases.map((phase) => [phase.id, phase]));
-  const openedPhaseIds = openedPhases.map((phase) => phase.id);
 
-  const { data: sppRows, error: sppError } =
-    await studentPaymentPhaseRepository.listSppsByPaymentPhaseIds(
+  const { data: qualifying, error } =
+    await adjustmentRepository.listOpenSppsMissingPriorAdjustment(
       adminClient,
-      openedPhaseIds
+      openedPhases.map((phase) => phase.id)
     );
-  if (sppError) {
-    throw new Error(sppError.message);
+  if (error) {
+    throw new Error(error.message);
   }
-
-  const openSpps = (sppRows ?? []).filter(
-    (row) => row.status !== STUDENT_PAYMENT_PHASE_STATUSES.CANCELLED
-  );
-  if (openSpps.length === 0) {
-    return [];
-  }
-
-  const openSppIds = openSpps.map((row) => row.id);
-  const { data: adjustmentRows, error: adjustmentError } =
-    await adjustmentRepository.listAdjustmentsBySppIds(adminClient, openSppIds);
-  if (adjustmentError) {
-    throw new Error(adjustmentError.message);
-  }
-
-  const sppIdsWithAdjustment = new Set(
-    (adjustmentRows ?? []).map((row) => row.student_payment_phase_id)
-  );
-
-  const withoutAdj = openSpps.filter(
-    (row) => !sppIdsWithAdjustment.has(row.id)
-  );
-  if (withoutAdj.length === 0) {
-    return [];
-  }
-
-  const candidateStudentIds = [
-    ...new Set(withoutAdj.map((row) => row.student_id)),
-  ];
-  const excludeSppIds = withoutAdj.map((row) => row.id);
-
-  const { data: studentsWithPrior, error: priorError } =
-    await adjustmentRepository.listStudentIdsWithAdjustmentsExcludingSppIds(
-      adminClient,
-      candidateStudentIds,
-      excludeSppIds
-    );
-  if (priorError) {
-    throw new Error(priorError.message);
-  }
-
-  const studentsWithPriorSet = new Set(studentsWithPrior ?? []);
-  const qualifying = withoutAdj.filter((row) =>
-    studentsWithPriorSet.has(row.student_id)
-  );
-  if (qualifying.length === 0) {
-    return [];
-  }
-
-  const labelStudentIds = [
-    ...new Set(qualifying.map((row) => row.student_id)),
-  ];
-  const [{ data: profiles }, { data: studentProfiles }] = await Promise.all([
-    profileRepository.listProfilesByIds(adminClient, labelStudentIds),
-    studentProfileRepository.listStudentProfilesByUserIds(
-      adminClient,
-      labelStudentIds
-    ),
-  ]);
-
-  const usernameById = new Map(
-    (profiles ?? []).map((profile) => [profile.id, profile.username])
-  );
-  const studentProfileByUserId = new Map(
-    (studentProfiles ?? []).map((profile) => [profile.user_id, profile])
-  );
 
   const rows: ManagerMissingPriorAdjustmentRow[] = [];
-  for (const spp of qualifying) {
+  for (const spp of qualifying ?? []) {
     const phase = phaseById.get(spp.payment_phase_id);
     if (!phase) {
       continue;
     }
-    const studentProfile = studentProfileByUserId.get(spp.student_id);
-    const fullName = studentProfile?.full_name?.trim();
-    const username = usernameById.get(spp.student_id)?.trim();
+    const fullName = spp.full_name?.trim();
+    const username = spp.username?.trim();
     rows.push({
-      spp_id: spp.id,
+      spp_id: spp.spp_id,
       student_id: spp.student_id,
-      student_profile_id: studentProfile?.id ?? null,
+      student_profile_id: spp.student_profile_id,
       student_label: fullName || username || spp.student_id,
       payment_phase_id: phase.id,
       payment_phase_name: phase.name,
       semester_id: phase.semester_id,
       semester_name: phase.semester_name,
-      spp_status: spp.status,
+      spp_status: spp.spp_status,
     });
   }
 

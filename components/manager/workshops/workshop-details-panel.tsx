@@ -360,7 +360,7 @@ export function WorkshopDetailsPanel({
         onValueChange={(value) => setPageTab(value as WorkshopPageTabValue)}
         className="gap-4"
       >
-        <TabsList className="w-full sm:w-fit">
+        <TabsList className="w-full @lg/panel:w-fit">
           <TabsTrigger value="status" className="px-4">
             Status
           </TabsTrigger>
@@ -428,7 +428,7 @@ export function WorkshopDetailsPanel({
                       {paymentCount === 1 ? "" : "s"}).
                     </p>
                   ) : null}
-                  <div className="grid gap-x-5 gap-y-1 sm:grid-cols-2 lg:grid-cols-3">
+                  <div className="grid gap-x-5 gap-y-1 @lg/panel:grid-cols-2 @2xl/panel:grid-cols-3">
                     <dl className="min-w-0">
                       <DetailField
                         label="Type"
@@ -459,7 +459,7 @@ export function WorkshopDetailsPanel({
                         }
                       />
                     </dl>
-                    <dl className="min-w-0 sm:col-span-2 lg:col-span-1">
+                    <dl className="min-w-0 @lg/panel:col-span-2 @2xl/panel:col-span-1">
                       <DetailField
                         label="Start"
                         value={formatDate(workshop.start_date)}
@@ -502,7 +502,7 @@ export function WorkshopDetailsPanel({
                 className="flex flex-col gap-4"
               >
                 <div className="flex items-center justify-center">
-                  <TabsListPrimitive className="flex h-auto w-full flex-wrap items-center justify-center gap-2 rounded-full bg-muted/60 p-1 ring-1 ring-foreground/8 sm:w-fit">
+                  <TabsListPrimitive className="flex h-auto w-full flex-wrap items-center justify-center gap-2 rounded-full bg-muted/60 p-1 ring-1 ring-foreground/8 @lg/panel:w-fit">
                     {canViewSchedule ? (
                       <TabsTriggerPrimitive
                         value="schedule"

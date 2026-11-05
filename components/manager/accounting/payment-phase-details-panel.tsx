@@ -483,7 +483,7 @@ export function PaymentPhaseDetailsPanel({
             </CardAction>
           </CardHeader>
           <CardContent>
-            <dl className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            <dl className="grid gap-4 @lg/panel:grid-cols-2 @2xl/panel:grid-cols-3">
               <DetailField label="Semester">
                 <Link
                   href={getManagerSemesterDetailRoute(phase.semester_id)}
@@ -575,7 +575,7 @@ export function PaymentPhaseDetailsPanel({
             </CardAction>
           </CardHeader>
           <CardContent className="px-0 pb-0">
-            <div className="flex flex-col gap-3 border-b px-4 pt-2 pb-3 sm:flex-row sm:items-center">
+            <div className="flex flex-col gap-3 border-b px-4 pt-2 pb-3 @lg/panel:flex-row @lg/panel:items-center">
               <div className="relative max-w-md flex-1">
                 <SearchIcon className="pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-muted-foreground" />
                 <Input
@@ -591,7 +591,7 @@ export function PaymentPhaseDetailsPanel({
                 items={STATUS_FILTER_SELECT_ITEMS}
                 onValueChange={handleStatusFilterChange}
               >
-                <SelectTrigger className="w-full sm:w-44" aria-label="Status">
+                <SelectTrigger className="w-full @lg/panel:w-44" aria-label="Status">
                   <SelectValue placeholder="All statuses" />
                 </SelectTrigger>
                 <SelectContent align="start">
@@ -627,6 +627,7 @@ export function PaymentPhaseDetailsPanel({
                 <table className="w-full min-w-[1040px] text-sm">
                   <thead>
                     <tr className="border-b bg-muted/40 text-left">
+                      <th className="w-12 px-4 py-3 font-medium">#</th>
                       <th className="px-4 py-3 font-medium">Student</th>
                       <th className="px-4 py-3 font-medium">Status</th>
                       <th className="px-4 py-3 font-medium text-right">
@@ -646,7 +647,7 @@ export function PaymentPhaseDetailsPanel({
                     </tr>
                   </thead>
                   <tbody>
-                    {paginatedSpps.map((spp) => (
+                    {paginatedSpps.map((spp, index) => (
                       <tr
                         key={spp.id}
                         className={SPP_ROW_CLASS}
@@ -658,6 +659,9 @@ export function PaymentPhaseDetailsPanel({
                           handleSppRowKeyDown(event, spp.id)
                         }
                       >
+                        <td className="px-4 py-3 text-muted-foreground tabular-nums">
+                          {rangeStart + index}
+                        </td>
                         <td
                           className="max-w-[18rem] px-4 py-3 font-medium"
                           onClick={(event) => event.stopPropagation()}
@@ -882,7 +886,7 @@ export function PaymentPhaseDetailsPanel({
               </div>
             )}
 
-            <div className="flex flex-col gap-3 border-t px-4 pt-2 pb-3 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex flex-col gap-3 border-t px-4 pt-2 pb-3 @lg/panel:flex-row @lg/panel:items-center @lg/panel:justify-between">
               <div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
                 <span>
                   Showing {rangeStart}–{rangeEnd} of {filteredSpps.length}

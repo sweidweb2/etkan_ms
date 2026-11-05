@@ -8,11 +8,15 @@ import {
   MessageSquareTextIcon,
   ScrollTextIcon,
   SearchIcon,
+  Trash2Icon,
 } from "lucide-react";
+import { usePermissions } from "@/components/auth/permissions-provider";
 import { AuditLogActionBadge } from "@/components/manager/logs/audit-log-action-badge";
 import { AuditLogSeverityBadge } from "@/components/manager/logs/audit-log-severity-badge";
+import { DeleteLogsDialog } from "@/components/manager/logs/delete-logs-dialog";
 import { LogDetailsDialog } from "@/components/manager/logs/log-details-dialog";
 import { UserStatCard } from "@/components/manager/users/user-stat-card";
+import { PanelPageHeader } from "@/components/panels/panel-page-header";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -21,6 +25,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { Checkbox } from "@/components/ui/checkbox";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Input } from "@/components/ui/input";
 import {
@@ -47,6 +52,8 @@ import {
   BACKUP_TABLES,
   type BackupTableName,
 } from "@/lib/constants/backup-tables";
+import { PERMISSIONS } from "@/lib/constants/permissions";
+import { hasPermissionInSet } from "@/lib/auth/permission-checks";
 import { cn } from "@/lib/utils";
 import { truncateText } from "@/lib/utils/truncate-text";
 import { loadAuditLogsPageAction } from "@/app/manager/logs/actions";
@@ -287,8 +294,16 @@ export function ManageLogsPanel({
   const [pageSize, setPageSize] = useState<(typeof PAGE_SIZE_OPTIONS)[number]>(10);
   const [currentPage, setCurrentPage] = useState(1);
   const [detailsLog, setDetailsLog] = useState<ManagerAuditLogRow | null>(null);
+  const [selectedIds, setSelectedIds] = useState<ReadonlySet<string>>(
+    () => new Set()
+  );
+  const [pendingDeleteIds, setPendingDeleteIds] = useState<string[]>([]);
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
 
   const [nowMs] = useState(() => Date.now());
+
+  const permissions = usePermissions();
+  const canDeleteLogs = hasPermissionInSet(permissions, PERMISSIONS.LOGS_DELETE);
 
   const tableOptions = useMemo(() => {
     const names = new Set<string>(BACKUP_TABLES);
@@ -358,7 +373,66 @@ export function ManageLogsPanel({
     filteredLogs.length === 0 ? 0 : (safeCurrentPage - 1) * pageSize + 1;
   const rangeEnd = Math.min(safeCurrentPage * pageSize, filteredLogs.length);
 
-  const resetToFirstPage = () => setCurrentPage(1);
+  const pageLogIds = paginatedLogs.map((log) => log.id);
+  const selectedOnPageCount = pageLogIds.filter((id) =>
+    selectedIds.has(id)
+  ).length;
+  const isPageFullySelected =
+    pageLogIds.length > 0 && selectedOnPageCount === pageLogIds.length;
+  const isPagePartiallySelected =
+    selectedOnPageCount > 0 && !isPageFullySelected;
+
+  const resetToFirstPage = () => {
+    setCurrentPage(1);
+    setSelectedIds(new Set());
+  };
+
+  const handleTogglePageSelection = (checked: boolean) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      pageLogIds.forEach((id) => {
+        if (checked) {
+          next.add(id);
+        } else {
+          next.delete(id);
+        }
+      });
+      return next;
+    });
+  };
+
+  const handleToggleRowSelection = (id: string, checked: boolean) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (checked) {
+        next.add(id);
+      } else {
+        next.delete(id);
+      }
+      return next;
+    });
+  };
+
+  const handleOpenDeleteDialog = () => {
+    if (selectedIds.size === 0) {
+      return;
+    }
+    setPendingDeleteIds([...selectedIds]);
+    setIsDeleteDialogOpen(true);
+  };
+
+  const handleLogsDeleted = (deletedIds: string[]) => {
+    const deleted = new Set(deletedIds);
+    setLogs((prev) => prev.filter((log) => !deleted.has(log.id)));
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      deletedIds.forEach((id) => next.delete(id));
+      return next;
+    });
+    setDetailsLog((current) =>
+      current && deleted.has(current.id) ? null : current
+    );
+  };
 
   const handleSearchChange = (value: string) => {
     setSearchQuery(value);
@@ -434,14 +508,9 @@ export function ManageLogsPanel({
   return (
     <TooltipProvider>
       <div className="flex flex-col gap-6">
-        <div>
-          <h1 className="text-2xl font-semibold tracking-tight">Logs</h1>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Review audit activity across tables and user actions.
-          </p>
-        </div>
+        <PanelPageHeader title="Logs" />
 
-        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        <div className="grid gap-4 @lg/panel:grid-cols-2 @4xl/panel:grid-cols-4">
           <UserStatCard
             label="Total logs"
             value={stats.total}
@@ -473,6 +542,15 @@ export function ManageLogsPanel({
           }}
         />
 
+        {canDeleteLogs ? (
+          <DeleteLogsDialog
+            open={isDeleteDialogOpen}
+            onOpenChange={setIsDeleteDialogOpen}
+            logIds={pendingDeleteIds}
+            onDeleted={handleLogsDeleted}
+          />
+        ) : null}
+
         <Card className="py-0">
           <CardHeader className="border-b bg-muted/40 py-3">
             <CardTitle>Audit log</CardTitle>
@@ -482,8 +560,8 @@ export function ManageLogsPanel({
             </CardDescription>
           </CardHeader>
           <CardContent className="px-0 pb-0">
-            <div className="flex flex-col gap-3 border-b px-4 pt-2 pb-3 sm:flex-row sm:flex-wrap sm:items-center">
-              <div className="relative w-full sm:w-44 sm:shrink-0">
+            <div className="flex flex-col gap-3 border-b px-4 pt-2 pb-3 @lg/panel:flex-row @lg/panel:flex-wrap @lg/panel:items-center">
+              <div className="relative w-full @lg/panel:w-44 sm:shrink-0">
                 <SearchIcon className="pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-muted-foreground" />
                 <Input
                   value={searchQuery}
@@ -498,7 +576,7 @@ export function ManageLogsPanel({
                 onValueChange={handleActionFilterChange}
               >
                 <SelectTrigger
-                  className="w-full sm:w-32"
+                  className="w-full @lg/panel:w-32"
                   aria-label="Filter by action"
                 >
                   <SelectValue placeholder="Action">
@@ -525,7 +603,7 @@ export function ManageLogsPanel({
                 onValueChange={handleSeverityFilterChange}
               >
                 <SelectTrigger
-                  className="w-full sm:w-32"
+                  className="w-full @lg/panel:w-32"
                   aria-label="Filter by severity"
                 >
                   <SelectValue placeholder="Severity">
@@ -552,7 +630,7 @@ export function ManageLogsPanel({
                 onValueChange={handleTableFilterChange}
               >
                 <SelectTrigger
-                  className="w-full sm:w-36"
+                  className="w-full @lg/panel:w-36"
                   aria-label="Filter by table"
                 >
                   <SelectValue placeholder="Table">
@@ -577,7 +655,7 @@ export function ManageLogsPanel({
                 onValueChange={handleActorFilterChange}
               >
                 <SelectTrigger
-                  className="w-full sm:w-44"
+                  className="w-full @lg/panel:w-44"
                   aria-label="Filter by actor name"
                 >
                   <SelectValue placeholder="Actor name">
@@ -599,7 +677,7 @@ export function ManageLogsPanel({
               </Select>
               <Select value={timeFilter} onValueChange={handleTimeFilterChange}>
                 <SelectTrigger
-                  className="w-full sm:w-36"
+                  className="w-full @lg/panel:w-36"
                   aria-label="Filter by time window"
                 >
                   <SelectValue placeholder="Time">
@@ -628,6 +706,37 @@ export function ManageLogsPanel({
               ) : null}
             </div>
 
+            {canDeleteLogs && selectedIds.size > 0 ? (
+              <div className="flex flex-wrap items-center justify-between gap-2 border-b bg-muted/30 px-4 py-2">
+                <div className="flex items-center gap-2 text-sm">
+                  <span className="font-medium">
+                    {selectedIds.size === 1
+                      ? "1 log selected"
+                      : `${selectedIds.size} logs selected`}
+                  </span>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setSelectedIds(new Set())}
+                  >
+                    Clear selection
+                  </Button>
+                </div>
+                <Button
+                  type="button"
+                  variant="destructive"
+                  size="sm"
+                  onClick={handleOpenDeleteDialog}
+                >
+                  <Trash2Icon />
+                  {selectedIds.size === 1
+                    ? "Delete log"
+                    : `Delete ${selectedIds.size} logs`}
+                </Button>
+              </div>
+            ) : null}
+
             {paginatedLogs.length === 0 ? (
               <EmptyState
                 size="sm"
@@ -649,6 +758,18 @@ export function ManageLogsPanel({
                 <table className="w-full min-w-[760px] text-sm">
                   <thead>
                     <tr className="border-b bg-muted/40 text-left">
+                      {canDeleteLogs ? (
+                        <th className="w-10 py-3 pr-0 pl-4">
+                          <Checkbox
+                            checked={isPageFullySelected}
+                            indeterminate={isPagePartiallySelected}
+                            onCheckedChange={handleTogglePageSelection}
+                            aria-label="Select all logs on this page"
+                            className="align-middle"
+                          />
+                        </th>
+                      ) : null}
+                      <th className="w-12 px-4 py-3 font-medium">#</th>
                       <th className="px-4 py-3 font-medium">When</th>
                       <th className="px-4 py-3 font-medium">Actor</th>
                       <th className="px-4 py-3 font-medium">Action</th>
@@ -658,14 +779,37 @@ export function ManageLogsPanel({
                     </tr>
                   </thead>
                   <tbody>
-                    {paginatedLogs.map((log) => {
+                    {paginatedLogs.map((log, index) => {
                       const changeSummary = getChangeSummary(log);
+                      const isSelected = selectedIds.has(log.id);
 
                       return (
                         <tr
                           key={log.id}
-                          className="border-b last:border-b-0 hover:bg-muted/30"
+                          aria-selected={canDeleteLogs ? isSelected : undefined}
+                          className={cn(
+                            "border-b last:border-b-0 hover:bg-muted/30",
+                            isSelected && "bg-muted/40"
+                          )}
                         >
+                          {canDeleteLogs ? (
+                            <td className="w-10 py-3 pr-0 pl-4">
+                              <Checkbox
+                                checked={isSelected}
+                                onCheckedChange={(checked) =>
+                                  handleToggleRowSelection(log.id, checked)
+                                }
+                                aria-label={`Select log from ${format(
+                                  new Date(log.created_at),
+                                  "MMM d, yyyy h:mm a"
+                                )}`}
+                                className="align-middle"
+                              />
+                            </td>
+                          ) : null}
+                          <td className="px-4 py-3 text-muted-foreground tabular-nums">
+                            {rangeStart + index}
+                          </td>
                           <td className="whitespace-nowrap px-4 py-3 text-muted-foreground">
                             {format(
                               new Date(log.created_at),
@@ -720,7 +864,7 @@ export function ManageLogsPanel({
               </div>
             )}
 
-            <div className="flex flex-col gap-3 border-t px-4 pt-2 pb-3 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex flex-col gap-3 border-t px-4 pt-2 pb-3 @lg/panel:flex-row @lg/panel:items-center @lg/panel:justify-between">
               <div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
                 <span>
                   Showing {rangeStart}–{rangeEnd} of {filteredLogs.length}

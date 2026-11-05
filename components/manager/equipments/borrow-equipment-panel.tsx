@@ -54,6 +54,7 @@ import {
 } from "@/components/ui/select";
 import { BorrowEquipmentHistorySection } from "@/components/manager/equipments/borrow-equipment-history-section";
 import { InlineSpinner } from "@/components/loaders/inline-spinner";
+import { PanelPageHeader } from "@/components/panels/panel-page-header";
 import { useActionStateSuccess } from "@/hooks/use-action-state-success";
 import { useActionStateToast } from "@/hooks/use-action-state-toast";
 import {
@@ -257,7 +258,7 @@ function TablePaginationFooter({
   }
 
   return (
-    <div className="flex flex-col gap-3 border-t px-4 pt-2 pb-3 sm:flex-row sm:items-center sm:justify-between">
+    <div className="flex flex-col gap-3 border-t px-4 pt-2 pb-3 @lg/panel:flex-row @lg/panel:items-center @lg/panel:justify-between">
       <span className="text-sm text-muted-foreground">
         Showing {rangeStart}–{rangeEnd} of {totalItems}
       </span>
@@ -696,6 +697,7 @@ export function BorrowEquipmentPanel({
 
   return (
     <div className="flex flex-col gap-6">
+      <PanelPageHeader title="Borrow equipment" />
       <Breadcrumb>
         <BreadcrumbList>
           <BreadcrumbItem>
@@ -709,15 +711,6 @@ export function BorrowEquipmentPanel({
           </BreadcrumbItem>
         </BreadcrumbList>
       </Breadcrumb>
-
-      <div>
-        <h1 className="text-2xl font-semibold tracking-tight">
-          Borrow equipment
-        </h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Select one or more students and equipment items, then save the borrow.
-        </p>
-      </div>
 
       <Card className="py-0">
         <CardHeader className="border-b bg-muted/40 py-3">
@@ -744,7 +737,7 @@ export function BorrowEquipmentPanel({
           </CardAction>
         </CardHeader>
         <CardContent className="px-0 pb-0">
-          <div className="flex flex-col gap-3 border-b px-4 pt-2 pb-3 lg:flex-row lg:items-end">
+          <div className="flex flex-col gap-3 border-b px-4 pt-2 pb-3 @2xl/panel:flex-row @2xl/panel:items-end">
             <div className="relative min-w-0 flex-1">
               <SearchIcon className="pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-muted-foreground" />
               <Input
@@ -758,7 +751,7 @@ export function BorrowEquipmentPanel({
                 aria-label="Search students"
               />
             </div>
-            <div className="w-full lg:w-72">
+            <div className="w-full @2xl/panel:w-72">
               <Select
                 value={classFilter}
                 onValueChange={handleClassFilterChange}

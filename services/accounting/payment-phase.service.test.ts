@@ -284,15 +284,18 @@ function mockSnapshotClasses(
     },
   ]
 ) {
-  vi.mocked(classRepository.listInProgressClassesWithSemester).mockResolvedValue({
-    data,
+  vi.mocked(classRepository.listInProgressClassesForBilling).mockResolvedValue({
+    data: data.map((row) => ({
+      ...row,
+      created_at: "2026-01-01T00:00:00.000Z",
+    })),
     error: null,
     count: null,
     status: 200,
     statusText: "OK",
   } as never);
   vi.mocked(
-    studentProfileRepository.listStudentProfilesExcludingUserIds
+    studentProfileRepository.listStudentProfilesWithoutActiveClass
   ).mockResolvedValue({
     data: [],
     error: null,

@@ -38,6 +38,7 @@ import { PaymentPhaseStatusBadge } from "@/components/manager/accounting/payment
 import { PaymentPhasesTimeline } from "@/components/manager/accounting/payment-phases-timeline";
 import { UpfrontWindowChip } from "@/components/manager/accounting/upfront-window-chip";
 import { UserStatCard } from "@/components/manager/users/user-stat-card";
+import { PanelPageHeader } from "@/components/panels/panel-page-header";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -245,14 +246,7 @@ export function ManageAccountingPanel({
   return (
     <TooltipProvider>
       <div className="flex flex-col gap-6">
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-          <div>
-            <h1 className="text-2xl font-semibold tracking-tight">Accounting</h1>
-            <p className="mt-1 text-sm text-muted-foreground">
-              Open payment phases by semester and assign enrolled students.
-            </p>
-          </div>
-        </div>
+        <PanelPageHeader title="Accounting" />
 
         <CreatePaymentPhaseDialog
           open={isCreateOpen}
@@ -283,7 +277,7 @@ export function ManageAccountingPanel({
           onValueChange={(value) => setActiveTab(value as AccountingPageTab)}
           className="flex flex-col gap-4"
         >
-          <TabsListPrimitive className="flex h-auto w-full flex-wrap items-center gap-2 rounded-full bg-muted/60 p-1 ring-1 ring-foreground/8 sm:w-fit">
+          <TabsListPrimitive className="flex h-auto w-full flex-wrap items-center gap-2 rounded-full bg-muted/60 p-1 ring-1 ring-foreground/8 @lg/panel:w-fit">
             <TabsTriggerPrimitive value="timeline" className={TAB_TRIGGER_CLASS}>
               Timeline
             </TabsTriggerPrimitive>
@@ -307,7 +301,7 @@ export function ManageAccountingPanel({
           <TabsContentsPrimitive>
             <TabsContentPrimitive value="timeline" className="outline-none">
               <div className="flex flex-col gap-4">
-                <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+                <div className="grid gap-4 @lg/panel:grid-cols-2 @4xl/panel:grid-cols-4">
                   <UserStatCard
                     label="Payment phases"
                     value={stats.totalPhases}
@@ -335,8 +329,8 @@ export function ManageAccountingPanel({
 
             <TabsContentPrimitive value="phases" className="outline-none">
               <div className="flex flex-col gap-4">
-                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                  <div className="rounded-lg border-l-4 border-l-emerald-500 bg-card px-3 py-1.5 ring-1 ring-foreground/10 sm:w-fit">
+                <div className="flex flex-col gap-3 @lg/panel:flex-row @lg/panel:items-center @lg/panel:justify-between">
+                  <div className="rounded-lg border-l-4 border-l-emerald-500 bg-card px-3 py-1.5 ring-1 ring-foreground/10 @lg/panel:w-fit">
                     <p className="text-[11px] leading-tight text-muted-foreground">
                       SPP paid / active
                     </p>
@@ -352,7 +346,7 @@ export function ManageAccountingPanel({
                   </Can>
                 </div>
 
-                <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+                <div className="flex flex-col gap-3 @lg/panel:flex-row @lg/panel:items-center">
                   <div className="relative max-w-md flex-1">
                     <SearchIcon className="pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-muted-foreground" />
                     <Input
@@ -375,7 +369,7 @@ export function ManageAccountingPanel({
                     )}
                     onValueChange={handleStatusFilterChange}
                   >
-                    <SelectTrigger className="w-full sm:w-44" aria-label="Status">
+                    <SelectTrigger className="w-full @lg/panel:w-44" aria-label="Status">
                       <SelectValue placeholder="All statuses" />
                     </SelectTrigger>
                     <SelectContent align="start">
@@ -427,6 +421,7 @@ export function ManageAccountingPanel({
                     <table className="w-full min-w-[900px] text-sm">
                       <thead>
                         <tr className="border-b bg-muted/40 text-left">
+                          <th className="w-12 px-4 py-3 font-medium">#</th>
                           <th className="px-4 py-3 font-medium">Name</th>
                           <th className="px-4 py-3 font-medium">Semester</th>
                           <th className="px-4 py-3 font-medium">Status</th>
@@ -449,7 +444,7 @@ export function ManageAccountingPanel({
                         </tr>
                       </thead>
                       <tbody>
-                        {paginatedPhases.map((phase) => (
+                        {paginatedPhases.map((phase, index) => (
                           <tr
                             key={phase.id}
                             className={PHASE_ROW_CLASS}
@@ -461,6 +456,9 @@ export function ManageAccountingPanel({
                               handlePhaseRowKeyDown(event, phase.id)
                             }
                           >
+                            <td className="px-4 py-3 text-muted-foreground tabular-nums">
+                              {rangeStart + index}
+                            </td>
                             <td className="max-w-[12rem] px-4 py-3 font-medium">
                               <TruncatedCell
                                 value={phase.name}
@@ -566,7 +564,7 @@ export function ManageAccountingPanel({
                   </div>
                 )}
 
-                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <div className="flex flex-col gap-3 @lg/panel:flex-row @lg/panel:items-center @lg/panel:justify-between">
                   <div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
                     <span>
                       Showing {rangeStart}–{rangeEnd} of{" "}

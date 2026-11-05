@@ -235,7 +235,7 @@ export function GuestDetailsPanel({
         }}
       />
 
-      <div className="grid gap-6 md:grid-cols-2 md:items-start">
+      <div className="grid gap-6 @xl/panel:grid-cols-2 @xl/panel:items-start">
         <GuestStatusHistory events={statusEvents} />
 
         <GuestRegistrationSection
@@ -275,7 +275,7 @@ export function GuestDetailsPanel({
         }
       >
         <div className="px-3 py-5 sm:px-4">
-          <dl className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+          <dl className="grid gap-5 @lg/panel:grid-cols-2 @2xl/panel:grid-cols-3">
             <DetailField label="Phone" value={guest.phone ?? undefined} />
             <DetailField
               label="Age"
@@ -325,7 +325,7 @@ export function GuestDetailsPanel({
             <DetailField
               label="Notes"
               value={guest.notes ?? undefined}
-              className="sm:col-span-2 lg:col-span-3"
+              className="@lg/panel:col-span-2 @2xl/panel:col-span-3"
             />
           </dl>
         </div>

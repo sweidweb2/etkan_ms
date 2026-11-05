@@ -1,3 +1,5 @@
+import { PanelPageHeader } from "@/components/panels/panel-page-header";
+
 /**
  * Admin panel placeholder.
  *
@@ -8,12 +10,6 @@
  */
 export default function AdminPage() {
   return (
-    <div>
-      <h1 className="text-2xl font-semibold tracking-tight">Admin</h1>
-      <p className="mt-1 text-sm text-muted-foreground">
-        No dedicated admin sections yet. If you teach workshops, open Manage
-        workshops from the sidebar when it appears.
-      </p>
-    </div>
+    <PanelPageHeader title="Admin" />
   );
 }

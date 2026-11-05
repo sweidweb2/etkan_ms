@@ -23,6 +23,7 @@ import {
 } from "@/components/manager/accounting/income-table-paging";
 import { ClassTabCollapsibleSection } from "@/components/manager/students/class-tab-collapsible-section";
 import { UserStatCard } from "@/components/manager/users/user-stat-card";
+import { PanelPageHeader } from "@/components/panels/panel-page-header";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
 import { useExternalTransactionDialogs } from "@/hooks/use-external-transaction-dialogs";
@@ -124,17 +125,9 @@ export function IncomeStatementPanel({
   return (
     <div className="flex flex-col gap-6">
       {!readOnly ? (
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-          <div>
-            <h1 className="text-2xl font-semibold tracking-tight">
-              Income statement
-            </h1>
-            <p className="mt-1 text-sm text-muted-foreground">
-              Student payments, adjustments, and external credits/debits for{" "}
-              {periodLabel ?? "this month"}.
-            </p>
-          </div>
-          <div className="flex flex-wrap items-center gap-2">
+        <>
+          <PanelPageHeader title="Income statement" />
+          <div className="flex flex-wrap items-center justify-end gap-2 empty:hidden">
             <Can permission={PERMISSIONS.ACCOUNTING_INCOME_STATEMENT_VIEW}>
               <Link
                 href={ROUTES.MANAGER_INCOME_STATEMENT_HISTORY}
@@ -156,13 +149,13 @@ export function IncomeStatementPanel({
               </Link>
             </Can>
           </div>
-        </div>
+        </>
       ) : null}
 
       <div
         className={cn(
-          "grid gap-4 sm:grid-cols-2",
-          hideAllTimePaymentsCard ? "xl:grid-cols-5" : "xl:grid-cols-6"
+          "grid gap-4 @lg/panel:grid-cols-2",
+          hideAllTimePaymentsCard ? "@4xl/panel:grid-cols-5" : "@4xl/panel:grid-cols-6"
         )}
       >
         {hideAllTimePaymentsCard ? null : (
@@ -341,7 +334,7 @@ export function IncomeStatementPanel({
         defaultOpen
       >
         <div className="space-y-4 p-3 sm:p-4">
-          <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-5">
+          <div className="grid gap-2 @lg/panel:grid-cols-2 @2xl/panel:grid-cols-5">
             <div className="flex items-start gap-3 rounded-lg border px-3 py-2">
               <UsersIcon
                 className="mt-0.5 size-4 shrink-0 text-muted-foreground"

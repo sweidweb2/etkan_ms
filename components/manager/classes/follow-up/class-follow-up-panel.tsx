@@ -1,6 +1,7 @@
 "use client";
 
 import { ClassFollowUpBoard } from "@/components/manager/classes/follow-up/class-follow-up-board";
+import { PanelPageHeader } from "@/components/panels/panel-page-header";
 import {
   Breadcrumb,
   BreadcrumbItem,
@@ -35,6 +36,7 @@ export function ClassFollowUpPanel({
 }: ClassFollowUpPanelProps) {
   return (
     <div className="flex flex-col gap-6">
+      <PanelPageHeader title={classRow.name} />
       <Breadcrumb>
         <BreadcrumbList>
           <BreadcrumbItem>
@@ -55,24 +57,15 @@ export function ClassFollowUpPanel({
         </BreadcrumbList>
       </Breadcrumb>
 
-      <div className="flex flex-col gap-2">
-        <div className="flex flex-wrap items-center gap-2">
-          <h1 className="text-2xl font-semibold tracking-tight">
-            {classRow.name}
-          </h1>
-          <span
-            className={cn(
-              "inline-flex rounded-md px-2 py-0.5 text-xs font-medium",
-              CLASS_STATUS_BADGE_CLASSES[classRow.status]
-            )}
-          >
-            {CLASS_STATUS_LABELS[classRow.status]}
-          </span>
-        </div>
-        <p className="text-sm text-muted-foreground">
-          {classRow.subject_name}
-          {classRow.semester_name ? ` · ${classRow.semester_name}` : ""}
-        </p>
+      <div className="flex flex-wrap items-center gap-2">
+        <span
+          className={cn(
+            "inline-flex rounded-md px-2 py-0.5 text-xs font-medium",
+            CLASS_STATUS_BADGE_CLASSES[classRow.status]
+          )}
+        >
+          {CLASS_STATUS_LABELS[classRow.status]}
+        </span>
       </div>
 
       <ClassFollowUpBoard

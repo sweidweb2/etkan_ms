@@ -1,5 +1,5 @@
 import { AccountingExceptionsClient } from "@/components/manager/accounting/accounting-exceptions-client";
-import { createSupabaseAdminClient } from "@/lib/supabase/admin";
+import { getRequestAdminClient } from "@/lib/supabase/admin";
 import { getAccountingExceptionsSnapshotForManager } from "@/services/accounting/payment-phase.service";
 import type { ManagerPaymentPhaseRow } from "@/types/manager-payment-phase";
 
@@ -12,7 +12,7 @@ export async function AccountingExceptionsSection({
   actorUserId,
   phases,
 }: AccountingExceptionsSectionProps) {
-  const adminClient = createSupabaseAdminClient();
+  const adminClient = getRequestAdminClient();
   const snapshot = await getAccountingExceptionsSnapshotForManager(
     adminClient,
     actorUserId,

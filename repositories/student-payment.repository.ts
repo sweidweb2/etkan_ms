@@ -1,6 +1,10 @@
 import "server-only";
 
 import type { SupabaseClient } from "@supabase/supabase-js";
+import {
+  asSppRecord,
+  type StudentPaymentPhaseRecord,
+} from "@/repositories/student-payment-phase.repository";
 import type { Database } from "@/types/supabase";
 
 type Supabase = SupabaseClient<Database>;
@@ -169,6 +173,24 @@ export async function listPaymentsBetween(
     .order("created_at", { ascending: false });
 }
 
+/** Net (credits - debits) payment total in `[fromInclusive, toExclusive)` via DB aggregate. */
+export async function sumPaymentAmountsBetween(
+  client: Supabase,
+  fromInclusive: string,
+  toExclusive: string
+) {
+  const { data, error } = await client.rpc(
+    "sum_student_payment_amounts_between",
+    { p_from: fromInclusive, p_to: toExclusive }
+  );
+
+  if (error) {
+    return { data: 0, error };
+  }
+
+  return { data: Number(data) || 0, error: null };
+}
+
 /** Slim rows for analytics chart totals (no joins). */
 export async function listPaymentAmountsBetween(
   client: Supabase,
@@ -287,21 +309,25 @@ export async function deleteStudentPayment(client: Supabase, id: string) {
   return client.from("student_payments").delete().eq("id", id);
 }
 
+/** `spp` is the post-recalc SPP row returned by the RPC (null on older DBs). */
 export type CreateStudentPaymentRpcResult = {
   payment: StudentPaymentRecord | null;
   paymentPhaseId: string;
+  spp: StudentPaymentPhaseRecord | null;
 };
 
 export type UpdateStudentPaymentRpcResult = {
   payment: StudentPaymentRecord | null;
   previous: StudentPaymentRecord | null;
   paymentPhaseId: string;
+  spp: StudentPaymentPhaseRecord | null;
 };
 
 export type DeleteStudentPaymentRpcResult = {
   deleted: StudentPaymentRecord | null;
   studentPaymentPhaseId: string;
   paymentPhaseId: string;
+  spp: StudentPaymentPhaseRecord | null;
 };
 
 function asNumber(input: unknown) {
@@ -437,7 +463,11 @@ export async function createStudentPaymentWithRecalc(
 
   if (!data || typeof data !== "object") {
     return {
-      data: { payment: null, paymentPhaseId: "" } satisfies CreateStudentPaymentRpcResult,
+      data: {
+        payment: null,
+        paymentPhaseId: "",
+        spp: null,
+      } satisfies CreateStudentPaymentRpcResult,
       error: null,
     };
   }
@@ -448,6 +478,7 @@ export async function createStudentPaymentWithRecalc(
       payment: asPaymentRecord(row.payment),
       paymentPhaseId:
         typeof row.paymentPhaseId === "string" ? row.paymentPhaseId : "",
+      spp: asSppRecord(row.spp),
     } satisfies CreateStudentPaymentRpcResult,
     error: null,
   };
@@ -487,6 +518,7 @@ export async function updateStudentPaymentWithRecalc(
         payment: null,
         previous: null,
         paymentPhaseId: "",
+        spp: null,
       } satisfies UpdateStudentPaymentRpcResult,
       error: null,
     };
@@ -499,6 +531,7 @@ export async function updateStudentPaymentWithRecalc(
       previous: asPaymentRecord(row.previous),
       paymentPhaseId:
         typeof row.paymentPhaseId === "string" ? row.paymentPhaseId : "",
+      spp: asSppRecord(row.spp),
     } satisfies UpdateStudentPaymentRpcResult,
     error: null,
   };
@@ -526,6 +559,7 @@ export async function deleteStudentPaymentWithRecalc(
         deleted: null,
         studentPaymentPhaseId: "",
         paymentPhaseId: "",
+        spp: null,
       } satisfies DeleteStudentPaymentRpcResult,
       error: null,
     };
@@ -541,6 +575,7 @@ export async function deleteStudentPaymentWithRecalc(
           : "",
       paymentPhaseId:
         typeof row.paymentPhaseId === "string" ? row.paymentPhaseId : "",
+      spp: asSppRecord(row.spp),
     } satisfies DeleteStudentPaymentRpcResult,
     error: null,
   };

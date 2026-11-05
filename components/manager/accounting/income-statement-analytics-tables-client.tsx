@@ -44,7 +44,7 @@ export function IncomeStatementAnalyticsTablesClient({
       className="flex flex-col gap-4"
     >
       <div className="flex justify-center">
-        <TabsListPrimitive className="flex h-auto w-full flex-wrap items-center justify-center gap-2 rounded-full bg-muted/60 p-1 ring-1 ring-foreground/8 sm:w-fit">
+        <TabsListPrimitive className="flex h-auto w-full flex-wrap items-center justify-center gap-2 rounded-full bg-muted/60 p-1 ring-1 ring-foreground/8 @lg/panel:w-fit">
           <TabsTriggerPrimitive value="etkan" className={TAB_TRIGGER_CLASS}>
             Etkan
           </TabsTriggerPrimitive>

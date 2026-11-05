@@ -225,12 +225,21 @@ export function mapSppRecordToFinancialSnapshot(
   };
 }
 
+/**
+ * Snapshot from the RPC-returned SPP row when present; otherwise one
+ * `findSppById` read (DBs without the `spp` field in write RPC results).
+ */
 export async function loadSppFinancialSnapshot(
   adminClient: Supabase,
-  sppId: string
+  sppId: string,
+  returnedSpp?: StudentPaymentPhaseRecord | null
 ): Promise<
   { spp: ManagerSppFinancialSnapshot } | { error: string }
 > {
+  if (returnedSpp) {
+    return { spp: mapSppRecordToFinancialSnapshot(returnedSpp) };
+  }
+
   const result = await studentPaymentPhaseRepository.findSppById(
     adminClient,
     sppId

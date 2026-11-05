@@ -1,5 +1,6 @@
 import "server-only";
 
+import { cache } from "react";
 import { PERMISSIONS } from "@/lib/constants/permissions";
 import { financialAdjustmentAmountInDollars } from "@/lib/manager/accounting/adjustment-amount";
 import {
@@ -50,6 +51,14 @@ import type { Database } from "@/types/supabase";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 type Supabase = SupabaseClient<Database>;
+
+/**
+ * Active unpaid SPP snapshot (paged). The tables and next-month Suspense
+ * sections both need it; sharing one request client dedupes the load.
+ */
+const loadActiveUnpaidSppsForRequest = cache((adminClient: Supabase) =>
+  studentPaymentPhaseRepository.listActiveUnpaidSpps(adminClient)
+);
 
 const MONTH_LABELS = [
   "Jan",
@@ -516,7 +525,7 @@ async function getYearWideUnpaidAnalyticsTables(
       fromInclusive,
       toExclusive
     ),
-    studentPaymentPhaseRepository.listActiveUnpaidSpps(adminClient),
+    loadActiveUnpaidSppsForRequest(adminClient),
   ]);
 
   if (paidSppIdsResult.error) {
@@ -616,7 +625,7 @@ export async function getIncomeStatementAnalyticsTablesForManager(
         fromInclusive,
         toExclusive
       ),
-      studentPaymentPhaseRepository.listActiveUnpaidSpps(adminClient),
+      loadActiveUnpaidSppsForRequest(adminClient),
     ]);
 
   if (paymentsResult.error) throw new Error(paymentsResult.error.message);
@@ -855,7 +864,7 @@ export async function getNextMonthIncomeForecastForManager(
   const creditsRange = lastCompletedMonthsRange(CREDIT_SAMPLE_MONTHS);
 
   const [unpaidSppsResult, phasesResult, creditsResult] = await Promise.all([
-    studentPaymentPhaseRepository.listActiveUnpaidSpps(adminClient),
+    loadActiveUnpaidSppsForRequest(adminClient),
     paymentPhaseRepository.listOpenedPaymentPhases(adminClient),
     transactionRepository.listTransactionAmountsBetween(
       adminClient,

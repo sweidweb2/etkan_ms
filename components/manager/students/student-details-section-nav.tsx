@@ -85,8 +85,8 @@ export function StudentDetailsSectionNav() {
   return (
     <div
       className={cn(
-        "grid gap-3 sm:grid-cols-2",
-        NAV_CARDS.length >= 3 ? "lg:grid-cols-3" : null
+        "grid gap-3 @lg/panel:grid-cols-2",
+        NAV_CARDS.length >= 3 ? "@2xl/panel:grid-cols-3" : null
       )}
     >
       {NAV_CARDS.map((card) => (

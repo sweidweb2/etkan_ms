@@ -1,6 +1,7 @@
 import "server-only";
 
 import type { RoleValue } from "@/lib/constants/roles";
+import { chunkedIn } from "@/repositories/_shared/chunked-in";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/types/supabase";
 
@@ -242,9 +243,7 @@ export async function countProfiles(
 }
 
 export async function listProfilesByIds(client: Supabase, ids: string[]) {
-  if (ids.length === 0) {
-    return { data: [], error: null };
-  }
-
-  return client.from("profiles").select(PROFILE_COLUMNS).in("id", ids);
+  return chunkedIn(ids, (chunk) =>
+    client.from("profiles").select(PROFILE_COLUMNS).in("id", chunk)
+  );
 }

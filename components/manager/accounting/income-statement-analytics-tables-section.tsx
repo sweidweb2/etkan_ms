@@ -1,5 +1,5 @@
 import { IncomeStatementAnalyticsTablesClient } from "@/components/manager/accounting/income-statement-analytics-tables-client";
-import { createSupabaseAdminClient } from "@/lib/supabase/admin";
+import { getRequestAdminClient } from "@/lib/supabase/admin";
 import { getIncomeStatementAnalyticsTablesForManager } from "@/services/accounting/income-statement-analytics.service";
 
 type IncomeStatementAnalyticsTablesSectionProps = {
@@ -13,7 +13,7 @@ export async function IncomeStatementAnalyticsTablesSection({
   year,
   month,
 }: IncomeStatementAnalyticsTablesSectionProps) {
-  const adminClient = createSupabaseAdminClient();
+  const adminClient = getRequestAdminClient();
   const tables = await getIncomeStatementAnalyticsTablesForManager(
     adminClient,
     actorUserId,

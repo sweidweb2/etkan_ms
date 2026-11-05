@@ -57,8 +57,8 @@ describe("permissions", () => {
     expect(isPermissionKey("subjects")).toBe(false);
   });
 
-  it("keeps the catalog size at 187 keys", () => {
-    expect(PERMISSION_KEYS).toHaveLength(187);
+  it("keeps the catalog size at 188 keys", () => {
+    expect(PERMISSION_KEYS).toHaveLength(188);
     expect(isPermissionKey(PERMISSIONS.EQUIPMENT_VIEW_OWN_BORROWS)).toBe(true);
     expect(isPermissionKey(PERMISSIONS.STUDENTS_VIEW_OWN)).toBe(true);
     expect(isPermissionKey(PERMISSIONS.CLASSES_COPY_STUDENTS_FROM_CLASS)).toBe(

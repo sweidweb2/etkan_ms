@@ -139,7 +139,7 @@ export function SubjectClassesSection({
 
   return (
     <div className="flex flex-col gap-6">
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      <div className="grid gap-4 @lg/panel:grid-cols-2 @4xl/panel:grid-cols-4">
           <UserStatCard
             label="Total classes"
             value={stats.total}
@@ -162,7 +162,7 @@ export function SubjectClassesSection({
           />
         </div>
 
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+        <div className="flex flex-col gap-3 @lg/panel:flex-row @lg/panel:items-center">
           <div className="relative min-w-0 flex-1">
             <SearchIcon className="pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-muted-foreground" />
             <Input
@@ -175,7 +175,7 @@ export function SubjectClassesSection({
           </div>
           <Select value={statusFilter} onValueChange={handleStatusFilterChange}>
             <SelectTrigger
-              className="w-full sm:w-40"
+              className="w-full @lg/panel:w-40"
               aria-label="Filter by status"
             >
               <SelectValue placeholder="All statuses" />
@@ -205,7 +205,7 @@ export function SubjectClassesSection({
             }
           />
         ) : (
-          <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+          <div className="grid gap-4 @lg/panel:grid-cols-2 @4xl/panel:grid-cols-3">
             {paginatedClasses.map((classRow) => (
               <SubjectClassCard
                 key={classRow.id}
@@ -217,7 +217,7 @@ export function SubjectClassesSection({
         )}
 
         {filteredClasses.length > 0 ? (
-          <div className="flex flex-col gap-3 border-t pt-4 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex flex-col gap-3 border-t pt-4 @lg/panel:flex-row @lg/panel:items-center @lg/panel:justify-between">
             <div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
               <span>
                 Showing {rangeStart}–{rangeEnd} of {filteredClasses.length}

@@ -70,7 +70,7 @@ export function ClassAnalyticsSection({
       description={`Task grades, group grades, and attendance across sessions for ${className}.`}
       storageKey={COLLAPSIBLE_SECTION_STORAGE_KEYS.CLASS_DETAILS_ANALYTICS}
     >
-      <div className="grid gap-6 px-4 pt-2 pb-3 lg:grid-cols-2">
+      <div className="grid gap-6 px-4 pt-2 pb-3 @2xl/panel:grid-cols-2">
         <AnalyticsChartCard
           title="Average task grades"
           description={

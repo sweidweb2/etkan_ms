@@ -2,6 +2,7 @@ import type {
   AuditLogActionValue,
   AuditLogSeverityValue,
 } from "@/lib/constants/manager-audit-log-display";
+import type { FieldErrors } from "@/types/auth";
 
 export type AuditLogJsonValue = Record<string, unknown>;
 
@@ -24,3 +25,11 @@ export interface ManagerAuditLogRow {
   metadata: AuditLogJsonValue | null;
   created_at: string;
 }
+
+export type DeleteAuditLogsActionState = {
+  success?: boolean;
+  error?: string;
+  message?: string;
+  fieldErrors?: FieldErrors;
+  deleted_ids?: string[];
+};

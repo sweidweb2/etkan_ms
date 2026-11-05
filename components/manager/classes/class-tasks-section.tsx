@@ -55,6 +55,8 @@ type ClassTasksSectionProps = {
   getTaskDetailHref?: (taskId: string) => string;
   /** `cards` = library-style grid (teacher); `table` = manager default. */
   layout?: "table" | "cards";
+  /** When false, section stays open with no expand/collapse controls. */
+  collapsible?: boolean;
 };
 
 function formatTaskEyebrow(task: ManagerClassTaskRow) {
@@ -166,6 +168,7 @@ export function ClassTasksSection({
   hasComputedGrades = false,
   getTaskDetailHref,
   layout = "table",
+  collapsible = true,
 }: ClassTasksSectionProps) {
   const [tasks, setTasks] = useState(initialTasks);
   const [prevInitialTasks, setPrevInitialTasks] = useState(initialTasks);
@@ -323,7 +326,7 @@ export function ClassTasksSection({
 
       {layout === "cards" ? (
         <section className="flex flex-col gap-4">
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex flex-col gap-3 @lg/panel:flex-row @lg/panel:items-center @lg/panel:justify-between">
             <div className="min-w-0">
               <h2 className="text-base font-semibold tracking-tight">Tasks</h2>
               <p className="text-sm text-muted-foreground">
@@ -342,7 +345,7 @@ export function ClassTasksSection({
             />
           ) : (
             <>
-              <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+              <div className="grid gap-3 @lg/panel:grid-cols-2 @4xl/panel:grid-cols-3">
                 {pageTasks.map((task, index) => {
                   const href =
                     getTaskDetailHref?.(task.id) ??
@@ -376,7 +379,7 @@ export function ClassTasksSection({
                 })}
               </div>
 
-              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <div className="flex flex-col gap-3 @lg/panel:flex-row @lg/panel:items-center @lg/panel:justify-between">
                 <p className="text-sm text-muted-foreground">
                   Showing {rangeStart}–{rangeEnd} of {cappedTasks.length}
                   {sortedTasks.length > cappedTasks.length
@@ -445,6 +448,7 @@ export function ClassTasksSection({
           description={`All tasks for ${className}.`}
           storageKey={COLLAPSIBLE_SECTION_STORAGE_KEYS.CLASS_DETAILS_TASKS}
           defaultOpen
+          collapsible={collapsible}
           action={createActions}
         >
           {tasks.length === 0 ? (
@@ -461,6 +465,7 @@ export function ClassTasksSection({
             <table className="w-full min-w-[860px] text-sm">
               <thead>
                 <tr className="border-b bg-muted/40 text-left">
+                  <th className="w-12 px-4 py-3 font-medium">#</th>
                   <th className="px-4 py-3 font-medium">Title</th>
                   <th className="px-4 py-3 font-medium">Period (days)</th>
                   <th className="px-4 py-3 font-medium">Description</th>
@@ -470,11 +475,14 @@ export function ClassTasksSection({
                 </tr>
               </thead>
               <tbody>
-                  {tasks.map((task) => (
+                  {tasks.map((task, index) => (
                     <tr
                       key={task.id}
                       className="border-b last:border-b-0 transition-colors duration-150 hover:bg-primary/8"
                     >
+                      <td className="px-4 py-3 text-muted-foreground tabular-nums">
+                        {index + 1}
+                      </td>
                       <td className="max-w-[12rem] px-4 py-3">
                         <Link
                           href={

@@ -76,6 +76,8 @@ type ClassStudentsSectionProps = {
   onAvailableStudentsChange: (students: ManagerStudentRow[]) => void;
   onClassUpdated: (classRow: ManagerClassRow) => void;
   onStudentGradeAdded: (grade: ManagerStudentFinalExamGradeRow) => void;
+  /** When false, section stays open with no expand/collapse controls. */
+  collapsible?: boolean;
 };
 
 function TruncatedCell({
@@ -167,6 +169,7 @@ export function ClassStudentsSection({
   onAvailableStudentsChange,
   onClassUpdated,
   onStudentGradeAdded,
+  collapsible = true,
 }: ClassStudentsSectionProps) {
   const router = useRouter();
   const [isTransitionPending, startTransition] = useTransition();
@@ -432,6 +435,7 @@ export function ClassStudentsSection({
         description={`Students in ${className}.`}
         storageKey={COLLAPSIBLE_SECTION_STORAGE_KEYS.CLASS_DETAILS_STUDENTS}
         defaultOpen
+        collapsible={collapsible}
         action={
           <div className="flex flex-wrap items-center gap-2">
             {semesterId ? (
@@ -455,7 +459,7 @@ export function ClassStudentsSection({
           </div>
         }
       >
-          <div className="flex flex-col gap-3 border-b px-4 pt-2 pb-3 sm:flex-row sm:items-center">
+          <div className="flex flex-col gap-3 border-b px-4 pt-2 pb-3 @lg/panel:flex-row @lg/panel:items-center">
             <div className="relative min-w-0 flex-1">
               <SearchIcon className="pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-muted-foreground" />
               <Input
@@ -490,6 +494,7 @@ export function ClassStudentsSection({
               <table className="w-full min-w-[760px] text-sm">
                 <thead>
                   <tr className="border-b bg-muted/40 text-left">
+                    <th className="w-12 px-4 py-3 font-medium">#</th>
                     <th className="px-4 py-3 font-medium">Full name</th>
                     <th className="px-4 py-3 font-medium">Username</th>
                     <th className="px-4 py-3 font-medium">Email</th>
@@ -499,11 +504,14 @@ export function ClassStudentsSection({
                   </tr>
                 </thead>
                 <tbody>
-                  {paginatedStudents.map((student) => (
+                  {paginatedStudents.map((student, index) => (
                     <tr
                       key={student.id}
                       className="border-b last:border-b-0 hover:bg-muted/30"
                     >
+                      <td className="px-4 py-3 text-muted-foreground tabular-nums">
+                        {rangeStart + index}
+                      </td>
                       <td className="max-w-[12rem] px-4 py-3">
                         <div className="flex flex-col gap-1">
                           <TruncatedCell
@@ -643,7 +651,7 @@ export function ClassStudentsSection({
           )}
 
           {filteredStudents.length > 0 ? (
-            <div className="flex flex-col gap-3 border-t px-4 pt-2 pb-3 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex flex-col gap-3 border-t px-4 pt-2 pb-3 @lg/panel:flex-row @lg/panel:items-center @lg/panel:justify-between">
               <p className="text-sm text-muted-foreground">
                 Showing {rangeStart}–{rangeEnd} of {filteredStudents.length}
               </p>

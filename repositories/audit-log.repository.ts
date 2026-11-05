@@ -156,6 +156,10 @@ export async function findAuditLogById(client: Supabase, id: string) {
     .maybeSingle();
 }
 
+export async function deleteAuditLogsByIds(client: Supabase, ids: string[]) {
+  return client.from("audit_logs").delete().in("id", ids).select("id");
+}
+
 export async function createAuditLog(
   client: Supabase,
   input: CreateAuditLogRecordInput

@@ -20,6 +20,7 @@ import {
   TabsTrigger as TabsTriggerPrimitive,
 } from "@/components/animate-ui/primitives/animate/tabs";
 import { IncomeStatementAnalyticsEtkanTab, IncomeStatementAnalyticsStudentsTab } from "@/components/manager/accounting/income-statement-analytics-tables";
+import { PanelPageHeader } from "@/components/panels/panel-page-header";
 import {
   Breadcrumb,
   BreadcrumbItem,
@@ -102,6 +103,7 @@ export function IncomeStatementAnalyticsPanel({
 
   return (
     <div className="flex flex-col gap-6">
+      <PanelPageHeader title="Income statement analytics" />
       <Breadcrumb>
         <BreadcrumbList>
           <Can
@@ -125,7 +127,7 @@ export function IncomeStatementAnalyticsPanel({
         </BreadcrumbList>
       </Breadcrumb>
 
-      <div className="flex flex-col gap-3 rounded-xl border bg-card px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+      <div className="flex flex-col gap-3 rounded-xl border bg-card px-4 py-3 @lg/panel:flex-row @lg/panel:items-center @lg/panel:justify-between">
         <div>
           <p className="text-sm font-medium">Period</p>
           <p className="text-xs text-muted-foreground">
@@ -177,16 +179,7 @@ export function IncomeStatementAnalyticsPanel({
         </div>
       </div>
 
-      <div>
-        <h1 className="text-2xl font-semibold tracking-tight">
-          Income statement analytics
-        </h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Payments, credits, and debits for the selected period.
-        </p>
-      </div>
-
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+      <div className="grid gap-4 @lg/panel:grid-cols-2 @2xl/panel:grid-cols-3">
         <AnalyticsStatCard
           label="Payments"
           value={formatPaymentPhaseMoney(payments)}
@@ -242,7 +235,7 @@ export function IncomeStatementAnalyticsPanel({
           className="flex flex-col gap-4"
         >
           <div className="flex justify-center">
-            <TabsListPrimitive className="flex h-auto w-full flex-wrap items-center justify-center gap-2 rounded-full bg-muted/60 p-1 ring-1 ring-foreground/8 sm:w-fit">
+            <TabsListPrimitive className="flex h-auto w-full flex-wrap items-center justify-center gap-2 rounded-full bg-muted/60 p-1 ring-1 ring-foreground/8 @lg/panel:w-fit">
               <TabsTriggerPrimitive value="etkan" className={TAB_TRIGGER_CLASS}>
                 Etkan
               </TabsTriggerPrimitive>

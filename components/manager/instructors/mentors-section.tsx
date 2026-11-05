@@ -125,7 +125,7 @@ export function MentorsSection({
 
   return (
     <section className="space-y-3">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+      <div className="flex flex-col gap-3 @lg/panel:flex-row @lg/panel:items-start @lg/panel:justify-between">
         <div>
           <h2 className="text-lg font-semibold tracking-tight">Mentors</h2>
           <p className="text-sm text-muted-foreground">
@@ -208,7 +208,7 @@ export function MentorsSection({
           </div>
         )}
 
-        <div className="flex flex-col gap-3 border-t px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex flex-col gap-3 border-t px-4 py-3 @lg/panel:flex-row @lg/panel:items-center @lg/panel:justify-between">
           <div className="flex items-center gap-2 text-sm text-muted-foreground">
             <span>
               Showing {rangeStart}–{rangeEnd} of {mentors.length}

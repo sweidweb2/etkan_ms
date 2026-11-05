@@ -191,6 +191,31 @@ function mapPaymentRecordToRow(
   };
 }
 
+/**
+ * Post-write SPP row: the RPC-returned one when present, otherwise one
+ * `findSppById` read (DBs without the `spp` field in write RPC results).
+ */
+async function resolveSppAfterWrite(
+  adminClient: Supabase,
+  sppId: string,
+  returnedSpp: StudentPaymentPhaseRecord | null | undefined
+): Promise<{ record: StudentPaymentPhaseRecord } | { error: string }> {
+  if (returnedSpp) {
+    return { record: returnedSpp };
+  }
+
+  const result = await studentPaymentPhaseRepository.findSppById(
+    adminClient,
+    sppId
+  );
+  if (result?.error || !result?.data) {
+    return {
+      error: result?.error?.message ?? "Unable to load updated student balance.",
+    };
+  }
+  return { record: result.data as StudentPaymentPhaseRecord };
+}
+
 function mapSppRecordToFinancialSnapshot(
   record: StudentPaymentPhaseRecord
 ): ManagerSppFinancialSnapshot {
@@ -353,7 +378,7 @@ export async function listPaymentsForSppForManager(
   return ((data ?? []) as StudentPaymentRecord[]).map(mapPaymentRecordToRow);
 }
 
-/** Sum of `student_payments.amount` whose `payment_date` falls in the given month (local calendar). */
+/** Net student payments (credits - refund debits) with `payment_date` in the given month (local calendar). */
 export async function sumStudentPaymentsForMonthForManager(
   adminClient: Supabase,
   actorUserId: string | null,
@@ -371,7 +396,7 @@ export async function sumStudentPaymentsForMonthForManager(
   );
 
   const { data, error } =
-    await studentPaymentRepository.listPaymentAmountsBetween(
+    await studentPaymentRepository.sumPaymentAmountsBetween(
       adminClient,
       fromInclusive,
       toExclusive
@@ -381,10 +406,7 @@ export async function sumStudentPaymentsForMonthForManager(
     throw new Error(error.message);
   }
 
-  return (data ?? []).reduce(
-    (sum, row) => sum + Math.max(0, Number(row.amount) || 0),
-    0
-  );
+  return Math.max(0, data);
 }
 
 export async function createStudentPaymentForManager(
@@ -452,21 +474,18 @@ export async function createStudentPaymentForManager(
 
     const created = data.payment;
 
-    const { data: sppRecord, error: sppError } = await timer.step(
-      "loadSpp",
-      () =>
-        studentPaymentPhaseRepository.findSppById(
-          adminClient,
-          created.student_payment_phase_id
-        )
+    const sppAfterWrite = await timer.step("loadSpp", () =>
+      resolveSppAfterWrite(
+        adminClient,
+        created.student_payment_phase_id,
+        data.spp
+      )
     );
 
-    if (sppError || !sppRecord) {
-      return {
-        success: false,
-        error: sppError?.message ?? "Unable to load updated student balance.",
-      };
+    if ("error" in sppAfterWrite) {
+      return { success: false, error: sppAfterWrite.error };
     }
+    const sppRecord = sppAfterWrite.record;
 
     await timer.step("audit", () =>
       recordManagerAuditLog(adminClient, actor, {
@@ -562,18 +581,16 @@ export async function updateStudentPaymentForManager(
   const updated = data.payment;
   const previous = data.previous;
 
-  const { data: sppRecord, error: sppError } =
-    await studentPaymentPhaseRepository.findSppById(
-      adminClient,
-      updated.student_payment_phase_id
-    );
+  const sppAfterWrite = await resolveSppAfterWrite(
+    adminClient,
+    updated.student_payment_phase_id,
+    data.spp
+  );
 
-  if (sppError || !sppRecord) {
-    return {
-      success: false,
-      error: sppError?.message ?? "Unable to load updated student balance.",
-    };
+  if ("error" in sppAfterWrite) {
+    return { success: false, error: sppAfterWrite.error };
   }
+  const sppRecord = sppAfterWrite.record;
 
   await recordManagerAuditLog(adminClient, actor, {
     action: "update",
@@ -685,19 +702,16 @@ export async function deleteStudentPaymentForManager(
     Boolean(parsed.data.also_delete_clearance)
   );
 
-  const sppResult = await studentPaymentPhaseRepository.findSppById(
+  const sppAfterWrite = await resolveSppAfterWrite(
     adminClient,
-    data.studentPaymentPhaseId
+    data.studentPaymentPhaseId,
+    data.spp
   );
-  const sppRecord = sppResult?.data;
-  const sppError = sppResult?.error;
 
-  if (sppError || !sppRecord) {
-    return {
-      success: false,
-      error: sppError?.message ?? "Unable to load updated student balance.",
-    };
+  if ("error" in sppAfterWrite) {
+    return { success: false, error: sppAfterWrite.error };
   }
+  const sppRecord = sppAfterWrite.record;
 
   return {
     success: true,

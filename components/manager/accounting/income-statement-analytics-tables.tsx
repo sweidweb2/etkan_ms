@@ -194,7 +194,7 @@ export function IncomeStatementAnalyticsEtkanTab({
           {YEAR_WIDE_DETAIL_HINT}
         </p>
       ) : null}
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-4 @lg/panel:grid-cols-2 @2xl/panel:grid-cols-4">
         <MiniStatCard
           label="Transactions"
           value={String(transactions.length)}
@@ -222,7 +222,7 @@ export function IncomeStatementAnalyticsEtkanTab({
       </div>
 
       <section className="overflow-hidden rounded-xl border">
-        <div className="flex flex-col gap-3 border-b px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex flex-col gap-3 border-b px-4 py-3 @lg/panel:flex-row @lg/panel:items-center @lg/panel:justify-between">
           <div>
             <h3 className="text-sm font-semibold">Etkan transactions</h3>
             <p className="text-xs text-muted-foreground">
@@ -422,7 +422,7 @@ export function IncomeStatementAnalyticsStudentsTab({
           year.
         </p>
       ) : null}
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-4 @lg/panel:grid-cols-2 @2xl/panel:grid-cols-4">
         <MiniStatCard
           label="Payments"
           value={formatPaymentPhaseMoney(paymentsTotal)}

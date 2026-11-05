@@ -7,6 +7,7 @@ import { ClipboardListIcon, EyeIcon, SearchIcon } from "lucide-react";
 import { updateRegistrationStatusAction } from "@/app/(panels)/manager/registrations/actions";
 import { usePermissions } from "@/components/auth/permissions-provider";
 import { InlineSpinner } from "@/components/loaders/inline-spinner";
+import { PanelPageHeader } from "@/components/panels/panel-page-header";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Input } from "@/components/ui/input";
 import {
@@ -134,14 +135,9 @@ export function ManageRegistrationsPanel({
 
   return (
     <div className="flex flex-col gap-6">
-      <div>
-        <h1 className="text-2xl font-semibold tracking-tight">Registrations</h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Public student registration applications awaiting review.
-        </p>
-      </div>
+      <PanelPageHeader title="Registrations" />
 
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+      <div className="flex flex-col gap-3 @lg/panel:flex-row @lg/panel:items-center">
         <div className="relative min-w-0 flex-1">
           <SearchIcon className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
           <Input
@@ -155,7 +151,7 @@ export function ManageRegistrationsPanel({
           value={statusFilter}
           onValueChange={(value) => setStatusFilter(value ?? STATUS_ALL)}
         >
-          <SelectTrigger className="w-full sm:w-44">
+          <SelectTrigger className="w-full @lg/panel:w-44">
             <SelectValue placeholder="Status" />
           </SelectTrigger>
           <SelectContent>

@@ -16,6 +16,7 @@ import { Can } from "@/components/auth/can";
 import { AcademicClassSessionProgressBars } from "@/components/manager/academic/academic-class-session-progress-bars";
 import { AnalyticsStatCard } from "@/components/manager/accounting/analytics-stat-card";
 import { AnalyticsChartCard } from "@/components/manager/analytics/analytics-chart-card";
+import { PanelPageHeader } from "@/components/panels/panel-page-header";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -197,17 +198,9 @@ export function AcademicAnalysisPanel({ data }: AcademicAnalysisPanelProps) {
   return (
     <TooltipProvider>
       <div className="flex flex-col gap-6">
-        <div>
-          <h1 className="text-2xl font-semibold tracking-tight">
-            Academic analysis
-          </h1>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Campus overview of classes, student status, and session progress
-            versus each subject&apos;s planned session count.
-          </p>
-        </div>
+        <PanelPageHeader title="Academic analysis" />
 
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="grid gap-4 @lg/panel:grid-cols-2 @2xl/panel:grid-cols-4">
           <AnalyticsStatCard
             label="Classes"
             value={String(data.classCount)}
@@ -248,15 +241,15 @@ export function AcademicAnalysisPanel({ data }: AcademicAnalysisPanelProps) {
         </AnalyticsChartCard>
 
         <section className="flex flex-col gap-3">
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+          <div className="flex flex-col gap-3 @lg/panel:flex-row @lg/panel:items-end @lg/panel:justify-between">
             <div>
               <h2 className="text-sm font-medium">Students</h2>
               <p className="mt-0.5 text-xs text-muted-foreground">
                 Read-only roster for status overview.
               </p>
             </div>
-            <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:items-center">
-              <div className="relative min-w-0 flex-1 sm:w-64">
+            <div className="flex w-full flex-col gap-2 @lg/panel:w-auto @lg/panel:flex-row @lg/panel:items-center">
+              <div className="relative min-w-0 flex-1 @lg/panel:w-64">
                 <SearchIcon className="pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-muted-foreground" />
                 <Input
                   value={searchQuery}
@@ -271,7 +264,7 @@ export function AcademicAnalysisPanel({ data }: AcademicAnalysisPanelProps) {
                 onValueChange={handleStatusFilterChange}
               >
                 <SelectTrigger
-                  className="w-full sm:w-44"
+                  className="w-full @lg/panel:w-44"
                   aria-label="Filter by status"
                 >
                   <SelectValue placeholder="All statuses" />
@@ -373,7 +366,7 @@ export function AcademicAnalysisPanel({ data }: AcademicAnalysisPanelProps) {
               </table>
             </div>
 
-            <div className="flex flex-col gap-3 border-t px-4 pt-2 pb-3 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex flex-col gap-3 border-t px-4 pt-2 pb-3 @lg/panel:flex-row @lg/panel:items-center @lg/panel:justify-between">
               <div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
                 <span>
                   Showing {rangeStart}–{rangeEnd} of {total}

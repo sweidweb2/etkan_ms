@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 import { CloudflareAiUsageAnalytics } from "@/components/manager/cloudflare-ai-usage/cloudflare-ai-usage-analytics";
 import { CloudflareAiUsageDetailsDialog } from "@/components/manager/cloudflare-ai-usage/cloudflare-ai-usage-details-dialog";
+import { PanelPageHeader } from "@/components/panels/panel-page-header";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Input } from "@/components/ui/input";
@@ -97,16 +98,11 @@ export function ManageCloudflareAiUsagePanel({
 
   return (
     <div className="flex flex-col gap-6">
-      <div>
-        <h1 className="text-2xl font-semibold tracking-tight">AI usage</h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Cloudflare Workers AI requests logged from manager assistants.
-        </p>
-      </div>
+      <PanelPageHeader title="AI usage" />
 
       <CloudflareAiUsageAnalytics records={initialRecords} />
 
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+      <div className="flex flex-col gap-3 @lg/panel:flex-row @lg/panel:items-center">
         <div className="relative min-w-0 flex-1">
           <SearchIcon className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
           <Input
@@ -126,7 +122,7 @@ export function ManageCloudflareAiUsagePanel({
             setPage(1);
           }}
         >
-          <SelectTrigger className="w-full sm:w-40">
+          <SelectTrigger className="w-full @lg/panel:w-40">
             <SelectValue placeholder="Status" />
           </SelectTrigger>
           <SelectContent>

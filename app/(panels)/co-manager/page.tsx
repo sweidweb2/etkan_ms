@@ -1,3 +1,5 @@
+import { PanelPageHeader } from "@/components/panels/panel-page-header";
+
 /**
  * Co-manager panel placeholder.
  *
@@ -7,12 +9,6 @@
  */
 export default function CoManagerPage() {
   return (
-    <div>
-      <h1 className="text-2xl font-semibold tracking-tight">Co-manager</h1>
-      <p className="mt-1 text-sm text-muted-foreground">
-        No dedicated co-manager sections yet. If you teach workshops, open
-        Manage workshops from the sidebar when it appears.
-      </p>
-    </div>
+    <PanelPageHeader title="Co-manager" />
   );
 }

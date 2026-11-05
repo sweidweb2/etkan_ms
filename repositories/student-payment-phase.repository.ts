@@ -463,7 +463,8 @@ export type RecalcNonCancelledSppsForPhaseRpcResult = {
   nextPhaseStatus: string;
 };
 
-function asSppRecord(value: unknown): StudentPaymentPhaseRecord | null {
+/** Parse an SPP row embedded in an RPC jsonb result (`to_jsonb(v_spp)`). */
+export function asSppRecord(value: unknown): StudentPaymentPhaseRecord | null {
   if (!value || typeof value !== "object") {
     return null;
   }

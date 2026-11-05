@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { PANEL_ICONS } from "@/components/panels/panel-icons";
+import { PanelPageHeader } from "@/components/panels/panel-page-header";
 import { cn } from "@/lib/utils";
 import type { PanelNavGroup } from "@/types/panel";
 
@@ -12,12 +13,7 @@ type ManagePagesPanelProps = {
 export function ManagePagesPanel({ groups }: ManagePagesPanelProps) {
   return (
     <div className="flex flex-col gap-8">
-      <div>
-        <h1 className="text-2xl font-semibold tracking-tight">Pages</h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Features parked here for now — open any card to go to that page.
-        </p>
-      </div>
+      <PanelPageHeader title="Pages" />
 
       {groups.length === 0 ? (
         <p className="text-sm text-muted-foreground">
@@ -31,8 +27,8 @@ export function ManagePagesPanel({ groups }: ManagePagesPanelProps) {
             </h2>
             <div
               className={cn(
-                "grid gap-3 sm:grid-cols-2",
-                group.items.length >= 3 ? "lg:grid-cols-3" : null
+                "grid gap-3 @lg/panel:grid-cols-2",
+                group.items.length >= 3 ? "@2xl/panel:grid-cols-3" : null
               )}
             >
               {group.items.map((item) => {

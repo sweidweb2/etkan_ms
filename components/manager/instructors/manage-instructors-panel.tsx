@@ -33,6 +33,7 @@ import { SubjectCatalogSection } from "@/components/manager/instructors/subject-
 import { MentorsSection } from "@/components/manager/instructors/mentors-section";
 import { UserRoleBadge } from "@/components/manager/users/user-role-badge";
 import { InlineSpinner } from "@/components/loaders/inline-spinner";
+import { PanelPageHeader } from "@/components/panels/panel-page-header";
 import { Button, buttonVariants } from "@/components/ui/button";
 import {
   Dialog,
@@ -259,16 +260,8 @@ export function ManageInstructorsPanel({
 
   return (
     <div className="flex flex-col gap-6">
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-        <div>
-          <h1 className="text-2xl font-semibold tracking-tight">
-            Manage instructors
-          </h1>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Users marked as instructors and the instructor subjects they can
-            teach.
-          </p>
-        </div>
+      <PanelPageHeader title="Manage instructors" />
+      <div className="flex flex-wrap items-center justify-end gap-2 empty:hidden">
         <Can permission={PERMISSIONS.INSTRUCTOR_SCHEDULES_VIEW}>
           <Link
             href={ROUTES.MANAGER_INSTRUCTOR_SCHEDULES}
@@ -285,7 +278,7 @@ export function ManageInstructorsPanel({
         onValueChange={handleTabChange}
         className="flex flex-col gap-6"
       >
-        <TabsListPrimitive className="mx-auto flex h-auto w-full flex-wrap items-center justify-center gap-2 rounded-full bg-muted/60 p-1 ring-1 ring-foreground/8 sm:w-fit">
+        <TabsListPrimitive className="mx-auto flex h-auto w-full flex-wrap items-center justify-center gap-2 rounded-full bg-muted/60 p-1 ring-1 ring-foreground/8 @lg/panel:w-fit">
           <TabsTriggerPrimitive
             value={TABS.INSTRUCTORS}
             className={TAB_TRIGGER_CLASS}
@@ -308,7 +301,7 @@ export function ManageInstructorsPanel({
             className="flex flex-col gap-6"
           >
             <section className="space-y-3">
-              <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+              <div className="flex flex-col gap-3 @lg/panel:flex-row @lg/panel:items-start @lg/panel:justify-between">
                 <div>
                   <h2 className="text-lg font-semibold tracking-tight">
                     Instructors
@@ -393,7 +386,7 @@ export function ManageInstructorsPanel({
                   </div>
                 )}
 
-                <div className="flex flex-col gap-3 border-t px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+                <div className="flex flex-col gap-3 border-t px-4 py-3 @lg/panel:flex-row @lg/panel:items-center @lg/panel:justify-between">
                   <div className="flex items-center gap-2 text-sm text-muted-foreground">
                     <span>
                       Showing {rangeStart}–{rangeEnd} of {instructors.length}

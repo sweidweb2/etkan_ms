@@ -14,6 +14,7 @@ import {
 } from "@/app/manager/rbac/actions";
 import { Can } from "@/components/auth/can";
 import { InlineSpinner } from "@/components/loaders/inline-spinner";
+import { PanelPageHeader } from "@/components/panels/panel-page-header";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -266,21 +267,15 @@ export function ManagerRbacPanel({
   const showSearchDropdown = isSearchOpen && normalizedSearch.length > 0;
 
   return (
-    <div className="flex flex-col gap-6 pb-24">
-      <div ref={pageTopRef}>
-        <h1 className="text-2xl font-semibold tracking-tight">Permissions</h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Grant or revoke permissions for each role. Changes apply on the next
-          request.
-        </p>
-      </div>
+    <div ref={pageTopRef} className="flex flex-col gap-6 pb-24">
+      <PanelPageHeader title="Permissions" />
 
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+      <div className="flex flex-col gap-3 @lg/panel:flex-row @lg/panel:items-center">
         <Select value={selectedRole} onValueChange={handleRoleChange}>
           <SelectTrigger
             id="rbac-role"
             aria-label="Select role"
-            className="w-full sm:w-48"
+            className="w-full @lg/panel:w-48"
           >
             <SelectValue placeholder="Role" />
           </SelectTrigger>

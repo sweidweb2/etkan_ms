@@ -270,7 +270,7 @@ export function SessionDetailsActions({
         />
       </div>
 
-      <div className="grid gap-4 lg:grid-cols-2">
+      <div className="grid gap-4 @2xl/panel:grid-cols-2">
         <div className="flex flex-col gap-4 rounded-xl border border-foreground/10 bg-muted/20 p-4">
           <div className="flex items-center gap-2">
             <div className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-violet-500/10 text-violet-700 dark:text-violet-300">
@@ -413,7 +413,7 @@ export function SessionDetailsActions({
         </div>
 
         {hidePhase ? null : (
-          <div className="flex flex-col gap-4 rounded-xl border border-foreground/10 bg-muted/20 p-4 lg:max-w-md">
+          <div className="flex flex-col gap-4 rounded-xl border border-foreground/10 bg-muted/20 p-4 @2xl/panel:max-w-md">
             <div className="flex items-center gap-2">
               <div className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-sky-500/10 text-sky-700 dark:text-sky-300">
                 <LayersIcon className="size-4" />

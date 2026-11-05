@@ -108,7 +108,7 @@ export function AccountingExceptionTabs({
       }
       className="flex flex-col gap-4"
     >
-      <TabsListPrimitive className="flex h-auto w-full flex-wrap items-center gap-2 rounded-full bg-muted/60 p-1 ring-1 ring-foreground/8 sm:w-fit">
+      <TabsListPrimitive className="flex h-auto w-full flex-wrap items-center gap-2 rounded-full bg-muted/60 p-1 ring-1 ring-foreground/8 @lg/panel:w-fit">
         <TabsTriggerPrimitive
           value="billed-no-class"
           className={TAB_TRIGGER_CLASS}

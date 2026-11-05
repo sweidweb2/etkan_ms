@@ -110,7 +110,7 @@ export function SessionTaskAnalyticsSection({
           Completion breakdown and per-student scores for this assignment.
         </p>
       </CardHeader>
-      <CardContent className="grid gap-6 pt-2 pb-3 lg:grid-cols-2">
+      <CardContent className="grid gap-6 pt-2 pb-3 @2xl/panel:grid-cols-2">
         <AnalyticsChartCard
           title="Completion"
           description={`${finishedTotal} finished · ${notFinishedTotal} not finished`}

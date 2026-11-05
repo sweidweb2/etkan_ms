@@ -116,7 +116,8 @@ export async function createAdjustmentForManager(
 
   const snapshot = await loadSppFinancialSnapshot(
     adminClient,
-    data.studentPaymentPhaseId
+    data.studentPaymentPhaseId,
+    data.spp
   );
   if ("error" in snapshot) {
     return { success: false, error: snapshot.error };
@@ -282,7 +283,8 @@ export async function importAdjustmentForManager(
 
   const snapshot = await loadSppFinancialSnapshot(
     adminClient,
-    data.studentPaymentPhaseId
+    data.studentPaymentPhaseId,
+    data.spp
   );
   if ("error" in snapshot) {
     return { success: false, error: snapshot.error };
@@ -382,7 +384,8 @@ export async function updateAdjustmentForManager(
 
   const snapshot = await loadSppFinancialSnapshot(
     adminClient,
-    data.studentPaymentPhaseId
+    data.studentPaymentPhaseId,
+    data.spp
   );
   if ("error" in snapshot) {
     return { success: false, error: snapshot.error };
@@ -461,7 +464,8 @@ export async function deleteAdjustmentForManager(
 
   const snapshot = await loadSppFinancialSnapshot(
     adminClient,
-    data.studentPaymentPhaseId
+    data.studentPaymentPhaseId,
+    data.spp
   );
   if ("error" in snapshot) {
     return { success: false, error: snapshot.error };

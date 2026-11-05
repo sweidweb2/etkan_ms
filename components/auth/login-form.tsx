@@ -99,6 +99,7 @@ export function LoginForm({ next }: LoginFormProps) {
         <PasswordInput
           id="password"
           autoComplete="current-password"
+          placeholder={t("auth.placeholder.password")}
           minLength={AUTH_LIMITS.password.min}
           maxLength={AUTH_LIMITS.password.max}
           aria-invalid={!!passwordError}

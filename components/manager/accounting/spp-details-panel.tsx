@@ -903,7 +903,7 @@ export function SppDetailsPanel({
           </CardContent>
         </Card>
 
-        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
+        <div className="grid gap-4 @lg/panel:grid-cols-2 @4xl/panel:grid-cols-5">
           <UserStatCard
             label="Original"
             value={formatPaymentPhaseMoney(spp.original_amount)}
@@ -1163,7 +1163,7 @@ export function SppDetailsPanel({
                 No financial adjustment on this student payment phase.
               </p>
             ) : (
-              <dl className="grid gap-3 text-sm sm:grid-cols-2">
+              <dl className="grid gap-3 text-sm @lg/panel:grid-cols-2">
                 <div>
                   <dt className="text-muted-foreground">Type</dt>
                   <dd className="font-medium">
@@ -1202,7 +1202,7 @@ export function SppDetailsPanel({
                     )}
                   </dd>
                 </div>
-                <div className="sm:col-span-2">
+                <div className="@lg/panel:col-span-2">
                   <dt className="text-muted-foreground">Reason</dt>
                   <dd className="font-medium">{adjustment.reason ?? "—"}</dd>
                 </div>
@@ -1251,7 +1251,7 @@ export function SppDetailsPanel({
                 {invites.map((invite) => (
                   <li
                     key={invite.id}
-                    className="flex flex-col gap-2 rounded-lg border px-3 py-2 sm:flex-row sm:items-center sm:justify-between"
+                    className="flex flex-col gap-2 rounded-lg border px-3 py-2 @lg/panel:flex-row @lg/panel:items-center @lg/panel:justify-between"
                   >
                     <div className="min-w-0">
                       <p className="truncate text-sm font-medium">
@@ -1333,7 +1333,7 @@ export function SppDetailsPanel({
                 description="Forms do not change amounts."
               />
             ) : (
-              <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+              <div className="grid gap-3 @lg/panel:grid-cols-2 @4xl/panel:grid-cols-3">
                 {forms.map((formRow) => (
                   <div
                     key={formRow.id}

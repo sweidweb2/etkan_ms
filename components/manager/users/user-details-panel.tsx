@@ -70,7 +70,7 @@ export function UserDetailsPanel({
           </CardAction>
         </CardHeader>
         <CardContent>
-          <dl className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+          <dl className="grid gap-6 @lg/panel:grid-cols-2 @2xl/panel:grid-cols-3">
             <DetailField label="Username" value={user.username ?? "—"} />
             <DetailField label="Email" value={user.email} />
             <DetailField label="Role">

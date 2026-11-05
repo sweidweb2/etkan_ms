@@ -96,7 +96,7 @@ export function ClassStudentsRoster({
     <>
       <div
         className={cn(
-          "flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between",
+          "flex flex-col gap-3 @lg/panel:flex-row @lg/panel:items-center @lg/panel:justify-between",
           variant === "card"
             ? "border-b border-border/50 bg-muted/25 px-5 py-4"
             : "mb-3"
@@ -108,7 +108,7 @@ export function ClassStudentsRoster({
             {students.length} enrolled in {className}.
           </p>
         </div>
-        <div className="relative w-full sm:max-w-xs">
+        <div className="relative w-full @lg/panel:max-w-xs">
           <SearchIcon className="pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-muted-foreground" />
           <Input
             value={query}

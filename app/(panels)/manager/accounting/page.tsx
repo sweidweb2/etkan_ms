@@ -9,12 +9,12 @@ import {
   MissingPriorAdjustmentSection,
 } from "@/components/manager/accounting/missing-prior-adjustment-section";
 import { getSessionUser } from "@/lib/auth/session";
-import { createSupabaseAdminClient } from "@/lib/supabase/admin";
+import { getRequestAdminClient } from "@/lib/supabase/admin";
 import { listPaymentPhasesForManager } from "@/services/accounting/payment-phase.service";
 import { sumStudentPaymentsForMonthForManager } from "@/services/accounting/student-payment.service";
 
 export default async function ManagerAccountingPage() {
-  const adminClient = createSupabaseAdminClient();
+  const adminClient = getRequestAdminClient();
   const user = await getSessionUser();
   const actorUserId = user?.id ?? null;
 

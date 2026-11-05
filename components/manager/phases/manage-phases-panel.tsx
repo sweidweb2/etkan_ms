@@ -6,9 +6,8 @@ import { Can } from "@/components/auth/can";
 import { AddPhaseDialog } from "@/components/manager/phases/add-phase-dialog";
 import { EditPhaseDialog } from "@/components/manager/phases/edit-phase-dialog";
 import { PhaseCard } from "@/components/manager/phases/phase-card";
-import { UserStatCard } from "@/components/manager/users/user-stat-card";
+import { PanelPageHeader } from "@/components/panels/panel-page-header";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import {
   Select,
@@ -162,16 +161,8 @@ export function ManagePhasesPanel({ initialSemesters }: ManagePhasesPanelProps) 
 
   return (
     <div className="flex flex-col gap-6">
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-        <div>
-          <h1 className="text-2xl font-semibold tracking-tight">
-            Manage semesters
-          </h1>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Semesters with names and codes for linking classes and payment
-            phases.
-          </p>
-        </div>
+      <PanelPageHeader title="Manage semesters" />
+      <div className="flex flex-wrap items-center justify-end gap-2 empty:hidden">
         <Can permission={PERMISSIONS.SEMESTERS_CREATE}>
           <Button type="button" onClick={() => setIsAddOpen(true)}>
             <PlusIcon data-icon="inline-start" />
@@ -199,163 +190,143 @@ export function ManagePhasesPanel({ initialSemesters }: ManagePhasesPanelProps) 
         />
       ) : null}
 
-      <div className="grid gap-4 sm:grid-cols-2">
-        <UserStatCard
-          label="Total semesters"
-          value={phases.length}
-          accentClassName="border-l-sky-500"
-        />
-        <UserStatCard
-          label="Showing"
-          value={filteredPhases.length}
-          accentClassName="border-l-emerald-500"
-        />
+      <div className="flex flex-col gap-3 @2xl/panel:flex-row @2xl/panel:items-center">
+        <div className="relative min-w-0 flex-1">
+          <SearchIcon className="pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-muted-foreground" />
+          <Input
+            value={searchQuery}
+            onChange={(event) => {
+              setSearchQuery(event.target.value);
+              setCurrentPage(1);
+            }}
+            placeholder="Search semester name or code..."
+            className="pl-8"
+            aria-label="Search semesters"
+          />
+        </div>
+        <div className="flex flex-col gap-3 @lg/panel:flex-row">
+          <Select
+            value={sortBy}
+            onValueChange={(value) => {
+              if (!value) {
+                return;
+              }
+              setSortBy(value as SortByValue);
+              setCurrentPage(1);
+            }}
+          >
+            <SelectTrigger
+              className="w-full @lg/panel:w-44"
+              aria-label="Sort semesters by"
+            >
+              <SelectValue placeholder="Sort by">
+                {(value) =>
+                  SORT_BY_LABELS[value as SortByValue] ?? "Sort by"
+                }
+              </SelectValue>
+            </SelectTrigger>
+            <SelectContent align="end">
+              <SelectItem value={SORT_BY_NAME}>Name</SelectItem>
+              <SelectItem value={SORT_BY_CREATED}>Database order</SelectItem>
+            </SelectContent>
+          </Select>
+          <Select
+            value={sortOrder}
+            onValueChange={(value) => {
+              if (!value) {
+                return;
+              }
+              setSortOrder(value as SortOrderValue);
+              setCurrentPage(1);
+            }}
+          >
+            <SelectTrigger
+              className="w-full @lg/panel:w-40"
+              aria-label="Sort order"
+            >
+              <SelectValue placeholder="Order">
+                {(value) =>
+                  SORT_ORDER_LABELS[value as SortOrderValue] ?? "Order"
+                }
+              </SelectValue>
+            </SelectTrigger>
+            <SelectContent align="end">
+              <SelectItem value={SORT_ORDER_ASC}>Ascending</SelectItem>
+              <SelectItem value={SORT_ORDER_DESC}>Descending</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
       </div>
 
-      <Card className="py-0">
-        <CardHeader className="border-b bg-muted/50 py-3">
-          <CardTitle>Semesters</CardTitle>
-        </CardHeader>
-        <CardContent className="flex flex-col gap-6 px-4 pt-2 pb-3">
-          <div className="flex flex-col gap-3 lg:flex-row lg:items-center">
-            <div className="relative min-w-0 flex-1">
-              <SearchIcon className="pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-muted-foreground" />
-              <Input
-                value={searchQuery}
-                onChange={(event) => {
-                  setSearchQuery(event.target.value);
-                  setCurrentPage(1);
-                }}
-                placeholder="Search semester name or code..."
-                className="pl-8"
-                aria-label="Search semesters"
-              />
-            </div>
-            <div className="flex flex-col gap-3 sm:flex-row">
-              <Select
-                value={sortBy}
-                onValueChange={(value) => {
-                  if (!value) {
-                    return;
-                  }
-                  setSortBy(value as SortByValue);
-                  setCurrentPage(1);
-                }}
-              >
-                <SelectTrigger
-                  className="w-full sm:w-44"
-                  aria-label="Sort semesters by"
-                >
-                  <SelectValue placeholder="Sort by">
-                    {(value) =>
-                      SORT_BY_LABELS[value as SortByValue] ?? "Sort by"
-                    }
-                  </SelectValue>
-                </SelectTrigger>
-                <SelectContent align="end">
-                  <SelectItem value={SORT_BY_NAME}>Name</SelectItem>
-                  <SelectItem value={SORT_BY_CREATED}>Database order</SelectItem>
-                </SelectContent>
-              </Select>
-              <Select
-                value={sortOrder}
-                onValueChange={(value) => {
-                  if (!value) {
-                    return;
-                  }
-                  setSortOrder(value as SortOrderValue);
-                  setCurrentPage(1);
-                }}
-              >
-                <SelectTrigger
-                  className="w-full sm:w-40"
-                  aria-label="Sort order"
-                >
-                  <SelectValue placeholder="Order">
-                    {(value) =>
-                      SORT_ORDER_LABELS[value as SortOrderValue] ?? "Order"
-                    }
-                  </SelectValue>
-                </SelectTrigger>
-                <SelectContent align="end">
-                  <SelectItem value={SORT_ORDER_ASC}>Ascending</SelectItem>
-                  <SelectItem value={SORT_ORDER_DESC}>Descending</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
+      {paginatedPhases.length === 0 ? (
+        <p className="py-10 text-center text-sm text-muted-foreground">
+          No semesters match your search.
+        </p>
+      ) : (
+        <div className="grid gap-4 @lg/panel:grid-cols-2 @4xl/panel:grid-cols-3">
+          {paginatedPhases.map((phase) => (
+            <PhaseCard
+              key={phase.id}
+              phase={phase}
+              onEdit={setEditingSemester}
+            />
+          ))}
+        </div>
+      )}
 
-          {paginatedPhases.length === 0 ? (
-            <p className="py-10 text-center text-sm text-muted-foreground">
-              No semesters match your search.
-            </p>
-          ) : (
-            <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
-              {paginatedPhases.map((phase) => (
-                <PhaseCard
-                  key={phase.id}
-                  phase={phase}
-                  onEdit={setEditingSemester}
-                />
-              ))}
-            </div>
+      <div className="flex flex-col gap-3 border-t pt-4 @lg/panel:flex-row @lg/panel:items-center @lg/panel:justify-between">
+        <p className="text-sm text-muted-foreground">
+          Showing {rangeStart}–{rangeEnd} of {filteredPhases.length}
+        </p>
+
+        <div className="flex items-center gap-1">
+          <Button
+            type="button"
+            variant="outline"
+            size="icon-sm"
+            disabled={safeCurrentPage <= 1}
+            onClick={() => setCurrentPage((page) => page - 1)}
+            aria-label="Previous page"
+          >
+            <ChevronLeftIcon />
+          </Button>
+
+          {pageNumbers.map((page, index) =>
+            page === "ellipsis" ? (
+              <span
+                key={`ellipsis-${index}`}
+                className="px-1 text-sm text-muted-foreground"
+              >
+                …
+              </span>
+            ) : (
+              <Button
+                key={page}
+                type="button"
+                variant={page === safeCurrentPage ? "default" : "outline"}
+                size="icon-sm"
+                className="min-w-7"
+                onClick={() => setCurrentPage(page)}
+                aria-label={`Page ${page}`}
+                aria-current={page === safeCurrentPage ? "page" : undefined}
+              >
+                {page}
+              </Button>
+            )
           )}
 
-          <div className="flex flex-col gap-3 border-t pt-4 sm:flex-row sm:items-center sm:justify-between">
-            <p className="text-sm text-muted-foreground">
-              Showing {rangeStart}–{rangeEnd} of {filteredPhases.length}
-            </p>
-
-            <div className="flex items-center gap-1">
-              <Button
-                type="button"
-                variant="outline"
-                size="icon-sm"
-                disabled={safeCurrentPage <= 1}
-                onClick={() => setCurrentPage((page) => page - 1)}
-                aria-label="Previous page"
-              >
-                <ChevronLeftIcon />
-              </Button>
-
-              {pageNumbers.map((page, index) =>
-                page === "ellipsis" ? (
-                  <span
-                    key={`ellipsis-${index}`}
-                    className="px-1 text-sm text-muted-foreground"
-                  >
-                    …
-                  </span>
-                ) : (
-                  <Button
-                    key={page}
-                    type="button"
-                    variant={page === safeCurrentPage ? "default" : "outline"}
-                    size="icon-sm"
-                    className="min-w-7"
-                    onClick={() => setCurrentPage(page)}
-                    aria-label={`Page ${page}`}
-                    aria-current={page === safeCurrentPage ? "page" : undefined}
-                  >
-                    {page}
-                  </Button>
-                )
-              )}
-
-              <Button
-                type="button"
-                variant="outline"
-                size="icon-sm"
-                disabled={safeCurrentPage >= totalPages}
-                onClick={() => setCurrentPage((page) => page + 1)}
-                aria-label="Next page"
-              >
-                <ChevronRightIcon />
-              </Button>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
+          <Button
+            type="button"
+            variant="outline"
+            size="icon-sm"
+            disabled={safeCurrentPage >= totalPages}
+            onClick={() => setCurrentPage((page) => page + 1)}
+            aria-label="Next page"
+          >
+            <ChevronRightIcon />
+          </Button>
+        </div>
+      </div>
     </div>
   );
 }

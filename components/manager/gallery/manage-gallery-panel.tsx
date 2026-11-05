@@ -22,6 +22,7 @@ import { AddGalleryImageDialog } from "@/components/manager/gallery/add-gallery-
 import { EditGalleryImageDialog } from "@/components/manager/gallery/edit-gallery-image-dialog";
 import { UserStatCard } from "@/components/manager/users/user-stat-card";
 import { InlineSpinner } from "@/components/loaders/inline-spinner";
+import { PanelPageHeader } from "@/components/panels/panel-page-header";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { CopyTextButton } from "@/components/ui/copy-text-button";
@@ -332,15 +333,8 @@ export function ManageGalleryPanel({
   return (
     <TooltipProvider>
       <div className="flex flex-col gap-6">
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-          <div>
-            <h1 className="text-2xl font-semibold tracking-tight">
-              Manage gallery
-            </h1>
-            <p className="mt-1 text-sm text-muted-foreground">
-              Images shown on the public gallery page.
-            </p>
-          </div>
+        <PanelPageHeader title="Manage gallery" />
+        <div className="flex flex-wrap items-center justify-end gap-2 empty:hidden">
           <Can permission={PERMISSIONS.GALLERY_CREATE}>
             <Button type="button" onClick={() => setIsAddOpen(true)}>
               <PlusIcon data-icon="inline-start" />
@@ -420,7 +414,7 @@ export function ManageGalleryPanel({
           </DialogContent>
         </Dialog>
 
-        <div className="grid gap-4 sm:grid-cols-2">
+        <div className="grid gap-4 @lg/panel:grid-cols-2">
           <UserStatCard
             label="Total images"
             value={list.catalogCount}
@@ -546,7 +540,7 @@ export function ManageGalleryPanel({
                 </table>
               </div>
             ) : (
-              <ul className="grid gap-4 p-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+              <ul className="grid gap-4 p-4 @lg/panel:grid-cols-2 @2xl/panel:grid-cols-3 @4xl/panel:grid-cols-4">
                 {images.map((image) => (
                   <li
                     key={image.id}
@@ -577,7 +571,7 @@ export function ManageGalleryPanel({
               </ul>
             )}
 
-            <div className="flex flex-col gap-3 border-t px-4 pt-2 pb-3 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex flex-col gap-3 border-t px-4 pt-2 pb-3 @lg/panel:flex-row @lg/panel:items-center @lg/panel:justify-between">
               <div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
                 <span>
                   Showing {rangeStart}–{rangeEnd} of {list.totalCount}

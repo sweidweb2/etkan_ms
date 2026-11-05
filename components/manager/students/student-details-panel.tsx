@@ -17,6 +17,7 @@ import { StudentDetailsSectionNav } from "@/components/manager/students/student-
 import { StudentJoinedClassesSection } from "@/components/manager/students/student-joined-classes-section";
 import { StudentDetailStatCard } from "@/components/manager/students/student-detail-stat-card";
 import { StudentStatusBadge } from "@/components/manager/students/student-status-badge";
+import { PanelPageHeader } from "@/components/panels/panel-page-header";
 import {
   Breadcrumb,
   BreadcrumbItem,
@@ -68,7 +69,7 @@ function StudentAnalyticsCards({
   stats: ManagerStudentDetailStats;
 }) {
   return (
-    <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+    <div className="grid gap-4 @lg/panel:grid-cols-2 @4xl/panel:grid-cols-4">
       <StudentDetailStatCard
         label="Classes registered"
         value={stats.classesRegistered}
@@ -138,12 +139,7 @@ export function StudentDetailsPanel({
   return (
     <div className="flex min-w-0 max-w-full flex-col gap-6">
       {isSelf ? (
-        <div>
-          <h1 className="text-2xl font-semibold tracking-tight">My profile</h1>
-          <p className="mt-1 text-sm text-muted-foreground">
-            View your personal information and change your password.
-          </p>
-        </div>
+        <PanelPageHeader title="My profile" />
       ) : (
         <Breadcrumb>
           <BreadcrumbList>
@@ -179,7 +175,7 @@ export function StudentDetailsPanel({
       )}
 
       {isSelf ? (
-        <div className="grid gap-6 md:grid-cols-2">
+        <div className="grid gap-6 @xl/panel:grid-cols-2">
           <Card className="gap-0 py-0">
             <CardHeader className="border-b bg-muted/40 py-3">
               <CardTitle className="flex items-center gap-2 text-base">
@@ -200,7 +196,7 @@ export function StudentDetailsPanel({
                   To change your name or phone number, contact an administrator.
                 </p>
               </div>
-              <dl className="grid gap-6 sm:grid-cols-2">
+              <dl className="grid gap-6 @lg/panel:grid-cols-2">
                 <DetailField label="Full name" value={student.full_name} />
                 <DetailField label="Phone" value={student.phone ?? "—"} />
               </dl>
@@ -276,7 +272,7 @@ export function StudentDetailsPanel({
             </CardAction>
           </CardHeader>
           <CardContent className="pb-4 pt-2">
-            <dl className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+            <dl className="grid gap-6 @lg/panel:grid-cols-2 @2xl/panel:grid-cols-3">
               <DetailField label="Full name" value={student.full_name} />
               <DetailField label="Username" value={student.username ?? "—"} />
               <DetailField label="Email" value={student.email} />

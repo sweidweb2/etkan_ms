@@ -838,7 +838,7 @@ export function ClassStudentGradesSection({
                   className="overflow-hidden rounded-xl border bg-background"
                 >
                   <div className="border-b bg-muted/30 px-4 py-3">
-                    <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+                    <div className="flex flex-col gap-3 @2xl/panel:flex-row @2xl/panel:items-start @2xl/panel:justify-between">
                       <div>
                         <h4 className="text-sm font-semibold">{batch.label}</h4>
                         <p className="text-xs text-muted-foreground">
@@ -846,7 +846,7 @@ export function ClassStudentGradesSection({
                           {batchRows.length === 1 ? "" : "s"} in this batch
                         </p>
                       </div>
-                      <div className="grid gap-2 text-xs text-muted-foreground sm:grid-cols-2">
+                      <div className="grid gap-2 text-xs text-muted-foreground @lg/panel:grid-cols-2">
                         <div className="rounded-lg border bg-background px-3 py-2">
                           <span className="block">Tasks weight</span>
                           <span className="font-medium text-foreground">

@@ -19,11 +19,13 @@ import { AddUserDialog } from "@/components/manager/users/add-user-dialog";
 import { EditUserDialog } from "@/components/manager/users/edit-user-dialog";
 import { UserRoleBadge } from "@/components/manager/users/user-role-badge";
 import { UserStatCard } from "@/components/manager/users/user-stat-card";
+import { PanelPageHeader } from "@/components/panels/panel-page-header";
 import { Button } from "@/components/ui/button";
 import { Card, CardAction, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { CopyTextButton } from "@/components/ui/copy-text-button";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Input } from "@/components/ui/input";
+import { LetterAvatar } from "@/components/ui/letter-avatar";
 import {
   Select,
   SelectContent,
@@ -269,14 +271,9 @@ export function ManageUsersPanel({
   return (
     <TooltipProvider>
       <div className="flex flex-col gap-6">
-        <div>
-          <h1 className="text-2xl font-semibold tracking-tight">Manage users</h1>
-          <p className="mt-1 text-sm text-muted-foreground">
-            View and create staff accounts for your school.
-          </p>
-        </div>
+        <PanelPageHeader title="Manage users" />
 
-        <div className="grid gap-4 sm:grid-cols-3">
+        <div className="grid gap-4 @lg/panel:grid-cols-3">
           <UserStatCard
             label="Total users"
             value={stats.total}
@@ -326,7 +323,7 @@ export function ManageUsersPanel({
             </CardAction>
           </CardHeader>
           <CardContent className="px-0 pb-0">
-            <div className="flex flex-col gap-3 border-b px-4 pt-2 pb-3 sm:flex-row sm:items-center">
+            <div className="flex flex-col gap-3 border-b px-4 pt-2 pb-3 @lg/panel:flex-row @lg/panel:items-center">
               <div className="relative min-w-0 flex-1">
                 <SearchIcon className="pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-muted-foreground" />
                 <Input
@@ -348,7 +345,7 @@ export function ManageUsersPanel({
                 ) : null}
               </div>
               <Select value={roleFilter} onValueChange={handleRoleFilterChange}>
-                <SelectTrigger className="w-full sm:w-44" aria-label="Filter by role">
+                <SelectTrigger className="w-full @lg/panel:w-44" aria-label="Filter by role">
                   <SelectValue placeholder="All roles" />
                 </SelectTrigger>
                 <SelectContent align="end">
@@ -380,9 +377,10 @@ export function ManageUsersPanel({
               />
             ) : (
               <div className="overflow-x-auto">
-                <table className="w-full min-w-[560px] text-sm">
+                <table className="w-full min-w-[640px] text-sm">
                   <thead>
                     <tr className="border-b bg-muted/40 text-left">
+                      <th className="w-12 px-4 py-3 font-medium">#</th>
                       <th className="px-4 py-3 font-medium">Username</th>
                       <th className="px-4 py-3 font-medium">Email</th>
                       <th className="px-4 py-3 font-medium">Role</th>
@@ -391,7 +389,7 @@ export function ManageUsersPanel({
                     </tr>
                   </thead>
                   <tbody>
-                    {paginatedUsers.map((user) => {
+                    {paginatedUsers.map((user, index) => {
                       const isCurrentUser =
                         currentUserId !== null && user.id === currentUserId;
 
@@ -410,11 +408,19 @@ export function ManageUsersPanel({
                             handleUserRowKeyDown(event, user)
                           }
                         >
-                          <td className="max-w-[10rem] px-4 py-3">
+                          <td className="px-4 py-3 text-muted-foreground tabular-nums">
+                            {rangeStart + index}
+                          </td>
+                          <td className="max-w-[12rem] px-4 py-3">
                             <div className="flex min-w-0 items-center gap-2">
+                              <LetterAvatar
+                                name={user.username ?? user.email}
+                                seed={user.id}
+                              />
                               <TruncatedCell
                                 value={user.username ?? "—"}
                                 maxLength={COLUMN_LIMITS.username}
+                                className="min-w-0"
                               />
                               {isCurrentUser ? <CurrentUserBadge /> : null}
                             </div>
@@ -468,7 +474,7 @@ export function ManageUsersPanel({
               </div>
             )}
 
-            <div className="flex flex-col gap-3 border-t px-4 pt-2 pb-3 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex flex-col gap-3 border-t px-4 pt-2 pb-3 @lg/panel:flex-row @lg/panel:items-center @lg/panel:justify-between">
               <div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
                 <span>
                   Showing {rangeStart}–{rangeEnd} of {filteredUsers.length}

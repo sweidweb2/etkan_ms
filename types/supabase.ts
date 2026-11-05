@@ -3426,6 +3426,32 @@ export type Database = {
         Returns: Json
       }
       sum_student_payment_amounts: { Args: never; Returns: number }
+      sum_student_payment_amounts_between: {
+        Args: { p_from: string; p_to: string }
+        Returns: number
+      }
+      list_open_spps_missing_prior_adjustment: {
+        Args: { p_phase_ids: string[] }
+        Returns: {
+          full_name: string | null
+          payment_phase_id: string
+          spp_id: string
+          spp_status: string
+          student_id: string
+          student_profile_id: string | null
+          username: string | null
+        }[]
+      }
+      list_student_profiles_without_active_class: {
+        Args: never
+        Returns: {
+          full_name: string
+          id: string
+          phone: string | null
+          status: string | null
+          user_id: string
+        }[]
+      }
       sum_student_payment_amounts_by_type: { Args: never; Returns: Json }
       spp_net_total_paid: { Args: { p_spp_id: string }; Returns: number }
       aggregate_workshop_payment_totals: { Args: never; Returns: Json }

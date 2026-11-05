@@ -931,6 +931,7 @@ export const ar = {
   "auth.placeholder.username": "student_username",
   "auth.placeholder.fullName": "اسمك الكامل",
   "auth.placeholder.phone": "+961 ...",
+  "auth.placeholder.password": "أدخل كلمة المرور",
 
   "auth.hint.username": "٣–٣٠ حرفًا، أحرف وأرقام وشرطة سفلية",
   "auth.hint.fullName": "٢–٨٠ حرفًا",

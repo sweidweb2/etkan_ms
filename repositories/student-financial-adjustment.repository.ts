@@ -1,6 +1,10 @@
 import "server-only";
 
 import type { SupabaseClient } from "@supabase/supabase-js";
+import {
+  asSppRecord,
+  type StudentPaymentPhaseRecord,
+} from "@/repositories/student-payment-phase.repository";
 import type { Database } from "@/types/supabase";
 
 type Supabase = SupabaseClient<Database>;
@@ -196,57 +200,47 @@ export async function listAdjustmentsForStudentExcludingSpp(
     .order("created_at", { ascending: false });
 }
 
+export type OpenSppMissingPriorAdjustmentRecord = {
+  spp_id: string;
+  student_id: string;
+  payment_phase_id: string;
+  spp_status: string;
+  student_profile_id: string | null;
+  full_name: string | null;
+  username: string | null;
+};
+
 /**
- * Distinct student ids that have at least one adjustment on an SPP outside
- * `excludeSppIds` (used for the missing-prior-adjustment queue).
+ * Non-cancelled SPPs on `phaseIds` with no adjustment where the student has an
+ * adjustment on another SPP (missing-prior-adjustment queue, one statement).
  */
-export async function listStudentIdsWithAdjustmentsExcludingSppIds(
+export async function listOpenSppsMissingPriorAdjustment(
   client: Supabase,
-  studentIds: string[],
-  excludeSppIds: string[]
+  phaseIds: string[]
 ) {
-  if (studentIds.length === 0) {
-    return { data: [] as string[], error: null };
+  if (phaseIds.length === 0) {
+    return {
+      data: [] as OpenSppMissingPriorAdjustmentRecord[],
+      error: null,
+    };
   }
 
-  let query = client
-    .from("student_financial_adjustments")
-    .select("student_payment_phases!inner ( student_id )")
-    .in("student_payment_phases.student_id", studentIds);
-
-  if (excludeSppIds.length > 0) {
-    query = query.not(
-      "student_payment_phase_id",
-      "in",
-      `(${excludeSppIds.join(",")})`
-    );
-  }
-
-  const { data, error } = await query;
+  const { data, error } = await client.rpc(
+    "list_open_spps_missing_prior_adjustment",
+    { p_phase_ids: phaseIds }
+  );
 
   if (error) {
-    return { data: null, error };
+    return {
+      data: null as OpenSppMissingPriorAdjustmentRecord[] | null,
+      error,
+    };
   }
 
-  const ids = new Set<string>();
-  for (const row of data ?? []) {
-    const spp = (
-      row as {
-        student_payment_phases?:
-          | { student_id?: string }
-          | { student_id?: string }[]
-          | null;
-      }
-    ).student_payment_phases;
-    if (!spp || Array.isArray(spp)) {
-      continue;
-    }
-    if (typeof spp.student_id === "string") {
-      ids.add(spp.student_id);
-    }
-  }
-
-  return { data: [...ids], error: null };
+  return {
+    data: (data ?? []) as OpenSppMissingPriorAdjustmentRecord[],
+    error: null,
+  };
 }
 
 export async function createAdjustment(
@@ -291,17 +285,20 @@ export async function deleteAdjustment(client: Supabase, id: string) {
   return client.from("student_financial_adjustments").delete().eq("id", id);
 }
 
+/** `spp` is the post-recalc SPP row returned by the RPC (null on older DBs). */
 export type AdjustmentWriteRpcResult = {
   adjustment: FinancialAdjustmentRecord | null;
   previous: FinancialAdjustmentRecord | null;
   studentPaymentPhaseId: string;
   paymentPhaseId: string;
+  spp: StudentPaymentPhaseRecord | null;
 };
 
 export type DeleteAdjustmentRpcResult = {
   deleted: FinancialAdjustmentRecord | null;
   studentPaymentPhaseId: string;
   paymentPhaseId: string;
+  spp: StudentPaymentPhaseRecord | null;
 };
 
 function asNumber(input: unknown) {
@@ -362,6 +359,7 @@ export async function createAdjustmentWithRecalc(
         previous: null,
         studentPaymentPhaseId: "",
         paymentPhaseId: "",
+        spp: null,
       } satisfies AdjustmentWriteRpcResult,
       error: null,
     };
@@ -378,6 +376,7 @@ export async function createAdjustmentWithRecalc(
           : "",
       paymentPhaseId:
         typeof row.paymentPhaseId === "string" ? row.paymentPhaseId : "",
+      spp: asSppRecord(row.spp),
     } satisfies AdjustmentWriteRpcResult,
     error: null,
   };
@@ -414,6 +413,7 @@ export async function updateAdjustmentWithRecalc(
         previous: null,
         studentPaymentPhaseId: "",
         paymentPhaseId: "",
+        spp: null,
       } satisfies AdjustmentWriteRpcResult,
       error: null,
     };
@@ -430,6 +430,7 @@ export async function updateAdjustmentWithRecalc(
           : "",
       paymentPhaseId:
         typeof row.paymentPhaseId === "string" ? row.paymentPhaseId : "",
+      spp: asSppRecord(row.spp),
     } satisfies AdjustmentWriteRpcResult,
     error: null,
   };
@@ -460,6 +461,7 @@ export async function deleteAdjustmentWithRecalc(
         deleted: null,
         studentPaymentPhaseId: "",
         paymentPhaseId: "",
+        spp: null,
       } satisfies DeleteAdjustmentRpcResult,
       error: null,
     };
@@ -475,6 +477,7 @@ export async function deleteAdjustmentWithRecalc(
           : "",
       paymentPhaseId:
         typeof row.paymentPhaseId === "string" ? row.paymentPhaseId : "",
+      spp: asSppRecord(row.spp),
     } satisfies DeleteAdjustmentRpcResult,
     error: null,
   };

@@ -927,6 +927,7 @@ export const en = {
   "auth.placeholder.username": "student_username",
   "auth.placeholder.fullName": "Your full name",
   "auth.placeholder.phone": "+961 ...",
+  "auth.placeholder.password": "Enter your password",
 
   "auth.hint.username":
     "3–30 characters, letters, numbers, underscores",

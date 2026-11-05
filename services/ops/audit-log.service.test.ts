@@ -6,6 +6,7 @@ import {
 } from "@/lib/ops/schedule-after-response";
 import {
   createAuditLogForManager,
+  deleteAuditLogsForManager,
   recordManagerAuditLog,
 } from "@/services/ops/audit-log.service";
 import type { SupabaseClient } from "@supabase/supabase-js";
@@ -13,6 +14,7 @@ import type { Database } from "@/types/supabase";
 
 vi.mock("@/repositories/audit-log.repository", () => ({
   createAuditLog: vi.fn(),
+  deleteAuditLogsByIds: vi.fn(),
   listAuditLogs: vi.fn(),
 }));
 
@@ -268,5 +270,96 @@ describe("recordManagerAuditLog", () => {
     await deferredTasks[0]?.();
 
     expect(auditLogRepository.createAuditLog).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("deleteAuditLogsForManager", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    __resetAfterSchedulerForTests();
+    vi.mocked(auditLogRepository.createAuditLog).mockResolvedValue({
+      data: null,
+      error: null,
+    } as never);
+  });
+
+  it("rejects when the actor is not authorized", async () => {
+    const result = await deleteAuditLogsForManager(
+      adminClient,
+      null,
+      actor,
+      ["log-1"]
+    );
+
+    expect(result).toEqual({ success: false, error: "Unauthorized." });
+    expect(auditLogRepository.deleteAuditLogsByIds).not.toHaveBeenCalled();
+  });
+
+  it("deletes the given ids and records a critical audit entry", async () => {
+    vi.mocked(auditLogRepository.deleteAuditLogsByIds).mockResolvedValue({
+      data: [{ id: "log-1" }, { id: "log-2" }],
+      error: null,
+    } as never);
+
+    const result = await deleteAuditLogsForManager(
+      adminClient,
+      "user-1",
+      actor,
+      ["log-1", "log-2"]
+    );
+
+    expect(result).toEqual({
+      success: true,
+      message: "2 logs deleted.",
+      deleted_ids: ["log-1", "log-2"],
+    });
+    expect(auditLogRepository.deleteAuditLogsByIds).toHaveBeenCalledWith(
+      adminClient,
+      ["log-1", "log-2"]
+    );
+    expect(auditLogRepository.createAuditLog).toHaveBeenCalledWith(
+      adminClient,
+      expect.objectContaining({
+        action: "delete",
+        severity: "critical",
+        table_name: "audit_logs",
+      })
+    );
+  });
+
+  it("returns an error when nothing was deleted", async () => {
+    vi.mocked(auditLogRepository.deleteAuditLogsByIds).mockResolvedValue({
+      data: [],
+      error: null,
+    } as never);
+
+    const result = await deleteAuditLogsForManager(
+      adminClient,
+      "user-1",
+      actor,
+      ["missing"]
+    );
+
+    expect(result.success).toBe(false);
+    expect(auditLogRepository.createAuditLog).not.toHaveBeenCalled();
+  });
+
+  it("returns an error when the repository fails", async () => {
+    vi.mocked(auditLogRepository.deleteAuditLogsByIds).mockResolvedValue({
+      data: null,
+      error: { message: "db error" },
+    } as never);
+
+    const result = await deleteAuditLogsForManager(
+      adminClient,
+      "user-1",
+      actor,
+      ["log-1"]
+    );
+
+    expect(result).toEqual({
+      success: false,
+      error: "Unable to delete logs. Please try again.",
+    });
   });
 });

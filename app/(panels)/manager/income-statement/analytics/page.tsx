@@ -5,7 +5,7 @@ import { IncomeStatementAnalyticsTablesSection } from "@/components/manager/acco
 import { IncomeStatementNextMonthSection } from "@/components/manager/accounting/income-statement-next-month-section";
 import { getSessionUser } from "@/lib/auth/session";
 import { ROUTES } from "@/lib/constants/routes";
-import { createSupabaseAdminClient } from "@/lib/supabase/admin";
+import { getRequestAdminClient } from "@/lib/supabase/admin";
 import { getIncomeStatementAnalyticsSummaryForManager } from "@/services/accounting/income-statement-analytics.service";
 
 type ManagerIncomeStatementAnalyticsPageProps = {
@@ -31,7 +31,7 @@ function parseMonth(value: string | undefined): number | null | undefined {
 export default async function ManagerIncomeStatementAnalyticsPage({
   searchParams,
 }: ManagerIncomeStatementAnalyticsPageProps) {
-  const adminClient = createSupabaseAdminClient();
+  const adminClient = getRequestAdminClient();
   const user = await getSessionUser();
 
   if (!user?.id) {
@@ -64,7 +64,7 @@ export default async function ManagerIncomeStatementAnalyticsPage({
         <Suspense
           fallback={
             <div
-              className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3"
+              className="grid gap-4 @lg/panel:grid-cols-2 @2xl/panel:grid-cols-3"
               aria-hidden
             >
               {[0, 1, 2].map((index) => (

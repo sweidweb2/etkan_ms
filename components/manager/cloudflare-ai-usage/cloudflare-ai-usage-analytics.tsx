@@ -43,7 +43,7 @@ export function CloudflareAiUsageAnalytics({
   const hasRequestBars = series.some((point) => point.requests > 0);
 
   return (
-    <div className="grid gap-6 lg:grid-cols-2">
+    <div className="grid gap-6 @2xl/panel:grid-cols-2">
       <AnalyticsChartCard
         title="Token usage"
         description={

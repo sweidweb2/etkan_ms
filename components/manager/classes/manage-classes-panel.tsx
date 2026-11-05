@@ -6,39 +6,42 @@ import {
   loadStudentsWithoutActiveClassAction,
 } from "@/app/manager/classes/actions";
 import {
+  ChartColumnIcon,
   ChevronLeftIcon,
   ChevronRightIcon,
   GraduationCapIcon,
   PlusIcon,
-  SearchIcon,
 } from "lucide-react";
 import { Can } from "@/components/auth/can";
 import { AddClassDialog } from "@/components/manager/classes/add-class-dialog";
 import { ClassCard } from "@/components/manager/classes/class-card";
-import { StudentsWithoutActiveClassCard } from "@/components/manager/shared/students-without-active-class-card";
-import { UserStatCard } from "@/components/manager/users/user-stat-card";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { EmptyState } from "@/components/ui/empty-state";
-import { Input } from "@/components/ui/input";
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+  ClassStatsDialog,
+  type ClassStats,
+} from "@/components/manager/classes/class-stats-dialog";
+import { StudentsWithoutActiveClassCard } from "@/components/manager/shared/students-without-active-class-card";
+import { PanelPageHeader } from "@/components/panels/panel-page-header";
+import { Button } from "@/components/ui/button";
+import { EmptyState } from "@/components/ui/empty-state";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import {
   CLASS_STATUSES,
   CLASS_STATUS_VALUES,
   type ClassStatusValue,
 } from "@/lib/constants/manager-class-status";
-import { MANAGER_CLASS_STATUS_LABELS } from "@/lib/constants/manager-class-display";
+import {
+  MANAGER_CLASS_STATUS_DOT_CLASSES,
+  MANAGER_CLASS_STATUS_LABELS,
+  MANAGER_CLASS_STATUS_TAB_CLASSES,
+} from "@/lib/constants/manager-class-display";
 import { COLLAPSIBLE_SECTION_STORAGE_KEYS } from "@/lib/constants/collapsible-section-storage";
 import { PERMISSIONS } from "@/lib/constants/permissions";
 import { cn } from "@/lib/utils";
 import { showErrorToast } from "@/lib/toast";
-import type { ManagerClassSemesterOption } from "@/types/manager-class-detail";
 import type {
   ManagerClassesListData,
   ManagerClassesListQuery,
@@ -47,10 +50,10 @@ import type {
 } from "@/types/manager-class-list";
 import type { ManagerStudentWithoutActiveClassRow } from "@/types/manager-student";
 
-const PAGE_SIZE = 6;
+const PAGE_SIZE = 40;
 const STATUS_FILTER_ALL = "all";
-const SEMESTER_FILTER_ALL = "all";
-const SEMESTER_FILTER_UNLINKED = "unlinked";
+
+type StatusFilterValue = ClassStatusValue | typeof STATUS_FILTER_ALL;
 
 function getPageNumbers(currentPage: number, totalPages: number) {
   if (totalPages <= 7) {
@@ -80,48 +83,27 @@ function getPageNumbers(currentPage: number, totalPages: number) {
   return result;
 }
 
-function listQueryKey(query: {
-  status: string;
-  semester: string;
-  search: string;
-  page: number;
-}) {
-  return `${query.status}|${query.semester}|${query.search}|${query.page}`;
+function listQueryKey(query: { status: StatusFilterValue; page: number }) {
+  return `${query.status}|${query.page}`;
 }
 
 function buildListQuery(input: {
-  status: string;
-  semester: string;
-  search: string;
+  status: StatusFilterValue;
   page: number;
   pageSize: number;
 }): ManagerClassesListQuery {
   return {
     page: input.page,
     pageSize: input.pageSize,
-    status:
-      input.status === STATUS_FILTER_ALL
-        ? null
-        : (input.status as ClassStatusValue),
-    semesterId:
-      input.semester === SEMESTER_FILTER_ALL ||
-      input.semester === SEMESTER_FILTER_UNLINKED
-        ? null
-        : input.semester,
-    unlinkedSemester: input.semester === SEMESTER_FILTER_UNLINKED,
-    search: input.search,
+    status: input.status === STATUS_FILTER_ALL ? null : input.status,
   };
 }
 
 type ManageClassesPanelProps = {
   initialData: ManagerClassesListData;
-  semesterOptions: ManagerClassSemesterOption[];
 };
 
-export function ManageClassesPanel({
-  initialData,
-  semesterOptions,
-}: ManageClassesPanelProps) {
+export function ManageClassesPanel({ initialData }: ManageClassesPanelProps) {
   const [classes, setClasses] = useState<ManagerClassRow[]>(
     initialData.classes
   );
@@ -134,8 +116,10 @@ export function ManageClassesPanel({
   const [studentsWithoutActiveClass, setStudentsWithoutActiveClass] = useState<
     ManagerStudentWithoutActiveClassRow[]
   >([]);
-  const [studentsWithoutActiveClassLoaded, setStudentsWithoutActiveClassLoaded] =
-    useState(false);
+  const [
+    studentsWithoutActiveClassLoaded,
+    setStudentsWithoutActiveClassLoaded,
+  ] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -154,34 +138,16 @@ export function ManageClassesPanel({
     };
   }, []);
   const [isAddOpen, setIsAddOpen] = useState(false);
-  const [searchQuery, setSearchQuery] = useState("");
-  const [statusFilter, setStatusFilter] = useState(STATUS_FILTER_ALL);
-  const [semesterFilter, setSemesterFilter] = useState(SEMESTER_FILTER_ALL);
-  const [debouncedSearch, setDebouncedSearch] = useState("");
+  const [isStatsOpen, setIsStatsOpen] = useState(false);
+  const [statusFilter, setStatusFilter] =
+    useState<StatusFilterValue>(STATUS_FILTER_ALL);
   const [currentPage, setCurrentPage] = useState(initialData.page);
   const loadedKeyRef = useRef(
-    listQueryKey({
-      status: STATUS_FILTER_ALL,
-      semester: SEMESTER_FILTER_ALL,
-      search: "",
-      page: initialData.page,
-    })
+    listQueryKey({ status: STATUS_FILTER_ALL, page: initialData.page })
   );
 
   useEffect(() => {
-    const timer = window.setTimeout(() => {
-      setDebouncedSearch(searchQuery.trim());
-    }, 300);
-    return () => window.clearTimeout(timer);
-  }, [searchQuery]);
-
-  useEffect(() => {
-    const key = listQueryKey({
-      status: statusFilter,
-      semester: semesterFilter,
-      search: debouncedSearch,
-      page: currentPage,
-    });
+    const key = listQueryKey({ status: statusFilter, page: currentPage });
     if (key === loadedKeyRef.current) {
       return;
     }
@@ -189,13 +155,7 @@ export function ManageClassesPanel({
     let cancelled = false;
     setIsLoading(true);
     void loadClassesPageAction(
-      buildListQuery({
-        status: statusFilter,
-        semester: semesterFilter,
-        search: debouncedSearch,
-        page: currentPage,
-        pageSize,
-      })
+      buildListQuery({ status: statusFilter, page: currentPage, pageSize })
     ).then((data) => {
       if (cancelled) {
         return;
@@ -212,9 +172,9 @@ export function ManageClassesPanel({
     return () => {
       cancelled = true;
     };
-  }, [currentPage, debouncedSearch, pageSize, semesterFilter, statusFilter]);
+  }, [currentPage, pageSize, statusFilter]);
 
-  const stats = useMemo(
+  const stats = useMemo<ClassStats>(
     () => ({
       total: CLASS_STATUS_VALUES.reduce(
         (sum, status) => sum + (statusCounts[status] ?? 0),
@@ -237,47 +197,35 @@ export function ManageClassesPanel({
   const safeCurrentPage = Math.min(currentPage, totalPages);
 
   const pageNumbers = getPageNumbers(safeCurrentPage, totalPages);
-  const rangeStart = totalCount === 0 ? 0 : (safeCurrentPage - 1) * pageSize + 1;
+  const rangeStart =
+    totalCount === 0 ? 0 : (safeCurrentPage - 1) * pageSize + 1;
   const rangeEnd = Math.min(safeCurrentPage * pageSize, totalCount);
 
-  const handleSearchChange = (value: string) => {
-    setSearchQuery(value);
+  const handleStatusFilterChange = (value: StatusFilterValue) => {
+    if (value === statusFilter) {
+      return;
+    }
+    setStatusFilter(value);
     setCurrentPage(1);
   };
 
-  const handleStatusFilterChange = (value: string | null) => {
-    setStatusFilter(value ?? STATUS_FILTER_ALL);
-    setCurrentPage(1);
-  };
-
-  const handleSemesterFilterChange = (value: string | null) => {
-    setSemesterFilter(value ?? SEMESTER_FILTER_ALL);
-    setCurrentPage(1);
-  };
+  const statusTabs: Array<{ value: StatusFilterValue; count: number }> = [
+    { value: STATUS_FILTER_ALL, count: stats.total },
+    ...CLASS_STATUS_VALUES.map((status) => ({
+      value: status,
+      count: statusCounts[status] ?? 0,
+    })),
+  ];
 
   const handleCreateClass = () => {
-    // Reset filters and reload page 1 so the new class (newest first) and the
-    // global status counts come from the server.
-    setSearchQuery("");
-    setDebouncedSearch("");
+    // Reset to the "All" tab and reload page 1 so the new class (newest first)
+    // and the global status counts come from the server.
     setStatusFilter(STATUS_FILTER_ALL);
-    setSemesterFilter(SEMESTER_FILTER_ALL);
     setCurrentPage(1);
-    loadedKeyRef.current = listQueryKey({
-      status: STATUS_FILTER_ALL,
-      semester: SEMESTER_FILTER_ALL,
-      search: "",
-      page: 1,
-    });
+    loadedKeyRef.current = listQueryKey({ status: STATUS_FILTER_ALL, page: 1 });
     setIsLoading(true);
     void loadClassesPageAction(
-      buildListQuery({
-        status: STATUS_FILTER_ALL,
-        semester: SEMESTER_FILTER_ALL,
-        search: "",
-        page: 1,
-        pageSize,
-      })
+      buildListQuery({ status: STATUS_FILTER_ALL, page: 1, pageSize })
     ).then((data) => {
       setIsLoading(false);
       if (!data) {
@@ -292,21 +240,89 @@ export function ManageClassesPanel({
 
   return (
     <div className="flex flex-col gap-6">
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-        <div>
-          <h1 className="text-2xl font-semibold tracking-tight">
-            Manage classes
-          </h1>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Classes with subject, semester, and enrollment context.
-          </p>
+      <PanelPageHeader title="Manage classes" />
+      <div className="flex flex-col-reverse gap-3 @4xl/panel:flex-row @4xl/panel:items-center @4xl/panel:justify-between">
+        <div
+          role="tablist"
+          aria-label="Filter classes by status"
+          className="flex w-fit max-w-full flex-wrap items-center gap-1 rounded-xl border bg-card p-1 shadow-xs"
+        >
+          {statusTabs.map((tab) => {
+            const isActive = tab.value === statusFilter;
+            const isAll = tab.value === STATUS_FILTER_ALL;
+            const tabClasses = isAll
+              ? null
+              : MANAGER_CLASS_STATUS_TAB_CLASSES[tab.value as ClassStatusValue];
+
+            return (
+              <button
+                key={tab.value}
+                type="button"
+                role="tab"
+                aria-selected={isActive}
+                onClick={() => handleStatusFilterChange(tab.value)}
+                className={cn(
+                  "inline-flex h-8 items-center gap-2 rounded-lg border border-transparent px-3 text-sm font-medium",
+                  "transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50",
+                  isAll
+                    ? isActive
+                      ? "border-foreground/20 bg-foreground/10 text-foreground"
+                      : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                    : isActive
+                      ? tabClasses?.active
+                      : tabClasses?.idle
+                )}
+              >
+                {isAll ? null : (
+                  <span
+                    aria-hidden
+                    className={cn(
+                      "size-1.5 shrink-0 rounded-full",
+                      MANAGER_CLASS_STATUS_DOT_CLASSES[
+                        tab.value as ClassStatusValue
+                      ]
+                    )}
+                  />
+                )}
+                {isAll
+                  ? "All"
+                  : MANAGER_CLASS_STATUS_LABELS[tab.value as ClassStatusValue]}
+                <span
+                  className={cn(
+                    "text-xs tabular-nums",
+                    isActive ? "opacity-90" : "opacity-60"
+                  )}
+                >
+                  {tab.count}
+                </span>
+              </button>
+            );
+          })}
         </div>
-        <Can permission={PERMISSIONS.CLASSES_CREATE}>
-          <Button type="button" onClick={() => setIsAddOpen(true)}>
-            <PlusIcon data-icon="inline-start" />
-            Add class
-          </Button>
-        </Can>
+        <div className="flex shrink-0 items-center justify-end gap-2">
+          <Tooltip>
+            <TooltipTrigger
+              render={
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="icon"
+                  aria-label="View class statistics"
+                  onClick={() => setIsStatsOpen(true)}
+                >
+                  <ChartColumnIcon />
+                </Button>
+              }
+            />
+            <TooltipContent>Class statistics</TooltipContent>
+          </Tooltip>
+          <Can permission={PERMISSIONS.CLASSES_CREATE}>
+            <Button type="button" onClick={() => setIsAddOpen(true)}>
+              <PlusIcon data-icon="inline-start" />
+              Add class
+            </Button>
+          </Can>
+        </div>
       </div>
 
       {isAddOpen ? (
@@ -317,203 +333,97 @@ export function ManageClassesPanel({
         />
       ) : null}
 
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-6">
-        <UserStatCard
-          label="Total classes"
-          value={stats.total}
-          accentClassName="border-l-sky-500"
-        />
-        <UserStatCard
-          label="In progress"
-          value={stats.inProgress}
-          accentClassName="border-l-sky-500"
-        />
-        <UserStatCard
-          label="Scheduled"
-          value={stats.scheduled}
-          accentClassName="border-l-violet-500"
-        />
-        <UserStatCard
-          label="Done"
-          value={stats.done}
-          accentClassName="border-l-emerald-500"
-        />
-        <UserStatCard
-          label="On hold"
-          value={stats.onHold}
-          accentClassName="border-l-amber-500"
-        />
-        <UserStatCard
-          label="No active class"
-          value={
-            stats.studentsWithoutActiveClass ?? "…"
-          }
-          accentClassName="border-l-rose-500"
-        />
-      </div>
+      <ClassStatsDialog
+        open={isStatsOpen}
+        onOpenChange={setIsStatsOpen}
+        stats={stats}
+      />
 
-      <Card className="py-0">
-        <CardHeader className="border-b bg-muted/50 py-3">
-          <CardTitle>Classes</CardTitle>
-        </CardHeader>
-        <CardContent className="flex flex-col gap-6 px-4 pt-2 pb-3">
-          <div className="flex flex-col gap-3 lg:flex-row lg:items-center">
-            <div className="relative min-w-0 flex-1">
-              <SearchIcon className="pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-muted-foreground" />
-              <Input
-                value={searchQuery}
-                onChange={(event) => handleSearchChange(event.target.value)}
-                placeholder="Search class name or subject…"
-                className="pl-8"
-                aria-label="Search classes"
-              />
-            </div>
-            <Select value={statusFilter} onValueChange={handleStatusFilterChange}>
-              <SelectTrigger
-                className="w-full lg:w-40"
-                aria-label="Filter by status"
-              >
-                <SelectValue placeholder="Status">
-                  {(value) =>
-                    !value || value === STATUS_FILTER_ALL
-                      ? "Status"
-                      : (MANAGER_CLASS_STATUS_LABELS[
-                          value as (typeof CLASS_STATUS_VALUES)[number]
-                        ] ?? String(value))
-                  }
-                </SelectValue>
-              </SelectTrigger>
-              <SelectContent align="end">
-                <SelectItem value={STATUS_FILTER_ALL}>Status</SelectItem>
-                {CLASS_STATUS_VALUES.map((status) => (
-                  <SelectItem key={status} value={status}>
-                    {MANAGER_CLASS_STATUS_LABELS[status]}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <Select
-              value={semesterFilter}
-              onValueChange={handleSemesterFilterChange}
-            >
-              <SelectTrigger
-                className="w-full lg:w-52"
-                aria-label="Filter by semester"
-              >
-                <SelectValue placeholder="Semester">
-                  {(value) => {
-                    if (!value || value === SEMESTER_FILTER_ALL) {
-                      return "Semester";
-                    }
-                    if (value === SEMESTER_FILTER_UNLINKED) {
-                      return "Unlinked";
-                    }
-                    return (
-                      semesterOptions.find((semester) => semester.id === value)
-                        ?.name ?? String(value)
-                    );
-                  }}
-                </SelectValue>
-              </SelectTrigger>
-              <SelectContent align="end">
-                <SelectItem value={SEMESTER_FILTER_ALL}>Semester</SelectItem>
-                <SelectItem value={SEMESTER_FILTER_UNLINKED}>
-                  Unlinked
-                </SelectItem>
-                {semesterOptions.map((semester) => (
-                  <SelectItem key={semester.id} value={semester.id}>
-                    {semester.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+      <div className="flex flex-col gap-6">
+        {classes.length === 0 ? (
+          <EmptyState
+            icon={GraduationCapIcon}
+            title={
+              stats.total === 0 || statusFilter === STATUS_FILTER_ALL
+                ? "No classes yet"
+                : `No ${MANAGER_CLASS_STATUS_LABELS[statusFilter].toLowerCase()} classes`
+            }
+            description={
+              stats.total === 0
+                ? "Create one to get started."
+                : "No classes have this status right now."
+            }
+          />
+        ) : (
+          <div
+            className={cn(
+              "grid w-full gap-4 [grid-template-columns:repeat(auto-fill,minmax(min(100%,15rem),1fr))]",
+              isLoading && "opacity-60"
+            )}
+          >
+            {classes.map((classRow) => (
+              <ClassCard key={classRow.id} classRow={classRow} />
+            ))}
           </div>
+        )}
 
-          {classes.length === 0 ? (
-            <EmptyState
-              icon={stats.total === 0 ? GraduationCapIcon : SearchIcon}
-              title={
-                stats.total === 0 ? "No classes yet" : "No matching classes"
-              }
-              description={
-                stats.total === 0
-                  ? "Create one to get started."
-                  : "No classes match your filters."
-              }
-            />
-          ) : (
-            <div
-              className={cn(
-                "grid w-full justify-start gap-4 [grid-template-columns:repeat(auto-fill,minmax(min(100%,16.5rem),16.5rem))]",
-                isLoading && "opacity-60"
+        {totalCount > 0 ? (
+          <div className="flex flex-col gap-3 border-t pt-4 @lg/panel:flex-row @lg/panel:items-center @lg/panel:justify-between">
+            <p className="text-sm text-muted-foreground">
+              Showing {rangeStart}–{rangeEnd} of {totalCount}
+            </p>
+
+            <div className="flex items-center gap-1">
+              <Button
+                type="button"
+                variant="outline"
+                size="icon-sm"
+                disabled={isLoading || safeCurrentPage <= 1}
+                onClick={() => setCurrentPage((page) => page - 1)}
+                aria-label="Previous page"
+              >
+                <ChevronLeftIcon />
+              </Button>
+
+              {pageNumbers.map((page, index) =>
+                page === "ellipsis" ? (
+                  <span
+                    key={`ellipsis-${index}`}
+                    className="px-1 text-sm text-muted-foreground"
+                  >
+                    …
+                  </span>
+                ) : (
+                  <Button
+                    key={page}
+                    type="button"
+                    disabled={isLoading}
+                    variant={page === safeCurrentPage ? "default" : "outline"}
+                    size="icon-sm"
+                    className="min-w-7"
+                    onClick={() => setCurrentPage(page)}
+                    aria-label={`Page ${page}`}
+                    aria-current={page === safeCurrentPage ? "page" : undefined}
+                  >
+                    {page}
+                  </Button>
+                )
               )}
-            >
-              {classes.map((classRow) => (
-                <ClassCard key={classRow.id} classRow={classRow} />
-              ))}
+
+              <Button
+                type="button"
+                variant="outline"
+                size="icon-sm"
+                disabled={isLoading || safeCurrentPage >= totalPages}
+                onClick={() => setCurrentPage((page) => page + 1)}
+                aria-label="Next page"
+              >
+                <ChevronRightIcon />
+              </Button>
             </div>
-          )}
-
-          {totalCount > 0 ? (
-            <div className="flex flex-col gap-3 border-t pt-4 sm:flex-row sm:items-center sm:justify-between">
-              <p className="text-sm text-muted-foreground">
-                Showing {rangeStart}–{rangeEnd} of {totalCount}
-              </p>
-
-              <div className="flex items-center gap-1">
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="icon-sm"
-                  disabled={isLoading || safeCurrentPage <= 1}
-                  onClick={() => setCurrentPage((page) => page - 1)}
-                  aria-label="Previous page"
-                >
-                  <ChevronLeftIcon />
-                </Button>
-
-                {pageNumbers.map((page, index) =>
-                  page === "ellipsis" ? (
-                    <span
-                      key={`ellipsis-${index}`}
-                      className="px-1 text-sm text-muted-foreground"
-                    >
-                      …
-                    </span>
-                  ) : (
-                    <Button
-                      key={page}
-                      type="button"
-                      disabled={isLoading}
-                      variant={page === safeCurrentPage ? "default" : "outline"}
-                      size="icon-sm"
-                      className="min-w-7"
-                      onClick={() => setCurrentPage(page)}
-                      aria-label={`Page ${page}`}
-                      aria-current={
-                        page === safeCurrentPage ? "page" : undefined
-                      }
-                    >
-                      {page}
-                    </Button>
-                  )
-                )}
-
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="icon-sm"
-                  disabled={isLoading || safeCurrentPage >= totalPages}
-                  onClick={() => setCurrentPage((page) => page + 1)}
-                  aria-label="Next page"
-                >
-                  <ChevronRightIcon />
-                </Button>
-              </div>
-            </div>
-          ) : null}
-        </CardContent>
-      </Card>
+          </div>
+        ) : null}
+      </div>
 
       <StudentsWithoutActiveClassCard
         students={studentsWithoutActiveClass}

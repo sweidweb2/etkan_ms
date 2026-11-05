@@ -24,7 +24,7 @@ export function IncomeStatementHistoryMonthSelectFallback() {
 export function IncomeStatementHistoryStatementFallback() {
   return (
     <div className="flex flex-col gap-4" aria-hidden>
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-4 @lg/panel:grid-cols-2 @2xl/panel:grid-cols-4">
         {[0, 1, 2, 3].map((index) => (
           <div
             key={index}

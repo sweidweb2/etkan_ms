@@ -2,7 +2,10 @@ import "server-only";
 
 import { PERMISSIONS } from "@/lib/constants/permissions";
 import { scheduleAfterResponse } from "@/lib/ops/schedule-after-response";
-import { assertPermission } from "@/services/auth/authorization.service";
+import {
+  assertPermission,
+  getUnauthorizedError,
+} from "@/services/auth/authorization.service";
 import {
   AUDIT_LOG_ACTION_VALUES,
   AUDIT_LOG_SEVERITY_VALUES,
@@ -160,6 +163,70 @@ export async function getAuditLogByIdForManager(
   }
 
   return mapAuditLogRecordToRow(data);
+}
+
+export type DeleteAuditLogsResult =
+  | { success: true; message: string; deleted_ids: string[] }
+  | { success: false; error: string };
+
+export async function deleteAuditLogsForManager(
+  adminClient: Supabase,
+  actorUserId: string | null,
+  actor: AuditActor,
+  ids: string[]
+): Promise<DeleteAuditLogsResult> {
+  const unauthorized = await getUnauthorizedError(
+    adminClient,
+    actorUserId,
+    PERMISSIONS.LOGS_DELETE
+  );
+  if (unauthorized) {
+    return { success: false, error: unauthorized };
+  }
+
+  if (ids.length === 0) {
+    return { success: false, error: "Select at least one log to delete." };
+  }
+
+  const { data, error } = await auditLogRepository.deleteAuditLogsByIds(
+    adminClient,
+    ids
+  );
+
+  if (error) {
+    return {
+      success: false,
+      error: "Unable to delete logs. Please try again.",
+    };
+  }
+
+  const deletedIds = (data ?? []).map((row) => row.id);
+  if (deletedIds.length === 0) {
+    return { success: false, error: "Selected logs were not found." };
+  }
+
+  await recordManagerAuditLog(adminClient, actor, {
+    action: "delete",
+    severity: "critical",
+    table_name: "audit_logs",
+    metadata: {
+      note:
+        deletedIds.length === 1
+          ? "Deleted 1 audit log."
+          : `Deleted ${deletedIds.length} audit logs.`,
+      deleted_count: deletedIds.length,
+      deleted_ids: deletedIds,
+    },
+  });
+
+  return {
+    success: true,
+    message:
+      deletedIds.length === 1
+        ? "Log deleted."
+        : `${deletedIds.length} logs deleted.`,
+    deleted_ids: deletedIds,
+  };
 }
 
 export type CreateAuditLogInput = {

@@ -1,6 +1,7 @@
 import "server-only";
 
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { chunkedIn } from "@/repositories/_shared/chunked-in";
 import type { Database } from "@/types/supabase";
 
 type Supabase = SupabaseClient<Database>;
@@ -126,14 +127,13 @@ export async function listDropRequestsBySppIds(
   client: Supabase,
   sppIds: string[]
 ) {
-  if (sppIds.length === 0) {
-    return { data: [], error: null };
-  }
-  return client
-    .from("semester_drop_requests")
-    .select(DROP_COLUMNS)
-    .in("spp_id", sppIds)
-    .in("status", ["pending", "completed"]);
+  return chunkedIn(sppIds, (chunk) =>
+    client
+      .from("semester_drop_requests")
+      .select(DROP_COLUMNS)
+      .in("spp_id", chunk)
+      .in("status", ["pending", "completed"])
+  );
 }
 
 export async function findCompletedDropBySppId(

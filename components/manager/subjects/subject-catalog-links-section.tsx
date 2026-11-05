@@ -82,7 +82,7 @@ export function SubjectCatalogLinksSection({
   return (
     <SubjectCollapsibleSection title="Categories & exercises" defaultOpen>
       <div className="flex flex-col gap-6">
-        <div className="grid gap-6 md:grid-cols-2">
+        <div className="grid gap-6 @xl/panel:grid-cols-2">
           <div className="flex flex-col gap-2">
             <FieldLabel
               htmlFor="subject-linked-categories"

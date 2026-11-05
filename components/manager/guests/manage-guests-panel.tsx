@@ -39,6 +39,7 @@ import { TeamsSection } from "@/components/manager/guests/teams-section";
 import { ViewGuestNotesDialog } from "@/components/manager/guests/view-guest-notes-dialog";
 import { UserStatCard } from "@/components/manager/users/user-stat-card";
 import { InlineSpinner } from "@/components/loaders/inline-spinner";
+import { PanelPageHeader } from "@/components/panels/panel-page-header";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -591,43 +592,36 @@ export function ManageGuestsPanel({
           onDragEnd={handleGuestDragEnd}
         />
       <div className="flex flex-col gap-6">
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-          <div>
-            <h1 className="text-2xl font-semibold tracking-tight">Guests</h1>
-            <p className="text-sm text-muted-foreground">
-              Pre-user intake cards before registration and team handoff.
-            </p>
-          </div>
-          <div className="flex flex-wrap items-center gap-2">
-            <Can permission={PERMISSIONS.NOTIFICATIONS_VIEW}>
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => setIsRegistrationNotifsOpen(true)}
-                className="relative"
-                aria-label={
-                  registrationUnreadCount > 0
-                    ? `Registration alerts, ${registrationUnreadCount} unread`
-                    : "Registration alerts"
-                }
-              >
-                <BellIcon data-icon="inline-start" />
-                Registration alerts
-                {registrationUnreadCount > 0 ? (
-                  <span
-                    aria-hidden="true"
-                    className="absolute top-1 right-1 size-2 rounded-full bg-red-500 ring-2 ring-background"
-                  />
-                ) : null}
-              </Button>
-            </Can>
-            <Can permission={PERMISSIONS.GUESTS_CREATE}>
-              <Button type="button" onClick={() => setIsAddOpen(true)}>
-                <PlusIcon data-icon="inline-start" />
-                Create guest
-              </Button>
-            </Can>
-          </div>
+        <PanelPageHeader title="Guests" />
+        <div className="flex flex-wrap items-center justify-end gap-2 empty:hidden">
+          <Can permission={PERMISSIONS.NOTIFICATIONS_VIEW}>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setIsRegistrationNotifsOpen(true)}
+              className="relative"
+              aria-label={
+                registrationUnreadCount > 0
+                  ? `Registration alerts, ${registrationUnreadCount} unread`
+                  : "Registration alerts"
+              }
+            >
+              <BellIcon data-icon="inline-start" />
+              Registration alerts
+              {registrationUnreadCount > 0 ? (
+                <span
+                  aria-hidden="true"
+                  className="absolute top-1 right-1 size-2 rounded-full bg-red-500 ring-2 ring-background"
+                />
+              ) : null}
+            </Button>
+          </Can>
+          <Can permission={PERMISSIONS.GUESTS_CREATE}>
+            <Button type="button" onClick={() => setIsAddOpen(true)}>
+              <PlusIcon data-icon="inline-start" />
+              Create guest
+            </Button>
+          </Can>
         </div>
 
         <GuestRegistrationNotificationsSheet
@@ -636,7 +630,7 @@ export function ManageGuestsPanel({
           onUnreadCountChange={setRegistrationUnreadCount}
         />
 
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="grid gap-3 @lg/panel:grid-cols-2 @2xl/panel:grid-cols-4">
           <UserStatCard
             label="Total"
             value={stats.total}
@@ -662,8 +656,8 @@ export function ManageGuestsPanel({
         <Card>
           <CardHeader className="gap-4 border-b">
             <CardTitle className="text-base">Guest list</CardTitle>
-            <div className="flex w-full flex-col gap-3 sm:flex-row sm:items-end">
-              <div className="grid w-full gap-1.5 sm:w-56">
+            <div className="flex w-full flex-col gap-3 @lg/panel:flex-row @lg/panel:items-end">
+              <div className="grid w-full gap-1.5 @lg/panel:w-56">
                 <Label htmlFor="guest-filter-search">Search</Label>
                 <div className="relative">
                   <SearchIcon className="pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-muted-foreground" />
@@ -679,7 +673,7 @@ export function ManageGuestsPanel({
                   />
                 </div>
               </div>
-              <div className="grid w-full gap-1.5 sm:w-44">
+              <div className="grid w-full gap-1.5 @lg/panel:w-44">
                 <Label htmlFor="guest-filter-status">Status</Label>
                 <Select
                   value={statusFilter}
@@ -707,7 +701,7 @@ export function ManageGuestsPanel({
                   </SelectContent>
                 </Select>
               </div>
-              <div className="grid w-full gap-1.5 sm:w-44">
+              <div className="grid w-full gap-1.5 @lg/panel:w-44">
                 <Label htmlFor="guest-filter-service">Service</Label>
                 <Select
                   value={serviceFilter}
@@ -794,7 +788,7 @@ export function ManageGuestsPanel({
               />
             </UnassignedDropZone>
 
-            <div className="flex flex-col gap-3 border-t px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex flex-col gap-3 border-t px-4 py-3 @lg/panel:flex-row @lg/panel:items-center @lg/panel:justify-between">
               <div className="flex items-center gap-2 text-sm text-muted-foreground">
                 <span>
                   {filteredGuests.length} guest

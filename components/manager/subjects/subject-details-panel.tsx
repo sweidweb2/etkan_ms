@@ -145,7 +145,7 @@ export function SubjectDetailsPanel({
 
   return (
     <div className="flex flex-col gap-6">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+      <div className="flex flex-col gap-3 @lg/panel:flex-row @lg/panel:items-center @lg/panel:justify-between">
         <Breadcrumb>
           <BreadcrumbList>
             <BreadcrumbItem>
@@ -243,7 +243,7 @@ export function SubjectDetailsPanel({
           </CardAction>
         </CardHeader>
         <CardContent className="pt-2 pb-4">
-          <dl className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          <dl className="grid gap-4 @lg/panel:grid-cols-2 @2xl/panel:grid-cols-3">
             <DetailField label="Name" value={subject.name} />
             <DetailLink label="Syllabus" href={subject.syllabus_link} />
             <DetailLink label="Reference" href={subject.reference_link} />

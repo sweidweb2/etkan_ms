@@ -330,7 +330,7 @@ export function StudentBorrowedEquipmentSection({
         }
         defaultOpen={defaultOpen}
       >
-          <div className="flex flex-col gap-3 border-b px-4 pt-2 pb-3 sm:flex-row sm:items-center sm:px-5">
+          <div className="flex flex-col gap-3 border-b px-4 pt-2 pb-3 @lg/panel:flex-row @lg/panel:items-center sm:px-5">
             <div className="relative min-w-0 flex-1">
               <SearchIcon className="pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-muted-foreground" />
               <Input
@@ -343,7 +343,7 @@ export function StudentBorrowedEquipmentSection({
             </div>
             <Select value={statusFilter} onValueChange={handleStatusFilterChange}>
               <SelectTrigger
-                className="w-full sm:w-44"
+                className="w-full @lg/panel:w-44"
                 aria-label="Filter by borrow status"
               >
                 <SelectValue placeholder="Status" />
@@ -479,7 +479,7 @@ export function StudentBorrowedEquipmentSection({
             </div>
           )}
 
-          <div className="flex flex-col gap-3 border-t px-4 pt-2 pb-3 sm:flex-row sm:items-center sm:justify-between sm:px-5">
+          <div className="flex flex-col gap-3 border-t px-4 pt-2 pb-3 @lg/panel:flex-row @lg/panel:items-center @lg/panel:justify-between sm:px-5">
             <div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
               <span>
                 Showing {rangeStart}–{rangeEnd} of {filteredBorrows.length}

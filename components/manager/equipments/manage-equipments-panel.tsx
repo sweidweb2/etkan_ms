@@ -17,6 +17,7 @@ import { Can } from "@/components/auth/can";
 import { AddEquipmentDialog } from "@/components/manager/equipments/add-equipment-dialog";
 import { EditEquipmentDialog } from "@/components/manager/equipments/edit-equipment-dialog";
 import { UserStatCard } from "@/components/manager/users/user-stat-card";
+import { PanelPageHeader } from "@/components/panels/panel-page-header";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -223,33 +224,24 @@ export function ManageEquipmentsPanel({
   return (
     <TooltipProvider>
       <div className="flex flex-col gap-6">
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-          <div>
-            <h1 className="text-2xl font-semibold tracking-tight">
-              Manage equipment
-            </h1>
-            <p className="mt-1 text-sm text-muted-foreground">
-              Track inventory, borrowed units, and availability.
-            </p>
-          </div>
-          <div className="flex flex-wrap gap-2">
-            <Can permission={PERMISSIONS.EQUIPMENT_BORROW_CREATE}>
-              <Button
-                render={<Link href={ROUTES.MANAGER_EQUIPMENT_BORROW} />}
-                nativeButton={false}
-                variant="outline"
-              >
-                <HandHelpingIcon data-icon="inline-start" />
-                Borrow
-              </Button>
-            </Can>
-            <Can permission={PERMISSIONS.EQUIPMENT_CREATE}>
-              <Button type="button" onClick={() => setIsAddOpen(true)}>
-                <PlusIcon data-icon="inline-start" />
-                Add equipment
-              </Button>
-            </Can>
-          </div>
+        <PanelPageHeader title="Manage equipment" />
+        <div className="flex flex-wrap items-center justify-end gap-2 empty:hidden">
+          <Can permission={PERMISSIONS.EQUIPMENT_BORROW_CREATE}>
+            <Button
+              render={<Link href={ROUTES.MANAGER_EQUIPMENT_BORROW} />}
+              nativeButton={false}
+              variant="outline"
+            >
+              <HandHelpingIcon data-icon="inline-start" />
+              Borrow
+            </Button>
+          </Can>
+          <Can permission={PERMISSIONS.EQUIPMENT_CREATE}>
+            <Button type="button" onClick={() => setIsAddOpen(true)}>
+              <PlusIcon data-icon="inline-start" />
+              Add equipment
+            </Button>
+          </Can>
         </div>
 
         <AddEquipmentDialog
@@ -269,7 +261,7 @@ export function ManageEquipmentsPanel({
           onEquipmentUpdated={handleEquipmentUpdated}
         />
 
-        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        <div className="grid gap-4 @lg/panel:grid-cols-2 @4xl/panel:grid-cols-4">
           <UserStatCard
             label="Equipment types"
             value={stats.totalItems}
@@ -428,7 +420,7 @@ export function ManageEquipmentsPanel({
               </div>
             )}
 
-            <div className="flex flex-col gap-3 border-t px-4 pt-2 pb-3 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex flex-col gap-3 border-t px-4 pt-2 pb-3 @lg/panel:flex-row @lg/panel:items-center @lg/panel:justify-between">
               <div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
                 <span>
                   Showing {rangeStart}–{rangeEnd} of {filteredEquipments.length}

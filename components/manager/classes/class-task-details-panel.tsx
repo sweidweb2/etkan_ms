@@ -262,7 +262,7 @@ export function ClassTaskDetailsPanel({
           </div>
         </CardHeader>
         <CardContent className="pt-3 pb-4">
-          <dl className="grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
+          <dl className="grid gap-5 @lg/panel:grid-cols-2 @2xl/panel:grid-cols-4">
             <DetailField label="Title" value={task.title} />
             <DetailField
               label="Description"

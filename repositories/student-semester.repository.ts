@@ -103,3 +103,21 @@ export async function updateEnrollmentStatus(
     .select(ENROLLMENT_COLUMNS)
     .maybeSingle();
 }
+
+/** One UPDATE for many students in the same semester. */
+export async function updateEnrollmentStatusForProfiles(
+  client: Supabase,
+  studentProfileIds: string[],
+  semesterId: string,
+  status: string
+) {
+  if (studentProfileIds.length === 0) {
+    return { error: null };
+  }
+
+  return client
+    .from("student_semester")
+    .update({ status })
+    .in("student_profile_id", studentProfileIds)
+    .eq("semester_id", semesterId);
+}
