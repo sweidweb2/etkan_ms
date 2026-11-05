@@ -1,6 +1,10 @@
 import type { ScheduleAssistantActiveRoute } from "@/lib/constants/schedule-assistant";
 import { tryExactFastPath } from "@/lib/manager/schedule-assistant/fast-path";
-import { scrubGroups } from "@/lib/manager/schedule-assistant/scrub";
+import { mergeInstructorAmbiguities } from "@/lib/manager/schedule-assistant/match-instructor-name";
+import {
+  scrubGroups,
+  type ScrubGroupsResult,
+} from "@/lib/manager/schedule-assistant/scrub";
 import {
   parseAvailabilityMapperResult,
   buildAvailabilityMapperMessages,
@@ -17,7 +21,10 @@ import type {
   ScheduleAssistantGroup,
   ScheduleAssistantHints,
 } from "@/lib/validators/manager/schedule-assistant";
-import type { ScheduleAssistantPrefetchCatalogs } from "@/types/schedule-assistant";
+import type {
+  ScheduleAssistantInstructorAmbiguity,
+  ScheduleAssistantPrefetchCatalogs,
+} from "@/types/schedule-assistant";
 
 export type MapperKind = "capabilities" | "availability" | "join";
 
@@ -25,6 +32,7 @@ export type MapGroupsResult =
   | {
       skipped_llm2: true;
       groups: ScheduleAssistantGroup[];
+      ambiguities: ScheduleAssistantInstructorAmbiguity[];
       mapperKind: MapperKind;
     }
   | {
@@ -55,9 +63,14 @@ export function mapGroupsForRoute(input: {
   const mapperKind = mapperKindForRoute(input.route);
   const fast = tryExactFastPath(input);
   if (fast) {
+    const scrubbed = scrubGroups(fast.groups, input.catalogs);
     return {
       skipped_llm2: true,
-      groups: scrubGroups(fast.groups, input.catalogs),
+      groups: scrubbed.groups,
+      ambiguities: mergeInstructorAmbiguities(
+        fast.ambiguities,
+        scrubbed.ambiguities
+      ),
       mapperKind,
     };
   }
@@ -68,7 +81,7 @@ export function finalizeMapperGroups(input: {
   route: ScheduleAssistantActiveRoute;
   raw: string | null | undefined;
   catalogs: ScheduleAssistantPrefetchCatalogs;
-}): ScheduleAssistantGroup[] {
+}): ScrubGroupsResult {
   const { route, raw, catalogs } = input;
   let groups: ScheduleAssistantGroup[];
   if (route === "capabilities") {

@@ -3,37 +3,24 @@ import type {
   ScheduleAssistantWeekday,
 } from "@/lib/constants/schedule-assistant";
 import { matchCatalogSubject } from "@/lib/manager/schedule-assistant/match-subject";
-import { matchCatalogUsernames } from "@/lib/manager/schedule-assistant/match-username";
+import {
+  collectCatalogInstructors,
+  matchCatalogInstructorNames,
+} from "@/lib/manager/schedule-assistant/match-instructor-name";
 import type {
   ScheduleAssistantGroup,
   ScheduleAssistantHints,
 } from "@/lib/validators/manager/schedule-assistant";
-import type { ScheduleAssistantPrefetchCatalogs } from "@/types/schedule-assistant";
+import type {
+  ScheduleAssistantInstructorAmbiguity,
+  ScheduleAssistantPrefetchCatalogs,
+} from "@/types/schedule-assistant";
 
 export type ExactFastPathHit = {
   skipped_llm2: true;
   groups: ScheduleAssistantGroup[];
+  ambiguities: ScheduleAssistantInstructorAmbiguity[];
 };
-
-function catalogUsernames(
-  catalogs: ScheduleAssistantPrefetchCatalogs
-): string[] {
-  const map = new Map<string, string>();
-  for (const row of catalogs.instructors?.instructors ?? []) {
-    map.set(row.u.toLowerCase(), row.u);
-  }
-  for (const row of catalogs.matrix?.matrix ?? []) {
-    if (!map.has(row.u.toLowerCase())) {
-      map.set(row.u.toLowerCase(), row.u);
-    }
-  }
-  for (const slot of catalogs.slots?.slots ?? []) {
-    if (!map.has(slot.u.toLowerCase())) {
-      map.set(slot.u.toLowerCase(), slot.u);
-    }
-  }
-  return [...map.values()];
-}
 
 function catalogSubjects(
   catalogs: ScheduleAssistantPrefetchCatalogs
@@ -67,6 +54,7 @@ function matchHintSubjects(
 /**
  * Build groups without LLM-2 when hints resolve onto catalog entries
  * and direction is unambiguous. Canonical DB strings only.
+ * Ambiguous instructor names short-circuit with a clarification hit.
  */
 export function tryExactFastPath(input: {
   route: ScheduleAssistantActiveRoute;
@@ -74,10 +62,16 @@ export function tryExactFastPath(input: {
   catalogs: ScheduleAssistantPrefetchCatalogs;
 }): ExactFastPathHit | null {
   const { route, hints, catalogs } = input;
-  const usernames = matchCatalogUsernames(
-    hints.username_tokens,
-    catalogUsernames(catalogs)
+  const { instructors, ambiguities } = matchCatalogInstructorNames(
+    hints.name_tokens,
+    collectCatalogInstructors(catalogs)
   );
+  if (ambiguities.length > 0) {
+    return { skipped_llm2: true, groups: [], ambiguities };
+  }
+
+  const instructorNames = instructors.map((row) => row.u);
+  const instructorIds = instructors.map((row) => row.i);
   const subjects = matchHintSubjects(
     hints.subject_tokens,
     catalogSubjects(catalogs)
@@ -85,19 +79,21 @@ export function tryExactFastPath(input: {
   const weekdays = hints.weekdays as ScheduleAssistantWeekday[];
 
   if (route === "capabilities") {
-    const hasUser = usernames.length === 1;
+    const hasInstructor = instructors.length === 1;
     const hasSubjects = subjects.length >= 1;
-    if (hasUser && hasSubjects) {
+    if (hasInstructor && hasSubjects) {
       return null;
     }
-    if (hasUser) {
+    if (hasInstructor) {
       return {
         skipped_llm2: true,
+        ambiguities: [],
         groups: [
           {
             id: "g1",
-            direction: "username_to_capability",
-            usernames,
+            direction: "instructor_to_capability",
+            instructor_names: instructorNames,
+            instructor_ids: instructorIds,
             subject_names: [],
             weekdays: [],
             start_time: null,
@@ -109,11 +105,13 @@ export function tryExactFastPath(input: {
     if (hasSubjects) {
       return {
         skipped_llm2: true,
+        ambiguities: [],
         groups: [
           {
             id: "g1",
-            direction: "capability_to_username",
-            usernames: [],
+            direction: "capability_to_instructor",
+            instructor_names: [],
+            instructor_ids: [],
             subject_names: subjects,
             weekdays: [],
             start_time: null,
@@ -126,17 +124,21 @@ export function tryExactFastPath(input: {
   }
 
   if (route === "availability") {
-    if (usernames.length === 0 && weekdays.length === 0) {
+    if (instructors.length === 0 && weekdays.length === 0) {
       return null;
     }
     return {
       skipped_llm2: true,
+      ambiguities: [],
       groups: [
         {
           id: "g1",
           direction:
-            usernames.length > 0 ? "username_to_slots" : "slots_to_username",
-          usernames,
+            instructors.length > 0
+              ? "instructor_to_slots"
+              : "slots_to_instructor",
+          instructor_names: instructorNames,
+          instructor_ids: instructorIds,
           subject_names: [],
           weekdays,
           start_time: null,
@@ -147,20 +149,19 @@ export function tryExactFastPath(input: {
   }
 
   // capability_availability
-  if (subjects.length === 0 && usernames.length === 0) {
-    return null;
-  }
   if (subjects.length === 0) {
     return null;
   }
 
   return {
     skipped_llm2: true,
+    ambiguities: [],
     groups: [
       {
         id: "g1",
         direction: "subject_and_availability",
-        usernames,
+        instructor_names: instructorNames,
+        instructor_ids: instructorIds,
         subject_names: subjects,
         weekdays,
         start_time: null,

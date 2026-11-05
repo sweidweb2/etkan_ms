@@ -19,7 +19,7 @@ export type ManagerClassSemesterOption = Pick<ManagerSemesterRow, "id" | "name">
 
 export type ManagerClassTeacherSelectOption = {
   id: string;
-  username: string | null;
+  full_name: string;
 };
 
 export type ManagerClassTeacherOption = ManagerClassTeacherSelectOption & {

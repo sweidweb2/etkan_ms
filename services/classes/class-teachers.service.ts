@@ -148,7 +148,7 @@ export async function assignTeacherToClassForManager(
     success: true,
     teacher: {
       id: teacherResult.data.id,
-      username: teacherResult.data.username,
+      full_name: teacherResult.data.full_name,
       assigned: true,
       assignment_id: data.id,
     },

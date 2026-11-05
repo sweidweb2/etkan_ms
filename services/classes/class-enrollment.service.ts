@@ -24,7 +24,6 @@ import * as classTeacherRepository from "@/repositories/class-teacher.repository
 import * as finalExamRepository from "@/repositories/final-exam.repository";
 import type { StudentFinalExamGradeRecord } from "@/repositories/final-exam.repository";
 import * as paymentPhaseRepository from "@/repositories/payment-phase.repository";
-import * as profileRepository from "@/repositories/profile.repository";
 import * as sessionRepository from "@/repositories/session.repository";
 import * as studentClassRepository from "@/repositories/student-class.repository";
 import * as studentProfileRepository from "@/repositories/student-profile.repository";
@@ -224,28 +223,15 @@ export async function addStudentToClassForManager(
 
     const data = enrollResult.data.enrollment;
 
-    const [profileResult, authResult] = await Promise.all([
-      timer.step("hydrateProfile", () =>
-        profileRepository.findProfileById(adminClient, userId)
-      ),
-      timer.step("hydrateAuth", () =>
-        authRepository.getAuthUserById(adminClient, userId)
-      ),
-    ]);
-
-    if (profileResult.error || !profileResult.data) {
-      return {
-        success: false,
-        error: profileResult.error?.message ?? "Unable to load student profile.",
-      };
-    }
+    const authResult = await timer.step("hydrateAuth", () =>
+      authRepository.getAuthUserById(adminClient, userId)
+    );
 
     const student: ManagerClassStudentRow = {
       id: data.id,
       student_profile_id: studentProfile.id,
       user_id: userId,
       full_name: studentProfile.full_name,
-      username: profileResult.data.username,
       email: authResult.data.user?.email ?? "",
       phone: studentProfile.phone,
       joined_at: data.joined_at ?? new Date().toISOString(),
@@ -541,15 +527,12 @@ async function enrollStudentsInClassCore(
     let gradeResult: Awaited<
       ReturnType<typeof finalExamRepository.ensureEnrollmentFinalExamGrades>
     >;
-    let profilesResult: Awaited<
-      ReturnType<typeof profileRepository.listProfilesByIds>
-    >;
     let emailsResult: Awaited<
       ReturnType<typeof authRepository.listAuthEmailsByIds>
     >;
 
     try {
-      [gradeResult, , , profilesResult, emailsResult] = await timer.step(
+      [gradeResult, , , emailsResult] = await timer.step(
         "hydrate",
         () =>
           Promise.all([
@@ -568,7 +551,6 @@ async function enrollStudentsInClassCore(
               input.class_id,
               insertedUserIds
             ),
-            profileRepository.listProfilesByIds(adminClient, insertedUserIds),
             authRepository.listAuthEmailsByIds(adminClient, insertedUserIds),
           ])
       );
@@ -591,13 +573,6 @@ async function enrollStudentsInClassCore(
       };
     }
 
-    if (profilesResult.error) {
-      return {
-        success: false,
-        error: profilesResult.error.message ?? "Unable to load student profile.",
-      };
-    }
-
     if (emailsResult.error) {
       return {
         success: false,
@@ -605,9 +580,6 @@ async function enrollStudentsInClassCore(
       };
     }
 
-    const usernameByUserId = new Map(
-      (profilesResult.data ?? []).map((row) => [row.id, row.username])
-    );
     const emailByUserId = emailsResult.data;
     const gradeByStudentId = new Map(
       (gradeResult.data ?? []).map((row) => [row.student_id, row])
@@ -631,7 +603,6 @@ async function enrollStudentsInClassCore(
         student_profile_id: profile.id,
         user_id: profile.user_id,
         full_name: profile.full_name,
-        username: usernameByUserId.get(profile.user_id) ?? null,
         email: emailByUserId.get(profile.user_id) ?? "",
         phone: profile.phone,
         joined_at: enrollment.joined_at ?? new Date().toISOString(),
@@ -924,28 +895,21 @@ async function resolveActiveStudentDiff(
     return { success: true, students: [] };
   }
 
-  const [profilesResult, usernamesResult, emailsResult] = await Promise.all([
+  const [profilesResult, emailsResult] = await Promise.all([
     studentProfileRepository.listStudentProfileDetailsByUserIds(
       adminClient,
       sourceUserIds
     ),
-    profileRepository.listProfilesByIds(adminClient, sourceUserIds),
     authRepository.listAuthEmailsByIds(adminClient, sourceUserIds),
   ]);
 
   if (profilesResult.error) {
     return { success: false, error: profilesResult.error.message };
   }
-  if (usernamesResult.error) {
-    return { success: false, error: usernamesResult.error.message };
-  }
   if (emailsResult.error) {
     return { success: false, error: emailsResult.error.message };
   }
 
-  const usernameById = new Map(
-    (usernamesResult.data ?? []).map((row) => [row.id, row.username])
-  );
   const emailById = emailsResult.data;
 
   const students: ManagerStudentRow[] = (profilesResult.data ?? [])
@@ -953,7 +917,6 @@ async function resolveActiveStudentDiff(
     .map((row) => ({
       user_id: row.user_id,
       student_profile_id: row.id,
-      username: usernameById.get(row.user_id) ?? null,
       email: emailById.get(row.user_id) ?? "",
       full_name: row.full_name,
       birth_date: row.birth_date,
@@ -1374,9 +1337,6 @@ export async function transferStudentBetweenClassesForManager(
     );
     let warning = leaveSync.warning;
 
-    let profileResult: Awaited<
-      ReturnType<typeof profileRepository.findProfileById>
-    >;
     let authResult: Awaited<
       ReturnType<typeof authRepository.getAuthUserById>
     >;
@@ -1385,11 +1345,10 @@ export async function transferStudentBetweenClassesForManager(
     >;
 
     try {
-      [profileResult, authResult, gradeResult] = await timer.step(
+      [authResult, gradeResult] = await timer.step(
         "destHydrate",
         () =>
           Promise.all([
-            profileRepository.findProfileById(adminClient, userId),
             authRepository.getAuthUserById(adminClient, userId),
             finalExamRepository.ensureEnrollmentFinalExamGrade(
               adminClient,
@@ -1402,7 +1361,7 @@ export async function transferStudentBetweenClassesForManager(
               to_class_id,
               userId
             ),
-          ]).then(([profile, auth, grade]) => [profile, auth, grade] as const)
+          ]).then(([auth, grade]) => [auth, grade] as const)
       );
     } catch (err) {
       return {
@@ -1411,13 +1370,6 @@ export async function transferStudentBetweenClassesForManager(
           err instanceof Error
             ? err.message
             : "Student transferred, but destination attendance or task rows could not be created.",
-      };
-    }
-
-    if (profileResult.error || !profileResult.data) {
-      return {
-        success: false,
-        error: profileResult.error?.message ?? "Unable to load student profile.",
       };
     }
 
@@ -1435,7 +1387,6 @@ export async function transferStudentBetweenClassesForManager(
       student_profile_id: studentProfile.id,
       user_id: userId,
       full_name: studentProfile.full_name,
-      username: profileResult.data.username,
       email: authResult.data.user?.email ?? "",
       phone: studentProfile.phone,
       joined_at: destEnrollment.joined_at ?? new Date().toISOString(),

@@ -105,7 +105,7 @@ export type Route = (typeof ROUTES)[keyof typeof ROUTES];
  * Post-login / fallback home for each role.
  * Staff roles without a dedicated product surface land on an allowed
  * `/manager/*` page (sidebar still uses ROLE_PANEL_ROOTS for identity).
- * Prefer landings that do not require instructor/mentor (workshops do).
+ * Prefer landings that do not require the instructor flag (workshops do).
  */
 const ROLE_HOME_ROUTES: Record<RoleValue, string> = {
   [ROLES.ADMIN]: ROUTES.ADMIN_ROOT,

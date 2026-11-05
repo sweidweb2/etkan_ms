@@ -147,7 +147,6 @@ type SeedTeacher = {
   email: string;
   fullName: string;
   isInstructor?: boolean;
-  isMentor?: boolean;
 };
 
 type SeedStudent = {
@@ -365,7 +364,6 @@ async function findOrCreateTeacher(
   if (existingProfile.data) {
     const flags = {
       is_instructor: input.isInstructor ?? false,
-      is_mentor: input.isMentor ?? false,
     };
     await profileRepository.updateProfileById(client, existingProfile.data.id, {
       username: input.username,
@@ -408,7 +406,6 @@ async function findOrCreateTeacher(
       username: input.username,
       role: ROLES.TEACHER,
       is_instructor: input.isInstructor ?? false,
-      is_mentor: input.isMentor ?? false,
     });
 
     if (profileError) throw new Error(profileError.message);
@@ -2128,7 +2125,6 @@ async function seedDemoData(): Promise<void> {
     email: "demo.teacher.math@example.com",
     fullName: "Demo Math Teacher",
     isInstructor: true,
-    isMentor: true,
   });
   const physicsTeacherId = await findOrCreateTeacher(client, {
     username: "demo.teacher.physics",
@@ -2366,7 +2362,7 @@ async function seedDemoData(): Promise<void> {
   console.log("");
   console.log("Staff (password Demo123! unless overridden):");
   console.log("  demo.ceo / demo.supervisor / demo.crm / demo.comanager");
-  console.log("  demo.teacher.math (instructor+mentor), demo.teacher.physics");
+  console.log("  demo.teacher.math (instructor), demo.teacher.physics");
   console.log(
     `  Teacher role permissions: ${TEACHER_SEED_PERMISSIONS.length} teaching keys`
   );

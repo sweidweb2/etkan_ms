@@ -84,13 +84,11 @@ export function AddUserDialog({
       password: "",
       role: ROLES.TEACHER,
       is_instructor: false,
-      is_mentor: false,
     },
   });
 
   const selectedRole = watch("role");
   const isInstructor = watch("is_instructor");
-  const isMentor = watch("is_mentor");
 
   useEffect(() => {
     if (!open) {
@@ -100,7 +98,6 @@ export function AddUserDialog({
         password: "",
         role: ROLES.TEACHER,
         is_instructor: false,
-        is_mentor: false,
       });
     }
   }, [open, reset]);
@@ -112,7 +109,6 @@ export function AddUserDialog({
     formData.set("password", values.password ?? "");
     formData.set("role", values.role);
     formData.set("is_instructor", String(values.is_instructor));
-    formData.set("is_mentor", String(values.is_mentor));
     formAction(formData);
   }
 
@@ -260,24 +256,6 @@ export function AddUserDialog({
               }
             />
             Instructor
-          </label>
-
-          <label
-            htmlFor="add-user-is-mentor"
-            className="flex items-center gap-2 text-sm"
-          >
-            <input
-              id="add-user-is-mentor"
-              type="checkbox"
-              checked={isMentor}
-              disabled={isPending}
-              onChange={(event) =>
-                setValue("is_mentor", event.target.checked, {
-                  shouldValidate: true,
-                })
-              }
-            />
-            Mentor
           </label>
         </form>
 

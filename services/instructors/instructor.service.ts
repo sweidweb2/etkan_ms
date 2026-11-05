@@ -86,7 +86,6 @@ const getInstructorsPageForManagerCached = unstable_cache(
     const adminClient = createSupabaseAdminClient();
     return fetchInstructorsPageForManager(adminClient);
   },
-  // Key bumped when the payload moved from mentorSubjects to instructor subjects.
   ["manager-instructors-page-v2"],
   { tags: [MANAGER_CACHE_TAGS.INSTRUCTORS], revalidate: 3600 }
 );

@@ -4,7 +4,6 @@ import type { StudentStatusValue } from "@/lib/constants/manager-student-status"
 export type ManagerAcademicAnalysisStudentRow = {
   id: string;
   full_name: string;
-  username: string | null;
   status: StudentStatusValue;
 };
 

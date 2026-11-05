@@ -5,7 +5,6 @@ import {
   useMemo,
   useRef,
   useState,
-  useSyncExternalStore,
   useTransition,
   type ReactNode,
 } from "react";
@@ -22,6 +21,7 @@ import {
   loadTeacherClassSessionDetailAction,
   type TeacherClassSessionInlineDetail,
 } from "@/app/teacher/classes/actions";
+import { useHasMounted } from "@/hooks/use-has-mounted";
 import { useTeacherTaskAnalytics } from "@/hooks/use-teacher-task-analytics";
 import {
   Tabs,
@@ -97,15 +97,6 @@ type TeacherClassDetailsPanelProps = {
 };
 
 const TABS = TEACHER_CLASS_DETAIL_TABS;
-const emptySubscribe = () => () => {};
-
-function useHasMounted() {
-  return useSyncExternalStore(
-    emptySubscribe,
-    () => true,
-    () => false
-  );
-}
 
 /** Browser-only: legacy `?tab=` wins, then localStorage, else main. */
 function resolveTeacherClassDetailTab(classId: string): TeacherClassDetailTab {

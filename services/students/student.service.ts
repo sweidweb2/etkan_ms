@@ -49,7 +49,6 @@ type Supabase = SupabaseClient<Database>;
 
 type StudentWelcomeEmailPayload = {
   email: string;
-  username: string;
   password: string;
   fullName: string;
 };
@@ -158,11 +157,9 @@ async function mapStudentProfileToManagerStudentRow(
   },
   profile?:
     | {
-        username: string | null;
         created_at: string | null;
         role?: string | null;
         is_instructor?: boolean | null;
-        is_mentor?: boolean | null;
       }
     | null,
   email?: string | null
@@ -194,7 +191,6 @@ async function mapStudentProfileToManagerStudentRow(
   return {
     user_id: studentProfile.user_id,
     student_profile_id: studentProfile.id,
-    username: resolvedProfile.username,
     email: resolvedEmail ?? "",
     full_name: studentProfile.full_name,
     birth_date: studentProfile.birth_date,
@@ -206,7 +202,6 @@ async function mapStudentProfileToManagerStudentRow(
       new Date(0).toISOString(),
     role: mapProfileRole(resolvedProfile.role),
     is_instructor: resolvedProfile.is_instructor ?? false,
-    is_mentor: resolvedProfile.is_mentor ?? false,
   };
 }
 
@@ -258,7 +253,6 @@ async function hydrateStudentRows(
     students.push({
       user_id: studentProfile.user_id,
       student_profile_id: studentProfile.id,
-      username: profile.username ?? "",
       email: emailById.get(studentProfile.user_id) ?? "",
       full_name: studentProfile.full_name,
       birth_date: studentProfile.birth_date,
@@ -270,7 +264,6 @@ async function hydrateStudentRows(
         new Date(0).toISOString(),
       role: mapProfileRole(profile.role),
       is_instructor: profile.is_instructor ?? false,
-      is_mentor: profile.is_mentor ?? false,
     });
   }
 
@@ -329,8 +322,7 @@ function clampStudentsPageSize(pageSize: number | undefined): number {
 /**
  * Server-paged students list for the manager panel (never loads the full roster).
  * Search matches student_profiles.full_name / phone (and user_id for a pasted UUID).
- * Username/email are not searchable here: profileRepository has no username search
- * helper and auth emails live outside Postgres tables.
+ * Email is not searchable here: auth emails live outside Postgres tables.
  */
 export async function listStudentsPageForManager(
   adminClient: Supabase,
@@ -891,7 +883,6 @@ export async function createStudent(
   actorUserId: string | null,
   actor: AuditActor,
   input: {
-    username: string;
     fullName: string;
     email: string;
     password: string;
@@ -922,26 +913,17 @@ export async function createStudent(
     };
   }
 
-  const { username, fullName, email, password, birthDate, phone } =
+  const { fullName, email, password, birthDate, phone } =
     resolveCreateStudentInput(parsed.data);
-  const normalizedUsername = username.trim();
   const normalizedEmail = email.trim();
   const normalizedFullName = fullName.trim();
   const normalizedBirthDate = normalizeOptionalString(birthDate);
   const normalizedPhone = normalizeOptionalString(phone);
 
-  const [existingUsername, existingEmail] = await Promise.all([
-    profileRepository.findProfileByUsername(adminClient, normalizedUsername),
-    authRepository.findAuthUserByEmail(adminClient, normalizedEmail),
-  ]);
-
-  if (existingUsername.data) {
-    return {
-      success: false,
-      error: "Please fix the errors below.",
-      fieldErrors: { username: ["This username is already taken."] },
-    };
-  }
+  const existingEmail = await authRepository.findAuthUserByEmail(
+    adminClient,
+    normalizedEmail
+  );
 
   if (existingEmail.error) {
     return {
@@ -962,7 +944,6 @@ export async function createStudent(
     await authRepository.createAuthUser(adminClient, {
       email: normalizedEmail,
       password,
-      username: normalizedUsername,
       fullName: normalizedFullName,
       role: ROLES.STUDENT,
     });
@@ -994,7 +975,6 @@ export async function createStudent(
   try {
     await ensureStudentRegistration(adminClient, {
       authId: authUserId,
-      username: normalizedUsername,
       email: normalizedEmail,
       fullName: normalizedFullName,
       birthDate: normalizedBirthDate,
@@ -1020,11 +1000,9 @@ export async function createStudent(
       adminClient,
       studentProfile,
       {
-        username: normalizedUsername,
         created_at: studentProfile.created_at,
         role: ROLES.STUDENT,
         is_instructor: false,
-        is_mentor: false,
       },
       normalizedEmail
     );
@@ -1036,7 +1014,6 @@ export async function createStudent(
     try {
       await notifyStudentCreated({
         email: normalizedEmail,
-        username: normalizedUsername,
         password,
         fullName: normalizedFullName,
       });
@@ -1055,7 +1032,6 @@ export async function createStudent(
         birth_date: studentProfile.birth_date,
         phone: studentProfile.phone,
         status: studentProfile.status,
-        username: normalizedUsername,
         email: normalizedEmail,
       },
       metadata: { note: "Student account created." },
@@ -1083,7 +1059,6 @@ export async function updateStudent(
   input: {
     studentProfileId: string;
     userId: string;
-    username: string;
     fullName: string;
     email: string;
     birthDate?: string | null;
@@ -1097,7 +1072,6 @@ export async function updateStudent(
   }
 
   const parsed = updateStudentSchema.safeParse({
-    username: input.username,
     fullName: input.fullName,
     email: input.email,
     birthDate: input.birthDate,
@@ -1115,7 +1089,6 @@ export async function updateStudent(
 
   const { studentProfileId, userId } = input;
   const {
-    username,
     fullName,
     email,
     birthDate,
@@ -1123,7 +1096,6 @@ export async function updateStudent(
     status,
   } = parsed.data;
 
-  const normalizedUsername = username.trim();
   const normalizedEmail = email.trim();
   const normalizedFullName = fullName.trim();
   const normalizedBirthDate = normalizeOptionalString(birthDate);
@@ -1161,36 +1133,12 @@ export async function updateStudent(
     return { success: false, error: "Student not found." };
   }
 
-  const usernameChanged =
-    normalizedUsername !== (existingProfile.data.username ?? "").trim();
   const oldEmail = authUserResult.data?.user?.email ?? null;
   const emailChanged = normalizedEmail !== (oldEmail ?? "").trim();
 
-  const [existingUsername, existingEmail] = await Promise.all([
-    usernameChanged
-      ? profileRepository.findProfileByUsername(adminClient, normalizedUsername)
-      : Promise.resolve({
-          data: null,
-          error: null,
-          count: null,
-          status: 200,
-          statusText: "OK",
-        } as never),
-    emailChanged
-      ? authRepository.findAuthUserByEmail(adminClient, normalizedEmail)
-      : Promise.resolve({ data: null, error: null } as never),
-  ]);
-
-  if (
-    existingUsername.data &&
-    existingUsername.data.id !== userId
-  ) {
-    return {
-      success: false,
-      error: "Please fix the errors below.",
-      fieldErrors: { username: ["This username is already taken."] },
-    };
-  }
+  const existingEmail = emailChanged
+    ? await authRepository.findAuthUserByEmail(adminClient, normalizedEmail)
+    : { data: null, error: null };
 
   if (existingEmail.error) {
     return {
@@ -1210,7 +1158,7 @@ export async function updateStudent(
   const { error: profileError } = await profileRepository.updateProfileById(
     adminClient,
     userId,
-    { username: normalizedUsername }
+    { full_name: normalizedFullName }
   );
 
   if (profileError) {
@@ -1226,7 +1174,6 @@ export async function updateStudent(
     {
       email: normalizedEmail,
       fullName: normalizedFullName,
-      username: normalizedUsername,
     }
   );
 
@@ -1262,11 +1209,9 @@ export async function updateStudent(
     adminClient,
     updatedStudentProfile,
     {
-      username: normalizedUsername,
       created_at: existingProfile.data.created_at,
       role: existingProfile.data.role,
       is_instructor: existingProfile.data.is_instructor,
-      is_mentor: existingProfile.data.is_mentor,
     },
     normalizedEmail
   );
@@ -1288,7 +1233,6 @@ export async function updateStudent(
       birth_date: existingStudentProfile.data.birth_date,
       phone: existingStudentProfile.data.phone,
       status: existingStudentProfile.data.status,
-      username: existingProfile.data.username,
       email: oldEmail,
     },
     new_data: {
@@ -1296,7 +1240,6 @@ export async function updateStudent(
       birth_date: updatedStudentProfile.birth_date,
       phone: updatedStudentProfile.phone,
       status: updatedStudentProfile.status,
-      username: normalizedUsername,
       email: normalizedEmail,
     },
     metadata: {
@@ -1306,7 +1249,6 @@ export async function updateStudent(
         "birth_date",
         "phone",
         "status",
-        "username",
         "email",
       ],
       user_id: userId,

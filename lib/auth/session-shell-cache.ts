@@ -1,6 +1,6 @@
 /**
  * Short-lived per-user process cache for panel shell identity
- * (role, displayName, isInstructor, isMentor, **effective** permission keys).
+ * (role, displayName, isInstructor, **effective** permission keys).
  *
  * Every navigation still verifies JWT via getClaims; this avoids repeating
  * profiles + role_permissions round-trips on sidebar hops within the TTL.
@@ -23,7 +23,6 @@ export type SessionShellPayload = {
   role: RoleValue;
   displayName: string;
   isInstructor: boolean;
-  isMentor: boolean;
   permissionKeys: PermissionKey[];
   /** JWT claims role at store time (for mismatch bust). */
   cachedClaimsRole: RoleValue | null;
@@ -60,7 +59,6 @@ export function getCachedSessionShell(
     role: entry.role,
     displayName: entry.displayName,
     isInstructor: entry.isInstructor,
-    isMentor: entry.isMentor,
     permissionKeys: entry.permissionKeys,
     cachedClaimsRole: entry.cachedClaimsRole,
   };

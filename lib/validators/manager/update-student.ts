@@ -6,13 +6,11 @@ import {
   emailField,
   fullNameField,
   phoneField,
-  usernameField,
 } from "@/lib/validators/auth/fields";
 import { zodFieldErrors } from "@/lib/validators/auth/parse-form";
 import type { FieldErrors } from "@/types/auth";
 
 export const updateStudentSchema = z.object({
-  username: usernameField,
   fullName: fullNameField,
   email: emailField,
   birthDate: birthDateField,
@@ -44,7 +42,6 @@ export function parseUpdateStudentFormData(formData: FormData):
   }
 
   const parsed = updateStudentSchema.safeParse({
-    username: formData.get("username"),
     fullName: formData.get("fullName"),
     email: formData.get("email"),
     birthDate: formData.get("birthDate"),

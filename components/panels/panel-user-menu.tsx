@@ -4,6 +4,7 @@ import { useTransition } from "react";
 import Link from "next/link";
 import { Home, LogOut, Settings } from "lucide-react";
 import { logoutAction } from "@/app/(public)/auth/actions";
+import { InlineSpinner } from "@/components/loaders/inline-spinner";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -33,10 +34,16 @@ export function PanelUserMenu({
   const initials = getInitials(displayName);
 
   function handleSignOut() {
+    if (isPending) {
+      return;
+    }
+
     startTransition(async () => {
       await logoutAction();
     });
   }
+
+  const avatarContent = isPending ? <InlineSpinner /> : initials;
 
   const avatarClassName = cn(
     "flex size-9 items-center justify-center rounded-full bg-primary text-sm font-semibold text-primary-foreground outline-none transition-opacity hover:opacity-90 focus-visible:ring-3 focus-visible:ring-ring/50",
@@ -61,9 +68,10 @@ export function PanelUserMenu({
           size="icon"
           disabled={isPending}
           aria-label={isPending ? "Signing out" : "Log out"}
+          aria-busy={isPending}
           onClick={handleSignOut}
         >
-          <LogOut />
+          {isPending ? <InlineSpinner /> : <LogOut />}
         </Button>
         {settingsHref ? (
           <DropdownMenu>
@@ -71,7 +79,7 @@ export function PanelUserMenu({
               className={avatarClassName}
               aria-label="Account menu"
             >
-              {initials}
+              {avatarContent}
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-48">
               <DropdownMenuLabel className="truncate">
@@ -102,8 +110,9 @@ export function PanelUserMenu({
           <DropdownMenuTrigger
             className={avatarClassName}
             aria-label="Account menu"
+            aria-busy={isPending}
           >
-            {initials}
+            {avatarContent}
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="w-48">
             <DropdownMenuLabel className="truncate">
@@ -124,8 +133,16 @@ export function PanelUserMenu({
                 Go to home
               </Link>
             </DropdownMenuItem>
-            <DropdownMenuItem disabled={isPending} onClick={handleSignOut}>
-              <LogOut />
+            <DropdownMenuItem
+              disabled={isPending}
+              aria-busy={isPending}
+              className={cn(isPending && "data-[disabled]:opacity-100")}
+              onSelect={(event) => {
+                event.preventDefault();
+                handleSignOut();
+              }}
+            >
+              {isPending ? <InlineSpinner /> : <LogOut />}
               {isPending ? "Signing out…" : "Log out"}
             </DropdownMenuItem>
           </DropdownMenuContent>

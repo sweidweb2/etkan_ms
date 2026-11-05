@@ -66,7 +66,6 @@ export function AddStudentDialog({
     schema: createStudentSchema,
     mode: "onBlur",
     defaultValues: {
-      username: "",
       fullName: "",
       email: "",
       password: "",
@@ -90,7 +89,6 @@ export function AddStudentDialog({
   useEffect(() => {
     if (!open) {
       reset({
-        username: "",
         fullName: "",
         email: "",
         password: "",
@@ -110,7 +108,6 @@ export function AddStudentDialog({
 
   function onSubmit(values: CreateStudentFormInput) {
     const formData = new FormData();
-    formData.set("username", values.username.trim());
     formData.set("fullName", values.fullName.trim());
     formData.set("email", values.email.trim());
     formData.set("password", values.password ?? "");
@@ -123,8 +120,6 @@ export function AddStudentDialog({
     });
   }
 
-  const usernameError =
-    errors.username?.message ?? state.fieldErrors?.username?.[0];
   const fullNameError =
     errors.fullName?.message ?? state.fieldErrors?.fullName?.[0];
   const emailError = errors.email?.message ?? state.fieldErrors?.email?.[0];
@@ -153,28 +148,6 @@ export function AddStudentDialog({
           className="flex max-h-[min(60vh,32rem)] flex-col gap-4 overflow-y-auto px-2"
           noValidate
         >
-          <div className="flex flex-col gap-2">
-            <FieldLabel
-              htmlFor="add-student-username"
-              label="Username"
-              hint={AUTH_FIELD_HINTS.username}
-            />
-            <Input
-              id="add-student-username"
-              type="text"
-              autoComplete="username"
-              placeholder="student_username"
-              minLength={AUTH_LIMITS.username.min}
-              maxLength={AUTH_LIMITS.username.max}
-              aria-invalid={!!usernameError}
-              disabled={isPending}
-              {...register("username")}
-            />
-            {usernameError ? (
-              <p className="text-sm text-destructive">{usernameError}</p>
-            ) : null}
-          </div>
-
           <div className="flex flex-col gap-2">
             <FieldLabel
               htmlFor="add-student-full-name"

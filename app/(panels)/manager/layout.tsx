@@ -55,7 +55,7 @@ export default async function ManagerLayout({
     redirect(getDashboardRouteForRole(role));
   }
 
-  // Workshop shared UI requires instructor and/or mentor attribute.
+  // Workshop shared UI requires the instructor attribute.
   // Instructors list, schedules, and AI usage do not (CEO need not be flagged).
   if (isSharedManagerWorkshopPath(pathname)) {
     const canAccess = await getSessionCanAccessManageWorkshops();

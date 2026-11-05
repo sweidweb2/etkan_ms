@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { formValidationFailure } from "@/lib/validators/safe-parse-form-data";
 import { MANAGER_CREATABLE_ROLES } from "@/lib/constants/manager-user-roles";
-import { emailField, usernameField } from "@/lib/validators/auth/fields";
+import { emailField, fullNameField } from "@/lib/validators/auth/fields";
 import {
   addOptionalPasswordIssues,
   optionalPasswordInput,
@@ -12,14 +12,13 @@ import type { FieldErrors } from "@/types/auth";
 
 export const createStaffUserSchema = z
   .object({
-    username: usernameField,
+    fullName: fullNameField,
     email: emailField,
     password: optionalPasswordInput,
     role: z.enum(MANAGER_CREATABLE_ROLES, {
       message: "Please select a role.",
     }),
     is_instructor: z.boolean(),
-    is_mentor: z.boolean(),
   })
   .superRefine((data, ctx) => {
     addOptionalPasswordIssues(data.password, ctx);
@@ -35,12 +34,11 @@ export function resolveCreateStaffUserInput(
   data: CreateStaffUserFormInput
 ): CreateStaffUserInput {
   return {
-    username: data.username,
+    fullName: data.fullName,
     email: data.email,
     password: resolveCreatedAccountPassword(data.password),
     role: data.role,
     is_instructor: data.is_instructor,
-    is_mentor: data.is_mentor,
   };
 }
 
@@ -48,12 +46,11 @@ export function parseCreateStaffUserFormData(formData: FormData):
   | { success: true; data: CreateStaffUserInput }
   | { success: false; error: string; fieldErrors?: FieldErrors } {
   const parsed = createStaffUserSchema.safeParse({
-    username: formData.get("username"),
+    fullName: formData.get("fullName"),
     email: formData.get("email"),
     password: formData.get("password") ?? "",
     role: formData.get("role"),
     is_instructor: formData.get("is_instructor") === "true",
-    is_mentor: formData.get("is_mentor") === "true",
   });
 
   if (!parsed.success) {

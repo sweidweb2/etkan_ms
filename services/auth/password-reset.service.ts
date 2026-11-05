@@ -80,12 +80,12 @@ export async function listPasswordResetUserOptions(
   return rows
     .map((profile) => ({
       id: profile.id,
-      username: profile.username?.trim() || profile.id,
+      full_name: profile.full_name?.trim() || profile.id,
       email: emailById.get(profile.id) ?? "",
       role: profile.role as RoleValue,
     }))
     .sort((a, b) =>
-      a.username.localeCompare(b.username, undefined, { sensitivity: "base" })
+      a.full_name.localeCompare(b.full_name, undefined, { sensitivity: "base" })
     );
 }
 
@@ -163,7 +163,7 @@ export async function resetPasswordsByRoleForManager(
     }
 
     exportRows.push({
-      username: profile.username?.trim() || profile.id,
+      full_name: profile.full_name?.trim() || profile.id,
       email: emailById.get(profile.id) ?? "",
       role: profile.role,
       password,
@@ -235,7 +235,7 @@ export async function resetUserPasswordForManager(
     };
   }
 
-  const label = profile.username?.trim() || "user";
+  const label = profile.full_name?.trim() || "user";
   return {
     success: true,
     message: `Password updated for ${label}.`,

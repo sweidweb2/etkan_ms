@@ -16,6 +16,13 @@ import { SppStatusBadge } from "@/components/manager/accounting/spp-status-badge
 import { StudentStatusBadge } from "@/components/manager/students/student-status-badge";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
+import { useHasMounted } from "@/hooks/use-has-mounted";
+import {
+  MANAGER_ACCOUNTING_EXCEPTION_TABS,
+  readManagerAccountingExceptionTab,
+  writeManagerAccountingExceptionTab,
+  type ManagerAccountingExceptionTab,
+} from "@/lib/constants/manager-accounting-tabs";
 import { PERMISSIONS } from "@/lib/constants/permissions";
 import {
   getManagerAccountingPhaseDetailRoute,
@@ -33,13 +40,6 @@ import type {
 import type { ManagerNeedRefundRow } from "@/types/manager-semester-drop";
 import type { ManagerStudentWithoutActiveClassRow } from "@/types/manager-student";
 import { formatPaymentPhaseMoney } from "@/lib/constants/manager-payment-phase-display";
-
-export type AccountingExceptionTabValue =
-  | "billed-no-class"
-  | "no-class-no-phase"
-  | "semester-mismatch"
-  | "in-class-no-phase"
-  | "need-refund";
 
 type AccountingExceptionTabsProps = {
   billedWithoutClass: ManagerBilledWithoutClassRow[];
@@ -97,15 +97,30 @@ export function AccountingExceptionTabs({
   onAssignMissing,
   onProcessRefund,
 }: AccountingExceptionTabsProps) {
-  const [activeTab, setActiveTab] =
-    useState<AccountingExceptionTabValue>("billed-no-class");
+  const hasMounted = useHasMounted();
+  const [activeTab, setActiveTab] = useState<ManagerAccountingExceptionTab>(
+    MANAGER_ACCOUNTING_EXCEPTION_TABS.BILLED_NO_CLASS
+  );
+  const [hasRestoredTab, setHasRestoredTab] = useState(false);
+
+  if (hasMounted && !hasRestoredTab) {
+    setHasRestoredTab(true);
+    setActiveTab(
+      readManagerAccountingExceptionTab() ??
+        MANAGER_ACCOUNTING_EXCEPTION_TABS.BILLED_NO_CLASS
+    );
+  }
+
+  const handleTabChange = (value: string) => {
+    const tab = value as ManagerAccountingExceptionTab;
+    setActiveTab(tab);
+    writeManagerAccountingExceptionTab(tab);
+  };
 
   return (
     <TabsPrimitive
       value={activeTab}
-      onValueChange={(value) =>
-        setActiveTab(value as AccountingExceptionTabValue)
-      }
+      onValueChange={handleTabChange}
       className="flex flex-col gap-4"
     >
       <TabsListPrimitive className="flex h-auto w-full flex-wrap items-center gap-2 rounded-full bg-muted/60 p-1 ring-1 ring-foreground/8 @lg/panel:w-fit">

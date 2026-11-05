@@ -21,12 +21,6 @@ vi.mock("@/repositories/student-profile.repository");
 vi.mock("@/lib/manager/instructors/clear-instructor-related", () => ({
   clearInstructorWorkshopRelatedData: vi.fn(),
 }));
-vi.mock("@/repositories/clear-mentor-related.repository", () => ({
-  clearMentorRelatedData: vi.fn(async () => ({
-    data: { capabilities: 0 },
-    error: null,
-  })),
-}));
 vi.mock("@/services/ops/audit-log.service", () => ({
   recordManagerAuditLog: vi.fn().mockResolvedValue(null),
 }));
@@ -62,18 +56,17 @@ const authUser = {
   id: "user-1",
   email: "teacher@school.com",
   app_metadata: { role: ROLES.TEACHER },
-  user_metadata: { full_name: "teacher1", username: "teacher1" },
+  user_metadata: { full_name: "Teacher One" },
   aud: "authenticated",
   created_at: "2026-01-01T00:00:00.000Z",
 } as User;
 
 const validStaffInput = {
-  username: "teacher1",
+  fullName: "Teacher One",
   email: "teacher@school.com",
   password: "secret123",
   role: ROLES.TEACHER,
   is_instructor: false,
-  is_mentor: false,
 };
 
 describe("listUsersForManager", () => {
@@ -92,10 +85,9 @@ describe("listUsersForManager", () => {
       data: [
         {
           id: "user-1",
-          username: "teacher1",
+          full_name: "Teacher One",
           role: ROLES.TEACHER,
           is_instructor: false,
-          is_mentor: false,
           created_at: "2026-01-01T00:00:00.000Z",
         },
       ],
@@ -125,10 +117,9 @@ describe("listUsersForManager", () => {
     expect(users).toEqual([
       {
         id: "user-1",
-        username: "teacher1",
+        full_name: "Teacher One",
         role: ROLES.TEACHER,
         is_instructor: false,
-        is_mentor: false,
         created_at: "2026-01-01T00:00:00.000Z",
         email: "teacher@school.com",
       },
@@ -169,6 +160,19 @@ describe("createStaffUser", () => {
     }
   });
 
+  it("requires a full name", async () => {
+    const result = await createStaffUser(adminClient, actor.userId, actor, {
+      ...validStaffInput,
+      fullName: "  ",
+    });
+
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(result.fieldErrors?.fullName).toBeDefined();
+    }
+    expect(authRepository.createAuthUser).not.toHaveBeenCalled();
+  });
+
   it("rejects student role", async () => {
     const result = await createStaffUser(adminClient, actor.userId, actor, {
       ...validStaffInput,
@@ -181,39 +185,7 @@ describe("createStaffUser", () => {
     }
   });
 
-  it("returns username duplicate error", async () => {
-    vi.mocked(profileRepository.findProfileByUsername).mockResolvedValue({
-      data: { id: "existing", username: "teacher1" },
-      error: null,
-      count: null,
-      status: 200,
-      statusText: "OK",
-    });
-
-    const result = await createStaffUser(
-      adminClient,
-      actor.userId,
-      actor,
-      validStaffInput
-    );
-
-    expect(result.success).toBe(false);
-    if (!result.success) {
-      expect(result.fieldErrors?.username).toEqual([
-        "This username is already taken.",
-      ]);
-    }
-  });
-
   it("returns email duplicate error", async () => {
-    vi.mocked(profileRepository.findProfileByUsername).mockResolvedValue({
-      data: null,
-      error: null,
-      count: null,
-      status: 200,
-      statusText: "OK",
-    });
-
     vi.mocked(authRepository.findAuthUserByEmail).mockResolvedValue({
       data: { user: authUser },
       error: null,
@@ -233,14 +205,6 @@ describe("createStaffUser", () => {
   });
 
   it("creates auth user, profile, and syncs role on success", async () => {
-    vi.mocked(profileRepository.findProfileByUsername).mockResolvedValue({
-      data: null,
-      error: null,
-      count: null,
-      status: 200,
-      statusText: "OK",
-    });
-
     vi.mocked(authRepository.findAuthUserByEmail).mockResolvedValue({
       data: null,
       error: null,
@@ -256,7 +220,6 @@ describe("createStaffUser", () => {
         id: "user-1",
         role: ROLES.TEACHER,
         is_instructor: false,
-        is_mentor: false,
       },
       error: null,
       count: null,
@@ -276,17 +239,22 @@ describe("createStaffUser", () => {
     expect(result.success).toBe(true);
     if (result.success) {
       expect(result.user.email).toBe("teacher@school.com");
+      expect(result.user.full_name).toBe("Teacher One");
       expect(result.message).toBe("Staff account created.");
     }
 
     expect(authRepository.createAuthUser).toHaveBeenCalledWith(adminClient, {
       email: "teacher@school.com",
       password: "secret123",
-      username: "teacher1",
-      fullName: "teacher1",
+      fullName: "Teacher One",
       role: ROLES.TEACHER,
     });
-    expect(profileRepository.createProfile).toHaveBeenCalled();
+    expect(profileRepository.createProfile).toHaveBeenCalledWith(adminClient, {
+      id: "user-1",
+      full_name: "Teacher One",
+      role: ROLES.TEACHER,
+      is_instructor: false,
+    });
     expect(roleService.syncAuthUserRole).toHaveBeenCalledWith(
       adminClient,
       "user-1",
@@ -295,14 +263,6 @@ describe("createStaffUser", () => {
   });
 
   it("defaults a blank password to the literal password string", async () => {
-    vi.mocked(profileRepository.findProfileByUsername).mockResolvedValue({
-      data: null,
-      error: null,
-      count: null,
-      status: 200,
-      statusText: "OK",
-    });
-
     vi.mocked(authRepository.findAuthUserByEmail).mockResolvedValue({
       data: null,
       error: null,
@@ -318,7 +278,6 @@ describe("createStaffUser", () => {
         id: "user-1",
         role: ROLES.TEACHER,
         is_instructor: false,
-        is_mentor: false,
       },
       error: null,
       count: null,
@@ -337,21 +296,12 @@ describe("createStaffUser", () => {
     expect(authRepository.createAuthUser).toHaveBeenCalledWith(adminClient, {
       email: "teacher@school.com",
       password: DEFAULT_CREATED_STUDENT_PASSWORD,
-      username: "teacher1",
-      fullName: "teacher1",
+      fullName: "Teacher One",
       role: ROLES.TEACHER,
     });
   });
 
   it("rolls back auth user when profile creation fails", async () => {
-    vi.mocked(profileRepository.findProfileByUsername).mockResolvedValue({
-      data: null,
-      error: null,
-      count: null,
-      status: 200,
-      statusText: "OK",
-    });
-
     vi.mocked(authRepository.findAuthUserByEmail).mockResolvedValue({
       data: null,
       error: null,
@@ -400,21 +350,10 @@ describe("updateManagerUser", () => {
     vi.mocked(profileRepository.findProfileById).mockResolvedValue({
       data: {
         id: "user-1",
-        username: "teacher1",
+        full_name: "Teacher One",
         role: ROLES.TEACHER,
         is_instructor: true,
-        is_mentor: false,
         created_at: "2026-01-01T00:00:00.000Z",
-      },
-      error: null,
-      count: null,
-      status: 200,
-      statusText: "OK",
-    });
-    vi.mocked(profileRepository.findProfileByUsername).mockResolvedValue({
-      data: {
-        id: "user-1",
-        username: "teacher1",
       },
       error: null,
       count: null,
@@ -432,10 +371,9 @@ describe("updateManagerUser", () => {
     vi.mocked(profileRepository.updateProfileById).mockResolvedValue({
       data: {
         id: "user-1",
-        username: "teacher1",
+        full_name: "Teacher Renamed",
         role: ROLES.TEACHER,
         is_instructor: false,
-        is_mentor: false,
         created_at: "2026-01-01T00:00:00.000Z",
       },
       error: null,
@@ -466,18 +404,30 @@ describe("updateManagerUser", () => {
       actor,
       {
         userId: "user-1",
-        username: "teacher1",
+        fullName: "Teacher Renamed",
         email: "teacher@school.com",
         role: ROLES.TEACHER,
         is_instructor: false,
-        is_mentor: false,
       }
     );
 
     expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.user.full_name).toBe("Teacher Renamed");
+    }
     expect(clearInstructorWorkshopRelatedData).toHaveBeenCalledWith(
       adminClient,
       "user-1"
+    );
+    expect(profileRepository.updateProfileById).toHaveBeenCalledWith(
+      adminClient,
+      "user-1",
+      { full_name: "Teacher Renamed", role: ROLES.TEACHER, is_instructor: false }
+    );
+    expect(authRepository.updateAuthUserByAdmin).toHaveBeenCalledWith(
+      adminClient,
+      "user-1",
+      { email: "teacher@school.com", fullName: "Teacher Renamed" }
     );
   });
 });

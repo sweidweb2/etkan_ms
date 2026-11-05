@@ -860,7 +860,7 @@ export async function getGuestRegistrationLinkUserOption(
 
   return {
     id: profileResult.data.id,
-    username: profileResult.data.username,
+    full_name: profileResult.data.full_name,
     email: emailsResult.data.get(userId) ?? "",
   };
 }
@@ -888,13 +888,13 @@ async function fetchGuestRegistrationLinkUsers(
 
   return [...profiles]
     .sort((a, b) =>
-      (a.username ?? a.id).localeCompare(b.username ?? b.id, undefined, {
+      a.full_name.localeCompare(b.full_name, undefined, {
         sensitivity: "base",
       })
     )
     .map((profile) => ({
       id: profile.id,
-      username: profile.username,
+      full_name: profile.full_name,
       email: emailsResult.data.get(profile.id) ?? "",
     }));
 }

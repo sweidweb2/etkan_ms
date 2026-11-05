@@ -21,6 +21,7 @@ export type CreateSemesterRecordInput = {
 
 export type UpdateSemesterRecordInput = {
   name: string;
+  semester_code: string;
 };
 
 export async function listSemesters(client: Supabase) {
@@ -91,6 +92,7 @@ export async function updateSemester(
     .from("semesters")
     .update({
       name: input.name,
+      semester_code: input.semester_code,
     })
     .eq("id", id)
     .select(SEMESTER_COLUMNS)

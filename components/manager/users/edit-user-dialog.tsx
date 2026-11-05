@@ -64,7 +64,6 @@ function getDefaultValues(user: ManagerUserRow): UpdateManagerUserInput {
     email: user.email,
     role: user.role,
     is_instructor: user.is_instructor,
-    is_mentor: user.is_mentor,
     fullName: user.student_full_name ?? "",
     birthDate: user.student_birth_date ?? "",
     phone: user.student_phone ?? "",
@@ -84,7 +83,6 @@ function buildUpdateFormData(
   formData.set("email", values.email.trim());
   formData.set("role", values.role);
   formData.set("is_instructor", String(values.is_instructor));
-  formData.set("is_mentor", String(values.is_mentor));
   formData.set("password", values.password ?? "");
   formData.set("confirmPassword", values.confirmPassword ?? "");
 
@@ -134,7 +132,6 @@ export function EditUserDialog({
   const selectedRole = watch("role");
   const selectedStatus = watch("status");
   const isInstructor = watch("is_instructor");
-  const isMentor = watch("is_mentor");
   const isStudentRole = selectedRole === ROLES.STUDENT;
 
   useEffect(() => {
@@ -340,32 +337,6 @@ export function EditUserDialog({
                 className="cursor-pointer text-muted-foreground"
               >
                 {isInstructor ? "Enabled" : "Disabled"}
-              </label>
-            </div>
-          </div>
-
-          <div className="flex flex-col gap-2">
-            <FieldLabel
-              htmlFor="edit-user-is-mentor"
-              label="Mentor"
-              hint="Can mentor students"
-            />
-            <div className="flex h-8 items-center gap-2.5 rounded-lg border border-input bg-transparent px-2.5 text-sm dark:bg-input/30">
-              <Checkbox
-                id="edit-user-is-mentor"
-                checked={isMentor}
-                disabled={isPending}
-                onCheckedChange={(checked) =>
-                  setValue("is_mentor", checked, {
-                    shouldValidate: true,
-                  })
-                }
-              />
-              <label
-                htmlFor="edit-user-is-mentor"
-                className="cursor-pointer text-muted-foreground"
-              >
-                {isMentor ? "Enabled" : "Disabled"}
               </label>
             </div>
           </div>

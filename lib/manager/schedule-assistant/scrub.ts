@@ -1,29 +1,22 @@
 import type { ScheduleAssistantWeekday } from "@/lib/constants/schedule-assistant";
 import { SCHEDULE_ASSISTANT_WEEKDAYS } from "@/lib/constants/schedule-assistant";
 import { matchCatalogSubject } from "@/lib/manager/schedule-assistant/match-subject";
-import { matchCatalogUsername } from "@/lib/manager/schedule-assistant/match-username";
+import {
+  collectCatalogInstructors,
+  matchCatalogInstructorName,
+  mergeInstructorAmbiguities,
+} from "@/lib/manager/schedule-assistant/match-instructor-name";
 import type { ScheduleAssistantGroup } from "@/lib/validators/manager/schedule-assistant";
-import type { ScheduleAssistantPrefetchCatalogs } from "@/types/schedule-assistant";
+import type {
+  ScheduleAssistantCompactInstructor,
+  ScheduleAssistantInstructorAmbiguity,
+  ScheduleAssistantPrefetchCatalogs,
+} from "@/types/schedule-assistant";
 
-function catalogUsernames(
-  catalogs: ScheduleAssistantPrefetchCatalogs
-): string[] {
-  const map = new Map<string, string>();
-  for (const row of catalogs.instructors?.instructors ?? []) {
-    map.set(row.u.toLowerCase(), row.u);
-  }
-  for (const row of catalogs.matrix?.matrix ?? []) {
-    if (!map.has(row.u.toLowerCase())) {
-      map.set(row.u.toLowerCase(), row.u);
-    }
-  }
-  for (const slot of catalogs.slots?.slots ?? []) {
-    if (!map.has(slot.u.toLowerCase())) {
-      map.set(slot.u.toLowerCase(), slot.u);
-    }
-  }
-  return [...map.values()];
-}
+export type ScrubGroupsResult = {
+  groups: ScheduleAssistantGroup[];
+  ambiguities: ScheduleAssistantInstructorAmbiguity[];
+};
 
 function catalogSubjects(
   catalogs: ScheduleAssistantPrefetchCatalogs
@@ -41,21 +34,34 @@ function catalogSubjects(
 }
 
 /**
- * Resolve LLM/heuristic names onto catalog (DB) values. Drop unknowns.
+ * Resolve LLM/heuristic names onto catalog (DB) values and instructor ids.
+ * Drop unknowns; report names matching several instructors.
  * Never invent instructors or subjects.
  */
 export function scrubGroups(
   groups: ScheduleAssistantGroup[],
   catalogs: ScheduleAssistantPrefetchCatalogs
-): ScheduleAssistantGroup[] {
-  const usernames = catalogUsernames(catalogs);
+): ScrubGroupsResult {
+  const instructors = collectCatalogInstructors(catalogs);
   const subjects = catalogSubjects(catalogs);
   const weekdaySet = new Set<string>(SCHEDULE_ASSISTANT_WEEKDAYS);
+  let ambiguities: ScheduleAssistantInstructorAmbiguity[] = [];
 
-  return groups.map((group, index) => {
-    const resolvedUsers = group.usernames
-      .map((name) => matchCatalogUsername(name, usernames))
-      .filter((name): name is string => Boolean(name));
+  const scrubbed = groups.map((group, index) => {
+    const resolvedInstructors = new Map<
+      string,
+      ScheduleAssistantCompactInstructor
+    >();
+    for (const name of group.instructor_names) {
+      const match = matchCatalogInstructorName(name, instructors);
+      if (match.status === "matched") {
+        resolvedInstructors.set(match.instructor.i, match.instructor);
+      } else if (match.status === "ambiguous") {
+        ambiguities = mergeInstructorAmbiguities(ambiguities, [
+          { phrase: name, candidates: match.candidates },
+        ]);
+      }
+    }
 
     const resolvedSubjects = group.subject_names
       .map((name) => matchCatalogSubject(name, subjects))
@@ -68,11 +74,16 @@ export function scrubGroups(
     return {
       ...group,
       id: group.id || `g${index + 1}`,
-      usernames: [...new Set(resolvedUsers)],
+      instructor_names: [
+        ...new Set([...resolvedInstructors.values()].map((row) => row.u)),
+      ],
+      instructor_ids: [...resolvedInstructors.keys()],
       subject_names: [...new Set(resolvedSubjects)],
       weekdays: SCHEDULE_ASSISTANT_WEEKDAYS.filter((day) =>
         weekdays.includes(day)
       ),
     };
   });
+
+  return { groups: scrubbed, ambiguities };
 }

@@ -28,7 +28,7 @@ const tokenListSchema = z.array(z.string().trim().min(1).max(120)).max(20);
 export const scheduleAssistantHintsSchema = z.object({
   weekdays: z.array(z.enum(SCHEDULE_ASSISTANT_WEEKDAYS)).max(7).default([]),
   subject_tokens: tokenListSchema.default([]),
-  username_tokens: tokenListSchema.default([]),
+  name_tokens: tokenListSchema.default([]),
 });
 
 export type ScheduleAssistantHints = z.infer<
@@ -40,7 +40,7 @@ export const scheduleAssistantRouterResultSchema = z.object({
   hints: scheduleAssistantHintsSchema.default({
     weekdays: [],
     subject_tokens: [],
-    username_tokens: [],
+    name_tokens: [],
   }),
 });
 
@@ -74,7 +74,12 @@ export const scheduleAssistantGroupDirectionSchema = z.enum(
 export const scheduleAssistantGroupSchema = z.object({
   id: z.string().trim().min(1).max(40).default("g1"),
   direction: scheduleAssistantGroupDirectionSchema,
-  usernames: z.array(z.string().trim().min(1).max(120)).max(30).default([]),
+  instructor_names: z
+    .array(z.string().trim().min(1).max(120))
+    .max(30)
+    .default([]),
+  /** Server-resolved from `instructor_names` (full names are not unique); model output is ignored. */
+  instructor_ids: z.array(z.string().trim().min(1).max(64)).max(30).catch([]),
   subject_names: z
     .array(z.string().trim().min(1).max(120))
     .max(40)
@@ -94,14 +99,15 @@ export type ScheduleAssistantGroupsResult = z.infer<
   typeof scheduleAssistantGroupsResultSchema
 >;
 
-/** Compact instructor row: id + username. */
+/** Compact instructor row: id + full name. */
 export const scheduleAssistantCompactInstructorSchema = z.object({
   i: z.string().min(1),
   u: z.string().min(1),
 });
 
-/** Capability matrix row: username → subject names. */
+/** Capability matrix row: instructor id + full name → subject names. */
 export const scheduleAssistantCompactMatrixRowSchema = z.object({
+  i: z.string().min(1),
   u: z.string().min(1),
   sub: z.array(z.string().min(1)).max(40),
 });

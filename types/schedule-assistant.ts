@@ -7,19 +7,26 @@ export type ScheduleAssistantSseEvent =
   | { type: "error"; message: string }
   | { type: "refused"; message: string };
 
-/** Compact instructor: id + username. */
+/** Compact instructor: id + full name. */
 export type ScheduleAssistantCompactInstructor = {
   i: string;
   u: string;
 };
 
-/** Capability matrix row: username → subject names. */
+/** Capability matrix row: instructor id + full name → subject names. */
 export type ScheduleAssistantCompactMatrixRow = {
+  i: string;
   u: string;
   sub: string[];
 };
 
-/** Compact free slot. */
+/** Name phrase that matched more than one catalog instructor. */
+export type ScheduleAssistantInstructorAmbiguity = {
+  phrase: string;
+  candidates: ScheduleAssistantCompactInstructor[];
+};
+
+/** Compact free slot: instructor id + full name + window. */
 export type ScheduleAssistantCompactSlot = {
   i: string;
   u: string;

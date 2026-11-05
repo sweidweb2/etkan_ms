@@ -207,7 +207,6 @@ export type OpenSppMissingPriorAdjustmentRecord = {
   spp_status: string;
   student_profile_id: string | null;
   full_name: string | null;
-  username: string | null;
 };
 
 /**

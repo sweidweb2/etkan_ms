@@ -52,6 +52,13 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { TooltipProvider } from "@/components/ui/tooltip";
+import { useHasMounted } from "@/hooks/use-has-mounted";
+import {
+  MANAGER_ACCOUNTING_TABS,
+  readManagerAccountingTab,
+  writeManagerAccountingTab,
+  type ManagerAccountingTab,
+} from "@/lib/constants/manager-accounting-tabs";
 import { formatPaymentPhaseMoney, PAYMENT_PHASE_STATUS_LABELS } from "@/lib/constants/manager-payment-phase-display";
 import { PERMISSIONS } from "@/lib/constants/permissions";
 import {
@@ -68,12 +75,6 @@ import { prependUniqueById } from "@/lib/utils/prepend-unique-by-id";
 import type {
   ManagerPaymentPhaseRow,
 } from "@/types/manager-payment-phase";
-
-type AccountingPageTab =
-  | "timeline"
-  | "phases"
-  | "missing-prior"
-  | "exceptions";
 
 const TAB_TRIGGER_CLASS = cn(
   "inline-flex items-center rounded-full border px-3 py-1.5 text-xs font-medium transition-all duration-200 sm:px-4 sm:text-sm",
@@ -128,7 +129,22 @@ export function ManageAccountingPanel({
   const router = useRouter();
   const [phases, setPhases] = useState(initialPhases);
   const [prevPhases, setPrevPhases] = useState(initialPhases);
-  const [activeTab, setActiveTab] = useState<AccountingPageTab>("phases");
+  const hasMounted = useHasMounted();
+  const [activeTab, setActiveTab] = useState<ManagerAccountingTab>(
+    MANAGER_ACCOUNTING_TABS.PHASES
+  );
+  const [hasRestoredTab, setHasRestoredTab] = useState(false);
+
+  if (hasMounted && !hasRestoredTab) {
+    setHasRestoredTab(true);
+    setActiveTab(readManagerAccountingTab() ?? MANAGER_ACCOUNTING_TABS.PHASES);
+  }
+
+  const handleTabChange = (value: string) => {
+    const tab = value as ManagerAccountingTab;
+    setActiveTab(tab);
+    writeManagerAccountingTab(tab);
+  };
 
   if (initialPhases !== prevPhases) {
     setPrevPhases(initialPhases);
@@ -274,78 +290,52 @@ export function ManageAccountingPanel({
 
         <TabsPrimitive
           value={activeTab}
-          onValueChange={(value) => setActiveTab(value as AccountingPageTab)}
+          onValueChange={handleTabChange}
           className="flex flex-col gap-4"
         >
-          <TabsListPrimitive className="flex h-auto w-full flex-wrap items-center gap-2 rounded-full bg-muted/60 p-1 ring-1 ring-foreground/8 @lg/panel:w-fit">
-            <TabsTriggerPrimitive value="timeline" className={TAB_TRIGGER_CLASS}>
-              Timeline
-            </TabsTriggerPrimitive>
-            <TabsTriggerPrimitive value="phases" className={TAB_TRIGGER_CLASS}>
-              Payment phases
-            </TabsTriggerPrimitive>
-            <TabsTriggerPrimitive
-              value="missing-prior"
-              className={TAB_TRIGGER_CLASS}
-            >
-              Missing prior
-            </TabsTriggerPrimitive>
-            <TabsTriggerPrimitive
-              value="exceptions"
-              className={TAB_TRIGGER_CLASS}
-            >
-              Exceptions
-            </TabsTriggerPrimitive>
-          </TabsListPrimitive>
+          <div className="flex flex-col gap-3 @lg/panel:flex-row @lg/panel:items-center @lg/panel:justify-between">
+            <TabsListPrimitive className="flex h-auto w-full flex-wrap items-center gap-2 rounded-full bg-muted/60 p-1 ring-1 ring-foreground/8 @lg/panel:w-fit">
+              <TabsTriggerPrimitive value="phases" className={TAB_TRIGGER_CLASS}>
+                Payment phases
+              </TabsTriggerPrimitive>
+              <TabsTriggerPrimitive value="timeline" className={TAB_TRIGGER_CLASS}>
+                Timeline
+              </TabsTriggerPrimitive>
+              <TabsTriggerPrimitive
+                value="missing-prior"
+                className={TAB_TRIGGER_CLASS}
+              >
+                Missing prior
+              </TabsTriggerPrimitive>
+              <TabsTriggerPrimitive
+                value="exceptions"
+                className={TAB_TRIGGER_CLASS}
+              >
+                Exceptions
+              </TabsTriggerPrimitive>
+            </TabsListPrimitive>
+
+            <div className="flex flex-wrap items-center gap-3 @lg/panel:justify-end">
+              <div className="rounded-lg border-l-4 border-l-emerald-500 bg-card px-3 py-1.5 ring-1 ring-foreground/10">
+                <p className="text-[11px] leading-tight text-muted-foreground">
+                  SPP paid / active
+                </p>
+                <p className="text-sm font-semibold tabular-nums tracking-tight">
+                  {stats.sppPaidCount}/{stats.sppActiveCount}
+                </p>
+              </div>
+              <Can permission={PERMISSIONS.ACCOUNTING_PAYMENT_PHASES_CREATE}>
+                <Button type="button" onClick={() => setIsCreateOpen(true)}>
+                  <PlusIcon data-icon="inline-start" />
+                  Create payment phase
+                </Button>
+              </Can>
+            </div>
+          </div>
 
           <TabsContentsPrimitive>
-            <TabsContentPrimitive value="timeline" className="outline-none">
-              <div className="flex flex-col gap-4">
-                <div className="grid gap-4 @lg/panel:grid-cols-2 @4xl/panel:grid-cols-4">
-                  <UserStatCard
-                    label="Payment phases"
-                    value={stats.totalPhases}
-                    accentClassName="border-l-sky-500"
-                  />
-                  <UserStatCard
-                    label="Opened"
-                    value={stats.openedPhases}
-                    accentClassName="border-l-emerald-500"
-                  />
-                  <UserStatCard
-                    label="Students"
-                    value={stats.sppActiveCount}
-                    accentClassName="border-l-violet-500"
-                  />
-                  <UserStatCard
-                    label="Paid this month"
-                    value={formatPaymentPhaseMoney(paidThisMonthTotal)}
-                    accentClassName="border-l-amber-500"
-                  />
-                </div>
-                <PaymentPhasesTimeline phases={phases} />
-              </div>
-            </TabsContentPrimitive>
-
             <TabsContentPrimitive value="phases" className="outline-none">
               <div className="flex flex-col gap-4">
-                <div className="flex flex-col gap-3 @lg/panel:flex-row @lg/panel:items-center @lg/panel:justify-between">
-                  <div className="rounded-lg border-l-4 border-l-emerald-500 bg-card px-3 py-1.5 ring-1 ring-foreground/10 @lg/panel:w-fit">
-                    <p className="text-[11px] leading-tight text-muted-foreground">
-                      SPP paid / active
-                    </p>
-                    <p className="text-sm font-semibold tabular-nums tracking-tight">
-                      {stats.sppPaidCount}/{stats.sppActiveCount}
-                    </p>
-                  </div>
-                  <Can permission={PERMISSIONS.ACCOUNTING_PAYMENT_PHASES_CREATE}>
-                    <Button type="button" onClick={() => setIsCreateOpen(true)}>
-                      <PlusIcon data-icon="inline-start" />
-                      Create payment phase
-                    </Button>
-                  </Can>
-                </div>
-
                 <div className="flex flex-col gap-3 @lg/panel:flex-row @lg/panel:items-center">
                   <div className="relative max-w-md flex-1">
                     <SearchIcon className="pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-muted-foreground" />
@@ -650,6 +640,34 @@ export function ManageAccountingPanel({
                     </Button>
                   </div>
                 </div>
+              </div>
+            </TabsContentPrimitive>
+
+            <TabsContentPrimitive value="timeline" className="outline-none">
+              <div className="flex flex-col gap-4">
+                <div className="grid gap-4 @lg/panel:grid-cols-2 @4xl/panel:grid-cols-4">
+                  <UserStatCard
+                    label="Payment phases"
+                    value={stats.totalPhases}
+                    accentClassName="border-l-sky-500"
+                  />
+                  <UserStatCard
+                    label="Opened"
+                    value={stats.openedPhases}
+                    accentClassName="border-l-emerald-500"
+                  />
+                  <UserStatCard
+                    label="Students"
+                    value={stats.sppActiveCount}
+                    accentClassName="border-l-violet-500"
+                  />
+                  <UserStatCard
+                    label="Paid this month"
+                    value={formatPaymentPhaseMoney(paidThisMonthTotal)}
+                    accentClassName="border-l-amber-500"
+                  />
+                </div>
+                <PaymentPhasesTimeline phases={phases} />
               </div>
             </TabsContentPrimitive>
 

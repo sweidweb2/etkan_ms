@@ -62,22 +62,26 @@ export function AddPhaseDialog({
     mode: "onBlur",
     defaultValues: {
       name: "",
+      semester_code: "",
     },
   });
 
   useEffect(() => {
     if (!open) {
-      reset({ name: "" });
+      reset({ name: "", semester_code: "" });
     }
   }, [open, reset]);
 
   function onSubmit(values: CreatePhaseInput) {
     const formData = new FormData();
     formData.set("name", values.name.trim());
+    formData.set("semester_code", values.semester_code?.trim() ?? "");
     formAction(formData);
   }
 
   const nameError = errors.name?.message ?? state.fieldErrors?.name?.[0];
+  const codeError =
+    errors.semester_code?.message ?? state.fieldErrors?.semester_code?.[0];
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
@@ -85,8 +89,8 @@ export function AddPhaseDialog({
         <DialogHeader>
           <DialogTitle>Add semester</DialogTitle>
           <DialogDescription>
-            Create a semester with a name. A unique 4-digit code is assigned
-            automatically.
+            Create a semester with a name and a unique 4-digit code. Leave the
+            code blank to generate one automatically.
           </DialogDescription>
         </DialogHeader>
 
@@ -106,6 +110,28 @@ export function AddPhaseDialog({
             />
             {nameError ? (
               <p className="text-sm text-destructive">{nameError}</p>
+            ) : null}
+          </div>
+
+          <div className="flex flex-col gap-2">
+            <FieldLabel
+              htmlFor="add-semester-code"
+              label="Semester code"
+              hint="Optional"
+            />
+            <Input
+              id="add-semester-code"
+              inputMode="numeric"
+              autoComplete="off"
+              maxLength={4}
+              placeholder="Auto-generate"
+              aria-invalid={!!codeError}
+              disabled={isPending}
+              className="font-mono tracking-wider"
+              {...register("semester_code")}
+            />
+            {codeError ? (
+              <p className="text-sm text-destructive">{codeError}</p>
             ) : null}
           </div>
         </form>

@@ -8,12 +8,11 @@ import {
 } from "@/lib/validators/manager/create-user";
 
 const validInput = {
-  username: "teacher1",
+  fullName: "Teacher One",
   email: "teacher@school.com",
   password: "",
   role: ROLES.TEACHER,
   is_instructor: false,
-  is_mentor: false,
 };
 
 describe("createStaffUserSchema", () => {
@@ -33,7 +32,7 @@ describe("createStaffUserSchema", () => {
   it("accepts supervisor as a creatable staff role", () => {
     const parsed = createStaffUserSchema.safeParse({
       ...validInput,
-      username: "supervisor1",
+      fullName: "Supervisor One",
       email: "supervisor@school.com",
       role: ROLES.SUPERVISOR,
     });
@@ -43,7 +42,7 @@ describe("createStaffUserSchema", () => {
   it("accepts CRM as a creatable staff role", () => {
     const parsed = createStaffUserSchema.safeParse({
       ...validInput,
-      username: "crm1",
+      fullName: "CRM One",
       email: "crm@school.com",
       role: ROLES.CRM,
     });
@@ -71,12 +70,11 @@ describe("resolveCreateStaffUserInput", () => {
 describe("parseCreateStaffUserFormData", () => {
   it("parses the form and defaults an empty password", () => {
     const formData = new FormData();
-    formData.set("username", "teacher1");
+    formData.set("fullName", "Teacher One");
     formData.set("email", "teacher@school.com");
     formData.set("password", "");
     formData.set("role", ROLES.TEACHER);
     formData.set("is_instructor", "false");
-    formData.set("is_mentor", "false");
 
     const parsed = parseCreateStaffUserFormData(formData);
     expect(parsed.success).toBe(true);

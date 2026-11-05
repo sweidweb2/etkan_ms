@@ -22,7 +22,6 @@ export type ClassSessionProgressRecord = {
 export type AcademicAnalysisStudentRecord = {
   id: string;
   full_name: string;
-  username: string | null;
   status: string;
 };
 
@@ -92,7 +91,6 @@ function parseStudentRecord(value: Json): AcademicAnalysisStudentRecord | null {
   return {
     id: row.id,
     full_name: row.full_name,
-    username: typeof row.username === "string" ? row.username : null,
     status: typeof row.status === "string" ? row.status : "",
   };
 }

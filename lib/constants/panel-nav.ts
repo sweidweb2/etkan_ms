@@ -5,7 +5,7 @@ import type {
   PanelNavigation,
 } from "@/types/panel";
 
-/** Shared across roles; filtered by `workshops.view` + instructor/mentor flag. */
+/** Shared across roles; filtered by `workshops.view` + instructor flag. */
 const MANAGE_WORKSHOPS_NAV_ITEM: PanelNavItem = {
   title: "Manage workshops",
   href: ROUTES.MANAGER_WORKSHOPS,
@@ -20,7 +20,7 @@ function withManageWorkshops(navigation: PanelNavigation): PanelNavigation {
 }
 
 export const ADMIN_PANEL_NAVIGATION = withManageWorkshops({ items: [] });
-/** Co-manager: same as admin — workshops only when instructor/mentor. */
+/** Co-manager: same as admin — workshops only when instructor. */
 export const CO_MANAGER_PANEL_NAVIGATION = withManageWorkshops({ items: [] });
 
 /**
@@ -269,7 +269,7 @@ export const CEO_PANEL_NAVIGATION: PanelNavigation = {
   ],
 };
 
-/** CRM: guests (+ Manage workshops when instructor/mentor + workshops.view). */
+/** CRM: guests (+ Manage workshops when instructor + workshops.view). */
 export const CRM_PANEL_NAVIGATION = withManageWorkshops({
   items: [
     {
@@ -289,7 +289,7 @@ export const SUPERVISOR_PANEL_NAVIGATION: PanelNavigation =
 
 /**
  * Teacher app bar: no fixed landing links (center search replaces them).
- * Manage workshops still follows when instructor/mentor + workshops.view.
+ * Manage workshops still follows when instructor + workshops.view.
  */
 export const TEACHER_PANEL_NAVIGATION = withManageWorkshops({
   items: [],

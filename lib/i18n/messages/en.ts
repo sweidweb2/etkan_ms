@@ -917,20 +917,16 @@ export const en = {
 
   "auth.field.email": "Email",
   "auth.field.password": "Password",
-  "auth.field.username": "Username",
   "auth.field.fullName": "Full name",
   "auth.field.birthDate": "Birth date",
   "auth.field.phone": "Phone",
   "auth.field.confirmPassword": "Confirm password",
 
   "auth.placeholder.email": "you@example.com",
-  "auth.placeholder.username": "student_username",
   "auth.placeholder.fullName": "Your full name",
   "auth.placeholder.phone": "+961 ...",
   "auth.placeholder.password": "Enter your password",
 
-  "auth.hint.username":
-    "3–30 characters, letters, numbers, underscores",
   "auth.hint.fullName": "2–80 characters",
   "auth.hint.email": "Valid email format, max 254 characters",
   "auth.hint.password": "8–72 characters",

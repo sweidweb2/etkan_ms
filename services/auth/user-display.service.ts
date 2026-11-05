@@ -8,18 +8,18 @@ import type { Database } from "@/types/supabase";
 
 type Supabase = SupabaseClient<Database>;
 
-/** Build a display label from JWT/auth fields + optional username (no DB). */
+/** Build a display label from JWT/auth fields + optional profile full name (no DB). */
 export function displayNameFromAuthUser(
   authUser: User,
-  username?: string | null
+  profileFullName?: string | null
 ): string {
   const metadataName = authUser.user_metadata?.full_name;
   if (typeof metadataName === "string" && metadataName.trim()) {
     return metadataName.trim();
   }
 
-  if (username?.trim()) {
-    return username.trim();
+  if (profileFullName?.trim()) {
+    return profileFullName.trim();
   }
 
   const emailPrefix = authUser.email?.split("@")[0];
@@ -54,9 +54,5 @@ export async function resolveDisplayName(
     authUser.id
   );
 
-  if (profile?.username?.trim()) {
-    return profile.username.trim();
-  }
-
-  return displayNameFromAuthUser(authUser);
+  return displayNameFromAuthUser(authUser, profile?.full_name);
 }

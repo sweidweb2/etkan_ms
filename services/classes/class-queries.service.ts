@@ -222,7 +222,7 @@ export async function getClassCreateDialogDataForManager(
     })),
     teachers: (teachersResult.data ?? []).map((teacher) => ({
       id: teacher.id,
-      username: teacher.username,
+      full_name: teacher.full_name,
     })),
   };
 }
@@ -325,7 +325,7 @@ export async function listTeacherOptionsForManager(
 
   return (teachersResult.data ?? []).map((teacher) => ({
     id: teacher.id,
-    username: teacher.username,
+    full_name: teacher.full_name,
   }));
 }
 
@@ -371,13 +371,13 @@ export async function listClassTeacherOptionsForManager(
 
     assignedOutsideCatalog = (extraResult.data ?? []).map((teacher) => ({
       id: teacher.id,
-      username: teacher.username,
+      full_name: teacher.full_name,
     }));
   }
 
   return [...teachers, ...assignedOutsideCatalog].map((teacher) => ({
     id: teacher.id,
-    username: teacher.username,
+    full_name: teacher.full_name,
     assigned: assignmentByTeacherId.has(teacher.id),
     assignment_id: assignmentByTeacherId.get(teacher.id) ?? null,
   }));
@@ -455,7 +455,7 @@ export async function listAssignedClassTeachersForManager(
     return [
       {
         id: profile.id,
-        username: profile.username,
+        full_name: profile.full_name,
         assigned: true,
         assignment_id: assignmentByTeacherId.get(teacherId) ?? null,
       },
@@ -494,7 +494,7 @@ export async function listClassStudentsForManager(
 export type LoadClassStudentRowsOptions = {
   /**
    * Resolve Auth Admin emails (N `getUserById` for ≤50 students).
-   * Teacher roster skips this — name/username are enough for search/display.
+   * Teacher roster skips this — the student name is enough for search/display.
    * @default true
    */
   includeAuthEmails?: boolean;
@@ -527,10 +527,9 @@ export async function loadClassStudentRows(
 
     const userIds = enrollments.map((row) => row.user_id);
 
-    const [profilesResult, studentProfilesResult, emailResult] =
+    const [studentProfilesResult, emailResult] =
       await timer.step("profiles", () =>
         Promise.all([
-          profileRepository.listProfilesByIds(adminClient, userIds),
           studentProfileRepository.listStudentProfileDetailsByUserIds(
             adminClient,
             userIds
@@ -544,10 +543,6 @@ export async function loadClassStudentRows(
         ])
       );
 
-    if (profilesResult.error) {
-      throw new Error(profilesResult.error.message);
-    }
-
     if (studentProfilesResult.error) {
       throw new Error(studentProfilesResult.error.message);
     }
@@ -556,9 +551,6 @@ export async function loadClassStudentRows(
       throw new Error(emailResult.error.message);
     }
 
-    const profileById = new Map(
-      (profilesResult.data ?? []).map((row) => [row.id, row])
-    );
     const studentProfileByUserId = new Map(
       (studentProfilesResult.data ?? []).map((row) => [row.user_id, row])
     );
@@ -580,9 +572,8 @@ export async function loadClassStudentRows(
 
     for (const enrollment of enrollments) {
       const studentProfile = studentProfileByUserId.get(enrollment.user_id);
-      const profile = profileById.get(enrollment.user_id);
 
-      if (!studentProfile || !profile) {
+      if (!studentProfile) {
         continue;
       }
 
@@ -594,7 +585,6 @@ export async function loadClassStudentRows(
         student_profile_id: studentProfile.id,
         user_id: enrollment.user_id,
         full_name: studentProfile.full_name,
-        username: profile.username,
         email: emailById.get(enrollment.user_id) ?? "",
         phone: studentProfile.phone,
         joined_at: enrollment.joined_at ?? "",
@@ -629,18 +619,13 @@ export async function fetchClassStudentRowForManager(
     return null;
   }
 
-  const [profilesResult, studentProfilesResult, emailResult] = await Promise.all([
-    profileRepository.listProfilesByIds(adminClient, [userId]),
+  const [studentProfilesResult, emailResult] = await Promise.all([
     studentProfileRepository.listStudentProfileDetailsByUserIds(
       adminClient,
       [userId]
     ),
     authRepository.listAuthEmailsByIds(adminClient, [userId]),
   ]);
-
-  if (profilesResult.error) {
-    throw new Error(profilesResult.error.message);
-  }
 
   if (studentProfilesResult.error) {
     throw new Error(studentProfilesResult.error.message);
@@ -651,9 +636,8 @@ export async function fetchClassStudentRowForManager(
   }
 
   const studentProfile = studentProfilesResult.data?.[0];
-  const profile = profilesResult.data?.[0];
 
-  if (!studentProfile || !profile) {
+  if (!studentProfile) {
     return null;
   }
 
@@ -662,7 +646,6 @@ export async function fetchClassStudentRowForManager(
     student_profile_id: studentProfile.id,
     user_id: enrollment.user_id,
     full_name: studentProfile.full_name,
-    username: profile.username,
     email: emailResult.data.get(userId) ?? "",
     phone: studentProfile.phone,
     joined_at: enrollment.joined_at ?? "",

@@ -62,7 +62,7 @@ const authUser = {
   id: "user-1",
   email: "jane@school.com",
   app_metadata: { role: ROLES.STUDENT },
-  user_metadata: { full_name: "Jane Doe", username: "jane" },
+  user_metadata: { full_name: "Jane Doe" },
   aud: "authenticated",
   created_at: "2026-01-01T00:00:00.000Z",
 } as User;
@@ -78,7 +78,6 @@ const studentProfile = {
 };
 
 const validStudentInput = {
-  username: "jane",
   fullName: "Jane Doe",
   email: "jane@school.com",
   password: "secret123",
@@ -91,7 +90,7 @@ function mockStudentLookups() {
   vi.mocked(profileRepository.findProfileById).mockResolvedValue({
     data: {
       id: "user-1",
-      username: "jane",
+      full_name: "Jane Doe",
       role: ROLES.STUDENT,
       created_at: "2026-01-01T00:00:00.000Z",
     },
@@ -131,7 +130,7 @@ describe("listStudentsForManager", () => {
       data: [
         {
           id: "user-1",
-          username: "jane",
+          full_name: "Jane Doe",
           role: ROLES.STUDENT,
           created_at: "2026-01-01T00:00:00.000Z",
         },
@@ -153,7 +152,6 @@ describe("listStudentsForManager", () => {
       {
         user_id: "user-1",
         student_profile_id: "student-profile-1",
-        username: "jane",
         email: "jane@school.com",
         full_name: "Jane Doe",
         birth_date: "2010-05-01",
@@ -162,7 +160,6 @@ describe("listStudentsForManager", () => {
         created_at: "2026-01-01T00:00:00.000Z",
         role: ROLES.STUDENT,
         is_instructor: false,
-        is_mentor: false,
       },
     ]);
   });
@@ -306,39 +303,7 @@ describe("createStudent", () => {
     }
   });
 
-  it("returns username duplicate error", async () => {
-    vi.mocked(profileRepository.findProfileByUsername).mockResolvedValue({
-      data: { id: "existing", username: "jane" },
-      error: null,
-      count: null,
-      status: 200,
-      statusText: "OK",
-    });
-
-    const result = await createStudent(
-      adminClient,
-      actor.userId,
-      actor,
-      validStudentInput
-    );
-
-    expect(result.success).toBe(false);
-    if (!result.success) {
-      expect(result.fieldErrors?.username).toEqual([
-        "This username is already taken.",
-      ]);
-    }
-  });
-
   it("returns email duplicate error", async () => {
-    vi.mocked(profileRepository.findProfileByUsername).mockResolvedValue({
-      data: null,
-      error: null,
-      count: null,
-      status: 200,
-      statusText: "OK",
-    });
-
     vi.mocked(authRepository.findAuthUserByEmail).mockResolvedValue({
       data: { user: authUser },
       error: null,
@@ -358,14 +323,6 @@ describe("createStudent", () => {
   });
 
   it("creates auth user, registers student, and syncs role on success", async () => {
-    vi.mocked(profileRepository.findProfileByUsername).mockResolvedValue({
-      data: null,
-      error: null,
-      count: null,
-      status: 200,
-      statusText: "OK",
-    });
-
     vi.mocked(authRepository.findAuthUserByEmail).mockResolvedValue({
       data: null,
       error: null,
@@ -408,7 +365,6 @@ describe("createStudent", () => {
     expect(authRepository.createAuthUser).toHaveBeenCalledWith(adminClient, {
       email: "jane@school.com",
       password: "secret123",
-      username: "jane",
       fullName: "Jane Doe",
       role: ROLES.STUDENT,
     });
@@ -421,14 +377,6 @@ describe("createStudent", () => {
   });
 
   it("defaults a blank password to the literal password string", async () => {
-    vi.mocked(profileRepository.findProfileByUsername).mockResolvedValue({
-      data: null,
-      error: null,
-      count: null,
-      status: 200,
-      statusText: "OK",
-    });
-
     vi.mocked(authRepository.findAuthUserByEmail).mockResolvedValue({
       data: null,
       error: null,
@@ -465,21 +413,12 @@ describe("createStudent", () => {
     expect(authRepository.createAuthUser).toHaveBeenCalledWith(adminClient, {
       email: "jane@school.com",
       password: DEFAULT_CREATED_STUDENT_PASSWORD,
-      username: "jane",
       fullName: "Jane Doe",
       role: ROLES.STUDENT,
     });
   });
 
   it("rolls back auth user when registration fails", async () => {
-    vi.mocked(profileRepository.findProfileByUsername).mockResolvedValue({
-      data: null,
-      error: null,
-      count: null,
-      status: 200,
-      statusText: "OK",
-    });
-
     vi.mocked(authRepository.findAuthUserByEmail).mockResolvedValue({
       data: null,
       error: null,
@@ -518,7 +457,6 @@ describe("updateStudent", () => {
   const updateInput = {
     studentProfileId: "student-profile-1",
     userId: "user-1",
-    username: "jane",
     fullName: "Jane Doe",
     email: "jane@school.com",
     birthDate: "2010-05-01",
@@ -545,59 +483,6 @@ describe("updateStudent", () => {
     }
   });
 
-  it("returns username duplicate error", async () => {
-    vi.mocked(studentProfileRepository.findStudentProfileById).mockResolvedValue({
-      data: studentProfile,
-      error: null,
-      count: null,
-      status: 200,
-      statusText: "OK",
-    });
-
-    vi.mocked(profileRepository.findProfileById).mockResolvedValue({
-      data: {
-        id: "user-1",
-        username: "jane",
-        role: ROLES.STUDENT,
-        created_at: "2026-01-01T00:00:00.000Z",
-      },
-      error: null,
-      count: null,
-      status: 200,
-      statusText: "OK",
-    });
-
-    vi.mocked(profileRepository.findProfileByUsername).mockResolvedValue({
-      data: { id: "other-user", username: "jane" },
-      error: null,
-      count: null,
-      status: 200,
-      statusText: "OK",
-    });
-
-    vi.mocked(authRepository.getAuthUserById).mockResolvedValue({
-      data: { user: authUser },
-      error: null,
-    });
-
-    const result = await updateStudent(
-      adminClient,
-      actor.userId,
-      actor,
-      {
-        ...updateInput,
-        username: "othername",
-      }
-    );
-
-    expect(result.success).toBe(false);
-    if (!result.success) {
-      expect(result.fieldErrors?.username).toEqual([
-        "This username is already taken.",
-      ]);
-    }
-  });
-
   it("updates profile, auth, and student profile on success", async () => {
     vi.mocked(studentProfileRepository.findStudentProfileById).mockResolvedValue({
       data: studentProfile,
@@ -610,18 +495,10 @@ describe("updateStudent", () => {
     vi.mocked(profileRepository.findProfileById).mockResolvedValue({
       data: {
         id: "user-1",
-        username: "jane",
+        full_name: "Jane Doe",
         role: ROLES.STUDENT,
         created_at: "2026-01-01T00:00:00.000Z",
       },
-      error: null,
-      count: null,
-      status: 200,
-      statusText: "OK",
-    });
-
-    vi.mocked(profileRepository.findProfileByUsername).mockResolvedValue({
-      data: { id: "user-1", username: "jane" },
       error: null,
       count: null,
       status: 200,
@@ -640,7 +517,7 @@ describe("updateStudent", () => {
     vi.mocked(profileRepository.updateProfileById).mockResolvedValue({
       data: {
         id: "user-1",
-        username: "jane",
+        full_name: "Jane Doe",
         role: ROLES.STUDENT,
         created_at: "2026-01-01T00:00:00.000Z",
       },
@@ -678,7 +555,11 @@ describe("updateStudent", () => {
       expect(result.student.full_name).toBe("Jane Doe");
     }
 
-    expect(profileRepository.updateProfileById).toHaveBeenCalled();
+    expect(profileRepository.updateProfileById).toHaveBeenCalledWith(
+      adminClient,
+      "user-1",
+      { full_name: "Jane Doe" }
+    );
     expect(authRepository.updateAuthUserByAdmin).toHaveBeenCalled();
     expect(studentProfileRepository.updateStudentProfileById).toHaveBeenCalled();
   });

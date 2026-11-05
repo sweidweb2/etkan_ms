@@ -9,10 +9,7 @@ export default async function ManagerPagesPage() {
   const filtered = filterPanelNavigation(
     { groups: MANAGER_PAGES_HUB_GROUPS },
     pack.permissions,
-    {
-      isInstructor: pack.isInstructor || pack.role === ROLES.SUPERVISOR,
-      isMentor: pack.isMentor || pack.role === ROLES.SUPERVISOR,
-    }
+    { isInstructor: pack.isInstructor || pack.role === ROLES.SUPERVISOR }
   );
 
   return <ManagePagesPanel groups={filtered.groups ?? []} />;

@@ -1,16 +1,11 @@
 import { z } from "zod";
-import {
-  emailField,
-  fullNameField,
-  usernameField,
-} from "@/lib/validators/auth/fields";
+import { emailField, fullNameField } from "@/lib/validators/auth/fields";
 import { zodFieldErrors } from "@/lib/validators/auth/parse-form";
 import { formValidationFailure } from "@/lib/validators/safe-parse-form-data";
 import type { FieldErrors } from "@/types/auth";
 
 export const updateOwnTeacherProfileSchema = z.object({
   fullName: fullNameField,
-  username: usernameField,
   email: emailField,
 });
 
@@ -23,7 +18,6 @@ export function parseUpdateOwnTeacherProfileFormData(formData: FormData):
   | { success: false; error: string; fieldErrors?: FieldErrors } {
   const parsed = updateOwnTeacherProfileSchema.safeParse({
     fullName: formData.get("fullName"),
-    username: formData.get("username"),
     email: formData.get("email"),
   });
 

@@ -44,7 +44,6 @@ export function SignupForm() {
 
   function onSubmit(values: SignupInput) {
     const formData = new FormData();
-    formData.set("username", values.username);
     formData.set("fullName", values.fullName);
     formData.set("email", values.email);
     formData.set("password", values.password);
@@ -56,8 +55,6 @@ export function SignupForm() {
     });
   }
 
-  const usernameError =
-    errors.username?.message ?? state.fieldErrors?.username?.[0];
   const fullNameError =
     errors.fullName?.message ?? state.fieldErrors?.fullName?.[0];
   const emailError = errors.email?.message ?? state.fieldErrors?.email?.[0];
@@ -76,27 +73,6 @@ export function SignupForm() {
       className="flex flex-col gap-4"
       noValidate
     >
-      <div className="flex flex-col gap-2">
-        <FieldLabel
-          htmlFor="username"
-          label={t("auth.field.username")}
-          hint={t("auth.hint.username")}
-        />
-        <Input
-          id="username"
-          type="text"
-          autoComplete="username"
-          placeholder={t("auth.placeholder.username")}
-          minLength={AUTH_LIMITS.username.min}
-          maxLength={AUTH_LIMITS.username.max}
-          aria-invalid={!!usernameError}
-          {...register("username")}
-        />
-        {usernameError ? (
-          <p className="text-sm text-destructive">{usernameError}</p>
-        ) : null}
-      </div>
-
       <div className="flex flex-col gap-2">
         <FieldLabel
           htmlFor="fullName"

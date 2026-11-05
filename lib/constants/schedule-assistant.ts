@@ -42,17 +42,20 @@ export const SCHEDULE_ASSISTANT_ACTIVE_ROUTES = [
 export type ScheduleAssistantActiveRoute =
   (typeof SCHEDULE_ASSISTANT_ACTIVE_ROUTES)[number];
 
+export const SCHEDULE_ASSISTANT_AMBIGUOUS_INSTRUCTOR_QUESTION =
+  "Which one do you mean?";
+
 export const SCHEDULE_ASSISTANT_CAPABILITY_DIRECTIONS = [
-  "username_to_capability",
-  "capability_to_username",
+  "instructor_to_capability",
+  "capability_to_instructor",
 ] as const;
 
 export type ScheduleAssistantCapabilityDirection =
   (typeof SCHEDULE_ASSISTANT_CAPABILITY_DIRECTIONS)[number];
 
 export const SCHEDULE_ASSISTANT_AVAILABILITY_DIRECTIONS = [
-  "username_to_slots",
-  "slots_to_username",
+  "instructor_to_slots",
+  "slots_to_instructor",
 ] as const;
 
 export type ScheduleAssistantAvailabilityDirection =

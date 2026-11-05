@@ -994,63 +994,6 @@ export type Database = {
         }
         Relationships: []
       }
-      mentor_subject_capability: {
-        Row: {
-          created_at: string
-          id: string
-          mentor_subject_id: string
-          user_id: string
-        }
-        Insert: {
-          created_at?: string
-          id?: string
-          mentor_subject_id: string
-          user_id: string
-        }
-        Update: {
-          created_at?: string
-          id?: string
-          mentor_subject_id?: string
-          user_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "mentor_subject_capability_mentor_subject_id_fkey"
-            columns: ["mentor_subject_id"]
-            isOneToOne: false
-            referencedRelation: "mentor_subjects"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "mentor_subject_capability_user_id_fkey"
-            columns: ["user_id"]
-            isOneToOne: false
-            referencedRelation: "profiles"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      mentor_subjects: {
-        Row: {
-          created_at: string
-          id: string
-          name: string
-          sort_order: number
-        }
-        Insert: {
-          created_at?: string
-          id?: string
-          name: string
-          sort_order: number
-        }
-        Update: {
-          created_at?: string
-          id?: string
-          name?: string
-          sort_order?: number
-        }
-        Relationships: []
-      }
       notifications: {
         Row: {
           action_href: string | null
@@ -1194,27 +1137,24 @@ export type Database = {
       profiles: {
         Row: {
           created_at: string | null
+          full_name: string
           id: string
           is_instructor: boolean
-          is_mentor: boolean
           role: string
-          username: string | null
         }
         Insert: {
           created_at?: string | null
+          full_name: string
           id: string
           is_instructor?: boolean
-          is_mentor?: boolean
           role?: string
-          username?: string | null
         }
         Update: {
           created_at?: string | null
+          full_name?: string
           id?: string
           is_instructor?: boolean
-          is_mentor?: boolean
           role?: string
-          username?: string | null
         }
         Relationships: []
       }
@@ -3224,25 +3164,6 @@ export type Database = {
         Returns: Json
       }
       export_auth_schema_backup: { Args: never; Returns: Json }
-      reorder_mentor_subjects: {
-        Args: { p_ordered_ids: string[] }
-        Returns: {
-          created_at: string
-          id: string
-          name: string
-          sort_order: number
-        }[]
-        SetofOptions: {
-          from: "*"
-          to: "mentor_subjects"
-          isOneToOne: false
-          isSetofReturn: true
-        }
-      }
-      delete_mentor_subject_capability_pairs: {
-        Args: { p_user_ids: string[]; p_mentor_subject_ids: string[] }
-        Returns: number
-      }
       reorder_instructor_subjects: {
         Args: { p_ordered_ids: string[] }
         Returns: {
@@ -3263,10 +3184,6 @@ export type Database = {
         Returns: number
       }
       clear_instructor_related_data: {
-        Args: { p_user_id: string }
-        Returns: Json
-      }
-      clear_mentor_related_data: {
         Args: { p_user_id: string }
         Returns: Json
       }
@@ -3439,7 +3356,6 @@ export type Database = {
           spp_status: string
           student_id: string
           student_profile_id: string | null
-          username: string | null
         }[]
       }
       list_student_profiles_without_active_class: {

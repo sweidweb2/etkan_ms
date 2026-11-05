@@ -39,7 +39,7 @@ type CapabilityToggleVars = {
   enabled: boolean;
 };
 
-/** A person row in the matrix (instructor or mentor). */
+/** A person row in the matrix. */
 export type SubjectCapabilityRow = {
   id: string;
   username: string | null;

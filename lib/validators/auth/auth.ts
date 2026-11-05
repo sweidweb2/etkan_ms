@@ -6,7 +6,6 @@ import {
   fullNameField,
   passwordField,
   phoneField,
-  usernameField,
 } from "@/lib/validators/auth/fields";
 
 export const loginSchema = z.object({
@@ -16,7 +15,6 @@ export const loginSchema = z.object({
 
 export const signupSchema = z
   .object({
-    username: usernameField,
     fullName: fullNameField,
     email: emailField,
     password: passwordField,

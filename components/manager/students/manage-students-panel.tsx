@@ -64,7 +64,6 @@ import type { ManagerUserRow } from "@/types/manager-user";
 const PAGE_SIZE_OPTIONS = [5, 10, 25] as const;
 const COLUMN_LIMITS = {
   fullName: 24,
-  username: 20,
   email: 32,
   phone: 18,
 } as const;
@@ -170,11 +169,10 @@ function StudentViewAction({ student }: { student: ManagerStudentRow }) {
 function toManagerUserRow(student: ManagerStudentRow): ManagerUserRow {
   return {
     id: student.user_id,
-    username: student.username,
+    full_name: student.full_name,
     email: student.email,
     role: student.role ?? ROLES.STUDENT,
     is_instructor: student.is_instructor ?? false,
-    is_mentor: student.is_mentor ?? false,
     created_at: student.created_at,
     student_profile_id: student.student_profile_id,
     student_full_name: student.full_name,
@@ -190,12 +188,10 @@ function mergeUpdatedUserIntoStudent(
 ): ManagerStudentRow {
   return {
     ...student,
-    username: user.username,
     email: user.email,
     role: user.role,
     is_instructor: user.is_instructor,
-    is_mentor: user.is_mentor,
-    full_name: user.student_full_name ?? student.full_name,
+    full_name: user.student_full_name ?? user.full_name,
     birth_date: user.student_birth_date ?? null,
     phone: user.student_phone ?? null,
     status: user.student_status ?? student.status,
@@ -581,7 +577,6 @@ export function ManageStudentsPanel({
                     <tr className="border-b bg-muted/40 text-left">
                       <th className="w-12 px-4 py-3 font-medium">#</th>
                       <th className="px-4 py-3 font-medium">Full name</th>
-                      <th className="px-4 py-3 font-medium">Username</th>
                       <th className="px-4 py-3 font-medium">Email</th>
                       <th className="px-4 py-3 font-medium">Phone</th>
                       <th className="px-4 py-3 font-medium">Birth date</th>
@@ -618,12 +613,6 @@ export function ManageStudentsPanel({
                               className="min-w-0"
                             />
                           </div>
-                        </td>
-                        <td className="max-w-[10rem] px-4 py-3">
-                          <TruncatedCell
-                            value={student.username ?? "—"}
-                            maxLength={COLUMN_LIMITS.username}
-                          />
                         </td>
                         <td className="max-w-[14rem] px-4 py-3">
                           <div className="flex min-w-0 items-center gap-1">

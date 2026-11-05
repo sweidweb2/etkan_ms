@@ -65,6 +65,7 @@ export function EditPhaseDialog({
     defaultValues: {
       id: semester.id,
       name: semester.name,
+      semester_code: semester.semester_code,
     },
   });
 
@@ -73,6 +74,7 @@ export function EditPhaseDialog({
       reset({
         id: semester.id,
         name: semester.name,
+        semester_code: semester.semester_code,
       });
     }
   }, [open, reset, semester]);
@@ -95,6 +97,7 @@ export function EditPhaseDialog({
     const formData = new FormData();
     formData.set("id", values.id);
     formData.set("name", values.name.trim());
+    formData.set("semester_code", values.semester_code.trim());
 
     startTransition(() => {
       formAction(formData);
@@ -102,6 +105,8 @@ export function EditPhaseDialog({
   }
 
   const nameError = errors.name?.message ?? state.fieldErrors?.name?.[0];
+  const codeError =
+    errors.semester_code?.message ?? state.fieldErrors?.semester_code?.[0];
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
@@ -109,7 +114,8 @@ export function EditPhaseDialog({
         <DialogHeader>
           <DialogTitle>Edit semester</DialogTitle>
           <DialogDescription>
-            Update the semester name. Code cannot be changed.
+            Update the semester name or its unique 4-digit code. Linked
+            payment plans pick up a new code automatically.
           </DialogDescription>
         </DialogHeader>
 
@@ -142,15 +148,21 @@ export function EditPhaseDialog({
             <FieldLabel
               htmlFor="edit-semester-code"
               label="Semester code"
-              hint="Read-only"
+              hint="Required"
             />
             <Input
               id="edit-semester-code"
-              value={semester.semester_code}
-              readOnly
-              disabled
+              inputMode="numeric"
+              autoComplete="off"
+              maxLength={4}
+              aria-invalid={!!codeError}
+              disabled={isPending}
               className="font-mono tracking-wider"
+              {...register("semester_code")}
             />
+            {codeError ? (
+              <p className="text-sm text-destructive">{codeError}</p>
+            ) : null}
           </div>
         </form>
 

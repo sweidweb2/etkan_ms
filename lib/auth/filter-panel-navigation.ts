@@ -11,7 +11,6 @@ import type {
 
 export type FilterPanelNavigationOptions = {
   isInstructor?: boolean;
-  isMentor?: boolean;
 };
 
 function isManageWorkshopsHref(href: string): boolean {
@@ -82,7 +81,7 @@ function filterNavGroups(
 /**
  * Keep nav items whose href maps to a granted manager view permission,
  * plus role-native (non-manager) links.
- * Manage workshops also requires `is_instructor` and/or `is_mentor`.
+ * Manage workshops also requires `is_instructor`.
  */
 export function filterPanelNavigation(
   navigation: PanelNavigation,

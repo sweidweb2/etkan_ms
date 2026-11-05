@@ -6,7 +6,7 @@ import type {
 
 export type ManagerInstructorRow = {
   id: string;
-  username: string | null;
+  full_name: string;
   role: RoleValue;
   email: string;
   created_at: string;
@@ -14,7 +14,7 @@ export type ManagerInstructorRow = {
 
 export type ManagerInstructorCandidateRow = {
   id: string;
-  username: string | null;
+  full_name: string;
   role: RoleValue;
   email: string;
 };

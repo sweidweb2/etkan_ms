@@ -99,7 +99,6 @@ describe("getSessionPack", () => {
       role: null,
       displayName: "User",
       isInstructor: false,
-      isMentor: false,
       permissions: new Set(),
     });
     expect(mod.findProfileById).not.toHaveBeenCalled();
@@ -124,10 +123,9 @@ describe("getSessionPack", () => {
     mod.findProfileById.mockResolvedValue({
       data: {
         id: "user-pack-1",
-        username: "ada",
+        full_name: "Ada Lovelace",
         role: ROLES.MANAGER,
         is_instructor: true,
-        is_mentor: false,
         created_at: "2026-01-01",
       },
       error: null,
@@ -144,7 +142,6 @@ describe("getSessionPack", () => {
       role: ROLES.MANAGER,
       displayName: "Ada Manager",
       isInstructor: true,
-      isMentor: false,
       permissions,
     });
     expect(mod.findProfileById).toHaveBeenCalledTimes(1);
@@ -163,7 +160,6 @@ describe("getSessionPack", () => {
         role: ROLES.MANAGER,
         displayName: "Ada Manager",
         isInstructor: true,
-        isMentor: false,
         permissionKeys: [PERMISSIONS.DASHBOARD_VIEW],
         cachedClaimsRole: null,
       })
@@ -187,7 +183,6 @@ describe("getSessionPack", () => {
       role: ROLES.CEO,
       displayName: "Ceo User",
       isInstructor: false,
-      isMentor: false,
       permissionKeys: [PERMISSIONS.WORKSHOPS_VIEW],
       cachedClaimsRole: ROLES.CEO,
     });
@@ -222,7 +217,6 @@ describe("getSessionPack", () => {
       role: ROLES.CEO,
       displayName: "Ceo User",
       isInstructor: false,
-      isMentor: false,
       permissionKeys: [PERMISSIONS.WORKSHOPS_VIEW],
       cachedClaimsRole: ROLES.CEO,
     });
@@ -230,10 +224,9 @@ describe("getSessionPack", () => {
     mod.findProfileById.mockResolvedValue({
       data: {
         id: "user-pack-3",
-        username: "mgr",
+        full_name: "Manager User",
         role: ROLES.MANAGER,
         is_instructor: false,
-        is_mentor: false,
         created_at: "2026-01-01",
       },
       error: null,
@@ -271,7 +264,7 @@ describe("getSessionPack", () => {
     mod.findProfileById.mockResolvedValue({
       data: {
         id: "user-pack-4",
-        username: "mgr",
+        full_name: "Manager User",
         role: ROLES.TEACHER, // profile disagrees; claims win
         is_instructor: false,
         created_at: "2026-01-01",
@@ -331,7 +324,7 @@ describe("getSessionPack", () => {
       return {
         data: {
           id: "user-pack-sf",
-          username: "mgr",
+          full_name: "Manager User",
           role: ROLES.MANAGER,
           is_instructor: false,
           created_at: "2026-01-01",

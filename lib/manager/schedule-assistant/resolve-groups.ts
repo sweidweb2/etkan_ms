@@ -1,5 +1,6 @@
 import type { ScheduleAssistantGroup } from "@/lib/validators/manager/schedule-assistant";
 import type {
+  ScheduleAssistantCompactInstructor,
   ScheduleAssistantCompactMatrixRow,
   ScheduleAssistantCompactSlot,
   ScheduleAssistantPrefetchCatalogs,
@@ -11,7 +12,7 @@ export type CapabilityResolveResult = {
 
 export type AvailabilityResolveResult = {
   slots: ScheduleAssistantCompactSlot[];
-  usernames: string[];
+  instructors: ScheduleAssistantCompactInstructor[];
 };
 
 export type JoinResolveResult = {
@@ -59,19 +60,31 @@ function timeOverlaps(
   return true;
 }
 
+function uniqueInstructors(
+  rows: ScheduleAssistantCompactInstructor[]
+): ScheduleAssistantCompactInstructor[] {
+  const byId = new Map<string, ScheduleAssistantCompactInstructor>();
+  for (const row of rows) {
+    if (!byId.has(row.i)) {
+      byId.set(row.i, { i: row.i, u: row.u });
+    }
+  }
+  return [...byId.values()].sort(
+    (a, b) => a.u.localeCompare(b.u) || a.i.localeCompare(b.i)
+  );
+}
+
 export function filterSlots(
   slots: ScheduleAssistantCompactSlot[],
   group: ScheduleAssistantGroup
 ): ScheduleAssistantCompactSlot[] {
-  const usernameFilter =
-    group.usernames.length > 0
-      ? new Set(group.usernames.map((u) => u.toLowerCase()))
-      : null;
+  const instructorFilter =
+    group.instructor_ids.length > 0 ? new Set(group.instructor_ids) : null;
   const weekdayFilter =
     group.weekdays.length > 0 ? new Set(group.weekdays) : null;
 
   return slots.filter((slot) => {
-    if (usernameFilter && !usernameFilter.has(slot.u.toLowerCase())) {
+    if (instructorFilter && !instructorFilter.has(slot.i)) {
       return false;
     }
     if (weekdayFilter && !weekdayFilter.has(slot.w as never)) {
@@ -92,23 +105,25 @@ export function resolveCapabilityGroup(
 ): CapabilityResolveResult {
   const matrix = catalogs.matrix?.matrix ?? [];
 
-  if (group.direction === "username_to_capability") {
-    const wanted = new Set(group.usernames.map((u) => u.toLowerCase()));
+  if (group.direction === "instructor_to_capability") {
+    const wanted = new Set(group.instructor_ids);
     return {
       matches: matrix
-        .filter((row) => wanted.has(row.u.toLowerCase()))
+        .filter((row) => wanted.has(row.i))
         .map((row) => ({
+          i: row.i,
           u: row.u,
           sub: [...row.sub],
         })),
     };
   }
 
-  if (group.direction === "capability_to_username") {
+  if (group.direction === "capability_to_instructor") {
     return {
       matches: matrix
         .filter((row) => subjectMatches(row.sub, group.subject_names))
         .map((row) => ({
+          i: row.i,
           u: row.u,
           sub: row.sub.filter((sub) =>
             subjectMatches([sub], group.subject_names)
@@ -125,25 +140,16 @@ export function resolveAvailabilityGroup(
   catalogs: ScheduleAssistantPrefetchCatalogs
 ): AvailabilityResolveResult {
   const allSlots = catalogs.slots?.slots ?? [];
-  const slots = filterSlots(allSlots, group);
 
-  if (group.direction === "username_to_slots") {
-    return {
-      slots,
-      usernames: [
-        ...new Set(slots.map((slot) => slot.u)),
-      ],
-    };
+  if (
+    group.direction === "instructor_to_slots" ||
+    group.direction === "slots_to_instructor"
+  ) {
+    const slots = filterSlots(allSlots, group);
+    return { slots, instructors: uniqueInstructors(slots) };
   }
 
-  if (group.direction === "slots_to_username") {
-    const usernames = [...new Set(slots.map((slot) => slot.u))].sort((a, b) =>
-      a.localeCompare(b)
-    );
-    return { slots, usernames };
-  }
-
-  return { slots: [], usernames: [] };
+  return { slots: [], instructors: [] };
 }
 
 export function resolveJoinGroup(
@@ -158,28 +164,29 @@ export function resolveJoinGroup(
     matches = matches
       .filter((row) => subjectMatches(row.sub, group.subject_names))
       .map((row) => ({
+        i: row.i,
         u: row.u,
         sub: row.sub.filter((sub) =>
           subjectMatches([sub], group.subject_names)
         ),
       }));
-  } else if (group.usernames.length === 0) {
+  } else if (group.instructor_ids.length === 0) {
     return { matches: [], slots: [] };
   }
 
-  if (group.usernames.length > 0) {
-    const wanted = new Set(group.usernames.map((u) => u.toLowerCase()));
-    matches = matches.filter((row) => wanted.has(row.u.toLowerCase()));
+  if (group.instructor_ids.length > 0) {
+    const wanted = new Set(group.instructor_ids);
+    matches = matches.filter((row) => wanted.has(row.i));
   }
 
-  const matchUsernames = new Set(matches.map((row) => row.u.toLowerCase()));
+  const matchIds = new Set(matches.map((row) => row.i));
   const slots = filterSlots(allSlots, {
     ...group,
-    usernames: matches.map((row) => row.u),
-  }).filter((slot) => matchUsernames.has(slot.u.toLowerCase()));
+    instructor_ids: [...matchIds],
+  }).filter((slot) => matchIds.has(slot.i));
 
-  const slotUsers = new Set(slots.map((slot) => slot.u.toLowerCase()));
-  matches = matches.filter((row) => slotUsers.has(row.u.toLowerCase()));
+  const slotIds = new Set(slots.map((slot) => slot.i));
+  matches = matches.filter((row) => slotIds.has(row.i));
 
   return { matches, slots };
 }
@@ -192,8 +199,8 @@ export function resolveGroups(
 
   for (const group of groups) {
     if (
-      group.direction === "username_to_capability" ||
-      group.direction === "capability_to_username"
+      group.direction === "instructor_to_capability" ||
+      group.direction === "capability_to_instructor"
     ) {
       const next = resolveCapabilityGroup(group, catalogs);
       facts.capabilities = {
@@ -203,18 +210,16 @@ export function resolveGroups(
         ],
       };
     } else if (
-      group.direction === "username_to_slots" ||
-      group.direction === "slots_to_username"
+      group.direction === "instructor_to_slots" ||
+      group.direction === "slots_to_instructor"
     ) {
       const next = resolveAvailabilityGroup(group, catalogs);
       facts.availability = {
         slots: [...(facts.availability?.slots ?? []), ...next.slots],
-        usernames: [
-          ...new Set([
-            ...(facts.availability?.usernames ?? []),
-            ...next.usernames,
-          ]),
-        ],
+        instructors: uniqueInstructors([
+          ...(facts.availability?.instructors ?? []),
+          ...next.instructors,
+        ]),
       };
     } else if (group.direction === "subject_and_availability") {
       const next = resolveJoinGroup(group, catalogs);
