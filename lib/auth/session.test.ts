@@ -98,6 +98,7 @@ describe("getSessionPack", () => {
       user: null,
       role: null,
       displayName: "User",
+      avatarUrl: null,
       isInstructor: false,
       permissions: new Set(),
     });
@@ -126,6 +127,7 @@ describe("getSessionPack", () => {
         full_name: "Ada Lovelace",
         role: ROLES.MANAGER,
         is_instructor: true,
+        avatar_url: "https://cdn.example/avatars/ada.webp",
         created_at: "2026-01-01",
       },
       error: null,
@@ -141,6 +143,7 @@ describe("getSessionPack", () => {
       user,
       role: ROLES.MANAGER,
       displayName: "Ada Manager",
+      avatarUrl: "https://cdn.example/avatars/ada.webp",
       isInstructor: true,
       permissions,
     });
@@ -159,6 +162,7 @@ describe("getSessionPack", () => {
       expect.objectContaining({
         role: ROLES.MANAGER,
         displayName: "Ada Manager",
+        avatarUrl: "https://cdn.example/avatars/ada.webp",
         isInstructor: true,
         permissionKeys: [PERMISSIONS.DASHBOARD_VIEW],
         cachedClaimsRole: null,

@@ -7,12 +7,14 @@ import {
   getOrCreateSessionShellInflight,
   isSessionShellCompatibleWithClaims,
   setCachedSessionShell,
+  setCachedSessionShellAvatar,
   type SessionShellPayload,
 } from "@/lib/auth/session-shell-cache";
 
 const payload: SessionShellPayload = {
   role: ROLES.CEO,
   displayName: "Ceo User",
+  avatarUrl: null,
   isInstructor: true,
   permissionKeys: [PERMISSIONS.INSTRUCTORS_VIEW, PERMISSIONS.WORKSHOPS_VIEW],
   cachedClaimsRole: ROLES.CEO,
@@ -64,6 +66,17 @@ describe("session-shell-cache", () => {
     clearCachedSessionShell("user-1");
     expect(getCachedSessionShell("user-1")).toBeNull();
     expect(getCachedSessionShell("user-2")?.displayName).toBe("Other");
+  });
+
+  it("updates a cached avatar in place and ignores missing entries", () => {
+    setCachedSessionShell("user-1", payload);
+    setCachedSessionShellAvatar("user-1", "https://cdn.example/a.webp");
+    setCachedSessionShellAvatar("user-2", "https://cdn.example/b.webp");
+
+    expect(getCachedSessionShell("user-1")?.avatarUrl).toBe(
+      "https://cdn.example/a.webp"
+    );
+    expect(getCachedSessionShell("user-2")).toBeNull();
   });
 
   it("clears all when userId omitted", () => {

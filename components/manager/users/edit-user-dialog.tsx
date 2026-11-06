@@ -224,7 +224,11 @@ export function EditUserDialog({
             <FieldLabel
               htmlFor="edit-user-password"
               label="New password"
-              hint="Optional. Leave blank to keep the current password."
+              hint={
+                user.role === ROLES.STUDENT
+                  ? undefined
+                  : "Optional. Leave blank to keep the current password."
+              }
             />
             <PasswordInput
               id="edit-user-password"
@@ -349,6 +353,7 @@ export function EditUserDialog({
                   id="edit-user-phone"
                   type="tel"
                   autoComplete="tel"
+                  placeholder="+961 70 000 000"
                   maxLength={AUTH_LIMITS.phone.max}
                   aria-invalid={!!phoneError}
                   disabled={isPending}

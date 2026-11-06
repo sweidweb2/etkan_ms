@@ -1,5 +1,6 @@
 import "server-only";
 
+import { setCachedSessionShellAvatar } from "@/lib/auth/session-shell-cache";
 import { optimizeAvatarForStorage } from "@/lib/avatars/optimize-avatar";
 import {
   buildAvatarObjectPath,
@@ -147,6 +148,7 @@ async function replaceProfileAvatar(
     return { success: false, error: failure };
   }
 
+  setCachedSessionShellAvatar(userId, nextUrl);
   await removeStoredAvatar(adminClient, previousUrl);
 
   await recordManagerAuditLog(adminClient, actor, {

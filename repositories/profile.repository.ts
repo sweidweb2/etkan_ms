@@ -7,7 +7,8 @@ import type { Database } from "@/types/supabase";
 
 type Supabase = SupabaseClient<Database>;
 
-const PROFILE_COLUMNS = "id, full_name, role, is_instructor, created_at";
+const PROFILE_COLUMNS =
+  "id, full_name, role, is_instructor, avatar_url, created_at";
 
 const PROFILE_OPTION_COLUMNS = "id, full_name";
 

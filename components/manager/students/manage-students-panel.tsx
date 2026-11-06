@@ -24,7 +24,7 @@ import { EditUserDialog } from "@/components/manager/users/edit-user-dialog";
 import { UserStatCard } from "@/components/manager/users/user-stat-card";
 import { PanelPageHeader } from "@/components/panels/panel-page-header";
 import { Button } from "@/components/ui/button";
-import { Card, CardAction, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { CopyTextButton } from "@/components/ui/copy-text-button";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Input } from "@/components/ui/input";
@@ -514,19 +514,8 @@ export function ManageStudentsPanel({
         ) : null}
 
         <Card className="py-0">
-          <CardHeader className="border-b py-3">
-            <CardTitle>Students</CardTitle>
-            <CardAction className="self-center">
-              <Can permission={PERMISSIONS.STUDENTS_CREATE}>
-                <Button type="button" onClick={() => setIsAddStudentOpen(true)}>
-                  <PlusIcon data-icon="inline-start" />
-                  Add student
-                </Button>
-              </Can>
-            </CardAction>
-          </CardHeader>
           <CardContent className="px-0 pb-0">
-            <div className="flex flex-col gap-3 border-b px-4 pt-2 pb-3 @lg/panel:flex-row @lg/panel:items-center">
+            <div className="flex flex-col gap-3 border-b bg-muted/40 px-4 py-3 @lg/panel:flex-row @lg/panel:items-center">
               <div className="relative min-w-0 flex-1">
                 <SearchIcon className="pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-muted-foreground" />
                 <Input
@@ -553,6 +542,16 @@ export function ManageStudentsPanel({
                   ))}
                 </SelectContent>
               </Select>
+              <Can permission={PERMISSIONS.STUDENTS_CREATE}>
+                <Button
+                  type="button"
+                  className="w-full @lg/panel:w-auto"
+                  onClick={() => setIsAddStudentOpen(true)}
+                >
+                  <PlusIcon data-icon="inline-start" />
+                  Add student
+                </Button>
+              </Can>
             </div>
 
             {students.length === 0 ? (

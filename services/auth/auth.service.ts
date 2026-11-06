@@ -155,6 +155,7 @@ export async function login(
       user,
       profileResult.data?.full_name ?? null
     ),
+    avatarUrl: profileResult.data?.avatar_url ?? null,
     isInstructor: profileResult.data?.is_instructor === true,
     permissionKeys: [...permissions],
     cachedClaimsRole: claimsRole,

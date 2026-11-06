@@ -38,6 +38,7 @@ export type SessionPack = {
   user: User | null;
   role: RoleValue | null;
   displayName: string;
+  avatarUrl: string | null;
   isInstructor: boolean;
   permissions: ReadonlySet<PermissionKey>;
 };
@@ -46,6 +47,7 @@ const EMPTY_SESSION_PACK: SessionPack = {
   user: null,
   role: null,
   displayName: "User",
+  avatarUrl: null,
   isInstructor: false,
   permissions: EMPTY_PERMISSIONS,
 };
@@ -160,6 +162,7 @@ async function buildSessionShell(
   const payload: SessionShellPayload = {
     role,
     displayName,
+    avatarUrl: profile?.avatar_url ?? null,
     isInstructor,
     permissionKeys: [...permissions],
     cachedClaimsRole: claimsRole,
@@ -177,6 +180,7 @@ function packFromShell(
     user,
     role: shell.role,
     displayName: shell.displayName,
+    avatarUrl: shell.avatarUrl ?? null,
     isInstructor: shell.isInstructor,
     permissions: permissionsFromKeys(shell.permissionKeys),
   };
