@@ -28,6 +28,7 @@ import {
   validateTaskWeights,
 } from "@/lib/compute/custom-compute-form-utils";
 import { DEFAULT_CLASS_GRADE_FACTOR_WEIGHTS } from "@/lib/constants/manager-class-grade-defaults";
+import { YES_NO_TASK_LABEL } from "@/lib/constants/task-yes-no";
 import { showErrorToast, showSuccessToast } from "@/lib/toast";
 import { cn } from "@/lib/utils";
 import type { ManagerClassTaskForGradesRow } from "@/types/manager-class-task-for-grades";
@@ -252,7 +253,7 @@ export function StudentComputeAloneSection({
             </p>
           </div>
 
-          <div className="grid gap-4 md:grid-cols-2">
+          <div className="grid gap-4 @xl/panel:grid-cols-2">
             <div className="flex flex-col gap-2">
               <FieldLabel
                 htmlFor="compute-alone-tasks-weight"
@@ -315,7 +316,7 @@ export function StudentComputeAloneSection({
               No tasks found for this class yet.
             </p>
           ) : (
-            <div className="grid gap-3 sm:grid-cols-2">
+            <div className="grid gap-3 @lg/panel:grid-cols-2">
               {classTasks.map((task) => (
                 <div
                   key={task.id}
@@ -326,7 +327,10 @@ export function StudentComputeAloneSection({
                       {task.title}
                     </p>
                     <p className="text-xs text-muted-foreground">
-                      {task.session_label} · max {task.max_grade ?? "—"}
+                      {task.session_label} ·{" "}
+                      {task.is_yes_no
+                        ? YES_NO_TASK_LABEL
+                        : `max ${task.max_grade ?? "—"}`}
                     </p>
                   </div>
                   <Input

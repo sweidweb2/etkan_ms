@@ -17,9 +17,9 @@ export function StudentTaskList({
   onSelect,
 }: StudentTaskListProps) {
   return (
-    <aside className="w-full shrink-0 border-b border-border/60 lg:w-48 lg:border-r lg:border-b-0 xl:w-52">
+    <aside className="w-full shrink-0 border-b border-border/60 @2xl/panel:w-48 lg:border-r lg:border-b-0 @4xl/panel:w-52">
       <ul
-        className="flex gap-1.5 overflow-x-auto p-3 lg:max-h-[min(70vh,40rem)] lg:flex-col lg:overflow-y-auto"
+        className="flex gap-1.5 overflow-x-auto p-3 lg:max-h-[min(70vh,40rem)] @2xl/panel:flex-col lg:overflow-y-auto"
         role="listbox"
         aria-label="Students"
       >
@@ -28,7 +28,7 @@ export function StudentTaskList({
           return (
             <li
               key={row.id}
-              className="min-w-[9.5rem] shrink-0 lg:min-w-0 lg:w-full"
+              className="min-w-[9.5rem] shrink-0 @2xl/panel:min-w-0 @2xl/panel:w-full"
             >
               <button
                 type="button"

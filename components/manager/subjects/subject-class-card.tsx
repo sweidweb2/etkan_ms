@@ -1,12 +1,9 @@
 "use client";
 
-import { format } from "date-fns";
-import { CalendarIcon, HashIcon, UsersIcon } from "lucide-react";
 import { ClassCoverImage } from "@/components/classes/class-cover-image";
 import {
   Card,
   CardContent,
-  CardFooter,
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
@@ -53,7 +50,10 @@ function TruncatedText({
     <Tooltip>
       <TooltipTrigger
         render={
-          <span className={cn("cursor-default truncate", className)} tabIndex={0} />
+          <span
+            className={cn("cursor-default truncate", className)}
+            tabIndex={0}
+          />
         }
       >
         {display}
@@ -67,8 +67,7 @@ export function SubjectClassCard({
   classRow,
   subjectName,
 }: SubjectClassCardProps) {
-  const statusLabel =
-    CLASS_STATUS_LABELS[classRow.status] ?? classRow.status;
+  const statusLabel = CLASS_STATUS_LABELS[classRow.status] ?? classRow.status;
   const statusClassName =
     CLASS_STATUS_BADGE_CLASSES[classRow.status] ??
     "bg-muted text-muted-foreground";
@@ -90,7 +89,7 @@ export function SubjectClassCard({
             <span
               className={cn(
                 "inline-flex shrink-0 rounded-md px-2 py-0.5 text-xs font-medium capitalize",
-                statusClassName
+                statusClassName,
               )}
             >
               {statusLabel}
@@ -114,50 +113,13 @@ export function SubjectClassCard({
               <div
                 className={cn(
                   "h-full rounded-full transition-[width]",
-                  sessionTone.fillClassName
+                  sessionTone.fillClassName,
                 )}
                 style={{ width: `${sessionRate}%` }}
               />
             </div>
           </div>
-
-          <div className="flex items-center gap-2 text-xs text-muted-foreground">
-            <HashIcon className="size-3.5 shrink-0" />
-            <span className="shrink-0">Class ID</span>
-            <span className="min-w-0 font-mono text-foreground">
-              <TruncatedText
-                value={classRow.id}
-                maxLength={CLASS_CARD_LIMITS.id}
-              />
-            </span>
-          </div>
-
-          <div className="flex items-center gap-2 text-xs text-muted-foreground">
-            <UsersIcon className="size-3.5 shrink-0" />
-            <span className="shrink-0">Subject ID</span>
-            <span className="min-w-0 font-mono text-foreground">
-              <TruncatedText
-                value={classRow.subject_id}
-                maxLength={CLASS_CARD_LIMITS.id}
-              />
-            </span>
-          </div>
-
-          <div className="flex items-center gap-2 text-xs text-muted-foreground">
-            <CalendarIcon className="size-3.5 shrink-0" />
-            <span className="shrink-0">Created</span>
-            <span className="min-w-0 text-foreground">
-              {format(new Date(classRow.created_at), "MMM d, yyyy")}
-            </span>
-          </div>
         </CardContent>
-
-        <CardFooter className="border-t bg-muted/20 py-3 text-xs text-muted-foreground">
-          Status:{" "}
-          <span className="ml-1 font-medium capitalize text-foreground">
-            {statusLabel}
-          </span>
-        </CardFooter>
       </Card>
     </TooltipProvider>
   );

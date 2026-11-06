@@ -10,8 +10,6 @@ import {
 } from "@/lib/constants/subject-scope";
 import * as instructorSubjectCapabilityRepository from "@/repositories/instructor-subject-capability.repository";
 import * as instructorSubjectRepository from "@/repositories/instructor-subject.repository";
-import * as mentorSubjectCapabilityRepository from "@/repositories/mentor-subject-capability.repository";
-import * as mentorSubjectRepository from "@/repositories/mentor-subject.repository";
 import * as profileRepository from "@/repositories/profile.repository";
 import type { SubjectCapabilityRecord } from "@/repositories/subject-capability";
 import type { Database } from "@/types/supabase";
@@ -92,7 +90,7 @@ export type SubjectScopeAdapter = {
   people: {
     listIds: (client: Supabase) => RepoResult<{ id: string }[]>;
     /** Whether a profile row belongs to this scope. */
-    isMember: (profile: { is_instructor?: boolean; is_mentor?: boolean }) =>
+    isMember: (profile: { is_instructor?: boolean }) =>
       | boolean
       | undefined;
   };
@@ -126,34 +124,12 @@ const instructorAdapter: SubjectScopeAdapter = {
   },
 };
 
-const mentorAdapter: SubjectScopeAdapter = {
-  scope: SUBJECT_SCOPES.MENTOR,
-  copy: SUBJECT_SCOPE_COPY.mentor,
-  permissions: SUBJECT_SCOPE_PERMISSIONS.mentor,
-  catalog: {
-    list: mentorSubjectRepository.listMentorSubjects,
-    listIds: mentorSubjectRepository.listMentorSubjectIds,
-    findById: mentorSubjectRepository.findMentorSubjectById,
-    findByName: mentorSubjectRepository.findMentorSubjectByName,
-    getMaxSortOrder: mentorSubjectRepository.getMaxMentorSubjectSortOrder,
-    create: mentorSubjectRepository.createMentorSubject,
-    updateById: mentorSubjectRepository.updateMentorSubjectById,
-    reorder: mentorSubjectRepository.reorderMentorSubjects,
-    deleteById: mentorSubjectRepository.deleteMentorSubjectById,
-  },
-  capabilities: {
-    listByUserIds: mentorSubjectCapabilityRepository.listCapabilitiesByUserIds,
-    deleteByPairs: mentorSubjectCapabilityRepository.deleteCapabilitiesByPairs,
-    insert: mentorSubjectCapabilityRepository.insertCapabilities,
-  },
-  people: {
-    listIds: profileRepository.listMentorProfileIds,
-    isMember: (profile) => profile.is_mentor,
-  },
+const ADAPTERS: Record<SubjectScope, SubjectScopeAdapter> = {
+  instructor: instructorAdapter,
 };
 
 export function getSubjectScopeAdapter(
   scope: SubjectScope
 ): SubjectScopeAdapter {
-  return scope === SUBJECT_SCOPES.MENTOR ? mentorAdapter : instructorAdapter;
+  return ADAPTERS[scope];
 }

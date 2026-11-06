@@ -1,6 +1,7 @@
 import "server-only";
 
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { chunkedIn } from "@/repositories/_shared/chunked-in";
 import type { Database } from "@/types/supabase";
 
 type Supabase = SupabaseClient<Database>;
@@ -75,6 +76,16 @@ export async function listStudentClassesByUserId(
     .select(STUDENT_CLASS_COLUMNS)
     .eq("user_id", userId)
     .order("joined_at", { ascending: false });
+}
+
+/** Distinct user_ids that currently have any class membership. */
+export async function listMemberUserIdsAmongUserIds(
+  client: Supabase,
+  userIds: string[]
+) {
+  return chunkedIn(userIds, (chunk) =>
+    client.from("student_class").select("user_id").in("user_id", chunk)
+  );
 }
 
 export type StudentClassWithClassRecord = StudentClassRecord & {

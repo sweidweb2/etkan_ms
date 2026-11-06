@@ -22,7 +22,11 @@ export async function ClassAnalyticsDeferredSection({
   );
 
   return (
-    <ClassAnalyticsSection className={className} analytics={analytics} />
+    <ClassAnalyticsSection
+      className={className}
+      analytics={analytics}
+      collapsible={false}
+    />
   );
 }
 

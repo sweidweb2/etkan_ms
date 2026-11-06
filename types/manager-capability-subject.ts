@@ -2,8 +2,8 @@ import type { SubjectScope } from "@/lib/constants/subject-scope";
 import type { FieldErrors } from "@/types/auth";
 
 /**
- * Instructor and mentor capability catalogs. Distinct from academic subjects
- * (`types/manager-subject.ts`) — these only drive the capability matrices.
+ * Instructor capability catalog. Distinct from academic subjects
+ * (`types/manager-subject.ts`) — this only drives the capability matrix.
  */
 export type ManagerSubjectColumn = {
   id: string;

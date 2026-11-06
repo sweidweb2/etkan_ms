@@ -126,7 +126,7 @@ export function AddInstructorScheduleSlotDialog({
     () =>
       instructors.map((instructor) => ({
         id: instructor.id,
-        label: instructor.username?.trim() || "Unknown",
+        label: instructor.full_name.trim() || "Unknown",
       })),
     [instructors]
   );

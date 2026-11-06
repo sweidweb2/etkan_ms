@@ -60,12 +60,10 @@ type EditUserDialogProps = {
 
 function getDefaultValues(user: ManagerUserRow): UpdateManagerUserInput {
   return {
-    username: user.username ?? "",
+    fullName: user.full_name,
     email: user.email,
     role: user.role,
     is_instructor: user.is_instructor,
-    is_mentor: user.is_mentor,
-    fullName: user.student_full_name ?? "",
     birthDate: user.student_birth_date ?? "",
     phone: user.student_phone ?? "",
     status: user.student_status ?? STUDENT_STATUSES.ACTIVE,
@@ -80,16 +78,14 @@ function buildUpdateFormData(
 ) {
   const formData = new FormData();
   formData.set("userId", userId);
-  formData.set("username", values.username.trim());
+  formData.set("fullName", values.fullName.trim());
   formData.set("email", values.email.trim());
   formData.set("role", values.role);
   formData.set("is_instructor", String(values.is_instructor));
-  formData.set("is_mentor", String(values.is_mentor));
   formData.set("password", values.password ?? "");
   formData.set("confirmPassword", values.confirmPassword ?? "");
 
   if (values.role === ROLES.STUDENT) {
-    formData.set("fullName", values.fullName?.trim() ?? "");
     formData.set("birthDate", values.birthDate?.trim() ?? "");
     formData.set("phone", values.phone?.trim() ?? "");
     formData.set("status", values.status ?? STUDENT_STATUSES.ACTIVE);
@@ -134,7 +130,6 @@ export function EditUserDialog({
   const selectedRole = watch("role");
   const selectedStatus = watch("status");
   const isInstructor = watch("is_instructor");
-  const isMentor = watch("is_mentor");
   const isStudentRole = selectedRole === ROLES.STUDENT;
 
   useEffect(() => {
@@ -147,16 +142,14 @@ export function EditUserDialog({
     formAction(buildUpdateFormData(user.id, values));
   }
 
-  const usernameError =
-    errors.username?.message ?? state.fieldErrors?.username?.[0];
+  const fullNameError =
+    errors.fullName?.message ?? state.fieldErrors?.fullName?.[0];
   const emailError = errors.email?.message ?? state.fieldErrors?.email?.[0];
   const passwordError =
     errors.password?.message ?? state.fieldErrors?.password?.[0];
   const confirmPasswordError =
     errors.confirmPassword?.message ?? state.fieldErrors?.confirmPassword?.[0];
   const roleError = errors.role?.message ?? state.fieldErrors?.role?.[0];
-  const fullNameError =
-    errors.fullName?.message ?? state.fieldErrors?.fullName?.[0];
   const birthDateError =
     errors.birthDate?.message ?? state.fieldErrors?.birthDate?.[0];
   const phoneError = errors.phone?.message ?? state.fieldErrors?.phone?.[0];
@@ -187,22 +180,22 @@ export function EditUserDialog({
         >
           <div className="flex flex-col gap-2">
             <FieldLabel
-              htmlFor="edit-user-username"
-              label="Username"
-              hint={AUTH_FIELD_HINTS.username}
+              htmlFor="edit-user-full-name"
+              label="Full name"
+              hint={AUTH_FIELD_HINTS.fullName}
             />
             <Input
-              id="edit-user-username"
+              id="edit-user-full-name"
               type="text"
-              autoComplete="username"
-              minLength={AUTH_LIMITS.username.min}
-              maxLength={AUTH_LIMITS.username.max}
-              aria-invalid={!!usernameError}
+              autoComplete="name"
+              minLength={AUTH_LIMITS.fullName.min}
+              maxLength={AUTH_LIMITS.fullName.max}
+              aria-invalid={!!fullNameError}
               disabled={isPending}
-              {...register("username")}
+              {...register("fullName")}
             />
-            {usernameError ? (
-              <FieldError>{usernameError}</FieldError>
+            {fullNameError ? (
+              <FieldError>{fullNameError}</FieldError>
             ) : null}
           </div>
 
@@ -231,7 +224,11 @@ export function EditUserDialog({
             <FieldLabel
               htmlFor="edit-user-password"
               label="New password"
-              hint="Optional. Leave blank to keep the current password."
+              hint={
+                user.role === ROLES.STUDENT
+                  ? undefined
+                  : "Optional. Leave blank to keep the current password."
+              }
             />
             <PasswordInput
               id="edit-user-password"
@@ -321,8 +318,8 @@ export function EditUserDialog({
           <div className="flex flex-col gap-2">
             <FieldLabel
               htmlFor="edit-user-is-instructor"
-              label="Instructor"
-              hint="Can teach scheduled sessions"
+              label="Workshop instructor"
+              hint="Unlocks Manage workshops"
             />
             <div className="flex h-8 items-center gap-2.5 rounded-lg border border-input bg-transparent px-2.5 text-sm dark:bg-input/30">
               <Checkbox
@@ -344,55 +341,8 @@ export function EditUserDialog({
             </div>
           </div>
 
-          <div className="flex flex-col gap-2">
-            <FieldLabel
-              htmlFor="edit-user-is-mentor"
-              label="Mentor"
-              hint="Can mentor students"
-            />
-            <div className="flex h-8 items-center gap-2.5 rounded-lg border border-input bg-transparent px-2.5 text-sm dark:bg-input/30">
-              <Checkbox
-                id="edit-user-is-mentor"
-                checked={isMentor}
-                disabled={isPending}
-                onCheckedChange={(checked) =>
-                  setValue("is_mentor", checked, {
-                    shouldValidate: true,
-                  })
-                }
-              />
-              <label
-                htmlFor="edit-user-is-mentor"
-                className="cursor-pointer text-muted-foreground"
-              >
-                {isMentor ? "Enabled" : "Disabled"}
-              </label>
-            </div>
-          </div>
-
           {isStudentRole ? (
             <>
-              <div className="flex flex-col gap-2">
-                <FieldLabel
-                  htmlFor="edit-user-full-name"
-                  label="Full name"
-                  hint={AUTH_FIELD_HINTS.fullName}
-                />
-                <Input
-                  id="edit-user-full-name"
-                  type="text"
-                  autoComplete="name"
-                  minLength={AUTH_LIMITS.fullName.min}
-                  maxLength={AUTH_LIMITS.fullName.max}
-                  aria-invalid={!!fullNameError}
-                  disabled={isPending}
-                  {...register("fullName")}
-                />
-                {fullNameError ? (
-                  <FieldError>{fullNameError}</FieldError>
-                ) : null}
-              </div>
-
               <div className="flex flex-col gap-2">
                 <FieldLabel
                   htmlFor="edit-user-phone"
@@ -403,6 +353,7 @@ export function EditUserDialog({
                   id="edit-user-phone"
                   type="tel"
                   autoComplete="tel"
+                  placeholder="+961 70 000 000"
                   maxLength={AUTH_LIMITS.phone.max}
                   aria-invalid={!!phoneError}
                   disabled={isPending}

@@ -16,7 +16,6 @@ const SHARED_MANAGER_WORKSHOP_PREFIXES = [
 const SHARED_MANAGER_NO_INSTRUCTOR_FLAG_PREFIXES = [
   ROUTES.MANAGER_INSTRUCTORS,
   ROUTES.MANAGER_INSTRUCTOR_SCHEDULES,
-  ROUTES.MANAGER_CLOUDFLARE_AI_USAGE,
   ROUTES.MANAGER_INCOME_STATEMENT_ANALYTICS,
   ROUTES.MANAGER_ACADEMIC_ANALYSIS,
   ROUTES.MANAGER_GUESTS,
@@ -35,12 +34,6 @@ export function isSharedManagerWorkshopPath(pathname: string): boolean {
 
 export function isSharedManagerInstructorsPath(pathname: string): boolean {
   return pathMatchesPrefix(pathname, ROUTES.MANAGER_INSTRUCTORS);
-}
-
-export function isSharedManagerCloudflareAiUsagePath(
-  pathname: string
-): boolean {
-  return pathMatchesPrefix(pathname, ROUTES.MANAGER_CLOUDFLARE_AI_USAGE);
 }
 
 export function isSharedManagerPath(pathname: string): boolean {

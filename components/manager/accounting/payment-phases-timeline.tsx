@@ -25,7 +25,7 @@ import { cn } from "@/lib/utils";
 import { truncateText } from "@/lib/utils/truncate-text";
 import type { ManagerPaymentPhaseRow } from "@/types/manager-payment-phase";
 
-const GUTTER_CLASS = "w-40 shrink-0 sm:w-44";
+const GUTTER_CLASS = "w-40 shrink-0 @lg/panel:w-44";
 const LANE_HEIGHT_CLASS = "h-10";
 const BAR_MIN_LABEL_WIDTH_PERCENT = 12;
 

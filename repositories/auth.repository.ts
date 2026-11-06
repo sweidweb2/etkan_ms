@@ -80,7 +80,6 @@ export async function signUp(
     email: string;
     password: string;
     fullName: string;
-    username: string;
     emailRedirectTo: string;
     role: RoleValue;
   }
@@ -92,7 +91,6 @@ export async function signUp(
       emailRedirectTo: input.emailRedirectTo,
       data: {
         full_name: input.fullName,
-        username: input.username,
         role: input.role,
       },
     },
@@ -122,15 +120,11 @@ export async function updateAuthUserByAdmin(
   input: {
     email?: string;
     fullName?: string;
-    username?: string;
   }
 ) {
   return client.auth.admin.updateUserById(authUserId, {
     ...(input.email ? { email: input.email } : {}),
-    user_metadata: {
-      ...(input.fullName ? { full_name: input.fullName } : {}),
-      ...(input.username ? { username: input.username } : {}),
-    },
+    ...(input.fullName ? { user_metadata: { full_name: input.fullName } } : {}),
   });
 }
 
@@ -149,7 +143,6 @@ export async function createAuthUser(
   input: {
     email: string;
     password: string;
-    username: string;
     fullName: string;
     role: string;
   }
@@ -161,7 +154,6 @@ export async function createAuthUser(
     app_metadata: { role: input.role },
     user_metadata: {
       full_name: input.fullName,
-      username: input.username,
     },
   });
 }

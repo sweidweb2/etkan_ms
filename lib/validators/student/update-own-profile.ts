@@ -3,7 +3,6 @@ import {
   birthDateField,
   fullNameField,
   phoneField,
-  usernameField,
 } from "@/lib/validators/auth/fields";
 import { zodFieldErrors } from "@/lib/validators/auth/parse-form";
 import { formValidationFailure } from "@/lib/validators/safe-parse-form-data";
@@ -19,7 +18,6 @@ const ownBirthDateField = birthDateField.refine(
 );
 
 export const updateOwnStudentProfileSchema = z.object({
-  username: usernameField,
   fullName: fullNameField,
   birthDate: ownBirthDateField,
   phone: phoneField,
@@ -33,7 +31,6 @@ export function parseUpdateOwnStudentProfileFormData(formData: FormData):
   | { success: true; data: UpdateOwnStudentProfileInput }
   | { success: false; error: string; fieldErrors?: FieldErrors } {
   const parsed = updateOwnStudentProfileSchema.safeParse({
-    username: formData.get("username"),
     fullName: formData.get("fullName"),
     birthDate: formData.get("birthDate"),
     phone: formData.get("phone"),

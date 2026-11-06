@@ -277,7 +277,7 @@ describe("listStudentActivityForSelf", () => {
 
   it("allows the student to load their own activity", async () => {
     vi.mocked(profileRepository.findProfileById).mockResolvedValue({
-      data: { id: studentUserId, username: "stu", role: ROLES.STUDENT, created_at: "" },
+      data: { id: studentUserId, full_name: "Student", role: ROLES.STUDENT, created_at: "" },
       error: null,
     } as never);
     vi.mocked(auditLogRepository.listAuditLogsRelatedToStudent).mockResolvedValue({
@@ -294,7 +294,7 @@ describe("listStudentActivityForSelf", () => {
     vi.mocked(profileRepository.findProfileById).mockResolvedValue({
       data: {
         id: actorUserId,
-        username: "mgr",
+        full_name: "Manager",
         role: ROLES.MANAGER,
         created_at: "",
       },

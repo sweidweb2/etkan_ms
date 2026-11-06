@@ -1,12 +1,12 @@
 "use client";
 
-import { Fragment, useActionState, useMemo, useState, useTransition } from "react";
+import { Fragment, useActionState, useState, useTransition } from "react";
 import Link from "next/link";
-import { format } from "date-fns";
 import { ExternalLinkIcon } from "lucide-react";
 import { updateRegistrationApplicationAction } from "@/app/(panels)/manager/registrations/actions";
 import { usePermissions } from "@/components/auth/permissions-provider";
 import { InlineSpinner } from "@/components/loaders/inline-spinner";
+import { PanelPageHeader } from "@/components/panels/panel-page-header";
 import {
   Breadcrumb,
   BreadcrumbItem,
@@ -221,7 +221,7 @@ function SectionCard({
           <p className="mt-0.5 text-xs text-muted-foreground">{description}</p>
         ) : null}
       </div>
-      <div className="grid gap-4 p-4 sm:grid-cols-2 lg:grid-cols-1 xl:grid-cols-2">
+      <div className="grid gap-4 p-4 @lg/panel:grid-cols-2 @2xl/panel:grid-cols-1 @4xl/panel:grid-cols-2">
         {children}
       </div>
     </section>
@@ -369,13 +369,10 @@ export function RegistrationDetailsPanel({
   }
 
   const readOnly = !canEdit || isPending;
-  const statusLabel = useMemo(
-    () => REGISTRATION_APPLICATION_STATUS_LABELS[application.status],
-    [application.status]
-  );
 
   return (
     <div className="flex flex-col gap-6 pb-28">
+      <PanelPageHeader title={draft.full_name || application.full_name} />
       <Breadcrumb className="min-w-0">
         <BreadcrumbList>
           {breadcrumbItems.map((item, index) => {
@@ -398,36 +395,25 @@ export function RegistrationDetailsPanel({
         </BreadcrumbList>
       </Breadcrumb>
 
-      <div className="flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
-        <div>
-          <div className="flex flex-wrap items-center gap-2">
-            <h1 className="text-2xl font-semibold tracking-tight">
-              {draft.full_name || application.full_name}
-            </h1>
-            {application.guest_id ? (
-              <Link
-                href={getManagerGuestDetailRoute(application.guest_id)}
-                className="inline-flex rounded-full bg-muted px-2.5 py-0.5 text-xs font-medium text-muted-foreground hover:bg-muted/80 hover:text-foreground"
-              >
-                Guest
-              </Link>
-            ) : null}
-          </div>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Submitted{" "}
-            {format(new Date(application.created_at), "MMM d, yyyy · HH:mm")}
-            {" · "}
-            {statusLabel}
-          </p>
+      {application.guest_id || (isDirty && canEdit) ? (
+        <div className="flex flex-wrap items-center gap-2">
+          {application.guest_id ? (
+            <Link
+              href={getManagerGuestDetailRoute(application.guest_id)}
+              className="inline-flex rounded-full bg-muted px-2.5 py-0.5 text-xs font-medium text-muted-foreground hover:bg-muted/80 hover:text-foreground"
+            >
+              Guest
+            </Link>
+          ) : null}
+          {isDirty && canEdit ? (
+            <p className="text-sm text-amber-700 dark:text-amber-300">
+              Unsaved changes
+            </p>
+          ) : null}
         </div>
-        {isDirty && canEdit ? (
-          <p className="text-sm text-amber-700 dark:text-amber-300">
-            Unsaved changes
-          </p>
-        ) : null}
-      </div>
+      ) : null}
 
-      <div className="flex flex-col gap-6 lg:flex-row lg:items-start">
+      <div className="flex flex-col gap-6 @2xl/panel:flex-row @2xl/panel:items-start">
       <div className="flex min-w-0 flex-1 flex-col gap-6">
       <SectionCard title="Status & notes" description="Manager review fields.">
         <FieldShell
@@ -466,7 +452,7 @@ export function RegistrationDetailsPanel({
         <FieldShell
           label="Manager notes"
           htmlFor="reg-notes"
-          className="sm:col-span-2"
+          className="@lg/panel:col-span-2"
           error={fieldErrors.notes?.[0]}
         >
           <textarea
@@ -607,7 +593,7 @@ export function RegistrationDetailsPanel({
         <FieldShell
           label="Full address"
           htmlFor="reg-address"
-          className="sm:col-span-2"
+          className="@lg/panel:col-span-2"
           error={fieldErrors.full_address?.[0]}
         >
           <textarea
@@ -710,7 +696,7 @@ export function RegistrationDetailsPanel({
         <FieldShell
           label="Learning goal"
           htmlFor="reg-goal"
-          className="sm:col-span-2"
+          className="@lg/panel:col-span-2"
           error={fieldErrors.learning_goal?.[0]}
         >
           <textarea
@@ -725,7 +711,7 @@ export function RegistrationDetailsPanel({
         <FieldShell
           label="Self-learning notes"
           htmlFor="reg-self-learning"
-          className="sm:col-span-2"
+          className="@lg/panel:col-span-2"
           error={fieldErrors.self_learning_notes?.[0]}
         >
           <textarea
@@ -746,7 +732,7 @@ export function RegistrationDetailsPanel({
       <SectionCard title="Skills & program">
         <FieldShell
           label="Skills"
-          className="sm:col-span-2"
+          className="@lg/panel:col-span-2"
           error={fieldErrors.skills?.[0]}
         >
           <ChipGroup
@@ -769,7 +755,7 @@ export function RegistrationDetailsPanel({
           <FieldShell
             label="Other skill"
             htmlFor="reg-skills-other"
-            className="sm:col-span-2"
+            className="@lg/panel:col-span-2"
             error={fieldErrors.skills_other?.[0]}
           >
             <Input
@@ -830,7 +816,7 @@ export function RegistrationDetailsPanel({
           <FieldShell
             label="Referral details"
             htmlFor="reg-referral-other"
-            className="sm:col-span-2"
+            className="@lg/panel:col-span-2"
             error={fieldErrors.referral_other?.[0]}
           >
             <Input
@@ -846,7 +832,7 @@ export function RegistrationDetailsPanel({
       <SectionCard title="Availability">
         <FieldShell
           label="Days available"
-          className="sm:col-span-2"
+          className="@lg/panel:col-span-2"
           error={fieldErrors.available_days?.[0]}
         >
           <ChipGroup
@@ -863,7 +849,7 @@ export function RegistrationDetailsPanel({
         </FieldShell>
         <FieldShell
           label="Preferred shifts"
-          className="sm:col-span-2"
+          className="@lg/panel:col-span-2"
           error={fieldErrors.preferred_shifts?.[0]}
         >
           <ChipGroup
@@ -962,7 +948,7 @@ export function RegistrationDetailsPanel({
             </SelectContent>
           </Select>
         </FieldShell>
-        <div className="sm:col-span-2">
+        <div className="@lg/panel:col-span-2">
           <Label>Uploaded files</Label>
           <div className="mt-2 space-y-2">
             {signedDocuments.length > 0 ? (

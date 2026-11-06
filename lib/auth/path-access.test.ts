@@ -67,9 +67,6 @@ describe("canAccessPath", () => {
     ).toBe(true);
     expect(canAccessPath(ROUTES.MANAGER_INSTRUCTORS, ROLES.CEO)).toBe(true);
     expect(
-      canAccessPath(ROUTES.MANAGER_CLOUDFLARE_AI_USAGE, ROLES.CEO)
-    ).toBe(true);
-    expect(
       canAccessPath(ROUTES.MANAGER_INCOME_STATEMENT_ANALYTICS, ROLES.CEO)
     ).toBe(true);
     expect(canAccessPath(ROUTES.MANAGER_ACADEMIC_ANALYSIS, ROLES.CEO)).toBe(

@@ -75,6 +75,51 @@ export const FINANCIAL_ADJUSTMENT_TYPE_LABELS: Record<
   [FINANCIAL_ADJUSTMENT_TYPES.MANUAL_ADJUSTMENT]: "Manual adjustment",
 };
 
+export const STUDENT_PAYMENT_TYPES = {
+  CREDIT: "credit",
+  DEBIT: "debit",
+} as const;
+
+export type StudentPaymentType =
+  (typeof STUDENT_PAYMENT_TYPES)[keyof typeof STUDENT_PAYMENT_TYPES];
+
+export const STUDENT_PAYMENT_TYPE_VALUES = [
+  STUDENT_PAYMENT_TYPES.CREDIT,
+  STUDENT_PAYMENT_TYPES.DEBIT,
+] as const;
+
+export const SEMESTER_DROP_REQUEST_STATUSES = {
+  PENDING: "pending",
+  COMPLETED: "completed",
+  CANCELLED: "cancelled",
+} as const;
+
+export type SemesterDropRequestStatus =
+  (typeof SEMESTER_DROP_REQUEST_STATUSES)[keyof typeof SEMESTER_DROP_REQUEST_STATUSES];
+
+export const SEMESTER_DROP_REQUEST_STATUS_VALUES = [
+  SEMESTER_DROP_REQUEST_STATUSES.PENDING,
+  SEMESTER_DROP_REQUEST_STATUSES.COMPLETED,
+  SEMESTER_DROP_REQUEST_STATUSES.CANCELLED,
+] as const;
+
+export const SEMESTER_DROP_REFUND_STATUSES = {
+  NONE: "none",
+  OWED: "owed",
+  PROCESSED: "processed",
+} as const;
+
+export type SemesterDropRefundStatus =
+  (typeof SEMESTER_DROP_REFUND_STATUSES)[keyof typeof SEMESTER_DROP_REFUND_STATUSES];
+
+export const SEMESTER_DROP_REFUND_STATUS_VALUES = [
+  SEMESTER_DROP_REFUND_STATUSES.NONE,
+  SEMESTER_DROP_REFUND_STATUSES.OWED,
+  SEMESTER_DROP_REFUND_STATUSES.PROCESSED,
+] as const;
+
+export const SEMESTER_DROP_DEFAULT_REQUIRED_PERCENT = 50;
+
 export const PAYMENT_METHODS = {
   CASH: "cash",
   OMT: "omt",

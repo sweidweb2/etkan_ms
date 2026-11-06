@@ -1,10 +1,18 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { CalendarIcon, PlusIcon } from "lucide-react";
+import { CalendarIcon, CalendarOffIcon, PlusIcon } from "lucide-react";
 import { Can } from "@/components/auth/can";
 import { AddClassSessionDialog } from "@/components/manager/classes/add-class-session-dialog";
 import { ClassSessionCard } from "@/components/manager/classes/class-session-card";
+import {
+  ClassUpcomingWeeks,
+  formatClassWeekDate,
+} from "@/components/manager/classes/class-upcoming-weeks";
+import {
+  SkipClassWeekDialog,
+  type SkipClassWeekTarget,
+} from "@/components/manager/classes/skip-class-week-dialog";
 import { ClassTabCollapsibleSection } from "@/components/manager/students/class-tab-collapsible-section";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -24,12 +32,61 @@ import {
   type ManagerClassSessionRow,
 } from "@/types/manager-class-session";
 import type { ManagerClassRow } from "@/types/manager-class-list";
+import type {
+  ClassWeekSkipState,
+  SkipClassWeekActionState,
+  UnskipClassWeekActionState,
+} from "@/types/manager-class-week-skip";
+
+function LatestSessionSkipButton({
+  canSkip,
+  blockedReason,
+  onSkip,
+}: {
+  canSkip: boolean;
+  blockedReason: string | null;
+  onSkip: () => void;
+}) {
+  const button = (
+    <Button
+      type="button"
+      size="xs"
+      variant="ghost"
+      disabled={!canSkip}
+      onClick={(event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        onSkip();
+      }}
+    >
+      <CalendarOffIcon />
+      Skip this week
+    </Button>
+  );
+
+  if (canSkip) {
+    return button;
+  }
+
+  return (
+    <TooltipProvider>
+      <Tooltip>
+        <TooltipTrigger render={<span className="inline-flex" tabIndex={0} />}>
+          {button}
+        </TooltipTrigger>
+        <TooltipContent>{blockedReason}</TooltipContent>
+      </Tooltip>
+    </TooltipProvider>
+  );
+}
 
 type ClassSessionsSectionProps = {
   classId: string;
   className: string;
   sessions: ManagerClassSessionRow[];
   onSessionsChange: (sessions: ManagerClassSessionRow[]) => void;
+  weekSkipState: ClassWeekSkipState;
+  onWeekSkipStateChange: (state: ClassWeekSkipState) => void;
   onClassUpdated: (classRow: ManagerClassRow) => void;
   hasComputedGrades?: boolean;
   /** Override session card detail links (defaults to manager routes). */
@@ -46,6 +103,8 @@ export function ClassSessionsSection({
   className,
   sessions,
   onSessionsChange,
+  weekSkipState,
+  onWeekSkipStateChange,
   onClassUpdated,
   hasComputedGrades = false,
   getSessionDetailHref,
@@ -54,6 +113,10 @@ export function ClassSessionsSection({
   collapsible = true,
 }: ClassSessionsSectionProps) {
   const [isAddOpen, setIsAddOpen] = useState(false);
+  const [skipTarget, setSkipTarget] = useState<SkipClassWeekTarget | null>(
+    null
+  );
+  const latestSessionSkip = weekSkipState.latestSession;
 
   const sortedSessions = useMemo(
     () => sortClassSessionsOldestFirst(sessions),
@@ -81,6 +144,29 @@ export function ClassSessionsSection({
     onClassUpdated(classRow);
   };
 
+  const handleWeekSkipped = (state: SkipClassWeekActionState) => {
+    if (state.weekSkipState) {
+      onWeekSkipStateChange(state.weekSkipState);
+    }
+
+    if (state.deletedSessionId) {
+      onSessionsChange(
+        sessions.filter((session) => session.id !== state.deletedSessionId)
+      );
+    }
+  };
+
+  const handleWeekRestored = (state: UnskipClassWeekActionState) => {
+    if (state.weekSkipState) {
+      onWeekSkipStateChange(state.weekSkipState);
+    }
+
+    const created = state.createdSession;
+    if (created && !sessions.some((session) => session.id === created.id)) {
+      onSessionsChange(sortClassSessionsNewestFirst([created, ...sessions]));
+    }
+  };
+
   return (
     <>
       {isAddOpen ? (
@@ -91,6 +177,20 @@ export function ClassSessionsSection({
           className={className}
           nextNbOrder={nextNbOrder}
           onSessionCreated={handleSessionCreated}
+        />
+      ) : null}
+
+      {skipTarget ? (
+        <SkipClassWeekDialog
+          open
+          onOpenChange={(open) => {
+            if (!open) {
+              setSkipTarget(null);
+            }
+          }}
+          classId={classId}
+          target={skipTarget}
+          onSkipped={handleWeekSkipped}
         />
       ) : null}
 
@@ -159,12 +259,46 @@ export function ClassSessionsSection({
                       }
                       onSelect={onSessionSelect}
                       selected={selectedSessionId === session.id}
+                      footerAction={
+                        latestSessionSkip?.sessionId === session.id ? (
+                          <Can permission={PERMISSIONS.SESSIONS_SKIP}>
+                            <LatestSessionSkipButton
+                              canSkip={latestSessionSkip.canSkip}
+                              blockedReason={latestSessionSkip.blockedReason}
+                              onSkip={() =>
+                                setSkipTarget({
+                                  date: latestSessionSkip.date,
+                                  sessionId: session.id,
+                                  label: `S${session.nb_order} (${formatClassWeekDate(latestSessionSkip.date)})`,
+                                })
+                              }
+                            />
+                          </Can>
+                        ) : undefined
+                      }
                     />
                   ))}
                 </div>
               </HorizontalScrollCarousel>
             </div>
           )}
+
+          {weekSkipState.weeks.length > 0 ? (
+            <div className="mt-4">
+              <ClassUpcomingWeeks
+                classId={classId}
+                weeks={weekSkipState.weeks}
+                onSkipClick={(week) =>
+                  setSkipTarget({
+                    date: week.date,
+                    sessionId: null,
+                    label: `the week of ${formatClassWeekDate(week.date)}`,
+                  })
+                }
+                onRestored={handleWeekRestored}
+              />
+            </div>
+          ) : null}
         </div>
       </ClassTabCollapsibleSection>
     </>

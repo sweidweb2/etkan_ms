@@ -99,10 +99,8 @@ function getLoginUrl(): string {
   return `${getSiteUrl()}${ROUTES.LOGIN}`;
 }
 
-function getRecipientDisplayName(profile: {
-  username: string | null;
-}): string {
-  return profile.username?.trim() || "there";
+function getRecipientDisplayName(profile: { full_name: string }): string {
+  return profile.full_name.trim() || "there";
 }
 
 function buildCircularSnapshot(
@@ -115,7 +113,6 @@ function buildCircularSnapshot(
         title: "Welcome / Account ready",
         body: [
           `Account email: ${input.account_email}`,
-          `Username: ${input.username}`,
           `Temporary password: ${input.temporary_password}`,
         ].join("\n"),
       };
@@ -297,7 +294,6 @@ function buildTemplateVars(
       return {
         ...shared,
         account_email: input.account_email!,
-        username: input.username!,
         temporary_password: input.temporary_password!,
       };
     case "announcement":

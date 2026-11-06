@@ -1,5 +1,6 @@
 import "server-only";
 
+import { cache } from "react";
 import {
   PAYMENT_PHASE_STATUSES,
   STUDENT_PAYMENT_PHASE_STATUSES,
@@ -245,6 +246,46 @@ export function mapPhaseRecordToRow(
   };
 }
 
+/**
+ * In-progress classes (oldest first), shared by the phase list and the
+ * exceptions snapshot within one RSC request.
+ */
+export const loadInProgressClassesForRequest = cache(
+  async (adminClient: Supabase) => {
+    const { data, error } =
+      await classRepository.listInProgressClassesForBilling(adminClient);
+    if (error) {
+      throw new Error(error.message);
+    }
+    return data ?? [];
+  }
+);
+
+const loadSppsByPhaseIdsKey = cache(
+  async (adminClient: Supabase, phaseIdsKey: string) => {
+    const { data, error } =
+      await studentPaymentPhaseRepository.listSppsByPaymentPhaseIds(
+        adminClient,
+        phaseIdsKey ? phaseIdsKey.split(",") : []
+      );
+    if (error) {
+      throw new Error(error.message);
+    }
+    return data ?? [];
+  }
+);
+
+/** All SPPs on `phaseIds`, deduped per RSC request by the sorted id set. */
+export function loadSppsByPaymentPhaseIdsForRequest(
+  adminClient: Supabase,
+  phaseIds: string[]
+) {
+  return loadSppsByPhaseIdsKey(
+    adminClient,
+    [...new Set(phaseIds)].sort().join(",")
+  );
+}
+
 export async function buildBillingClassBySemesterId(
   adminClient: Supabase,
   semesterIds: string[]
@@ -257,15 +298,10 @@ export async function buildBillingClassBySemesterId(
   }
 
   const wanted = new Set(unique);
-  const { data, error } =
-    await classRepository.listInProgressClassesForBilling(adminClient);
-
-  if (error) {
-    throw new Error(error.message);
-  }
+  const data = await loadInProgressClassesForRequest(adminClient);
 
   // Rows are ordered by created_at ascending — first per semester wins.
-  for (const row of data ?? []) {
+  for (const row of data) {
     if (!row.semester_id || !wanted.has(row.semester_id)) {
       continue;
     }
@@ -299,8 +335,8 @@ export async function buildStudentMetaByUserId(
     ),
   ]);
 
-  const usernameById = new Map(
-    (profiles ?? []).map((profile) => [profile.id, profile.username])
+  const profileNameById = new Map(
+    (profiles ?? []).map((profile) => [profile.id, profile.full_name])
   );
   const studentProfileByUserId = new Map(
     (studentProfiles ?? []).map((profile) => [profile.user_id, profile])
@@ -309,9 +345,9 @@ export async function buildStudentMetaByUserId(
   for (const studentId of studentIds) {
     const studentProfile = studentProfileByUserId.get(studentId);
     const fullName = studentProfile?.full_name?.trim();
-    const username = usernameById.get(studentId)?.trim();
+    const profileName = profileNameById.get(studentId)?.trim();
     meta.set(studentId, {
-      label: fullName || username || studentId,
+      label: fullName || profileName || studentId,
       student_profile_id: studentProfile?.id ?? null,
     });
   }
@@ -396,6 +432,7 @@ export type AccountingExceptionsSnapshot = {
   withoutClassOrPhase: ManagerStudentWithoutActiveClassRow[];
   billedWithoutClass: ManagerBilledWithoutClassRow[];
   sppSemesterMismatches: ManagerSppSemesterMismatchRow[];
+  needRefund: import("@/types/manager-semester-drop").ManagerNeedRefundRow[];
 };
 
 export function mapStudentStatusValue(status: string | null): StudentStatusValue {

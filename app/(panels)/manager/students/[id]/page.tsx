@@ -1,6 +1,5 @@
 import { notFound } from "next/navigation";
 import { StudentActivityDeferred } from "@/components/manager/students/student-activity-deferred-section";
-import { StudentBorrowsDeferred } from "@/components/manager/students/student-borrows-deferred-section";
 import { StudentDetailsPanel } from "@/components/manager/students/student-details-panel";
 import { getSessionUser } from "@/lib/auth/session";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
@@ -66,12 +65,6 @@ export default async function ManagerStudentDetailPage({
       stats={stats}
       classBundles={classBundles}
       registrationApplicationId={registrationApplicationId}
-      borrowingSection={
-        <StudentBorrowsDeferred
-          actorUserId={actorUserId}
-          studentUserId={student.user_id}
-        />
-      }
       activitySection={
         <StudentActivityDeferred
           actorUserId={actorUserId}

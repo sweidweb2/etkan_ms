@@ -55,6 +55,7 @@ import {
 import { getManagerClassDetailRoute, ROUTES } from "@/lib/constants/routes";
 import { PERMISSIONS } from "@/lib/constants/permissions";
 import { CLASS_COMPUTED_GRADES_STRUCTURE_LOCKED_ERROR } from "@/lib/manager/class-grades-access";
+import { formatTaskMaxGrade } from "@/lib/format/format-task-grade";
 import { useActionStateSuccess } from "@/hooks/use-action-state-success";
 import { useActionStateToast } from "@/hooks/use-action-state-toast";
 import { useFormActionState } from "@/hooks/use-form-action-state";
@@ -153,6 +154,7 @@ export function ClassTaskDetailsPanel({
   const structureLockedTitle = hasComputedGrades
     ? CLASS_COMPUTED_GRADES_STRUCTURE_LOCKED_ERROR
     : undefined;
+  const hasGradedStudents = studentTasks.some((row) => row.grade != null);
 
   function handleTaskUpdated(
     nextTask: ManagerClassTaskRow,
@@ -262,15 +264,18 @@ export function ClassTaskDetailsPanel({
           </div>
         </CardHeader>
         <CardContent className="pt-3 pb-4">
-          <dl className="grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
+          <dl className="grid gap-5 @lg/panel:grid-cols-2 @2xl/panel:grid-cols-4">
             <DetailField label="Title" value={task.title} />
             <DetailField
               label="Description"
               value={task.description?.trim() ? task.description : "—"}
             />
             <DetailField
-              label="Max grade"
-              value={task.max_grade === null ? "—" : String(task.max_grade)}
+              label={task.is_yes_no ? "Grading" : "Max grade"}
+              value={formatTaskMaxGrade({
+                maxGrade: task.max_grade,
+                isYesNo: task.is_yes_no,
+              })}
               className="tabular-nums"
             />
             <DetailField
@@ -311,6 +316,7 @@ export function ClassTaskDetailsPanel({
         <SessionTaskAnalyticsSection
           studentTasks={studentTasks}
           maxGrade={task.max_grade}
+          isYesNo={task.is_yes_no}
         />
       ) : null}
 
@@ -320,6 +326,7 @@ export function ClassTaskDetailsPanel({
         task={task}
         classId={classRow.id}
         className={classRow.name}
+        hasGradedStudents={hasGradedStudents}
         onTaskUpdated={handleTaskUpdated}
       />
 

@@ -1,22 +1,20 @@
 "use client";
 
-import Link from "next/link";
+import {
+  GridCardBody,
+  GridCardFooter,
+  GridCardViewButton,
+} from "@/components/manager/shared/grid-card";
+import { FrostedGlassCard } from "@/components/ui/frosted-glass-card";
+import {
+  MANAGER_CLASS_STATUS_DOT_CLASSES,
+  MANAGER_CLASS_STATUS_LABELS,
+} from "@/lib/constants/manager-class-display";
 import {
   getClassProgressTone,
   getClassSessionCompletionRate,
 } from "@/lib/constants/manager-semester-class-progress";
-import { Button } from "@/components/ui/button";
-import { GradientGlassCard } from "@/components/ui/gradient-glass-card";
-import {
-  MANAGER_CLASS_STATUS_BADGE_CLASSES,
-  MANAGER_CLASS_STATUS_DOT_CLASSES,
-  MANAGER_CLASS_STATUS_LABELS,
-  MANAGER_CLASS_STATUS_SECONDARY_BUTTON_CLASSES,
-} from "@/lib/constants/manager-class-display";
-import {
-  getManagerClassDetailRoute,
-  getManagerSemesterDetailRoute,
-} from "@/lib/constants/routes";
+import { getManagerClassDetailRoute } from "@/lib/constants/routes";
 import { cn } from "@/lib/utils";
 import type { ManagerClassRow } from "@/types/manager-class-list";
 
@@ -25,99 +23,60 @@ type ClassCardProps = {
 };
 
 export function ClassCard({ classRow }: ClassCardProps) {
-  const statusLabel =
-    MANAGER_CLASS_STATUS_LABELS[classRow.status] ?? classRow.status;
-  const statusSecondaryButtonClassName =
-    MANAGER_CLASS_STATUS_SECONDARY_BUTTON_CLASSES[classRow.status] ??
-    "border-border bg-secondary text-secondary-foreground hover:bg-secondary/80";
   const sessionRate = getClassSessionCompletionRate(classRow);
   const sessionTone = getClassProgressTone(classRow);
+  const detailHref = getManagerClassDetailRoute(classRow.id);
+  const statusLabel = MANAGER_CLASS_STATUS_LABELS[classRow.status];
 
   return (
-    <GradientGlassCard
-      id={classRow.id}
-      cardGradient={classRow.card_gradient}
-      title={classRow.name}
-      glassLabel={classRow.subject_name}
-      badge={
-        <span
-          className={cn(
-            "inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium",
-            MANAGER_CLASS_STATUS_BADGE_CLASSES[classRow.status]
-          )}
-        >
-          <span
-            className={cn(
-              "size-1.5 shrink-0 rounded-full",
-              MANAGER_CLASS_STATUS_DOT_CLASSES[classRow.status]
-            )}
-            aria-hidden
-          />
-          {statusLabel}
-        </span>
-      }
-      meta={
-        <div className="flex flex-col gap-1.5 text-foreground">
-          <div className="flex items-center justify-between gap-2 text-xs">
-            <span className="text-muted-foreground">Session progress</span>
-            <span className="font-medium tabular-nums">
-              {classRow.completed_sessions}/{classRow.subject_nb_sessions} ·{" "}
-              {sessionRate}%
-            </span>
-          </div>
-          <div className="h-1.5 overflow-hidden rounded-full bg-muted">
-            <div
-              className={cn(
-                "h-full rounded-full transition-[width]",
-                sessionTone.fillClassName
-              )}
-              style={{ width: `${sessionRate}%` }}
-            />
-          </div>
-        </div>
-      }
-    >
+    <FrostedGlassCard href={detailHref} hrefAriaLabel={`View ${classRow.name}`}>
+      <GridCardBody title={classRow.name} subtitle={classRow.subject_name} />
+
       <div
-        className={cn(
-          "mt-3 grid w-full gap-2",
-          classRow.semester_id ? "grid-cols-2" : "grid-cols-1"
-        )}
+        role="progressbar"
+        aria-label={`Session progress for ${classRow.name}`}
+        aria-valuemin={0}
+        aria-valuemax={100}
+        aria-valuenow={sessionRate}
+        className="pointer-events-none relative z-10 h-0.5 bg-border"
       >
-        {classRow.semester_id ? (
-          <Button
-            variant="outline"
-            size="sm"
-            className="h-8 w-full min-w-0 bg-background px-2"
-            nativeButton={false}
-            render={
-              <Link
-                href={getManagerSemesterDetailRoute(classRow.semester_id)}
-                prefetch={false}
-              />
-            }
-          >
-            <span className="truncate">View semester</span>
-          </Button>
-        ) : null}
-        <Button
-          variant="outline"
-          size="sm"
+        <div
           className={cn(
-            "h-8 w-full min-w-0 px-2",
-            statusSecondaryButtonClassName
+            "h-full transition-[width]",
+            sessionTone.fillClassName
           )}
-          nativeButton={false}
-          render={
-            <Link
-              href={getManagerClassDetailRoute(classRow.id)}
-              prefetch={false}
-              aria-label={`View ${classRow.name}`}
-            />
-          }
-        >
-          <span className="truncate">View class</span>
-        </Button>
+          style={{ width: `${sessionRate}%` }}
+        />
       </div>
-    </GradientGlassCard>
+
+      <GridCardFooter
+        className="border-t-0"
+        meta={
+          <>
+            <span
+              aria-hidden
+              title={statusLabel}
+              className={cn(
+                "size-2 shrink-0 rounded-full",
+                MANAGER_CLASS_STATUS_DOT_CLASSES[classRow.status]
+              )}
+            />
+            <span className="sr-only">{statusLabel},</span>
+            <span className="truncate">
+              <span className="font-medium text-foreground tabular-nums">
+                {classRow.completed_sessions}/{classRow.subject_nb_sessions}
+              </span>{" "}
+              sessions
+            </span>
+          </>
+        }
+        actions={
+          <GridCardViewButton
+            href={detailHref}
+            label={`View ${classRow.name}`}
+          />
+        }
+      />
+    </FrostedGlassCard>
   );
 }

@@ -31,6 +31,8 @@ import { COLLAPSIBLE_SECTION_STORAGE_KEYS } from "@/lib/constants/collapsible-se
 import { SESSION_TASK_TABLE_LIMITS } from "@/lib/constants/manager-class-session-detail-display";
 import { PERMISSIONS } from "@/lib/constants/permissions";
 import { getManagerClassTaskDetailRoute } from "@/lib/constants/routes";
+import { YES_NO_TASK_LABEL } from "@/lib/constants/task-yes-no";
+import { formatTaskMaxGrade } from "@/lib/format/format-task-grade";
 import { CLASS_COMPUTED_GRADES_STRUCTURE_LOCKED_ERROR } from "@/lib/manager/class-grades-access";
 import { getPageNumbers } from "@/lib/pagination/page-numbers";
 import { cn } from "@/lib/utils";
@@ -55,6 +57,8 @@ type ClassTasksSectionProps = {
   getTaskDetailHref?: (taskId: string) => string;
   /** `cards` = library-style grid (teacher); `table` = manager default. */
   layout?: "table" | "cards";
+  /** When false, section stays open with no expand/collapse controls. */
+  collapsible?: boolean;
 };
 
 function formatTaskEyebrow(task: ManagerClassTaskRow) {
@@ -166,6 +170,7 @@ export function ClassTasksSection({
   hasComputedGrades = false,
   getTaskDetailHref,
   layout = "table",
+  collapsible = true,
 }: ClassTasksSectionProps) {
   const [tasks, setTasks] = useState(initialTasks);
   const [prevInitialTasks, setPrevInitialTasks] = useState(initialTasks);
@@ -323,7 +328,7 @@ export function ClassTasksSection({
 
       {layout === "cards" ? (
         <section className="flex flex-col gap-4">
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex flex-col gap-3 @lg/panel:flex-row @lg/panel:items-center @lg/panel:justify-between">
             <div className="min-w-0">
               <h2 className="text-base font-semibold tracking-tight">Tasks</h2>
               <p className="text-sm text-muted-foreground">
@@ -342,7 +347,7 @@ export function ClassTasksSection({
             />
           ) : (
             <>
-              <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+              <div className="grid gap-3 @lg/panel:grid-cols-2 @4xl/panel:grid-cols-3">
                 {pageTasks.map((task, index) => {
                   const href =
                     getTaskDetailHref?.(task.id) ??
@@ -360,8 +365,9 @@ export function ClassTasksSection({
                       coverBadge={task.started ? "Started" : undefined}
                       meta={{
                         icon: SparklesIcon,
-                        label:
-                          task.max_grade != null
+                        label: task.is_yes_no
+                          ? `${YES_NO_TASK_LABEL} · ${task.period}d`
+                          : task.max_grade != null
                             ? `${task.max_grade} max · ${task.period}d`
                             : `${task.period} day period`,
                       }}
@@ -376,7 +382,7 @@ export function ClassTasksSection({
                 })}
               </div>
 
-              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <div className="flex flex-col gap-3 @lg/panel:flex-row @lg/panel:items-center @lg/panel:justify-between">
                 <p className="text-sm text-muted-foreground">
                   Showing {rangeStart}–{rangeEnd} of {cappedTasks.length}
                   {sortedTasks.length > cappedTasks.length
@@ -445,6 +451,7 @@ export function ClassTasksSection({
           description={`All tasks for ${className}.`}
           storageKey={COLLAPSIBLE_SECTION_STORAGE_KEYS.CLASS_DETAILS_TASKS}
           defaultOpen
+          collapsible={collapsible}
           action={createActions}
         >
           {tasks.length === 0 ? (
@@ -461,6 +468,7 @@ export function ClassTasksSection({
             <table className="w-full min-w-[860px] text-sm">
               <thead>
                 <tr className="border-b bg-muted/40 text-left">
+                  <th className="w-12 px-4 py-3 font-medium">#</th>
                   <th className="px-4 py-3 font-medium">Title</th>
                   <th className="px-4 py-3 font-medium">Period (days)</th>
                   <th className="px-4 py-3 font-medium">Description</th>
@@ -470,11 +478,14 @@ export function ClassTasksSection({
                 </tr>
               </thead>
               <tbody>
-                  {tasks.map((task) => (
+                  {tasks.map((task, index) => (
                     <tr
                       key={task.id}
                       className="border-b last:border-b-0 transition-colors duration-150 hover:bg-primary/8"
                     >
+                      <td className="px-4 py-3 text-muted-foreground tabular-nums">
+                        {index + 1}
+                      </td>
                       <td className="max-w-[12rem] px-4 py-3">
                         <Link
                           href={
@@ -516,7 +527,10 @@ export function ClassTasksSection({
                         {formatDateCell(task.due_date)}
                       </td>
                       <td className="whitespace-nowrap px-4 py-3 tabular-nums">
-                        {task.max_grade ?? "—"}
+                        {formatTaskMaxGrade({
+                          maxGrade: task.max_grade,
+                          isYesNo: task.is_yes_no,
+                        })}
                       </td>
                     </tr>
                   ))}

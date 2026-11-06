@@ -5,7 +5,6 @@ import {
   emailField,
   fullNameField,
   phoneField,
-  usernameField,
 } from "@/lib/validators/auth/fields";
 import {
   addOptionalPasswordPairIssues,
@@ -15,7 +14,6 @@ import {
 
 export const createStudentSchema = z
   .object({
-    username: usernameField,
     fullName: fullNameField,
     email: emailField,
     password: optionalPasswordInput,
@@ -46,7 +44,6 @@ export function resolveCreateStudentInput(
   );
 
   return {
-    username: data.username,
     fullName: data.fullName,
     email: data.email,
     password,
@@ -58,7 +55,6 @@ export function resolveCreateStudentInput(
 
 export function parseCreateStudentFormData(formData: FormData) {
   const parsed = safeParseFormData(createStudentSchema, {
-    username: formData.get("username"),
     fullName: formData.get("fullName"),
     email: formData.get("email"),
     password: formData.get("password") ?? "",

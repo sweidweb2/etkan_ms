@@ -31,6 +31,7 @@ import { NotificationDetailsDialog } from "@/components/manager/notifications/no
 import { NotificationCategoryBadge } from "@/components/manager/notifications/notification-category-badge";
 import { NotificationPriorityBadge } from "@/components/manager/notifications/notification-priority-badge";
 import { InlineSpinner } from "@/components/loaders/inline-spinner";
+import { PanelPageHeader } from "@/components/panels/panel-page-header";
 import { useActionStateSuccess } from "@/hooks/use-action-state-success";
 import { useActionStateToast } from "@/hooks/use-action-state-toast";
 import { usePendingAwareOpenChange } from "@/hooks/use-pending-aware-open-change";
@@ -387,13 +388,8 @@ export function ManageNotificationsPanel({
 
   return (
     <div className="flex flex-col gap-6">
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-        <div>
-          <h1 className="text-2xl font-semibold tracking-tight">Notifications</h1>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Review school updates, alerts, and system messages.
-          </p>
-        </div>
+      <PanelPageHeader title="Notifications" />
+      <div className="flex flex-wrap items-center justify-end gap-2 empty:hidden">
         <Can permission={PERMISSIONS.NOTIFICATIONS_CREATE}>
           <Button type="button" onClick={() => setIsCreateOpen(true)}>
             <PlusIcon data-icon="inline-start" />
@@ -467,7 +463,7 @@ export function ManageNotificationsPanel({
         </DialogContent>
       </Dialog>
 
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+      <div className="grid gap-4 @lg/panel:grid-cols-2 @4xl/panel:grid-cols-3">
         <UserStatCard
           label="Total notifications"
           value={stats.total}
@@ -507,7 +503,7 @@ export function ManageNotificationsPanel({
           </CardAction>
         </CardHeader>
         <CardContent className="px-0 pb-0">
-          <div className="flex flex-col gap-3 border-b px-4 pt-2 pb-3 sm:flex-row sm:items-center">
+          <div className="flex flex-col gap-3 border-b px-4 pt-2 pb-3 @lg/panel:flex-row @lg/panel:items-center">
             <div className="relative min-w-0 flex-1">
               <SearchIcon className="pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-muted-foreground" />
               <Input
@@ -520,7 +516,7 @@ export function ManageNotificationsPanel({
             </div>
             <Select value={readFilter} onValueChange={handleReadFilterChange}>
               <SelectTrigger
-                className="w-full sm:w-36"
+                className="w-full @lg/panel:w-36"
                 aria-label="Filter by read status"
               >
                 <SelectValue placeholder="All statuses" />
@@ -533,7 +529,7 @@ export function ManageNotificationsPanel({
             </Select>
             <Select value={categoryFilter} onValueChange={handleCategoryFilterChange}>
               <SelectTrigger
-                className="w-full sm:w-40"
+                className="w-full @lg/panel:w-40"
                 aria-label="Filter by category"
               >
                 <SelectValue placeholder="All categories" />
@@ -685,7 +681,7 @@ export function ManageNotificationsPanel({
             </div>
           )}
 
-          <div className="flex flex-col gap-3 border-t px-4 pt-2 pb-3 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex flex-col gap-3 border-t px-4 pt-2 pb-3 @lg/panel:flex-row @lg/panel:items-center @lg/panel:justify-between">
             <div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
               <span>
                 Showing {rangeStart}–{rangeEnd} of {total}

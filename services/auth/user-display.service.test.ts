@@ -59,7 +59,7 @@ describe("resolveDisplayName", () => {
     expect(profileRepository.findProfileById).not.toHaveBeenCalled();
   });
 
-  it("falls back to username then email prefix", async () => {
+  it("falls back to profile full name then email prefix", async () => {
     vi.mocked(studentProfileRepository.findStudentProfileByUserId).mockResolvedValue(
       {
         data: null,
@@ -69,14 +69,16 @@ describe("resolveDisplayName", () => {
     vi.mocked(profileRepository.findProfileById).mockResolvedValue({
       data: {
         id: "user-1",
-        username: "jane_d",
+        full_name: "Jane Profile",
         role: "student",
         created_at: "2026-01-01",
       },
       error: null,
     });
 
-    await expect(resolveDisplayName(client, authUser())).resolves.toBe("jane_d");
+    await expect(resolveDisplayName(client, authUser())).resolves.toBe(
+      "Jane Profile"
+    );
   });
 
   it("uses email prefix when nothing else is available", async () => {

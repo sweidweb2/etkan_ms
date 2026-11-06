@@ -245,7 +245,7 @@ export function WorkshopPaymentsSection({
         }
       >
         <div className="flex flex-col gap-4 px-3 py-4 sm:px-4">
-          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          <div className="grid gap-3 @lg/panel:grid-cols-2 @2xl/panel:grid-cols-4">
             <UserStatCard
               label="Credits"
               value={formatPaymentPhaseMoney(summary.credits)}

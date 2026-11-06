@@ -7,6 +7,7 @@ import {
   ResetUserPasswordSectionFallback,
 } from "@/components/manager/settings/reset-user-password-section-deferred";
 import { SelfCredentialsSection } from "@/components/manager/settings/self-credentials-section";
+import { PanelPageHeader } from "@/components/panels/panel-page-header";
 import { getSessionUser } from "@/lib/auth/session";
 import {
   navPageTimingBeacon,
@@ -31,15 +32,15 @@ export default async function ManagerSettingsPage() {
     <>
       {await navPageTimingBeacon()}
       <div className="flex flex-col gap-4">
-        <h1 className="text-2xl font-semibold tracking-tight">Settings</h1>
-        <div className="grid items-start gap-4 lg:grid-cols-2">
+        <PanelPageHeader title="Settings" />
+        <div className="grid items-start gap-4 @2xl/panel:grid-cols-2">
           <div className="flex flex-col gap-4">
             <MaintenanceModeSection initialEnabled={maintenanceMode} />
             <CronJobsSettingsSection />
           </div>
           <SelfCredentialsSection />
         </div>
-        <div className="grid items-start gap-4 lg:grid-cols-2">
+        <div className="grid items-start gap-4 @2xl/panel:grid-cols-2">
           <ResetPasswordsByRoleSection />
           <Suspense fallback={<ResetUserPasswordSectionFallback />}>
             <ResetUserPasswordSectionDeferred

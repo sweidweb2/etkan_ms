@@ -1,5 +1,6 @@
 import "server-only";
 
+import { cache } from "react";
 import { createClient } from "@supabase/supabase-js";
 import type { Database } from "@/types/supabase";
 
@@ -19,3 +20,9 @@ export function createSupabaseAdminClient() {
     auth: { persistSession: false },
   });
 }
+
+/**
+ * One admin client per RSC request. Loaders wrapped in React `cache()` key on
+ * the client, so sibling Suspense sections must share this instance to dedupe.
+ */
+export const getRequestAdminClient = cache(createSupabaseAdminClient);

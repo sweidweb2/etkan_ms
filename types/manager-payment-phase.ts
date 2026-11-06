@@ -92,6 +92,12 @@ export type ManagerSppRow = {
   created_at: string;
   /** Active Month paid overlay; null when missing or expired. */
   current_clearance: ManagerSppClearanceDto | null;
+  /** Drop-semester overlays (display only). */
+  drop_pending?: boolean;
+  drop_dropped?: boolean;
+  drop_done_paid?: boolean;
+  drop_refund_owed?: boolean;
+  drop_request_id?: string | null;
 };
 
 export type CreatePaymentPhaseActionState = {

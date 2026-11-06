@@ -24,6 +24,7 @@ import {
 import { SESSION_STUDENT_TASK_TABLE_LIMITS } from "@/lib/constants/manager-class-session-detail-display";
 import { PERMISSIONS } from "@/lib/constants/permissions";
 import { getManagerStudentDetailRoute } from "@/lib/constants/routes";
+import { formatYesNoGrade } from "@/lib/format/format-task-grade";
 import { cn } from "@/lib/utils";
 import { truncateText } from "@/lib/utils/truncate-text";
 import type {
@@ -127,6 +128,7 @@ export function SessionTaskStudentTasksSection({
           }}
           studentTask={selectedStudentTask}
           maxGrade={task.max_grade}
+          isYesNo={task.is_yes_no}
           dueDate={task.due_date}
           onUpdateStudentTask={handleUpdateStudentTask}
           readOnly={selectedTaskLocked}
@@ -183,7 +185,9 @@ export function SessionTaskStudentTasksSection({
                         <StudentTaskStatusBadge status={studentTask.status} />
                       </td>
                       <td className="whitespace-nowrap px-4 py-3 tabular-nums">
-                        {studentTask.grade ?? "—"}
+                        {task.is_yes_no
+                          ? formatYesNoGrade(studentTask.grade)
+                          : (studentTask.grade ?? "—")}
                       </td>
                       <td className="whitespace-nowrap px-4 py-3 text-muted-foreground">
                         {formatDateTimeCell(studentTask.submitted_at)}

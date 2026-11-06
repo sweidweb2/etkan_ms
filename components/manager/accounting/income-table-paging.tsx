@@ -78,7 +78,7 @@ export function IncomeTablePagination({
   const to = Math.min(safeCurrentPage * pageSize, totalCount);
 
   return (
-    <div className="flex flex-col gap-3 border-t px-4 pt-2 pb-3 sm:flex-row sm:items-center sm:justify-between">
+    <div className="flex flex-col gap-3 border-t px-4 pt-2 pb-3 @lg/panel:flex-row @lg/panel:items-center @lg/panel:justify-between">
       <div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
         <span>
           Showing {from}–{to} of {totalCount}

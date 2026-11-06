@@ -5,7 +5,6 @@ import * as authRepository from "@/repositories/auth.repository";
 import * as classRepository from "@/repositories/class.repository";
 import * as classTeacherRepository from "@/repositories/class-teacher.repository";
 import * as finalExamRepository from "@/repositories/final-exam.repository";
-import * as profileRepository from "@/repositories/profile.repository";
 import * as sessionRepository from "@/repositories/session.repository";
 import * as studentClassRepository from "@/repositories/student-class.repository";
 import * as studentProfileRepository from "@/repositories/student-profile.repository";
@@ -117,10 +116,6 @@ describe("addStudentsToClassForManager", () => {
       finalExamRepository.ensureEnrollmentFinalExamGrades
     ).mockResolvedValue({
       data: [],
-      error: null,
-    } as never);
-    vi.mocked(profileRepository.listProfilesByIds).mockResolvedValue({
-      data: [{ id: aliceUserId, username: "alice" }],
       error: null,
     } as never);
     vi.mocked(authRepository.listAuthEmailsByIds).mockResolvedValue({

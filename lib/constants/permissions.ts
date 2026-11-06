@@ -20,7 +20,6 @@ export const PERMISSION_FEATURES = [
   "students",
   "subjects",
   "instructors",
-  "mentors",
   "classes",
   "sessions",
   "attendance",
@@ -28,7 +27,6 @@ export const PERMISSION_FEATURES = [
   "final_exams",
   "grades",
   "semesters",
-  "equipment",
   "gallery",
   "projects",
   "blogs",
@@ -41,7 +39,6 @@ export const PERMISSION_FEATURES = [
   "payment_schedules",
   "backup",
   "logs",
-  "cloudflare_ai_usage",
   "registrations",
   "guests",
   "teams",
@@ -58,7 +55,6 @@ export const PERMISSION_FEATURE_LABELS: Record<PermissionFeature, string> = {
   students: "Students",
   subjects: "Subjects",
   instructors: "Instructors",
-  mentors: "Mentors",
   classes: "Classes",
   sessions: "Sessions",
   attendance: "Attendance",
@@ -66,7 +62,6 @@ export const PERMISSION_FEATURE_LABELS: Record<PermissionFeature, string> = {
   final_exams: "Final Exams",
   grades: "Grades",
   semesters: "Semesters",
-  equipment: "Equipment",
   gallery: "Gallery",
   projects: "Projects",
   blogs: "Blogs",
@@ -79,7 +74,6 @@ export const PERMISSION_FEATURE_LABELS: Record<PermissionFeature, string> = {
   payment_schedules: "Payment schedules",
   backup: "Backup",
   logs: "Logs",
-  cloudflare_ai_usage: "Cloudflare AI usage",
   registrations: "Registrations",
   guests: "Guests",
   teams: "Teams",
@@ -99,8 +93,10 @@ export const PERMISSIONS = {
   STUDENTS_VIEW: "students.view",
   STUDENTS_VIEW_OWN: "students.view_own",
   STUDENTS_UPDATE_OWN: "students.update_own",
+  STUDENTS_UPDATE_OWN_AVATAR: "students.update_own_avatar",
   STUDENTS_CREATE: "students.create",
   STUDENTS_UPDATE: "students.update",
+  STUDENTS_UPDATE_AVATAR: "students.update_avatar",
   STUDENTS_CHANGE_STATUS: "students.change_status",
   SUBJECTS_VIEW: "subjects.view",
   SUBJECTS_CREATE: "subjects.create",
@@ -127,14 +123,6 @@ export const PERMISSIONS = {
   INSTRUCTORS_SUBJECTS_UPDATE: "instructors.subjects.update",
   INSTRUCTORS_SUBJECTS_DELETE: "instructors.subjects.delete",
 
-  MENTORS_VIEW: "mentors.view",
-  MENTORS_CREATE: "mentors.create",
-  MENTORS_DELETE: "mentors.delete",
-  MENTORS_CAPABILITIES_UPDATE: "mentors.capabilities.update",
-  MENTORS_SUBJECTS_CREATE: "mentors.subjects.create",
-  MENTORS_SUBJECTS_UPDATE: "mentors.subjects.update",
-  MENTORS_SUBJECTS_DELETE: "mentors.subjects.delete",
-
   CLASSES_VIEW: "classes.view",
   CLASSES_CREATE: "classes.create",
   CLASSES_UPDATE: "classes.update",
@@ -144,6 +132,7 @@ export const PERMISSIONS = {
   CLASSES_ADD_STUDENT: "classes.add_student",
   CLASSES_COPY_STUDENTS_FROM_CLASS: "classes.copy_students_from_class",
   CLASSES_REMOVE_STUDENT: "classes.remove_student",
+  CLASSES_DROP_SEMESTER: "classes.drop_semester",
   CLASSES_VIEW_ANALYTICS: "classes.view_analytics",
 
   SESSIONS_VIEW: "sessions.view",
@@ -151,6 +140,7 @@ export const PERMISSIONS = {
   SESSIONS_UPDATE: "sessions.update",
   SESSIONS_DELETE: "sessions.delete",
   SESSIONS_UPDATE_SETTINGS: "sessions.update_settings",
+  SESSIONS_SKIP: "sessions.skip",
 
   ATTENDANCE_VIEW: "attendance.view",
   ATTENDANCE_UPDATE: "attendance.update",
@@ -180,15 +170,6 @@ export const PERMISSIONS = {
   SEMESTERS_VIEW: "semesters.view",
   SEMESTERS_CREATE: "semesters.create",
   SEMESTERS_UPDATE: "semesters.update",
-
-  EQUIPMENT_VIEW: "equipment.view",
-  EQUIPMENT_CREATE: "equipment.create",
-  EQUIPMENT_UPDATE: "equipment.update",
-  EQUIPMENT_VIEW_BORROWS: "equipment.view_borrows",
-  EQUIPMENT_VIEW_OWN_BORROWS: "equipment.view_own_borrows",
-  EQUIPMENT_BORROW_CREATE: "equipment.borrow_create",
-  EQUIPMENT_BORROW_UPDATE: "equipment.borrow_update",
-  EQUIPMENT_BORROW_RETURN: "equipment.borrow_return",
 
   GALLERY_VIEW: "gallery.view",
   GALLERY_CREATE: "gallery.create",
@@ -256,6 +237,7 @@ export const PERMISSIONS = {
   ACCOUNTING_PAYMENTS_CREATE: "accounting.payments.create",
   ACCOUNTING_PAYMENTS_UPDATE: "accounting.payments.update",
   ACCOUNTING_PAYMENTS_DELETE: "accounting.payments.delete",
+  ACCOUNTING_DROP_REFUNDS_PROCESS: "accounting.drop_refunds.process",
   ACCOUNTING_ADJUSTMENTS_CREATE: "accounting.adjustments.create",
   ACCOUNTING_ADJUSTMENTS_UPDATE: "accounting.adjustments.update",
   ACCOUNTING_ADJUSTMENTS_DELETE: "accounting.adjustments.delete",
@@ -278,8 +260,7 @@ export const PERMISSIONS = {
   BACKUP_DOWNLOAD: "backup.download",
 
   LOGS_VIEW: "logs.view",
-
-  CLOUDFLARE_AI_USAGE_VIEW: "cloudflare_ai_usage.view",
+  LOGS_DELETE: "logs.delete",
 
   REGISTRATIONS_VIEW: "registrations.view",
   REGISTRATIONS_UPDATE_STATUS: "registrations.update_status",
@@ -367,6 +348,12 @@ export const PERMISSION_DEFINITIONS: readonly PermissionDefinition[] = [
     access: PERMISSION_ACCESS.WRITE,
   },
   {
+    key: PERMISSIONS.STUDENTS_UPDATE_OWN_AVATAR,
+    feature: "students",
+    label: "Upload or remove own profile photo",
+    access: PERMISSION_ACCESS.WRITE,
+  },
+  {
     key: PERMISSIONS.STUDENTS_CREATE,
     feature: "students",
     label: "Create student",
@@ -376,6 +363,12 @@ export const PERMISSION_DEFINITIONS: readonly PermissionDefinition[] = [
     key: PERMISSIONS.STUDENTS_UPDATE,
     feature: "students",
     label: "Edit student",
+    access: PERMISSION_ACCESS.WRITE,
+  },
+  {
+    key: PERMISSIONS.STUDENTS_UPDATE_AVATAR,
+    feature: "students",
+    label: "Upload or remove a student's profile photo",
     access: PERMISSION_ACCESS.WRITE,
   },
   {
@@ -526,49 +519,6 @@ export const PERMISSION_DEFINITIONS: readonly PermissionDefinition[] = [
   },
 
   {
-    key: PERMISSIONS.MENTORS_VIEW,
-    feature: "mentors",
-    label: "View mentors",
-    access: PERMISSION_ACCESS.READ,
-  },
-  {
-    key: PERMISSIONS.MENTORS_CREATE,
-    feature: "mentors",
-    label: "Add mentors",
-    access: PERMISSION_ACCESS.WRITE,
-  },
-  {
-    key: PERMISSIONS.MENTORS_DELETE,
-    feature: "mentors",
-    label: "Remove mentors",
-    access: PERMISSION_ACCESS.WRITE,
-  },
-  {
-    key: PERMISSIONS.MENTORS_CAPABILITIES_UPDATE,
-    feature: "mentors",
-    label: "Update mentor subject capabilities",
-    access: PERMISSION_ACCESS.WRITE,
-  },
-  {
-    key: PERMISSIONS.MENTORS_SUBJECTS_CREATE,
-    feature: "mentors",
-    label: "Create mentor subjects",
-    access: PERMISSION_ACCESS.WRITE,
-  },
-  {
-    key: PERMISSIONS.MENTORS_SUBJECTS_UPDATE,
-    feature: "mentors",
-    label: "Update mentor subjects",
-    access: PERMISSION_ACCESS.WRITE,
-  },
-  {
-    key: PERMISSIONS.MENTORS_SUBJECTS_DELETE,
-    feature: "mentors",
-    label: "Delete mentor subjects",
-    access: PERMISSION_ACCESS.WRITE,
-  },
-
-  {
     key: PERMISSIONS.CLASSES_VIEW,
     feature: "classes",
     label: "View classes",
@@ -623,6 +573,12 @@ export const PERMISSION_DEFINITIONS: readonly PermissionDefinition[] = [
     access: PERMISSION_ACCESS.WRITE,
   },
   {
+    key: PERMISSIONS.CLASSES_DROP_SEMESTER,
+    feature: "classes",
+    label: "Drop semester for class student",
+    access: PERMISSION_ACCESS.WRITE,
+  },
+  {
     key: PERMISSIONS.CLASSES_VIEW_ANALYTICS,
     feature: "classes",
     label: "View class analytics",
@@ -657,6 +613,12 @@ export const PERMISSION_DEFINITIONS: readonly PermissionDefinition[] = [
     key: PERMISSIONS.SESSIONS_UPDATE_SETTINGS,
     feature: "sessions",
     label: "Update session settings",
+    access: PERMISSION_ACCESS.WRITE,
+  },
+  {
+    key: PERMISSIONS.SESSIONS_SKIP,
+    feature: "sessions",
+    label: "Skip class week",
     access: PERMISSION_ACCESS.WRITE,
   },
 
@@ -806,55 +768,6 @@ export const PERMISSION_DEFINITIONS: readonly PermissionDefinition[] = [
     key: PERMISSIONS.SEMESTERS_UPDATE,
     feature: "semesters",
     label: "Edit semester",
-    access: PERMISSION_ACCESS.WRITE,
-  },
-
-  {
-    key: PERMISSIONS.EQUIPMENT_VIEW,
-    feature: "equipment",
-    label: "View equipment",
-    access: PERMISSION_ACCESS.READ,
-  },
-  {
-    key: PERMISSIONS.EQUIPMENT_CREATE,
-    feature: "equipment",
-    label: "Create equipment",
-    access: PERMISSION_ACCESS.WRITE,
-  },
-  {
-    key: PERMISSIONS.EQUIPMENT_UPDATE,
-    feature: "equipment",
-    label: "Edit equipment",
-    access: PERMISSION_ACCESS.WRITE,
-  },
-  {
-    key: PERMISSIONS.EQUIPMENT_VIEW_BORROWS,
-    feature: "equipment",
-    label: "View borrow history",
-    access: PERMISSION_ACCESS.READ,
-  },
-  {
-    key: PERMISSIONS.EQUIPMENT_VIEW_OWN_BORROWS,
-    feature: "equipment",
-    label: "View own borrow history",
-    access: PERMISSION_ACCESS.READ,
-  },
-  {
-    key: PERMISSIONS.EQUIPMENT_BORROW_CREATE,
-    feature: "equipment",
-    label: "Create borrow",
-    access: PERMISSION_ACCESS.WRITE,
-  },
-  {
-    key: PERMISSIONS.EQUIPMENT_BORROW_UPDATE,
-    feature: "equipment",
-    label: "Edit borrow",
-    access: PERMISSION_ACCESS.WRITE,
-  },
-  {
-    key: PERMISSIONS.EQUIPMENT_BORROW_RETURN,
-    feature: "equipment",
-    label: "Mark borrow returned / not returned",
     access: PERMISSION_ACCESS.WRITE,
   },
 
@@ -1214,6 +1127,12 @@ export const PERMISSION_DEFINITIONS: readonly PermissionDefinition[] = [
     access: PERMISSION_ACCESS.WRITE,
   },
   {
+    key: PERMISSIONS.ACCOUNTING_DROP_REFUNDS_PROCESS,
+    feature: "accounting",
+    label: "Process drop semester refund",
+    access: PERMISSION_ACCESS.WRITE,
+  },
+  {
     key: PERMISSIONS.ACCOUNTING_ADJUSTMENTS_CREATE,
     feature: "accounting",
     label: "Create financial adjustment",
@@ -1330,12 +1249,11 @@ export const PERMISSION_DEFINITIONS: readonly PermissionDefinition[] = [
     label: "View audit logs",
     access: PERMISSION_ACCESS.READ,
   },
-
   {
-    key: PERMISSIONS.CLOUDFLARE_AI_USAGE_VIEW,
-    feature: "cloudflare_ai_usage",
-    label: "View Cloudflare AI usage logs",
-    access: PERMISSION_ACCESS.READ,
+    key: PERMISSIONS.LOGS_DELETE,
+    feature: "logs",
+    label: "Delete audit logs",
+    access: PERMISSION_ACCESS.WRITE,
   },
 
   {

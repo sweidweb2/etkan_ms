@@ -92,7 +92,7 @@ export function StudentTaskWorkspace({
           />
         </div>
       ) : (
-        <div className="flex min-h-[28rem] flex-col lg:flex-row">
+        <div className="flex min-h-[28rem] flex-col @2xl/panel:flex-row">
           <StudentTaskList
             students={sortedStudentTasks}
             selectedId={resolvedSelectedId}
@@ -120,6 +120,7 @@ export function StudentTaskWorkspace({
                   key={selectedStudentTask.id}
                   studentTask={selectedStudentTask}
                   maxGrade={task.max_grade}
+                  isYesNo={task.is_yes_no}
                   dueDate={task.due_date}
                   readOnly={selectedLocked}
                   onUpdateStudentTask={handleUpdateStudentTask}

@@ -84,7 +84,7 @@ export function SemesterDetailsPanel({
           </Can>
         </CardHeader>
         <CardContent className="pt-2 pb-4">
-          <dl className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+          <dl className="grid gap-6 @lg/panel:grid-cols-2 @2xl/panel:grid-cols-3">
             <DetailField label="Semester code" value={semester.semester_code} />
             <DetailField label="Created" value={createdText} />
           </dl>

@@ -37,7 +37,7 @@ const SETTINGS_NAV = [
   {
     value: SECTIONS.MY_INFO,
     label: "My info",
-    description: "Name, username, email, password",
+    description: "Name, email, password",
     icon: UserIcon,
   },
   {

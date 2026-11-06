@@ -8,6 +8,7 @@ import {
 } from "@/app/manager/subjects/actions";
 import { FieldLabel } from "@/components/auth/field-label";
 import { InlineSpinner } from "@/components/loaders/inline-spinner";
+import { TaskYesNoField } from "@/components/manager/shared/task-yes-no-field";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -21,6 +22,10 @@ import { Input } from "@/components/ui/input";
 import { useActionStateSuccess } from "@/hooks/use-action-state-success";
 import { useActionStateToast } from "@/hooks/use-action-state-toast";
 import { usePendingAwareOpenChange } from "@/hooks/use-pending-aware-open-change";
+import {
+  serializeTaskMaxGrade,
+  useTaskYesNoToggle,
+} from "@/hooks/use-task-yes-no-toggle";
 import { useZodForm } from "@/hooks/use-zod-form";
 import {
   subjectTaskFieldsSchema,
@@ -56,6 +61,7 @@ function getDefaultValues(
     description: task?.description ?? "",
     period: task?.period ?? DEFAULT_PERIOD_DAYS,
     max_grade: task ? (task.max_grade ?? "") : DEFAULT_MAX_GRADE,
+    is_yes_no: task?.is_yes_no ?? false,
     sort_order: task?.sort_order ?? nextSortOrder,
   };
 }
@@ -90,11 +96,22 @@ export function SubjectTaskFormDialog({
     register,
     handleSubmit,
     reset,
+    watch,
+    setValue,
+    getValues,
     formState: { errors },
   } = useZodForm({
     schema: subjectTaskFieldsSchema,
     mode: "onBlur",
     defaultValues: getDefaultValues(task, nextSortOrder),
+  });
+  const isYesNo = Boolean(watch("is_yes_no"));
+  const { onYesNoChange, resetYesNoToggle } = useTaskYesNoToggle({
+    getMaxGrade: () => getValues("max_grade"),
+    setMaxGrade: (value) =>
+      setValue("max_grade", value, { shouldValidate: true }),
+    setIsYesNo: (value) =>
+      setValue("is_yes_no", value, { shouldDirty: true }),
   });
 
   useEffect(() => {
@@ -103,7 +120,8 @@ export function SubjectTaskFormDialog({
     }
 
     reset(getDefaultValues(task, nextSortOrder));
-  }, [open, task, nextSortOrder, reset]);
+    resetYesNoToggle();
+  }, [open, task, nextSortOrder, reset, resetYesNoToggle]);
 
   useActionStateSuccess(
     state,
@@ -124,6 +142,7 @@ export function SubjectTaskFormDialog({
     description?: string;
     period: number;
     max_grade?: "" | number;
+    is_yes_no?: boolean;
     sort_order: number;
   }) {
     const formData = new FormData();
@@ -135,11 +154,10 @@ export function SubjectTaskFormDialog({
     formData.set("description", values.description ?? "");
     formData.set("period", String(values.period));
     formData.set("sort_order", String(values.sort_order));
+    formData.set("is_yes_no", values.is_yes_no ? "true" : "false");
     formData.set(
       "max_grade",
-      values.max_grade === undefined || values.max_grade === ""
-        ? ""
-        : String(values.max_grade)
+      serializeTaskMaxGrade(values.max_grade, values.is_yes_no)
     );
 
     startTransition(() => {
@@ -216,6 +234,13 @@ export function SubjectTaskFormDialog({
             ) : null}
           </div>
 
+          <TaskYesNoField
+            id={`${idPrefix}-yes-no`}
+            checked={isYesNo}
+            onCheckedChange={onYesNoChange}
+            disabled={isPending}
+          />
+
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="flex flex-col gap-2">
               <FieldLabel
@@ -237,26 +262,28 @@ export function SubjectTaskFormDialog({
               ) : null}
             </div>
 
-            <div className="flex flex-col gap-2">
-              <FieldLabel
-                htmlFor={`${idPrefix}-max-grade`}
-                label="Max grade"
-                hint="Optional"
-              />
-              <Input
-                id={`${idPrefix}-max-grade`}
-                type="number"
-                min={0}
-                max={999}
-                step={0.5}
-                aria-invalid={!!maxGradeError}
-                disabled={isPending}
-                {...register("max_grade")}
-              />
-              {maxGradeError ? (
-                <p className="text-sm text-destructive">{maxGradeError}</p>
-              ) : null}
-            </div>
+            {isYesNo ? null : (
+              <div className="flex flex-col gap-2">
+                <FieldLabel
+                  htmlFor={`${idPrefix}-max-grade`}
+                  label="Max grade"
+                  hint="Optional"
+                />
+                <Input
+                  id={`${idPrefix}-max-grade`}
+                  type="number"
+                  min={0}
+                  max={999}
+                  step={0.5}
+                  aria-invalid={!!maxGradeError}
+                  disabled={isPending}
+                  {...register("max_grade")}
+                />
+                {maxGradeError ? (
+                  <p className="text-sm text-destructive">{maxGradeError}</p>
+                ) : null}
+              </div>
+            )}
           </div>
         </form>
 

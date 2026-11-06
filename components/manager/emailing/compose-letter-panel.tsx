@@ -21,6 +21,7 @@ import {
 import { TiptapEmailEditor } from "@/components/manager/emailing/tiptap-email-editor";
 import { FieldLabel } from "@/components/auth/field-label";
 import { InlineSpinner } from "@/components/loaders/inline-spinner";
+import { PanelPageHeader } from "@/components/panels/panel-page-header";
 import { Button, buttonVariants } from "@/components/ui/button";
 import {
   Card,
@@ -61,7 +62,6 @@ function emptyComposeValues(): SendEmailInput {
     toEmails: [],
     bodyHtml: undefined,
     account_email: undefined,
-    username: undefined,
     temporary_password: undefined,
     title: undefined,
     body: undefined,
@@ -195,26 +195,18 @@ export function ComposeLetterPanel() {
 
   return (
     <div className="flex flex-col gap-6">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <Link
-            href={ROUTES.MANAGER_EMAILING}
-            className={cn(
-              buttonVariants({ variant: "ghost", size: "sm" }),
-              "-ms-2 mb-1 inline-flex"
-            )}
-          >
-            <ArrowLeftIcon data-icon="inline-start" />
-            Back to emailing
-          </Link>
-          <h1 className="text-2xl font-semibold tracking-tight">
-            Compose letter
-          </h1>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Gmail-style compose with rich text. Sends as an Etkan administrative
-            circular.
-          </p>
-        </div>
+      <PanelPageHeader title="Compose letter" />
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <Link
+          href={ROUTES.MANAGER_EMAILING}
+          className={cn(
+            buttonVariants({ variant: "ghost", size: "sm" }),
+            "-ms-2 mb-1 inline-flex"
+          )}
+        >
+          <ArrowLeftIcon data-icon="inline-start" />
+          Back to emailing
+        </Link>
         <Can permission={PERMISSIONS.EMAILING_SEND}>
           <Button
             type="submit"
@@ -256,7 +248,7 @@ export function ComposeLetterPanel() {
               ) : null}
             </div>
 
-            <div className="grid gap-4 sm:grid-cols-[1fr_11rem]">
+            <div className="grid gap-4 @lg/panel:grid-cols-[1fr_11rem]">
               <div className="flex flex-col gap-2">
                 <FieldLabel
                   htmlFor="compose-subject"

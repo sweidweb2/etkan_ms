@@ -150,7 +150,7 @@ export type SubmitGuestRegistrationStaffActionState = {
 
 export type GuestRegistrationLinkUserOption = {
   id: string;
-  username: string | null;
+  full_name: string;
   email: string;
 };
 

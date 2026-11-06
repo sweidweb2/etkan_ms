@@ -18,6 +18,7 @@ import {
   ResendEmailDialog,
 } from "@/components/manager/emailing/resend-email-dialog";
 import { UserStatCard } from "@/components/manager/users/user-stat-card";
+import { PanelPageHeader } from "@/components/panels/panel-page-header";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -131,13 +132,8 @@ export function ManageSentEmailsPanel({
 
   return (
     <div className="flex flex-col gap-6">
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-        <div>
-          <h1 className="text-2xl font-semibold tracking-tight">Sent emails</h1>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Administrative circulars tracked in email_sent.
-          </p>
-        </div>
+      <PanelPageHeader title="Sent emails" />
+      <div className="flex flex-wrap items-center justify-end gap-2 empty:hidden">
         <Can permission={PERMISSIONS.EMAILING_SEND}>
           <Link
             href={ROUTES.MANAGER_EMAILING_COMPOSE}
@@ -149,7 +145,7 @@ export function ManageSentEmailsPanel({
         </Can>
       </div>
 
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      <div className="grid gap-4 @lg/panel:grid-cols-2 @4xl/panel:grid-cols-4">
         <UserStatCard
           label="Circulars"
           value={stats.total}
@@ -284,7 +280,7 @@ export function ManageSentEmailsPanel({
             </div>
           )}
 
-          <div className="flex flex-col gap-3 border-t px-4 pt-2 pb-3 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex flex-col gap-3 border-t px-4 pt-2 pb-3 @lg/panel:flex-row @lg/panel:items-center @lg/panel:justify-between">
             <p className="text-sm text-muted-foreground">
               Showing {rangeStart}–{rangeEnd} of {filteredEmails.length}
               <span aria-hidden="true"> · </span>

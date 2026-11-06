@@ -68,6 +68,19 @@ export async function listAttendeesBySessionId(
     .order("created_at", { ascending: true });
 }
 
+/** Attendee rows whose status differs from `status` (e.g. the seeded default). */
+export async function countSessionAttendeesNotInStatus(
+  client: Supabase,
+  sessionId: string,
+  status: string
+) {
+  return client
+    .from("attendee")
+    .select("id", { count: "exact", head: true })
+    .eq("session_id", sessionId)
+    .neq("status", status);
+}
+
 export async function listAttendeeIdsByStudentId(
   client: Supabase,
   studentId: string

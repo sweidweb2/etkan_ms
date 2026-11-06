@@ -2,7 +2,6 @@ import { describe, expect, it } from "vitest";
 import { loginSchema, signupSchema } from "@/lib/validators/auth/auth";
 
 const validSignup = {
-  username: "student1",
   fullName: "Jane Doe",
   email: "jane@school.com",
   password: "secret123",
@@ -53,12 +52,15 @@ describe("signupSchema", () => {
     }
   });
 
-  it("rejects invalid usernames", () => {
+  it("rejects a blank full name", () => {
     const result = signupSchema.safeParse({
       ...validSignup,
-      username: "bad username!",
+      fullName: "   ",
     });
     expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(result.error.flatten().fieldErrors.fullName).toBeDefined();
+    }
   });
 
   it("rejects future birth dates", () => {

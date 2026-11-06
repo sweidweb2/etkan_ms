@@ -35,6 +35,7 @@ import {
   type UpdateStudentPaymentInput,
 } from "@/lib/validators/manager/update-student-payment";
 import type {
+  ManagerSppFinancialSnapshot,
   ManagerStudentPaymentRow,
   UpdateStudentPaymentActionState,
 } from "@/types/manager-student-payment";
@@ -45,7 +46,10 @@ type EditStudentPaymentDialogProps = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   payment: ManagerStudentPaymentRow | null;
-  onUpdated: (payment: ManagerStudentPaymentRow) => void;
+  onUpdated: (
+    payment: ManagerStudentPaymentRow,
+    spp: ManagerSppFinancialSnapshot
+  ) => void;
 };
 
 export function EditStudentPaymentDialog({
@@ -110,8 +114,8 @@ export function EditStudentPaymentDialog({
 
   useActionStateSuccess(state, isPending, (nextState) => {
     onOpenChange(false);
-    if (nextState.payment) {
-      onUpdated(nextState.payment);
+    if (nextState.payment && nextState.spp) {
+      onUpdated(nextState.payment, nextState.spp);
     }
   });
 

@@ -59,6 +59,15 @@ export default defineConfig({
       workers: 1,
       use: { ...devices["Desktop Chrome"] },
     },
+    {
+      // Phase 3–4 manager panel (requires manager storageState from setup).
+      name: "manager",
+      dependencies: ["setup"],
+      testMatch: /e2e[\\/]manager[\\/].*\.spec\.ts/,
+      fullyParallel: false,
+      workers: 1,
+      use: { ...devices["Desktop Chrome"] },
+    },
   ],
   webServer: skipWebServer
     ? undefined

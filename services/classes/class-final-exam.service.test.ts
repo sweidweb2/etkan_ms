@@ -7,7 +7,6 @@ import * as authRepository from "@/repositories/auth.repository";
 import * as classRepository from "@/repositories/class.repository";
 import * as classTeacherRepository from "@/repositories/class-teacher.repository";
 import * as finalExamRepository from "@/repositories/final-exam.repository";
-import * as profileRepository from "@/repositories/profile.repository";
 import * as sessionRepository from "@/repositories/session.repository";
 import * as studentClassRepository from "@/repositories/student-class.repository";
 import * as studentCourseGradeRepository from "@/repositories/student-course-grade.repository";
@@ -331,10 +330,6 @@ describe("addStudentToClassForManager final exam grade", () => {
           joined_at: "2026-07-10T12:00:00.000Z",
         },
       },
-      error: null,
-    } as never);
-    vi.mocked(profileRepository.findProfileById).mockResolvedValue({
-      data: { id: studentA, username: "alice" },
       error: null,
     } as never);
     vi.mocked(authRepository.getAuthUserById).mockResolvedValue({

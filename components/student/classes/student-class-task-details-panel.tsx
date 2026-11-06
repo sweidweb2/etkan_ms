@@ -15,6 +15,7 @@ import {
   getStudentClassDetailRoute,
   ROUTES,
 } from "@/lib/constants/routes";
+import { formatTaskGrade } from "@/lib/format/format-task-grade";
 import type { StudentClassTaskDetailForSelf } from "@/types/student-class";
 
 type StudentClassTaskDetailsPanelProps = {
@@ -71,9 +72,12 @@ export function StudentClassTaskDetailsPanel({
           <div className="flex items-baseline gap-1.5">
             <dt className="text-muted-foreground">Grade</dt>
             <dd className="font-medium tabular-nums">
-              {studentTask?.grade == null
-                ? `—/${task.max_grade}`
-                : `${studentTask.grade}/${task.max_grade}`}
+              {formatTaskGrade({
+                grade: studentTask?.grade,
+                maxGrade: task.max_grade,
+                isYesNo: task.is_yes_no,
+                emptyLabel: task.is_yes_no ? "—" : `—/${task.max_grade}`,
+              })}
             </dd>
           </div>
           <div className="flex items-center gap-1.5">

@@ -1,6 +1,7 @@
 import "server-only";
 
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { chunkedIn } from "@/repositories/_shared/chunked-in";
 import type { Database } from "@/types/supabase";
 
 type Supabase = SupabaseClient<Database>;
@@ -123,35 +124,21 @@ export async function countStudentProfilesByStatus(
   return { total: totalResult.count ?? 0, byStatus, error };
 }
 
-/** Students not currently enrolled in any of the given user ids (slim columns). */
-export async function listStudentProfilesExcludingUserIds(
-  client: Supabase,
-  excludeUserIds: string[]
-) {
-  let query = client
-    .from("student_profiles")
-    .select("id, user_id, full_name, phone, status")
-    .order("full_name", { ascending: true });
-
-  if (excludeUserIds.length > 0) {
-    query = query.not("user_id", "in", `(${excludeUserIds.join(",")})`);
-  }
-
-  return query;
+/** Students with no in-progress class membership (DB anti-join, slim columns). */
+export async function listStudentProfilesWithoutActiveClass(client: Supabase) {
+  return client.rpc("list_student_profiles_without_active_class");
 }
 
 export async function listStudentProfilesByUserIds(
   client: Supabase,
   userIds: string[]
 ) {
-  if (userIds.length === 0) {
-    return { data: [], error: null };
-  }
-
-  return client
-    .from("student_profiles")
-    .select("id, user_id, full_name")
-    .in("user_id", userIds);
+  return chunkedIn(userIds, (chunk) =>
+    client
+      .from("student_profiles")
+      .select("id, user_id, full_name")
+      .in("user_id", chunk)
+  );
 }
 
 export async function listStudentProfileDetailsByUserIds(

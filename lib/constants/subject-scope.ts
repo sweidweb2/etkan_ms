@@ -1,19 +1,17 @@
 import { PERMISSIONS } from "@/lib/constants/permissions";
 
 /**
- * Subject catalogs are scoped: instructors and mentors each own an independent
- * catalog and capability matrix backed by their own tables.
+ * Subject catalogs are scoped: each scope owns an independent catalog and
+ * capability matrix backed by its own tables.
  */
 export const SUBJECT_SCOPES = {
   INSTRUCTOR: "instructor",
-  MENTOR: "mentor",
 } as const;
 
 export type SubjectScope = (typeof SUBJECT_SCOPES)[keyof typeof SUBJECT_SCOPES];
 
 export const SUBJECT_SCOPE_VALUES = [
   SUBJECT_SCOPES.INSTRUCTOR,
-  SUBJECT_SCOPES.MENTOR,
 ] as const satisfies readonly SubjectScope[];
 
 export type SubjectScopeCopy = {
@@ -40,15 +38,6 @@ export const SUBJECT_SCOPE_COPY: Record<SubjectScope, SubjectScopeCopy> = {
     personPlural: "Instructors",
     personPluralLower: "instructors",
   },
-  mentor: {
-    subjectSingular: "Mentor subject",
-    subjectPlural: "Mentor subjects",
-    subjectSingularLower: "mentor subject",
-    subjectPluralLower: "mentor subjects",
-    personSingular: "Mentor",
-    personPlural: "Mentors",
-    personPluralLower: "mentors",
-  },
 };
 
 export const SUBJECT_SCOPE_PERMISSIONS = {
@@ -58,13 +47,6 @@ export const SUBJECT_SCOPE_PERMISSIONS = {
     subjectsUpdate: PERMISSIONS.INSTRUCTORS_SUBJECTS_UPDATE,
     subjectsDelete: PERMISSIONS.INSTRUCTORS_SUBJECTS_DELETE,
     capabilitiesUpdate: PERMISSIONS.INSTRUCTORS_CAPABILITIES_UPDATE,
-  },
-  mentor: {
-    view: PERMISSIONS.MENTORS_VIEW,
-    subjectsCreate: PERMISSIONS.MENTORS_SUBJECTS_CREATE,
-    subjectsUpdate: PERMISSIONS.MENTORS_SUBJECTS_UPDATE,
-    subjectsDelete: PERMISSIONS.MENTORS_SUBJECTS_DELETE,
-    capabilitiesUpdate: PERMISSIONS.MENTORS_CAPABILITIES_UPDATE,
   },
 } as const satisfies Record<
   SubjectScope,

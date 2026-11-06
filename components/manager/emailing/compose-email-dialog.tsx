@@ -63,7 +63,7 @@ type ComposeEmailDialogProps = {
 };
 
 function getUserDisplayName(user: ManagerUserRow) {
-  return user.username ?? user.student_full_name ?? "—";
+  return user.full_name || "—";
 }
 
 function emptyFormValues(
@@ -79,7 +79,6 @@ function emptyFormValues(
     toEmails: [],
     bodyHtml: undefined,
     account_email: undefined,
-    username: undefined,
     temporary_password: undefined,
     title: undefined,
     body: undefined,
@@ -172,7 +171,6 @@ export function ComposeEmailDialog({
 
     if (initialTemplateId === "welcome" && target?.mode === "single") {
       defaults.account_email = target.user.email || undefined;
-      defaults.username = target.user.username ?? undefined;
     }
 
     if (initialTemplateId === "welcome" && target?.mode === "external") {
@@ -203,7 +201,6 @@ export function ComposeEmailDialog({
 
     const optionalKeys = [
       "account_email",
-      "username",
       "temporary_password",
       "title",
       "body",
@@ -336,17 +333,6 @@ export function ComposeEmailDialog({
                 disabled={isPending}
                 error={fieldError(errors, state, "account_email")}
                 register={register("account_email")}
-              />
-              <TextField
-                id="username"
-                label="Username"
-                type="text"
-                autoComplete="username"
-                minLength={AUTH_LIMITS.username.min}
-                maxLength={AUTH_LIMITS.username.max}
-                disabled={isPending}
-                error={fieldError(errors, state, "username")}
-                register={register("username")}
               />
               <PasswordField
                 id="temporary_password"

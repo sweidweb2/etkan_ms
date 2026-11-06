@@ -6,6 +6,7 @@ import {
   isStudentWorkPastDue,
   resolveStudentWorkStatusOnSave,
 } from "@/lib/validators/manager/resolve-student-work-status";
+import { isYesNoGradeValue } from "@/lib/validators/manager/task-yes-no";
 import type { FieldErrors } from "@/types/auth";
 
 export const STUDENT_TASK_STATUS_VALUES = [
@@ -16,7 +17,22 @@ export const STUDENT_TASK_STATUS_VALUES = [
   STUDENT_TASK_STATUSES.MISSING,
 ] as const;
 
-function gradeFieldSchema(maxGrade: number | null) {
+function yesNoGradeFieldSchema() {
+  return z
+    .union([
+      z.literal(""),
+      z.coerce.number().refine(isYesNoGradeValue, {
+        message: "Choose Yes or No.",
+      }),
+    ])
+    .optional();
+}
+
+function gradeFieldSchema(maxGrade: number | null, isYesNo = false) {
+  if (isYesNo) {
+    return yesNoGradeFieldSchema();
+  }
+
   const upperBound = maxGrade ?? 999;
   const maxMessage =
     maxGrade === null
@@ -48,14 +64,15 @@ export type ResolveStudentTaskStatusInput<
 
 export function createEditStudentTaskSchema(
   maxGrade: number | null,
-  dueDate?: string | null
+  dueDate?: string | null,
+  options?: { isYesNo?: boolean }
 ) {
   return z
     .object({
       status: z.enum(STUDENT_TASK_STATUS_VALUES, {
         message: "Status is required.",
       }),
-      grade: gradeFieldSchema(maxGrade),
+      grade: gradeFieldSchema(maxGrade, options?.isYesNo ?? false),
       notes: z
         .string()
         .trim()

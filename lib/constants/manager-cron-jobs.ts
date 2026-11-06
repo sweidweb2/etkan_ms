@@ -36,19 +36,21 @@ export const MANAGER_CRON_JOBS: ManagerCronJobRow[] = [
     frequency: CRON_JOB_FREQUENCIES.DAILY,
     status: CRON_JOB_STATUSES.ACTIVE,
     summary:
-      "Create the next weekly session for in-progress classes that are overdue.",
+      "Create the next weekly session (2 days ahead) for in-progress classes, honoring skipped weeks.",
     description:
-      "At Lebanon midnight, finds in-progress classes whose latest session starts_at is more than 6.5 days ago, then creates at most one new session per class: starts_at = last starts_at + 7 days, ends_at = starts_at + 7 days, topic S{nb_order}, same semester_id, and seeds attendee rows for current members. Also inserts a manager academic notification (inbox only, suppress_live_toast) linking to the new session. Skips classes with no sessions and classes that already have computed course grades (same lock as manual session create). Scheduled at 21:00 and 22:00 UTC with an Asia/Beirut hour gate so DST offsets still hit local midnight once.",
+      "At Lebanon midnight, for each in-progress class calls create_next_weekly_session_for_class: the next slot is the latest session starts_at + 7 days, moved forward a week at a time while that Beirut date is in class_session_skips or the slot is more than a day in the past (no back-dating). The session is created only when the slot starts within 2 days, so teachers see it and can skip it beforehand. At most one session per class per run: ends_at = starts_at + 7 days, topic S{nb_order}, same semester_id, attendee rows seeded, and a manager academic notification (inbox only). Stops once the class has the subject's nb_sessions. Classes with no sessions get a one-time manager notice to create the first session; classes that reached their planned sessions get a one-time completion notice. Classes with computed course grades are skipped (same lock as manual session create). Scheduled at 21:00 and 22:00 UTC with an Asia/Beirut hour gate so DST offsets still hit local midnight once.",
     function_name: "public.auto_create_weekly_class_sessions()",
     tables: [
       "sessions",
       "classes",
+      "subjects",
+      "class_session_skips",
       "attendee",
       "student_course_grade",
       "notifications",
     ],
     migration:
-      "supabase/migrations/20261003180000_cron_auto_sessions_notify.sql",
+      "supabase/migrations/20261105180000_class_session_skips.sql",
     verify_hint:
       "Dashboard → Integrations → Cron, or: select * from cron.job_run_details order by start_time desc limit 20;",
     manual_run: "select public.auto_create_weekly_class_sessions(true);",

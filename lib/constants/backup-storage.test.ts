@@ -13,7 +13,8 @@ describe("backup storage helpers", () => {
     expect(isBackupStorageBucket("registration")).toBe(true);
     expect(isBackupStorageBucket("student-task-uploads")).toBe(true);
     expect(isBackupStorageBucket("class-covers")).toBe(true);
-    expect(isBackupStorageBucket("avatars")).toBe(false);
+    expect(isBackupStorageBucket("avatars")).toBe(true);
+    expect(isBackupStorageBucket("unknown-bucket")).toBe(false);
   });
 
   it("rejects unsafe object paths", () => {

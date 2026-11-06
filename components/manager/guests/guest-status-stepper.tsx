@@ -677,7 +677,7 @@ export function GuestStatusStepper({
             </div>
           ) : null}
 
-          <div className="flex flex-col gap-2 border-t pt-4 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex flex-col gap-2 border-t pt-4 @lg/panel:flex-row @lg/panel:items-center @lg/panel:justify-between">
             <div className="text-xs text-muted-foreground">
               Current:{" "}
               <span className="font-semibold text-emerald-700 dark:text-emerald-300">

@@ -138,6 +138,7 @@ export function buildClassTaskRows(
     id: string;
     title?: string;
     max_grade: number | null;
+    is_yes_no?: boolean | null;
     due_date?: string | null;
     sort_order?: number | null;
     created_at?: string | null;
@@ -151,6 +152,7 @@ export function buildClassTaskRows(
     session_nb_order: task.sort_order ?? 0,
     title: task.title ?? "Task",
     max_grade: task.max_grade,
+    is_yes_no: task.is_yes_no ?? false,
     due_date: task.due_date ?? null,
     created_at: task.created_at ?? null,
   }));
@@ -216,6 +218,7 @@ export async function loadClassGradeContext(
       id: task.id,
       title: task.title,
       max_grade: task.max_grade,
+      is_yes_no: task.is_yes_no,
       due_date: task.due_date,
       sort_order: task.sort_order,
       created_at: task.created_at,
@@ -303,7 +306,6 @@ export function mapStoredGradeRow(
     student_profile_id: student.student_profile_id,
     user_id: student.user_id,
     full_name: student.full_name,
-    username: student.username,
     email: student.email,
     phone: student.phone,
     enrollment_status: "Member",
@@ -359,7 +361,6 @@ export function mapPendingGradeRow(
     student_profile_id: student.student_profile_id,
     user_id: student.user_id,
     full_name: student.full_name,
-    username: student.username,
     email: student.email,
     phone: student.phone,
     enrollment_status: "Member",
@@ -530,6 +531,7 @@ export function buildStudentTaskDetail(
       title: task.title,
       due_date: task.due_date,
       max_grade: task.max_grade ?? 0,
+      is_yes_no: task.is_yes_no,
       status: mapStudentTaskStatus(studentTask?.status ?? STUDENT_TASK_STATUSES.PENDING),
       grade: studentTask?.grade ?? null,
       submitted_at: studentTask?.submitted_at ?? null,
@@ -729,6 +731,7 @@ export async function listStudentClassAcademicBundlesUnchecked(
         id: task.id,
         title: task.title,
         max_grade: task.max_grade,
+        is_yes_no: task.is_yes_no,
         due_date: task.due_date,
         sort_order: task.sort_order,
         created_at: task.created_at,

@@ -27,6 +27,7 @@ import {
   resolveFastCertificateAvailability,
   resolveFastCertificateFactorDefaults,
 } from "@/lib/manager/fast-certificate-grade";
+import { formatTaskGrade } from "@/lib/format/format-task-grade";
 import { showErrorToast, showSuccessToast } from "@/lib/toast";
 import { cn } from "@/lib/utils";
 import type { ManagerClassFinalExamRow } from "@/types/manager-class-final-exam";
@@ -259,7 +260,7 @@ export function StudentFastCertificateContent({
             </p>
           </div>
 
-          <div className="grid gap-4 md:grid-cols-2">
+          <div className="grid gap-4 @xl/panel:grid-cols-2">
             <div className="flex flex-col gap-2">
               <FieldLabel
                 htmlFor="fast-cert-tasks-weight"
@@ -332,7 +333,7 @@ export function StudentFastCertificateContent({
               </p>
             </div>
 
-            <div className="grid gap-3 sm:grid-cols-2">
+            <div className="grid gap-3 @lg/panel:grid-cols-2">
               {availability.gradedTasks.map((task) => (
                 <div
                   key={task.taskId}
@@ -343,8 +344,12 @@ export function StudentFastCertificateContent({
                       {task.title}
                     </p>
                     <p className="text-xs text-muted-foreground">
-                      {task.sessionLabel ?? "—"} · grade {task.grade} /{" "}
-                      {task.maxGrade}
+                      {task.sessionLabel ?? "—"} · grade{" "}
+                      {formatTaskGrade({
+                        grade: task.grade,
+                        maxGrade: task.maxGrade,
+                        isYesNo: task.isYesNo,
+                      })}
                     </p>
                   </div>
                   <Input
@@ -383,7 +388,7 @@ export function StudentFastCertificateContent({
 
         <div className="rounded-xl border bg-muted/20 p-4">
           <h4 className="text-sm font-semibold">Preview summary</h4>
-          <dl className="mt-3 grid gap-3 text-sm sm:grid-cols-3">
+          <dl className="mt-3 grid gap-3 text-sm @lg/panel:grid-cols-3">
             <div>
               <dt className="text-muted-foreground">Tasks grade</dt>
               <dd className="font-medium tabular-nums">

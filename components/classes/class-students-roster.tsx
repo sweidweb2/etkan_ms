@@ -18,7 +18,7 @@ type ClassStudentsRosterProps = {
   /** Teachers omit phone (not loaded in teaching RSC payload). */
   showPhone?: boolean;
   /**
-   * Teachers skip Auth Admin emails; show username instead.
+   * Teachers skip Auth Admin emails; the email column is hidden.
    * @default true
    */
   showEmail?: boolean;
@@ -58,7 +58,6 @@ function matchesSearch(
 
   const haystack = [
     student.full_name,
-    student.username ?? "",
     ...(includeEmail ? [student.email] : []),
     ...(includePhone ? [student.phone ?? ""] : []),
   ]
@@ -90,13 +89,11 @@ export function ClassStudentsRoster({
     [query, showEmail, showPhone, students]
   );
 
-  const identityLabel = showEmail ? "Email" : "Username";
-
   const table = (
     <>
       <div
         className={cn(
-          "flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between",
+          "flex flex-col gap-3 @lg/panel:flex-row @lg/panel:items-center @lg/panel:justify-between",
           variant === "card"
             ? "border-b border-border/50 bg-muted/25 px-5 py-4"
             : "mb-3"
@@ -108,7 +105,7 @@ export function ClassStudentsRoster({
             {students.length} enrolled in {className}.
           </p>
         </div>
-        <div className="relative w-full sm:max-w-xs">
+        <div className="relative w-full @lg/panel:max-w-xs">
           <SearchIcon className="pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-muted-foreground" />
           <Input
             value={query}
@@ -143,7 +140,9 @@ export function ClassStudentsRoster({
             <thead>
               <tr className="border-b bg-muted/40 text-left">
                 <th className="px-4 py-3 font-medium">Name</th>
-                <th className="px-4 py-3 font-medium">{identityLabel}</th>
+                {showEmail ? (
+                  <th className="px-4 py-3 font-medium">Email</th>
+                ) : null}
                 {showPhone ? (
                   <th className="px-4 py-3 font-medium">Phone</th>
                 ) : null}
@@ -163,20 +162,14 @@ export function ClassStudentsRoster({
                       className="font-medium"
                     />
                   </td>
-                  <td className="max-w-[14rem] px-4 py-3 text-muted-foreground">
-                    <TruncatedCell
-                      value={
-                        showEmail
-                          ? student.email
-                          : (student.username ?? "—")
-                      }
-                      maxLength={
-                        showEmail
-                          ? CLASS_STUDENT_TABLE_LIMITS.email
-                          : CLASS_STUDENT_TABLE_LIMITS.username
-                      }
-                    />
-                  </td>
+                  {showEmail ? (
+                    <td className="max-w-[14rem] px-4 py-3 text-muted-foreground">
+                      <TruncatedCell
+                        value={student.email}
+                        maxLength={CLASS_STUDENT_TABLE_LIMITS.email}
+                      />
+                    </td>
+                  ) : null}
                   {showPhone ? (
                     <td className="whitespace-nowrap px-4 py-3 text-muted-foreground">
                       {student.phone ?? "—"}

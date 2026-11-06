@@ -88,3 +88,36 @@ export async function listEnrollmentsByStudentProfileId(
     .eq("student_profile_id", studentProfileId)
     .order("created_at", { ascending: false });
 }
+
+export async function updateEnrollmentStatus(
+  client: Supabase,
+  studentProfileId: string,
+  semesterId: string,
+  status: string
+) {
+  return client
+    .from("student_semester")
+    .update({ status })
+    .eq("student_profile_id", studentProfileId)
+    .eq("semester_id", semesterId)
+    .select(ENROLLMENT_COLUMNS)
+    .maybeSingle();
+}
+
+/** One UPDATE for many students in the same semester. */
+export async function updateEnrollmentStatusForProfiles(
+  client: Supabase,
+  studentProfileIds: string[],
+  semesterId: string,
+  status: string
+) {
+  if (studentProfileIds.length === 0) {
+    return { error: null };
+  }
+
+  return client
+    .from("student_semester")
+    .update({ status })
+    .in("student_profile_id", studentProfileIds)
+    .eq("semester_id", semesterId);
+}

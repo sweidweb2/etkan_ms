@@ -87,6 +87,14 @@ describe("requireManagerRoutePermission", () => {
     expect(forbiddenMock).not.toHaveBeenCalled();
   });
 
+  it("allows the Pages hub without a feature view permission", async () => {
+    await expect(
+      requireManagerRoutePermission(ROUTES.MANAGER_PAGES)
+    ).resolves.toBeUndefined();
+    expect(redirectMock).not.toHaveBeenCalled();
+    expect(forbiddenMock).not.toHaveBeenCalled();
+  });
+
   it("redirects managers to manage students when denied", async () => {
     vi.mocked(getSessionPack).mockResolvedValue(
       pack({

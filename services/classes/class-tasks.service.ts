@@ -4,6 +4,10 @@ import { PERMISSIONS } from "@/lib/constants/permissions";
 import {
   STUDENT_TASK_STATUSES,
 } from "@/lib/constants/manager-student-task-status";
+import {
+  YES_NO_LOCKED_MESSAGE,
+  YES_NO_MAX_GRADE,
+} from "@/lib/constants/task-yes-no";
 import { createClassTaskSchema } from "@/lib/validators/manager/create-class-task";
 import { updateClassTaskSchema } from "@/lib/validators/manager/update-class-task";
 import { createEditStudentTaskSchema } from "@/lib/validators/manager/edit-student-task";
@@ -70,6 +74,7 @@ export async function createClassTaskForManager(
     description?: string;
     period: string | number;
     max_grade?: string | number;
+    is_yes_no?: boolean;
     sort_order?: string | number;
   }
 ): Promise<CreateClassTaskResult> {
@@ -87,6 +92,7 @@ export async function createClassTaskForManager(
       description: input.description,
       period: input.period,
       max_grade: input.max_grade,
+      is_yes_no: input.is_yes_no,
       sort_order: input.sort_order,
     });
 
@@ -128,8 +134,10 @@ export async function createClassTaskForManager(
       return { success: false, error: structureGuard.error };
     }
 
-    const maxGrade =
-      parsed.data.max_grade === "" || parsed.data.max_grade === undefined
+    const isYesNo = parsed.data.is_yes_no ?? false;
+    const maxGrade = isYesNo
+      ? YES_NO_MAX_GRADE
+      : parsed.data.max_grade === "" || parsed.data.max_grade === undefined
         ? null
         : Number(parsed.data.max_grade);
 
@@ -156,6 +164,7 @@ export async function createClassTaskForManager(
         description: normalizeOptionalString(parsed.data.description),
         period: parsed.data.period,
         max_grade: maxGrade,
+        is_yes_no: isYesNo,
         sort_order: sortOrder,
         started: false,
         started_at: null,
@@ -199,6 +208,7 @@ export async function createClassTaskForManager(
         new_data: {
           class_id: task.class_id,
           title: task.title,
+          is_yes_no: task.is_yes_no,
           student_task_count: studentTasks.length,
         },
         metadata: { note: "Class task created with pending student rows." },
@@ -236,6 +246,7 @@ export async function updateClassTaskForManager(
     description?: string;
     period: string | number;
     max_grade?: string | number;
+    is_yes_no?: boolean;
     sort_order: string | number;
   }
 ): Promise<UpdateClassTaskResult> {
@@ -257,6 +268,7 @@ export async function updateClassTaskForManager(
     description: input.description,
     period: input.period,
     max_grade: input.max_grade,
+    is_yes_no: input.is_yes_no,
     sort_order: input.sort_order,
   });
 
@@ -298,7 +310,24 @@ export async function updateClassTaskForManager(
     return { success: false, error: structureGuard.error };
   }
 
-  const nextMaxGrade = parseTaskMaxGrade(parsed.data.max_grade);
+  const nextIsYesNo = parsed.data.is_yes_no ?? existingTask.is_yes_no;
+  if (nextIsYesNo !== existingTask.is_yes_no) {
+    const gradedResult =
+      await studentTaskRepository.countGradedStudentTasksByTaskId(
+        adminClient,
+        input.id
+      );
+    if (gradedResult.error) {
+      return { success: false, error: gradedResult.error.message };
+    }
+    if ((gradedResult.count ?? 0) > 0) {
+      return { success: false, error: YES_NO_LOCKED_MESSAGE };
+    }
+  }
+
+  const nextMaxGrade = nextIsYesNo
+    ? YES_NO_MAX_GRADE
+    : parseTaskMaxGrade(parsed.data.max_grade);
   const shouldClampGrades = didTaskMaxGradeDecrease(
     existingTask.max_grade,
     nextMaxGrade
@@ -325,6 +354,7 @@ export async function updateClassTaskForManager(
       description: normalizeOptionalString(parsed.data.description),
       period: parsed.data.period,
       max_grade: nextMaxGrade,
+      is_yes_no: nextIsYesNo,
       sort_order: parsed.data.sort_order,
     }
   );
@@ -348,6 +378,7 @@ export async function updateClassTaskForManager(
       description: existingTask.description,
       period: existingTask.period,
       max_grade: existingTask.max_grade,
+      is_yes_no: existingTask.is_yes_no,
       sort_order: existingTask.sort_order,
     },
     new_data: {
@@ -355,6 +386,7 @@ export async function updateClassTaskForManager(
       description: task.description,
       period: task.period,
       max_grade: task.max_grade,
+      is_yes_no: task.is_yes_no,
       sort_order: task.sort_order,
     },
     metadata: gradesClamped
@@ -799,7 +831,8 @@ export async function updateStudentTaskForManager(
 
   const parsed = createEditStudentTaskSchema(
     taskResult.data.max_grade,
-    taskResult.data.due_date
+    taskResult.data.due_date,
+    { isYesNo: taskResult.data.is_yes_no }
   ).safeParse({
     status: input.status,
     grade: input.grade,

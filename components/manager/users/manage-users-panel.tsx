@@ -19,11 +19,13 @@ import { AddUserDialog } from "@/components/manager/users/add-user-dialog";
 import { EditUserDialog } from "@/components/manager/users/edit-user-dialog";
 import { UserRoleBadge } from "@/components/manager/users/user-role-badge";
 import { UserStatCard } from "@/components/manager/users/user-stat-card";
+import { PanelPageHeader } from "@/components/panels/panel-page-header";
 import { Button } from "@/components/ui/button";
 import { Card, CardAction, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { CopyTextButton } from "@/components/ui/copy-text-button";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Input } from "@/components/ui/input";
+import { LetterAvatar } from "@/components/ui/letter-avatar";
 import {
   Select,
   SelectContent,
@@ -48,7 +50,7 @@ import type { ManagerUserRow } from "@/types/manager-user";
 
 const PAGE_SIZE_OPTIONS = [5, 10, 25] as const;
 const COLUMN_LIMITS = {
-  username: 20,
+  fullName: 28,
   email: 32,
 } as const;
 
@@ -126,10 +128,10 @@ function matchesSearch(user: ManagerUserRow, query: string) {
     return true;
   }
 
-  const username = user.username?.toLowerCase() ?? "";
+  const fullName = user.full_name.toLowerCase();
   const email = user.email.toLowerCase();
 
-  return username.includes(normalizedQuery) || email.includes(normalizedQuery);
+  return fullName.includes(normalizedQuery) || email.includes(normalizedQuery);
 }
 
 function CurrentUserBadge() {
@@ -141,7 +143,7 @@ function CurrentUserBadge() {
 }
 
 function UserDetailsLink({ user }: { user: ManagerUserRow }) {
-  const label = user.username ?? user.email;
+  const label = user.full_name || user.email;
 
   return (
     <Link
@@ -269,14 +271,9 @@ export function ManageUsersPanel({
   return (
     <TooltipProvider>
       <div className="flex flex-col gap-6">
-        <div>
-          <h1 className="text-2xl font-semibold tracking-tight">Manage users</h1>
-          <p className="mt-1 text-sm text-muted-foreground">
-            View and create staff accounts for your school.
-          </p>
-        </div>
+        <PanelPageHeader title="Manage users" />
 
-        <div className="grid gap-4 sm:grid-cols-3">
+        <div className="grid gap-4 @lg/panel:grid-cols-3">
           <UserStatCard
             label="Total users"
             value={stats.total}
@@ -326,13 +323,13 @@ export function ManageUsersPanel({
             </CardAction>
           </CardHeader>
           <CardContent className="px-0 pb-0">
-            <div className="flex flex-col gap-3 border-b px-4 pt-2 pb-3 sm:flex-row sm:items-center">
+            <div className="flex flex-col gap-3 border-b px-4 pt-2 pb-3 @lg/panel:flex-row @lg/panel:items-center">
               <div className="relative min-w-0 flex-1">
                 <SearchIcon className="pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-muted-foreground" />
                 <Input
                   value={searchQuery}
                   onChange={(event) => handleSearchChange(event.target.value)}
-                  placeholder="Search username or email…"
+                  placeholder="Search name or email…"
                   className="pr-8 pl-8"
                   aria-label="Search users"
                 />
@@ -348,7 +345,7 @@ export function ManageUsersPanel({
                 ) : null}
               </div>
               <Select value={roleFilter} onValueChange={handleRoleFilterChange}>
-                <SelectTrigger className="w-full sm:w-44" aria-label="Filter by role">
+                <SelectTrigger className="w-full @lg/panel:w-44" aria-label="Filter by role">
                   <SelectValue placeholder="All roles" />
                 </SelectTrigger>
                 <SelectContent align="end">
@@ -380,10 +377,11 @@ export function ManageUsersPanel({
               />
             ) : (
               <div className="overflow-x-auto">
-                <table className="w-full min-w-[560px] text-sm">
+                <table className="w-full min-w-[640px] text-sm">
                   <thead>
                     <tr className="border-b bg-muted/40 text-left">
-                      <th className="px-4 py-3 font-medium">Username</th>
+                      <th className="w-12 px-4 py-3 font-medium">#</th>
+                      <th className="px-4 py-3 font-medium">Full name</th>
                       <th className="px-4 py-3 font-medium">Email</th>
                       <th className="px-4 py-3 font-medium">Role</th>
                       <th className="px-4 py-3 font-medium">Created</th>
@@ -391,7 +389,7 @@ export function ManageUsersPanel({
                     </tr>
                   </thead>
                   <tbody>
-                    {paginatedUsers.map((user) => {
+                    {paginatedUsers.map((user, index) => {
                       const isCurrentUser =
                         currentUserId !== null && user.id === currentUserId;
 
@@ -404,17 +402,25 @@ export function ManageUsersPanel({
                           )}
                           tabIndex={0}
                           role="link"
-                          aria-label={`View details for ${user.username ?? user.email}`}
+                          aria-label={`View details for ${user.full_name || user.email}`}
                           onClick={() => openUserDetails(user)}
                           onKeyDown={(event) =>
                             handleUserRowKeyDown(event, user)
                           }
                         >
-                          <td className="max-w-[10rem] px-4 py-3">
+                          <td className="px-4 py-3 text-muted-foreground tabular-nums">
+                            {rangeStart + index}
+                          </td>
+                          <td className="max-w-[12rem] px-4 py-3">
                             <div className="flex min-w-0 items-center gap-2">
+                              <LetterAvatar
+                                name={user.full_name || user.email}
+                                seed={user.id}
+                              />
                               <TruncatedCell
-                                value={user.username ?? "—"}
-                                maxLength={COLUMN_LIMITS.username}
+                                value={user.full_name || "—"}
+                                maxLength={COLUMN_LIMITS.fullName}
+                                className="min-w-0"
                               />
                               {isCurrentUser ? <CurrentUserBadge /> : null}
                             </div>
@@ -428,7 +434,7 @@ export function ManageUsersPanel({
                               />
                               <CopyTextButton
                                 value={user.email}
-                                label={`Copy email for ${user.username ?? user.email}`}
+                                label={`Copy email for ${user.full_name || user.email}`}
                                 successMessage="Email copied to clipboard."
                                 errorMessage="Unable to copy email."
                               />
@@ -451,7 +457,7 @@ export function ManageUsersPanel({
                                   variant="ghost"
                                   size="icon-sm"
                                   className="size-7 text-muted-foreground hover:bg-primary/15 hover:text-primary"
-                                  aria-label={`Edit ${user.username ?? user.email}`}
+                                  aria-label={`Edit ${user.full_name || user.email}`}
                                   onClick={() => setEditingUser(user)}
                                 >
                                   <PencilIcon className="size-4" />
@@ -468,7 +474,7 @@ export function ManageUsersPanel({
               </div>
             )}
 
-            <div className="flex flex-col gap-3 border-t px-4 pt-2 pb-3 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex flex-col gap-3 border-t px-4 pt-2 pb-3 @lg/panel:flex-row @lg/panel:items-center @lg/panel:justify-between">
               <div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
                 <span>
                   Showing {rangeStart}–{rangeEnd} of {filteredUsers.length}

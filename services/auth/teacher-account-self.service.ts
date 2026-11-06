@@ -18,7 +18,6 @@ type Supabase = SupabaseClient<Database>;
 
 export type TeacherSelfProfile = {
   fullName: string;
-  username: string;
   email: string;
 };
 
@@ -34,7 +33,7 @@ async function assertTeacherSelf(
   adminClient: Supabase,
   actorUserId: string | null
 ): Promise<
-  | { ok: true; userId: string; username: string }
+  | { ok: true; userId: string; fullName: string }
   | { ok: false; error: string }
 > {
   if (!actorUserId) {
@@ -55,7 +54,7 @@ async function assertTeacherSelf(
   return {
     ok: true,
     userId: actorUserId,
-    username: profile.data.username ?? "",
+    fullName: profile.data.full_name,
   };
 }
 
@@ -77,14 +76,13 @@ export async function getTeacherSelfProfile(
     return null;
   }
 
-  const fullName =
+  const metadataFullName =
     typeof authUser.data.user.user_metadata?.full_name === "string"
       ? authUser.data.user.user_metadata.full_name.trim()
       : "";
 
   return {
-    fullName,
-    username: access.username,
+    fullName: metadataFullName || access.fullName.trim(),
     email: authUser.data.user.email ?? "",
   };
 }
@@ -110,7 +108,6 @@ export async function updateOwnTeacherProfile(
   }
 
   const fullName = parsed.data.fullName.trim();
-  const username = parsed.data.username.trim();
   const email = parsed.data.email.trim().toLowerCase();
 
   const [existingProfile, existingAuth] = await Promise.all([
@@ -127,43 +124,20 @@ export async function updateOwnTeacherProfile(
     return { success: false, error: "Profile not found." };
   }
 
-  const previousUsername = existingProfile.data.username ?? "";
+  const previousFullName = existingProfile.data.full_name;
   const previousEmail = existingAuth.data.user.email ?? "";
-  const previousFullName =
-    typeof existingAuth.data.user.user_metadata?.full_name === "string"
-      ? existingAuth.data.user.user_metadata.full_name
-      : "";
+  const fullNameChanged = fullName !== previousFullName;
 
-  if (username !== previousUsername) {
-    const taken = await profileRepository.findProfileByUsername(
-      adminClient,
-      username
-    );
-    if (taken.error) {
-      return {
-        success: false,
-        error: taken.error.message || "Unable to update profile.",
-      };
-    }
-    if (taken.data && taken.data.id !== access.userId) {
-      return {
-        success: false,
-        error: "Please fix the errors below.",
-        fieldErrors: { username: ["This username is already taken."] },
-      };
-    }
-  }
-
-  if (username !== previousUsername) {
+  if (fullNameChanged) {
     const profileUpdate = await profileRepository.updateProfileById(
       adminClient,
       access.userId,
-      { username }
+      { full_name: fullName }
     );
     if (profileUpdate.error || !profileUpdate.data) {
       return {
         success: false,
-        error: profileUpdate.error?.message || "Unable to update username.",
+        error: profileUpdate.error?.message || "Unable to update profile.",
       };
     }
   }
@@ -173,15 +147,14 @@ export async function updateOwnTeacherProfile(
     access.userId,
     {
       fullName,
-      username,
       ...(email !== previousEmail ? { email } : {}),
     }
   );
 
   if (authUpdate.error) {
-    if (username !== previousUsername) {
+    if (fullNameChanged) {
       await profileRepository.updateProfileById(adminClient, access.userId, {
-        username: previousUsername,
+        full_name: previousFullName,
       });
     }
     const message = authUpdate.error.message.toLowerCase();
@@ -204,17 +177,16 @@ export async function updateOwnTeacherProfile(
     table_name: "profiles",
     record_id: access.userId,
     old_data: {
-      username: previousUsername,
       email: previousEmail,
       full_name: previousFullName,
     },
-    new_data: { username, email, full_name: fullName },
+    new_data: { email, full_name: fullName },
   });
 
   return {
     success: true,
     message: "Profile updated.",
-    profile: { fullName, username, email },
+    profile: { fullName, email },
   };
 }
 

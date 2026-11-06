@@ -62,18 +62,15 @@ export const ROUTES = {
   /** @deprecated Use MANAGER_CLASS_TASK_DETAIL */
   MANAGER_CLASS_SESSION_TASK_DETAIL:
     "/manager/classes/[id]/sessions/[sessionId]/tasks/[taskId]",
-  MANAGER_EQUIPMENTS: "/manager/equipments",
-  MANAGER_EQUIPMENT_DETAIL: "/manager/equipments/[id]",
-  MANAGER_EQUIPMENT_BORROW: "/manager/equipments/borrow",
   MANAGER_GALLERY: "/manager/gallery",
   MANAGER_PROJECTS: "/manager/projects",
   MANAGER_PROJECT_DETAIL: "/manager/projects/[id]",
   MANAGER_BLOGS: "/manager/blogs",
   MANAGER_SEMESTERS: "/manager/semesters",
   MANAGER_SETTINGS: "/manager/settings",
+  MANAGER_PAGES: "/manager/pages",
   MANAGER_BACKUP: "/manager/backup",
   MANAGER_LOGS: "/manager/logs",
-  MANAGER_CLOUDFLARE_AI_USAGE: "/manager/cloudflare-ai-usage",
   MANAGER_REGISTRATIONS: "/manager/registrations",
   MANAGER_GUESTS: "/manager/guests",
   MANAGER_GUEST_DETAIL: "/manager/guests/[id]",
@@ -93,7 +90,6 @@ export const ROUTES = {
   STUDENT_CLASSES: "/student/classes",
   STUDENT_CLASS_DETAIL: "/student/classes/[id]",
   STUDENT_CLASS_TASK_DETAIL: "/student/classes/[id]/tasks/[taskId]",
-  STUDENT_BORROWINGS: "/student/borrowings",
   STUDENT_PAYMENTS: "/student/payments",
   STUDENT_PAYMENT_DETAIL: "/student/payments/[sppId]",
 } as const;
@@ -104,7 +100,7 @@ export type Route = (typeof ROUTES)[keyof typeof ROUTES];
  * Post-login / fallback home for each role.
  * Staff roles without a dedicated product surface land on an allowed
  * `/manager/*` page (sidebar still uses ROLE_PANEL_ROOTS for identity).
- * Prefer landings that do not require instructor/mentor (workshops do).
+ * Prefer landings that do not require the instructor flag (workshops do).
  */
 const ROLE_HOME_ROUTES: Record<RoleValue, string> = {
   [ROLES.ADMIN]: ROUTES.ADMIN_ROOT,
@@ -201,10 +197,6 @@ export function getManagerRegistrationDetailRoute(
     return path;
   }
   return appendQueryParam(path, REGISTRATION_DETAIL_FROM_QUERY, from);
-}
-
-export function getManagerEquipmentDetailRoute(equipmentId: string): string {
-  return `/manager/equipments/${equipmentId}`;
 }
 
 export function getManagerProjectDetailRoute(projectId: string): string {

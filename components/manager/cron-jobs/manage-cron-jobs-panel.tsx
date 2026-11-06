@@ -10,6 +10,7 @@ import {
 } from "lucide-react";
 import { CronJobDetailsDialog } from "@/components/manager/cron-jobs/cron-job-details-dialog";
 import { UserStatCard } from "@/components/manager/users/user-stat-card";
+import { PanelPageHeader } from "@/components/panels/panel-page-header";
 import {
   Breadcrumb,
   BreadcrumbItem,
@@ -223,6 +224,7 @@ export function ManageCronJobsPanel({ initialJobs }: ManageCronJobsPanelProps) {
       />
 
       <div className="flex flex-col gap-6">
+        <PanelPageHeader title="Cron jobs" />
         <Breadcrumb>
           <BreadcrumbList>
             <BreadcrumbItem>
@@ -237,15 +239,7 @@ export function ManageCronJobsPanel({ initialJobs }: ManageCronJobsPanelProps) {
           </BreadcrumbList>
         </Breadcrumb>
 
-        <div>
-          <h1 className="text-2xl font-semibold tracking-tight">Cron jobs</h1>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Read-only catalog of scheduled database jobs. Update the catalog when
-            you add a migration.
-          </p>
-        </div>
-
-        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        <div className="grid gap-4 @lg/panel:grid-cols-2 @4xl/panel:grid-cols-4">
           <UserStatCard
             label="Total jobs"
             value={stats.total}
@@ -281,8 +275,8 @@ export function ManageCronJobsPanel({ initialJobs }: ManageCronJobsPanelProps) {
           </CardHeader>
 
           <CardContent className="px-0 pb-0">
-            <div className="flex flex-col gap-3 border-b px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
-              <div className="relative w-full sm:max-w-sm">
+            <div className="flex flex-col gap-3 border-b px-4 py-3 @lg/panel:flex-row @lg/panel:items-center @lg/panel:justify-between">
+              <div className="relative w-full @lg/panel:max-w-sm">
                 <SearchIcon className="pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-muted-foreground" />
                 <Input
                   value={searchQuery}
@@ -299,7 +293,7 @@ export function ManageCronJobsPanel({ initialJobs }: ManageCronJobsPanelProps) {
                 onValueChange={handleFrequencyFilterChange}
               >
                 <SelectTrigger
-                  className="w-full sm:w-44"
+                  className="w-full @lg/panel:w-44"
                   aria-label="Filter by frequency"
                 >
                   <SelectValue placeholder="All frequencies" />
@@ -409,7 +403,7 @@ export function ManageCronJobsPanel({ initialJobs }: ManageCronJobsPanelProps) {
             )}
 
             {filteredJobs.length > 0 ? (
-              <div className="flex flex-col gap-3 border-t px-4 pt-2 pb-3 sm:flex-row sm:items-center sm:justify-between">
+              <div className="flex flex-col gap-3 border-t px-4 pt-2 pb-3 @lg/panel:flex-row @lg/panel:items-center @lg/panel:justify-between">
                 <p className="text-sm text-muted-foreground">
                   Showing {rangeStart}–{rangeEnd} of {filteredJobs.length}
                 </p>

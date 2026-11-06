@@ -29,7 +29,7 @@ async function mapProfilesWithEmail(
   adminClient: Supabase,
   profiles: {
     id: string;
-    username: string | null;
+    full_name: string;
     role: string;
     created_at: string | null;
   }[]
@@ -47,7 +47,7 @@ async function mapProfilesWithEmail(
 
   return profiles.map((profile) => ({
     id: profile.id,
-    username: profile.username,
+    full_name: profile.full_name,
     role: profile.role as RoleValue,
     email: emailById.get(profile.id) ?? "",
     created_at: profile.created_at ?? new Date().toISOString(),
@@ -70,7 +70,7 @@ async function fetchInstructorsPageForManager(
   ]);
 
   const instructors = instructorsMapped.sort((a, b) =>
-    (a.username ?? a.email).localeCompare(b.username ?? b.email)
+    a.full_name.localeCompare(b.full_name)
   );
 
   return {
@@ -86,7 +86,6 @@ const getInstructorsPageForManagerCached = unstable_cache(
     const adminClient = createSupabaseAdminClient();
     return fetchInstructorsPageForManager(adminClient);
   },
-  // Key bumped when the payload moved from mentorSubjects to instructor subjects.
   ["manager-instructors-page-v2"],
   { tags: [MANAGER_CACHE_TAGS.INSTRUCTORS], revalidate: 3600 }
 );
@@ -125,15 +124,13 @@ export async function listInstructorCandidatesForManager(
   );
 
   return candidatesMapped
-    .map(({ id, username, role, email }) => ({
+    .map(({ id, full_name, role, email }) => ({
       id,
-      username,
+      full_name,
       role,
       email,
     }))
-    .sort((a, b) =>
-      (a.username ?? a.email).localeCompare(b.username ?? b.email)
-    );
+    .sort((a, b) => a.full_name.localeCompare(b.full_name));
 }
 
 export type RemoveInstructorResult =

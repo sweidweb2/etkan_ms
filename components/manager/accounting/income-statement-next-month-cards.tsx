@@ -37,7 +37,7 @@ export function IncomeStatementNextMonthCards({
         </p>
       </div>
 
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+      <div className="grid gap-4 @lg/panel:grid-cols-2 @2xl/panel:grid-cols-3">
         <AnalyticsStatCard
           label={`Expected in ${forecast.month_label}`}
           value={formatPaymentPhaseMoney(forecast.expected_total)}

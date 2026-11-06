@@ -2,7 +2,7 @@ import type { RoleValue } from "@/lib/constants/roles";
 import type { FieldErrors } from "@/types/auth";
 
 export type PasswordResetExportRow = {
-  username: string;
+  full_name: string;
   email: string;
   role: string;
   password: string;
@@ -10,7 +10,7 @@ export type PasswordResetExportRow = {
 
 export type PasswordResetUserOption = {
   id: string;
-  username: string;
+  full_name: string;
   email: string;
   role: RoleValue;
 };

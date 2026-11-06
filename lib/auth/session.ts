@@ -38,8 +38,8 @@ export type SessionPack = {
   user: User | null;
   role: RoleValue | null;
   displayName: string;
+  avatarUrl: string | null;
   isInstructor: boolean;
-  isMentor: boolean;
   permissions: ReadonlySet<PermissionKey>;
 };
 
@@ -47,8 +47,8 @@ const EMPTY_SESSION_PACK: SessionPack = {
   user: null,
   role: null,
   displayName: "User",
+  avatarUrl: null,
   isInstructor: false,
-  isMentor: false,
   permissions: EMPTY_PERMISSIONS,
 };
 
@@ -140,9 +140,8 @@ async function buildSessionShell(
   }
 
   const isInstructor = profile?.is_instructor === true;
-  const isMentor = profile?.is_mentor === true;
 
-  let displayName = displayNameFromAuthUser(user, profile?.username ?? null);
+  let displayName = displayNameFromAuthUser(user, profile?.full_name ?? null);
 
   // Students without JWT full_name: one student_profiles read (skip for staff).
   if (
@@ -163,8 +162,8 @@ async function buildSessionShell(
   const payload: SessionShellPayload = {
     role,
     displayName,
+    avatarUrl: profile?.avatar_url ?? null,
     isInstructor,
-    isMentor,
     permissionKeys: [...permissions],
     cachedClaimsRole: claimsRole,
   };
@@ -181,8 +180,8 @@ function packFromShell(
     user,
     role: shell.role,
     displayName: shell.displayName,
+    avatarUrl: shell.avatarUrl ?? null,
     isInstructor: shell.isInstructor,
-    isMentor: shell.isMentor,
     permissions: permissionsFromKeys(shell.permissionKeys),
   };
 }
@@ -291,16 +290,9 @@ export async function getSessionIsInstructor(): Promise<boolean> {
   return (await getSessionPack()).isInstructor;
 }
 
-export async function getSessionIsMentor(): Promise<boolean> {
-  return (await getSessionPack()).isMentor;
-}
-
 export async function getSessionCanAccessManageWorkshops(): Promise<boolean> {
   const pack = await getSessionPack();
-  return canAccessManageWorkshops({
-    isInstructor: pack.isInstructor,
-    isMentor: pack.isMentor,
-  });
+  return canAccessManageWorkshops({ isInstructor: pack.isInstructor });
 }
 
 export async function getSessionDisplayName(): Promise<string> {

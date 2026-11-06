@@ -7,6 +7,7 @@ import { ClassTabCollapsibleSection } from "@/components/manager/students/class-
 import { StudentTaskStatusBadge } from "@/components/manager/students/student-task-status-badge";
 import { EmptyState } from "@/components/ui/empty-state";
 import { MANAGER_STUDENT_TASK_SLOTS_MAX_HEIGHT_CLASS } from "@/lib/constants/manager-student-class-slots";
+import { formatTaskGrade } from "@/lib/format/format-task-grade";
 import { cn } from "@/lib/utils";
 import type { ManagerStudentClassTabDetail } from "@/types/manager-student-class-detail";
 
@@ -26,7 +27,7 @@ export function ClassTasksSection({ detail }: ClassTasksSectionProps) {
       title="Tasks"
       description="Task grades for this class with a grade trend chart."
     >
-      <div className="grid min-h-[22rem] min-w-0 gap-6 p-5 lg:grid-cols-2 lg:items-stretch">
+      <div className="grid min-h-[22rem] min-w-0 gap-6 p-5 @2xl/panel:grid-cols-2 @2xl/panel:items-stretch">
         <div className="flex min-h-0 min-w-0 flex-col space-y-3">
           <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
             Task grades
@@ -68,7 +69,11 @@ export function ClassTasksSection({ detail }: ClassTasksSectionProps) {
                         <StudentTaskStatusBadge status={task.status} />
                       </td>
                       <td className="whitespace-nowrap px-3 py-2.5 tabular-nums">
-                        {task.grade == null ? "—" : `${task.grade}/${task.max_grade}`}
+                        {formatTaskGrade({
+                          grade: task.grade,
+                          maxGrade: task.max_grade,
+                          isYesNo: task.is_yes_no,
+                        })}
                       </td>
                       <td className="whitespace-nowrap px-3 py-2.5 text-muted-foreground">
                         {task.due_date

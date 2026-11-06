@@ -9,7 +9,6 @@ import {
   HomeIcon,
   ImagesIcon,
   InfoIcon,
-  NewspaperIcon,
 } from "lucide-react";
 import { AppLogo } from "@/components/brand/app-logo";
 import { LanguageToggle } from "@/components/layout/language-toggle";
@@ -54,12 +53,6 @@ const PRIMARY_NAV_ITEMS: readonly {
     labelKey: "nav.gallery",
     shortLabelKey: "nav.gallery",
     icon: ImagesIcon,
-  },
-  {
-    href: ROUTES.BLOGS,
-    labelKey: "nav.blogs",
-    shortLabelKey: "nav.blogs",
-    icon: NewspaperIcon,
   },
 ];
 

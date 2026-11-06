@@ -26,6 +26,7 @@ import * as profileRepository from "@/repositories/profile.repository";
 import * as semesterRepository from "@/repositories/semester.repository";
 import * as sessionRepository from "@/repositories/session.repository";
 import type { SessionRecord } from "@/repositories/session.repository";
+import * as semesterDropRequestRepository from "@/repositories/semester-drop-request.repository";
 import * as studentClassRepository from "@/repositories/student-class.repository";
 import * as studentProfileRepository from "@/repositories/student-profile.repository";
 import * as studentTaskRepository from "@/repositories/student-task.repository";
@@ -194,7 +195,7 @@ export async function getClassCreateDialogDataForManager(
   const [subjectsResult, semestersResult, teachersResult] = await Promise.all([
     subjectRepository.listSubjects(adminClient),
     semesterRepository.listSemesters(adminClient),
-    profileRepository.listInstructorProfileOptions(adminClient),
+    profileRepository.listTeacherProfileOptions(adminClient),
   ]);
 
   if (subjectsResult.error) {
@@ -221,7 +222,7 @@ export async function getClassCreateDialogDataForManager(
     })),
     teachers: (teachersResult.data ?? []).map((teacher) => ({
       id: teacher.id,
-      username: teacher.username,
+      full_name: teacher.full_name,
     })),
   };
 }
@@ -316,7 +317,7 @@ export async function listTeacherOptionsForManager(
   await assertPermission(adminClient, actorUserId, PERMISSIONS.CLASSES_VIEW);
 
   const teachersResult =
-    await profileRepository.listInstructorProfileOptions(adminClient);
+    await profileRepository.listTeacherProfileOptions(adminClient);
 
   if (teachersResult.error) {
     throw new Error(teachersResult.error.message);
@@ -324,7 +325,7 @@ export async function listTeacherOptionsForManager(
 
   return (teachersResult.data ?? []).map((teacher) => ({
     id: teacher.id,
-    username: teacher.username,
+    full_name: teacher.full_name,
   }));
 }
 
@@ -370,13 +371,13 @@ export async function listClassTeacherOptionsForManager(
 
     assignedOutsideCatalog = (extraResult.data ?? []).map((teacher) => ({
       id: teacher.id,
-      username: teacher.username,
+      full_name: teacher.full_name,
     }));
   }
 
   return [...teachers, ...assignedOutsideCatalog].map((teacher) => ({
     id: teacher.id,
-    username: teacher.username,
+    full_name: teacher.full_name,
     assigned: assignmentByTeacherId.has(teacher.id),
     assignment_id: assignmentByTeacherId.get(teacher.id) ?? null,
   }));
@@ -454,7 +455,7 @@ export async function listAssignedClassTeachersForManager(
     return [
       {
         id: profile.id,
-        username: profile.username,
+        full_name: profile.full_name,
         assigned: true,
         assignment_id: assignmentByTeacherId.get(teacherId) ?? null,
       },
@@ -493,7 +494,7 @@ export async function listClassStudentsForManager(
 export type LoadClassStudentRowsOptions = {
   /**
    * Resolve Auth Admin emails (N `getUserById` for ≤50 students).
-   * Teacher roster skips this — name/username are enough for search/display.
+   * Teacher roster skips this — the student name is enough for search/display.
    * @default true
    */
   includeAuthEmails?: boolean;
@@ -526,10 +527,9 @@ export async function loadClassStudentRows(
 
     const userIds = enrollments.map((row) => row.user_id);
 
-    const [profilesResult, studentProfilesResult, emailResult] =
+    const [studentProfilesResult, emailResult] =
       await timer.step("profiles", () =>
         Promise.all([
-          profileRepository.listProfilesByIds(adminClient, userIds),
           studentProfileRepository.listStudentProfileDetailsByUserIds(
             adminClient,
             userIds
@@ -543,10 +543,6 @@ export async function loadClassStudentRows(
         ])
       );
 
-    if (profilesResult.error) {
-      throw new Error(profilesResult.error.message);
-    }
-
     if (studentProfilesResult.error) {
       throw new Error(studentProfilesResult.error.message);
     }
@@ -555,32 +551,45 @@ export async function loadClassStudentRows(
       throw new Error(emailResult.error.message);
     }
 
-    const profileById = new Map(
-      (profilesResult.data ?? []).map((row) => [row.id, row])
-    );
     const studentProfileByUserId = new Map(
       (studentProfilesResult.data ?? []).map((row) => [row.user_id, row])
     );
     const emailById = emailResult.data;
+
+    const pendingDropsResult =
+      await semesterDropRequestRepository.listPendingDropsByClassId(
+        adminClient,
+        classId
+      );
+    if (pendingDropsResult.error) {
+      throw new Error(pendingDropsResult.error.message);
+    }
+    const pendingDropByStudentId = new Map(
+      (pendingDropsResult.data ?? []).map((row) => [row.student_id, row.id])
+    );
+
     const rows: ManagerClassStudentRow[] = [];
 
     for (const enrollment of enrollments) {
       const studentProfile = studentProfileByUserId.get(enrollment.user_id);
-      const profile = profileById.get(enrollment.user_id);
 
-      if (!studentProfile || !profile) {
+      if (!studentProfile) {
         continue;
       }
+
+      const pendingDropId =
+        pendingDropByStudentId.get(enrollment.user_id) ?? null;
 
       rows.push({
         id: enrollment.id,
         student_profile_id: studentProfile.id,
         user_id: enrollment.user_id,
         full_name: studentProfile.full_name,
-        username: profile.username,
         email: emailById.get(enrollment.user_id) ?? "",
         phone: studentProfile.phone,
         joined_at: enrollment.joined_at ?? "",
+        pending_drop_request_id: pendingDropId,
+        has_pending_drop: Boolean(pendingDropId),
       });
     }
 
@@ -610,18 +619,13 @@ export async function fetchClassStudentRowForManager(
     return null;
   }
 
-  const [profilesResult, studentProfilesResult, emailResult] = await Promise.all([
-    profileRepository.listProfilesByIds(adminClient, [userId]),
+  const [studentProfilesResult, emailResult] = await Promise.all([
     studentProfileRepository.listStudentProfileDetailsByUserIds(
       adminClient,
       [userId]
     ),
     authRepository.listAuthEmailsByIds(adminClient, [userId]),
   ]);
-
-  if (profilesResult.error) {
-    throw new Error(profilesResult.error.message);
-  }
 
   if (studentProfilesResult.error) {
     throw new Error(studentProfilesResult.error.message);
@@ -632,9 +636,8 @@ export async function fetchClassStudentRowForManager(
   }
 
   const studentProfile = studentProfilesResult.data?.[0];
-  const profile = profilesResult.data?.[0];
 
-  if (!studentProfile || !profile) {
+  if (!studentProfile) {
     return null;
   }
 
@@ -643,7 +646,6 @@ export async function fetchClassStudentRowForManager(
     student_profile_id: studentProfile.id,
     user_id: enrollment.user_id,
     full_name: studentProfile.full_name,
-    username: profile.username,
     email: emailResult.data.get(userId) ?? "",
     phone: studentProfile.phone,
     joined_at: enrollment.joined_at ?? "",

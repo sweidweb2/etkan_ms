@@ -8,7 +8,10 @@ import {
 import { NOTIFICATION_ACTION_NONE_VALUE } from "@/lib/validators/manager/create-notification";
 import { createNotificationSchema } from "@/lib/validators/manager/create-notification";
 import { updateNotificationSchema } from "@/lib/validators/manager/update-notification";
-import { getManagerRegistrationDetailRoute } from "@/lib/constants/routes";
+import {
+  getManagerClassDetailRoute,
+  getManagerRegistrationDetailRoute,
+} from "@/lib/constants/routes";
 import * as notificationRepository from "@/repositories/notification.repository";
 import type { NotificationRecord } from "@/types/notification-record";
 import {
@@ -616,5 +619,56 @@ export async function notifyManagersOfRegistrationSubmitted(
         error,
       }
     );
+  }
+}
+
+/**
+ * System event: a teacher skipped or restored a class week.
+ * Does not require NOTIFICATIONS_CREATE. Never throws — the skip already succeeded.
+ */
+export async function notifyManagersOfClassWeekSkipChange(
+  adminClient: Supabase,
+  input: {
+    classId: string;
+    className: string;
+    skipDate: string;
+    isSkipped: boolean;
+    actorLabel: string;
+    actorUserId: string | null;
+    reason?: string | null;
+  }
+): Promise<void> {
+  const reasonText = input.reason?.trim() ? ` Reason: ${input.reason.trim()}` : "";
+  const body = input.isSkipped
+    ? `${input.actorLabel} skipped the ${input.skipDate} session of ${input.className}.${reasonText}`
+    : `${input.actorLabel} restored the ${input.skipDate} session of ${input.className}.`;
+
+  try {
+    const { error } = await notificationRepository.createNotification(
+      adminClient,
+      {
+        recipient_id: null,
+        audience: "manager",
+        category: "academic",
+        priority: "normal",
+        title: input.isSkipped ? "Class week skipped" : "Class week restored",
+        body,
+        action_href: getManagerClassDetailRoute(input.classId),
+        created_by: input.actorUserId,
+        suppress_live_toast: true,
+      }
+    );
+
+    if (error) {
+      console.error("[notifications] failed to notify managers of class week skip", {
+        classId: input.classId,
+        message: error.message,
+      });
+    }
+  } catch (error) {
+    console.error("[notifications] failed to notify managers of class week skip", {
+      classId: input.classId,
+      error,
+    });
   }
 }

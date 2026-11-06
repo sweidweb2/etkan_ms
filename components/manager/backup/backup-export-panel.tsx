@@ -15,6 +15,7 @@ import { FieldLabel } from "@/components/auth/field-label";
 import { Can } from "@/components/auth/can";
 import { ExportStorageImagesDialog } from "@/components/manager/backup/export-storage-images-dialog";
 import { InlineSpinner } from "@/components/loaders/inline-spinner";
+import { PanelPageHeader } from "@/components/panels/panel-page-header";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -407,15 +408,9 @@ export function BackupExportPanel({ initialHistory }: BackupExportPanelProps) {
 
   return (
     <div className="space-y-6">
-      <div className="space-y-2">
-        <h1 className="text-2xl font-semibold tracking-tight">Backup</h1>
-        <p className="max-w-3xl text-sm text-muted-foreground">
-          Export public tables, then download auth users, storage files, and
-          dashboard auth settings before you replace this Supabase project.
-        </p>
-      </div>
+      <PanelPageHeader title="Backup" />
 
-      <div className="grid gap-6 xl:grid-cols-[minmax(28rem,1fr)_minmax(0,22rem)]">
+      <div className="grid gap-6 @4xl/panel:grid-cols-[minmax(28rem,1fr)_minmax(0,22rem)]">
         <Card className="h-fit py-0">
           <CardHeader className="border-b bg-muted/40 py-3">
             <CardTitle>Backup History</CardTitle>
@@ -425,18 +420,18 @@ export function BackupExportPanel({ initialHistory }: BackupExportPanelProps) {
           </CardHeader>
           <CardContent className="py-3">
             <div className="flex flex-col gap-3">
-              <div className="flex flex-col gap-2 sm:flex-row sm:items-end">
+              <div className="flex flex-col gap-2 @lg/panel:flex-row @lg/panel:items-end">
                 <div className="flex flex-col gap-2 w-full">
                   <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
                     Filter
                   </span>
-                  <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+                  <div className="flex flex-col gap-2 @lg/panel:flex-row @lg/panel:items-center">
                     <Select value={scopeFilter} onValueChange={(v) => {
                       if (!v) return;
                       setScopeFilter(v as HistoryScopeFilter);
                       setPage(1);
                     }}>
-                      <SelectTrigger className="w-full sm:w-36">
+                      <SelectTrigger className="w-full @lg/panel:w-36">
                         <SelectValue placeholder="Scope" />
                       </SelectTrigger>
                       <SelectContent>
@@ -546,7 +541,7 @@ export function BackupExportPanel({ initialHistory }: BackupExportPanelProps) {
               )}
 
               {filteredHistory.length ? (
-                <div className="-mx-4 -mb-4 flex flex-col gap-2 border-t bg-muted/40 p-4 sm:flex-row sm:items-center sm:justify-between">
+                <div className="-mx-4 -mb-4 flex flex-col gap-2 border-t bg-muted/40 p-4 @lg/panel:flex-row @lg/panel:items-center @lg/panel:justify-between">
                   <p className="text-xs text-muted-foreground">
                     Showing{" "}
                     {Math.min((safePage - 1) * pageSize + 1, filteredHistory.length)} -

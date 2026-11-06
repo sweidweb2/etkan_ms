@@ -167,7 +167,7 @@ export function AddWorkshopInstructorDialog({
       return candidates;
     }
     return candidates.filter((candidate) =>
-      candidate.username.toLowerCase().includes(query)
+      candidate.full_name.toLowerCase().includes(query)
     );
   }, [candidateFilter, candidates]);
 
@@ -175,14 +175,14 @@ export function AddWorkshopInstructorDialog({
     () =>
       candidates.map((candidate) => ({
         value: candidate.id,
-        label: candidate.username,
+        label: candidate.full_name,
       })),
     [candidates]
   );
 
   const selectedInstructorLabel = useMemo(
     () =>
-      candidates.find((candidate) => candidate.id === userId)?.username ?? null,
+      candidates.find((candidate) => candidate.id === userId)?.full_name ?? null,
     [candidates, userId]
   );
 
@@ -242,7 +242,7 @@ export function AddWorkshopInstructorDialog({
                 id="instructor-filter"
                 value={candidateFilter}
                 onChange={(event) => setCandidateFilter(event.target.value)}
-                placeholder="Filter by username"
+                placeholder="Filter by name"
                 disabled={isPending}
               />
             ) : null}
@@ -266,7 +266,7 @@ export function AddWorkshopInstructorDialog({
               <SelectContent>
                 {filteredCandidates.map((candidate) => (
                   <SelectItem key={candidate.id} value={candidate.id}>
-                    {candidate.username}
+                    {candidate.full_name}
                   </SelectItem>
                 ))}
               </SelectContent>

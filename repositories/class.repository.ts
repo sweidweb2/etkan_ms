@@ -36,14 +36,6 @@ export async function listInProgressClasses(client: Supabase) {
     .order("name", { ascending: true });
 }
 
-export async function listInProgressClassesWithSemester(client: Supabase) {
-  return client
-    .from("classes")
-    .select("id, name, semester_id")
-    .eq("status", "in_progress")
-    .order("name", { ascending: true });
-}
-
 /**
  * Billing batch: all in-progress classes with created_at so callers can pick
  * oldest per semester without N+1 finds.

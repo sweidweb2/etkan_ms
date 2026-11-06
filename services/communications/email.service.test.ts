@@ -41,8 +41,8 @@ const userIds = [
 function mockRecipients() {
   vi.mocked(profileRepository.listProfilesByIds).mockResolvedValue({
     data: [
-      { id: userIds[0], username: "student1", role: "student", is_instructor: false, created_at: "" },
-      { id: userIds[1], username: "student2", role: "student", is_instructor: false, created_at: "" },
+      { id: userIds[0], full_name: "Student One", role: "student", is_instructor: false, created_at: "" },
+      { id: userIds[1], full_name: "Student Two", role: "student", is_instructor: false, created_at: "" },
     ],
     error: null,
     count: null,

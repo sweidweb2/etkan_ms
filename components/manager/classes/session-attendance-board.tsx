@@ -357,7 +357,7 @@ export function SessionAttendanceBoard({
               data-attendance-status={status}
               aria-label={`${label}, ${laneAttendees.length} students`}
               className={cn(
-                "flex w-[min(100%,14.5rem)] shrink-0 flex-col rounded-xl border border-foreground/8 bg-muted/35 transition-colors duration-150 sm:w-0 sm:min-w-0 sm:flex-1",
+                "flex w-[min(100%,14.5rem)] shrink-0 flex-col rounded-xl border border-foreground/8 bg-muted/35 transition-colors duration-150 @lg/panel:w-0 @lg/panel:min-w-0 @lg/panel:flex-1",
                 isDropTarget && "border-primary/40 bg-primary/8"
               )}
             >

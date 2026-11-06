@@ -155,8 +155,8 @@ export function WorkshopInstructorsSection({
             <DialogTitle>Remove instructor</DialogTitle>
             <DialogDescription>
               Remove{" "}
-              {removingInstructor?.username?.trim()
-                ? removingInstructor.username
+              {removingInstructor?.full_name?.trim()
+                ? removingInstructor.full_name
                 : "this instructor"}{" "}
               from this workshop? This does not delete their user account.
             </DialogDescription>
@@ -228,8 +228,8 @@ export function WorkshopInstructorsSection({
                       className="border-b border-border/60 last:border-0"
                     >
                       <td className="py-3 pr-3 align-top font-medium text-foreground">
-                        {instructor.username?.trim()
-                          ? instructor.username
+                        {instructor.full_name?.trim()
+                          ? instructor.full_name
                           : "—"}
                       </td>
                       <td className="py-3 pr-3 align-top text-foreground">
@@ -255,7 +255,7 @@ export function WorkshopInstructorsSection({
                                 type="button"
                                 variant="ghost"
                                 size="icon"
-                                aria-label={`Edit ${instructor.username ?? "instructor"}`}
+                                aria-label={`Edit ${instructor.full_name ?? "instructor"}`}
                                 onClick={() => setEditingInstructor(instructor)}
                               >
                                 <PencilIcon />
@@ -266,7 +266,7 @@ export function WorkshopInstructorsSection({
                                 type="button"
                                 variant="ghost"
                                 size="icon"
-                                aria-label={`Remove ${instructor.username ?? "instructor"}`}
+                                aria-label={`Remove ${instructor.full_name ?? "instructor"}`}
                                 onClick={() => setRemovingInstructor(instructor)}
                               >
                                 <Trash2Icon />

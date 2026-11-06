@@ -1,9 +1,20 @@
 "use server";
 
+import { revalidatePath } from "next/cache";
 import { runManagerAction } from "@/lib/actions/run-manager-action";
 import { getSessionAuditActor } from "@/lib/auth/session";
 import { revalidateManagerPeopleLists } from "@/lib/cache/manager-list-cache";
+import { getManagerStudentDetailRoute } from "@/lib/constants/routes";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
+import {
+  parseStudentAvatarTargetFormData,
+  parseUpdateStudentAvatarFormData,
+} from "@/lib/validators/student/avatar";
+import {
+  removeStudentAvatarForManager,
+  updateStudentAvatarForManager,
+} from "@/services/students/student-avatar.service";
+import type { AvatarActionState } from "@/types/student-avatar";
 import { parseChangeStudentStatusFormData } from "@/lib/validators/manager/change-student-status";
 import { parseCreateStudentFormData } from "@/lib/validators/manager/create-student";
 import { parseUpdateStudentFormData } from "@/lib/validators/manager/update-student";
@@ -120,6 +131,57 @@ export async function changeStudentStatusAction(
       message: result.message,
       warning: result.warning,
       status: result.status,
+    }),
+  });
+}
+
+export async function updateStudentAvatarAction(
+  _prevState: AvatarActionState,
+  formData: FormData
+): Promise<AvatarActionState> {
+  return runManagerAction({
+    formData,
+    parse: parseUpdateStudentAvatarFormData,
+    mutate: ({ adminClient, actor, data }) =>
+      updateStudentAvatarForManager(
+        adminClient,
+        actor.userId,
+        actor,
+        data.user_id,
+        data.image
+      ),
+    revalidate: (_result, data) => {
+      revalidatePath(getManagerStudentDetailRoute(data.student_profile_id));
+    },
+    mapSuccess: (result) => ({
+      success: true,
+      message: result.message,
+      avatar_url: result.avatar_url,
+    }),
+  });
+}
+
+export async function removeStudentAvatarAction(
+  _prevState: AvatarActionState,
+  formData: FormData
+): Promise<AvatarActionState> {
+  return runManagerAction({
+    formData,
+    parse: parseStudentAvatarTargetFormData,
+    mutate: ({ adminClient, actor, data }) =>
+      removeStudentAvatarForManager(
+        adminClient,
+        actor.userId,
+        actor,
+        data.user_id
+      ),
+    revalidate: (_result, data) => {
+      revalidatePath(getManagerStudentDetailRoute(data.student_profile_id));
+    },
+    mapSuccess: (result) => ({
+      success: true,
+      message: result.message,
+      avatar_url: result.avatar_url,
     }),
   });
 }

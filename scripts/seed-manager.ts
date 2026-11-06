@@ -10,16 +10,16 @@ async function seedManagerUser(): Promise<void> {
 
   const email = process.env.SEED_MANAGER_EMAIL ?? "asweid657@gmail.com";
   const password = process.env.SEED_MANAGER_PASSWORD ?? "ali@1234";
-  const username = process.env.SEED_MANAGER_USERNAME ?? "asweid";
+  const fullName = process.env.SEED_MANAGER_FULL_NAME ?? "Manager";
 
   const adminClient = createSeedAdminClient();
 
-  const existingUsername = await profileRepository.findProfileByUsername(
+  const existingAuthUser = await authRepository.findAuthUserByEmail(
     adminClient,
-    username
+    email
   );
-  if (existingUsername.data) {
-    console.log(`Seed manager profile already exists (${username}). Skipping.`);
+  if (existingAuthUser.data?.user) {
+    console.log(`Seed manager auth user already exists (${email}). Skipping.`);
     return;
   }
 
@@ -27,8 +27,7 @@ async function seedManagerUser(): Promise<void> {
     await authRepository.createAuthUser(adminClient, {
       email,
       password,
-      username,
-      fullName: "Manager",
+      fullName,
       role: ROLES.MANAGER,
     });
 
@@ -58,7 +57,7 @@ async function seedManagerUser(): Promise<void> {
         adminClient,
         {
           id: authUserId,
-          username,
+          full_name: fullName,
           role: ROLES.MANAGER,
         }
       );
@@ -71,9 +70,9 @@ async function seedManagerUser(): Promise<void> {
     await syncAuthUserRole(adminClient, authUserId, ROLES.MANAGER);
 
     console.log("Seed manager user created.");
-    console.log(`  Email:    ${email}`);
-    console.log(`  Username: ${username}`);
-    console.log(`  Password: ${password}`);
+    console.log(`  Email:     ${email}`);
+    console.log(`  Full name: ${fullName}`);
+    console.log(`  Password:  ${password}`);
     console.log("Sign in at /auth/login.");
   } catch (error) {
     await authRepository.deleteAuthUser(adminClient, authUserId);

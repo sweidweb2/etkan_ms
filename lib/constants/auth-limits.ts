@@ -1,6 +1,5 @@
 /** Shared auth field bounds (HTML attributes + Zod). */
 export const AUTH_LIMITS = {
-  username: { min: 3, max: 30 },
   fullName: { min: 2, max: 100 },
   email: { min: 5, max: 255 },
   password: { min: 5, max: 72 },
@@ -16,4 +15,4 @@ export const AUTH_RATE_LIMITS = {
 export const DEFAULT_CREATED_STUDENT_PASSWORD = "password";
 
 /** Inactivity window before server/client session logout (matches Supabase config). */
-export const SESSION_INACTIVITY_MS = 30 * 60 * 1000;
+export const SESSION_INACTIVITY_MS = 3 * 60 * 60 * 1000;

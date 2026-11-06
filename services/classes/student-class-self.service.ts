@@ -62,7 +62,6 @@ function mapSessionRecord(record: SessionRecord): ManagerClassSessionRow {
     session_report: record.session_report,
     starts_at: record.starts_at,
     ends_at: record.ends_at,
-    semester_id: record.semester_id,
     group_grade_level: mapGroupGradeLevel(record.group_grade_level),
     created_at: record.created_at,
   };
@@ -235,6 +234,7 @@ export async function getStudentClassTaskForSelf(
       description: taskRecord.description,
       due_date: taskRecord.due_date,
       max_grade: Number(taskRecord.max_grade ?? 0),
+      is_yes_no: taskRecord.is_yes_no ?? false,
     },
     studentTask: studentTaskRecord
       ? {

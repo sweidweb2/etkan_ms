@@ -93,7 +93,6 @@ export function mapSessionRecord(record: SessionRecord): ManagerClassSessionRow 
     session_report: record.session_report,
     starts_at: record.starts_at,
     ends_at: record.ends_at,
-    semester_id: record.semester_id,
     group_grade_level: mapGroupGradeLevel(record.group_grade_level),
     created_at: record.created_at,
   };
@@ -108,6 +107,7 @@ export function mapTaskRecord(record: ClassTaskRecord): ManagerClassTaskRow {
     description: record.description,
     period: record.period,
     max_grade: record.max_grade,
+    is_yes_no: record.is_yes_no ?? false,
     sort_order: record.sort_order,
     started: record.started,
     started_at: record.started_at,

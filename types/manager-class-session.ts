@@ -9,7 +9,6 @@ export interface ManagerClassSessionRow {
   session_report: string | null;
   starts_at: string;
   ends_at: string;
-  semester_id: string | null;
   group_grade_level: SessionGroupGradeLevelValue | null;
   created_at: string;
 }

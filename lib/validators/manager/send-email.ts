@@ -105,7 +105,6 @@ export const sendEmailSchema = z
     bodyHtml: optionalTrimmed,
     // welcome
     account_email: optionalEmailField,
-    username: optionalTrimmed,
     temporary_password: optionalTrimmed,
     // announcement / custom
     title: optionalTrimmed,
@@ -187,7 +186,6 @@ export const sendEmailSchema = z
     switch (values.templateId) {
       case "welcome":
         requireField("account_email", "Account email", AUTH_LIMITS.email.max);
-        requireField("username", "Username", AUTH_LIMITS.username.max);
         requireField(
           "temporary_password",
           "Temporary password",
@@ -335,7 +333,6 @@ export function parseSendEmailFormData(formData: FormData):
     toEmails: parseToEmails(formData),
     bodyHtml: rawBodyHtml || undefined,
     account_email: formData.get("account_email") ?? undefined,
-    username: formData.get("username") ?? undefined,
     temporary_password: formData.get("temporary_password") ?? undefined,
     title: formData.get("title") ?? undefined,
     body: formData.get("body") ?? undefined,

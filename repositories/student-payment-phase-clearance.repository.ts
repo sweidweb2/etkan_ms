@@ -1,6 +1,7 @@
 import "server-only";
 
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { chunkedIn } from "@/repositories/_shared/chunked-in";
 import type { Database } from "@/types/supabase";
 
 type Supabase = SupabaseClient<Database>;
@@ -31,14 +32,12 @@ export async function findClearancesBySppIds(
   client: Supabase,
   sppIds: string[]
 ) {
-  if (sppIds.length === 0) {
-    return { data: [] as StudentPaymentPhaseClearanceRecord[], error: null };
-  }
-
-  return client
-    .from("student_payment_phase_clearances")
-    .select(CLEARANCE_COLUMNS)
-    .in("student_payment_phase_id", sppIds);
+  return chunkedIn(sppIds, (chunk) =>
+    client
+      .from("student_payment_phase_clearances")
+      .select(CLEARANCE_COLUMNS)
+      .in("student_payment_phase_id", chunk)
+  );
 }
 
 export async function findClearanceById(client: Supabase, id: string) {

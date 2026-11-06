@@ -21,6 +21,7 @@ import { Can } from "@/components/auth/can";
 import { CategoryFormDialog } from "@/components/manager/subjects/catalog/category-form-dialog";
 import { ExerciseFormDialog } from "@/components/manager/subjects/catalog/exercise-form-dialog";
 import { InlineSpinner } from "@/components/loaders/inline-spinner";
+import { PanelPageHeader } from "@/components/panels/panel-page-header";
 import {
   Breadcrumb,
   BreadcrumbItem,
@@ -187,6 +188,7 @@ export function SubjectsCatalogPanel({
 
   return (
     <div className="flex flex-col gap-6">
+      <PanelPageHeader title="Categories & exercises" />
       <Breadcrumb>
         <BreadcrumbList>
           <BreadcrumbItem>
@@ -201,20 +203,11 @@ export function SubjectsCatalogPanel({
         </BreadcrumbList>
       </Breadcrumb>
 
-      <div className="flex flex-col gap-2">
-        <h1 className="text-2xl font-semibold tracking-tight">
-          Categories & exercises
-        </h1>
-        <p className="text-sm text-muted-foreground">
-          Global catalogs you can attach to subjects.
-        </p>
-      </div>
-
       <TabsPrimitive
         value={tab}
         onValueChange={(value) => setTab(value as CatalogTab)}
       >
-        <TabsListPrimitive className="mx-auto flex h-auto w-full flex-wrap items-center justify-center gap-2 rounded-full bg-muted/60 p-1 ring-1 ring-foreground/8 sm:w-fit">
+        <TabsListPrimitive className="mx-auto flex h-auto w-full flex-wrap items-center justify-center gap-2 rounded-full bg-muted/60 p-1 ring-1 ring-foreground/8 @lg/panel:w-fit">
           <TabsTriggerPrimitive value="categories" className="rounded-full px-4">
             Categories
           </TabsTriggerPrimitive>
@@ -224,8 +217,8 @@ export function SubjectsCatalogPanel({
         </TabsListPrimitive>
       </TabsPrimitive>
 
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div className="relative w-full sm:max-w-sm">
+      <div className="flex flex-col gap-3 @lg/panel:flex-row @lg/panel:items-center @lg/panel:justify-between">
+        <div className="relative w-full @lg/panel:max-w-sm">
           <SearchIcon className="pointer-events-none absolute start-2.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
           <Input
             value={search}
@@ -344,11 +337,11 @@ export function SubjectsCatalogPanel({
           </CardContent>
         </Card>
       ) : (
-        <div className="grid gap-3 md:grid-cols-2">
+        <div className="grid gap-3 @xl/panel:grid-cols-2">
           {filteredExercises.length === 0 ? (
             <EmptyState
               size="sm"
-              className="md:col-span-2"
+              className="@xl/panel:col-span-2"
               icon={
                 exercises.length === 0 || !search.trim()
                   ? BookOpenIcon

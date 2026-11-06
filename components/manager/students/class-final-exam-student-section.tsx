@@ -46,7 +46,7 @@ export function ClassFinalExamStudentSection({
                 {finalExam.description ?? "No description available."}
               </p>
             </div>
-            <dl className="grid gap-4 px-4 py-4 sm:grid-cols-2 lg:grid-cols-4">
+            <dl className="grid gap-4 px-4 py-4 @lg/panel:grid-cols-2 @2xl/panel:grid-cols-4">
               <DetailField
                 label="Max grade"
                 value={finalExam.max_grade?.toString() ?? "—"}

@@ -56,12 +56,10 @@ import {
 import * as attendeeRepository from "@/repositories/attendee.repository";
 import * as authRepository from "@/repositories/auth.repository";
 import * as blogRepository from "@/repositories/blog.repository";
-import * as borrowEquipmentRepository from "@/repositories/borrow-equipment.repository";
 import * as classRepository from "@/repositories/class.repository";
 import * as classTaskRepository from "@/repositories/class-task.repository";
 import type { ClassTaskRecord } from "@/repositories/class-task.repository";
 import * as classTeacherRepository from "@/repositories/class-teacher.repository";
-import * as equipmentRepository from "@/repositories/equipment.repository";
 import * as finalExamRepository from "@/repositories/final-exam.repository";
 import * as guestRepository from "@/repositories/guest.repository";
 import * as guestStatusEventRepository from "@/repositories/guest-status-event.repository";
@@ -136,22 +134,18 @@ function isoDateTime(daysFromToday: number, hourUtc = 9): string {
 }
 
 type SeedStaff = {
-  username: string;
   email: string;
   fullName: string;
   role: RoleValue;
 };
 
 type SeedTeacher = {
-  username: string;
   email: string;
   fullName: string;
   isInstructor?: boolean;
-  isMentor?: boolean;
 };
 
 type SeedStudent = {
-  username: string;
   email: string;
   fullName: string;
   phone?: string;
@@ -270,12 +264,6 @@ async function findOrCreateStaff(
   client: Supabase,
   input: SeedStaff
 ): Promise<string> {
-  const existingProfile = await profileRepository.findProfileByUsername(
-    client,
-    input.username
-  );
-  if (existingProfile.data) return existingProfile.data.id;
-
   const existingEmail = await authRepository.findAuthUserByEmail(
     client,
     input.email
@@ -288,14 +276,13 @@ async function findOrCreateStaff(
     {
       email: input.email,
       password: getDefaultPassword(),
-      username: input.username,
       fullName: input.fullName,
       role: input.role,
     }
   );
 
   if (authError || !authData.user) {
-    throw new Error(authError?.message ?? `Unable to create staff ${input.username}.`);
+    throw new Error(authError?.message ?? `Unable to create staff ${input.email}.`);
   }
 
   const authUserId = authData.user.id;
@@ -303,7 +290,7 @@ async function findOrCreateStaff(
   try {
     const { error: profileError } = await profileRepository.createProfile(client, {
       id: authUserId,
-      username: input.username,
+      full_name: input.fullName,
       role: input.role,
     });
     if (profileError) throw new Error(profileError.message);
@@ -357,32 +344,26 @@ async function findOrCreateTeacher(
   client: Supabase,
   input: SeedTeacher
 ): Promise<string> {
-  const existingProfile = await profileRepository.findProfileByUsername(
-    client,
-    input.username
-  );
-
-  if (existingProfile.data) {
-    const flags = {
-      is_instructor: input.isInstructor ?? false,
-      is_mentor: input.isMentor ?? false,
-    };
-    await profileRepository.updateProfileById(client, existingProfile.data.id, {
-      username: input.username,
-      role: ROLES.TEACHER,
-      ...flags,
-    });
-    await syncAuthUserRole(client, existingProfile.data.id, ROLES.TEACHER);
-    return existingProfile.data.id;
-  }
-
   const existingEmail = await authRepository.findAuthUserByEmail(
     client,
     input.email
   );
   if (existingEmail.error) throw new Error(existingEmail.error.message);
   if (existingEmail.data?.user) {
-    return existingEmail.data.user.id;
+    const userId = existingEmail.data.user.id;
+    const existingProfile = await profileRepository.findProfileById(
+      client,
+      userId
+    );
+    if (existingProfile.data) {
+      await profileRepository.updateProfileById(client, userId, {
+        full_name: input.fullName,
+        role: ROLES.TEACHER,
+        is_instructor: input.isInstructor ?? false,
+      });
+      await syncAuthUserRole(client, userId, ROLES.TEACHER);
+    }
+    return userId;
   }
 
   const { data: authData, error: authError } = await authRepository.createAuthUser(
@@ -390,14 +371,13 @@ async function findOrCreateTeacher(
     {
       email: input.email,
       password: getDefaultPassword(),
-      username: input.username,
       fullName: input.fullName,
       role: ROLES.TEACHER,
     }
   );
 
   if (authError || !authData.user) {
-    throw new Error(authError?.message ?? `Unable to create teacher ${input.username}.`);
+    throw new Error(authError?.message ?? `Unable to create teacher ${input.email}.`);
   }
 
   const authUserId = authData.user.id;
@@ -405,10 +385,9 @@ async function findOrCreateTeacher(
   try {
     const { error: profileError } = await profileRepository.createProfile(client, {
       id: authUserId,
-      username: input.username,
+      full_name: input.fullName,
       role: ROLES.TEACHER,
       is_instructor: input.isInstructor ?? false,
-      is_mentor: input.isMentor ?? false,
     });
 
     if (profileError) throw new Error(profileError.message);
@@ -425,31 +404,6 @@ async function findOrCreateStudent(
   client: Supabase,
   input: SeedStudent
 ): Promise<{ userId: string; studentProfileId: string }> {
-  const existingProfile = await profileRepository.findProfileByUsername(
-    client,
-    input.username
-  );
-
-  if (existingProfile.data) {
-    const studentProfile =
-      await studentProfileRepository.findStudentProfileByUserId(
-        client,
-        existingProfile.data.id
-      );
-
-    if (studentProfile.error) throw new Error(studentProfile.error.message);
-    if (!studentProfile.data) {
-      throw new Error(
-        `Profile exists for ${input.username} but student_profiles row is missing.`
-      );
-    }
-
-    return {
-      userId: existingProfile.data.id,
-      studentProfileId: studentProfile.data.id,
-    };
-  }
-
   const existingEmail = await authRepository.findAuthUserByEmail(
     client,
     input.email
@@ -478,14 +432,13 @@ async function findOrCreateStudent(
     {
       email: input.email,
       password: getDefaultPassword(),
-      username: input.username,
       fullName: input.fullName,
       role: ROLES.STUDENT,
     }
   );
 
   if (authError || !authData.user) {
-    throw new Error(authError?.message ?? `Unable to create student ${input.username}.`);
+    throw new Error(authError?.message ?? `Unable to create student ${input.email}.`);
   }
 
   const authUserId = authData.user.id;
@@ -493,8 +446,6 @@ async function findOrCreateStudent(
   try {
     await ensureStudentRegistration(client, {
       authId: authUserId,
-      username: input.username,
-      email: input.email,
       fullName: input.fullName,
       phone: input.phone ?? null,
       role: ROLES.STUDENT,
@@ -507,7 +458,7 @@ async function findOrCreateStudent(
 
     if (studentProfile.error) throw new Error(studentProfile.error.message);
     if (!studentProfile.data) {
-      throw new Error(`Student registration incomplete for ${input.username}.`);
+      throw new Error(`Student registration incomplete for ${input.email}.`);
     }
 
     return {
@@ -760,7 +711,6 @@ async function ensureSessionsForClass(
       session_report: null,
       starts_at: startsAt,
       ends_at: endsAt,
-      semester_id: semesterId,
       group_grade_level: groupLevels[index] ?? SESSION_GROUP_GRADE_LEVELS.MEDIUM,
     });
     if (created.error || !created.data) {
@@ -1876,49 +1826,6 @@ async function ensureGuestsAndTeam(
   }
 }
 
-async function ensureEquipment(
-  client: Supabase,
-  borrowerUserId: string
-) {
-  const listed = await equipmentRepository.listEquipments(client);
-  if (listed.error) throw new Error(listed.error.message);
-
-  let equipment = (listed.data ?? []).find(
-    (row) => row.name.toLowerCase() === "demo 3d printer"
-  );
-
-  if (!equipment) {
-    const created = await equipmentRepository.createEquipment(client, {
-      name: "Demo 3D Printer",
-      description: "Shared lab printer for demos.",
-      quantity: 2,
-      unit_price: 800,
-    });
-    if (created.error || !created.data) {
-      throw new Error(created.error?.message ?? "Unable to create equipment.");
-    }
-    equipment = created.data;
-  }
-
-  const borrows = await client
-    .from("borrow_equipment")
-    .select("id")
-    .eq("equipment_id", equipment.id)
-    .eq("user_id", borrowerUserId)
-    .limit(1);
-  if (borrows.error) throw new Error(borrows.error.message);
-  if ((borrows.data ?? []).length === 0) {
-    const created = await borrowEquipmentRepository.createBorrows(client, [
-      {
-        equipment_id: equipment.id,
-        user_id: borrowerUserId,
-        quantity: 1,
-      },
-    ]);
-    if (created.error) throw new Error(created.error.message);
-  }
-}
-
 async function ensurePublicContent(client: Supabase) {
   const blogSlug = "demo-welcome-to-etkan";
   const existingBlog = await blogRepository.findBlogBySlug(client, blogSlug);
@@ -2010,20 +1917,30 @@ async function ensureTransactions(
   if (created.error) throw new Error(created.error.message);
 }
 
-async function resolveReceiverUserId(client: Supabase): Promise<string> {
-  const managerUsername = process.env.SEED_MANAGER_USERNAME ?? "asweid";
-  const manager = await profileRepository.findProfileByUsername(
-    client,
-    managerUsername
-  );
-  if (manager.data) return manager.data.id;
+async function findProfileIdByEmail(
+  client: Supabase,
+  email: string
+): Promise<string | null> {
+  const authUser = await authRepository.findAuthUserByEmail(client, email);
+  const userId = authUser.data?.user?.id;
+  if (!userId) return null;
 
-  const adminUsername = process.env.SEED_ADMIN_USERNAME ?? "admin";
-  const admin = await profileRepository.findProfileByUsername(
+  const profile = await profileRepository.findProfileById(client, userId);
+  return profile.data?.id ?? null;
+}
+
+async function resolveReceiverUserId(client: Supabase): Promise<string> {
+  const managerId = await findProfileIdByEmail(
     client,
-    adminUsername
+    process.env.SEED_MANAGER_EMAIL ?? "asweid657@gmail.com"
   );
-  if (admin.data) return admin.data.id;
+  if (managerId) return managerId;
+
+  const adminId = await findProfileIdByEmail(
+    client,
+    process.env.SEED_ADMIN_EMAIL ?? "admin@example.com"
+  );
+  if (adminId) return adminId;
 
   throw new Error(
     "No manager/admin profile found. Run seed:admin and seed:manager first."
@@ -2039,25 +1956,21 @@ async function seedDemoData(): Promise<void> {
 
   // --- Panel staff (beyond admin/manager scripts) ---
   await findOrCreateStaff(client, {
-    username: "demo.ceo",
     email: "demo.ceo@example.com",
     fullName: "Demo CEO",
     role: ROLES.CEO,
   });
   await findOrCreateStaff(client, {
-    username: "demo.supervisor",
     email: "demo.supervisor@example.com",
     fullName: "Demo Supervisor",
     role: ROLES.SUPERVISOR,
   });
   await findOrCreateStaff(client, {
-    username: "demo.crm",
     email: "demo.crm@example.com",
     fullName: "Demo CRM",
     role: ROLES.CRM,
   });
   await findOrCreateStaff(client, {
-    username: "demo.comanager",
     email: "demo.comanager@example.com",
     fullName: "Demo Co-Manager",
     role: ROLES.CO_MANAGER,
@@ -2124,14 +2037,11 @@ async function seedDemoData(): Promise<void> {
   });
 
   const mathTeacherId = await findOrCreateTeacher(client, {
-    username: "demo.teacher.math",
     email: "demo.teacher.math@example.com",
     fullName: "Demo Math Teacher",
     isInstructor: true,
-    isMentor: true,
   });
   const physicsTeacherId = await findOrCreateTeacher(client, {
-    username: "demo.teacher.physics",
     email: "demo.teacher.physics@example.com",
     fullName: "Demo Physics Teacher",
     isInstructor: true,
@@ -2142,25 +2052,21 @@ async function seedDemoData(): Promise<void> {
 
   const mathStudents: SeedStudent[] = [
     {
-      username: "demo.student.alice",
       email: "demo.student.alice@example.com",
       fullName: "Alice Anderson",
       phone: "+1-555-0101",
     },
     {
-      username: "demo.student.bob",
       email: "demo.student.bob@example.com",
       fullName: "Bob Baker",
       phone: "+1-555-0102",
     },
     {
-      username: "demo.student.carol",
       email: "demo.student.carol@example.com",
       fullName: "Carol Clark",
       phone: "+1-555-0103",
     },
     {
-      username: "demo.student.david",
       email: "demo.student.david@example.com",
       fullName: "David Davis",
       phone: "+1-555-0104",
@@ -2169,19 +2075,16 @@ async function seedDemoData(): Promise<void> {
 
   const physicsStudents: SeedStudent[] = [
     {
-      username: "demo.student.eve",
       email: "demo.student.eve@example.com",
       fullName: "Eve Edwards",
       phone: "+1-555-0105",
     },
     {
-      username: "demo.student.frank",
       email: "demo.student.frank@example.com",
       fullName: "Frank Foster",
       phone: "+1-555-0106",
     },
     {
-      username: "demo.student.grace",
       email: "demo.student.grace@example.com",
       fullName: "Grace Green",
       phone: "+1-555-0107",
@@ -2356,9 +2259,8 @@ async function seedDemoData(): Promise<void> {
     createdBy: receiverId,
   });
 
-  // --- Guests / teams / equipment / CMS / ledger ---
+  // --- Guests / teams / CMS / ledger ---
   await ensureGuestsAndTeam(client, receiverId);
-  await ensureEquipment(client, mathTeacherId);
   await ensurePublicContent(client);
   await ensureTransactions(client, receiverId);
 
@@ -2366,7 +2268,7 @@ async function seedDemoData(): Promise<void> {
   console.log("");
   console.log("Staff (password Demo123! unless overridden):");
   console.log("  demo.ceo / demo.supervisor / demo.crm / demo.comanager");
-  console.log("  demo.teacher.math (instructor+mentor), demo.teacher.physics");
+  console.log("  demo.teacher.math (instructor), demo.teacher.physics");
   console.log(
     `  Teacher role permissions: ${TEACHER_SEED_PERMISSIONS.length} teaching keys`
   );
@@ -2398,7 +2300,7 @@ async function seedDemoData(): Promise<void> {
     `  "${DEMO_SPRING_PHASE_NAME}" (opened): Eve partial, Frank paid, Grace pending`
   );
   console.log("");
-  console.log("Also seeded: workshop, instructor schedule, guests/team, equipment borrow,");
+  console.log("Also seeded: workshop, instructor schedule, guests/team,");
   console.log("  blog + public projects, sample expense transaction.");
   console.log("");
   console.log(`Default password for demo.* users: ${getDefaultPassword()}`);

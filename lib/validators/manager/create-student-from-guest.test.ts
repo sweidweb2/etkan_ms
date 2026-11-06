@@ -10,7 +10,6 @@ const guestId = "a1a2b3c4-d5e6-7890-abcd-ef1234567890";
 
 const validInput = {
   guest_id: guestId,
-  username: "ada_lovelace",
   fullName: "Ada Lovelace",
   email: "ada@example.com",
   password: "",
@@ -78,7 +77,6 @@ describe("parseCreateStudentFromGuestFormData", () => {
   it("parses the form and defaults empty passwords", () => {
     const formData = new FormData();
     formData.set("guest_id", guestId);
-    formData.set("username", "ada_lovelace");
     formData.set("fullName", "Ada Lovelace");
     formData.set("email", "ada@example.com");
     formData.set("password", "");
@@ -98,7 +96,6 @@ describe("parseCreateStudentFromGuestFormData", () => {
   it("treats markGuestAsFinished false as off", () => {
     const formData = new FormData();
     formData.set("guest_id", guestId);
-    formData.set("username", "ada_lovelace");
     formData.set("fullName", "Ada Lovelace");
     formData.set("email", "ada@example.com");
     formData.set("password", "");

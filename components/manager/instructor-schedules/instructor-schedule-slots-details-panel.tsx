@@ -12,6 +12,7 @@ import {
 import { loadInstructorScheduleSlotsPageAction } from "@/app/manager/instructor-schedules/actions";
 import { UserStatCard } from "@/components/manager/users/user-stat-card";
 import { InlineSpinner } from "@/components/loaders/inline-spinner";
+import { PanelPageHeader } from "@/components/panels/panel-page-header";
 import {
   Breadcrumb,
   BreadcrumbItem,
@@ -130,7 +131,7 @@ export function InstructorScheduleSlotsDetailsPanel({
     for (const instructor of data.instructors) {
       map.set(
         `${ENTITY_SCHEDULE_TYPE_INSTRUCTOR}:${instructor.id}`,
-        instructor.username?.trim() || "Unknown"
+        instructor.full_name.trim() || "Unknown"
       );
     }
     return map;
@@ -209,6 +210,7 @@ export function InstructorScheduleSlotsDetailsPanel({
 
   return (
     <div className="flex flex-col gap-6">
+      <PanelPageHeader title="Schedule slot details" />
       <Breadcrumb>
         <BreadcrumbList>
           <BreadcrumbItem>
@@ -223,15 +225,7 @@ export function InstructorScheduleSlotsDetailsPanel({
         </BreadcrumbList>
       </Breadcrumb>
 
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-        <div className="min-w-0">
-          <h1 className="text-2xl font-semibold tracking-tight">
-            Schedule slot details
-          </h1>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Browse all weekly free and busy slots for instructors.
-          </p>
-        </div>
+      <div className="flex flex-wrap items-center justify-end gap-2 empty:hidden">
         <Link
           href={ROUTES.MANAGER_INSTRUCTOR_SCHEDULES}
           className={cn(buttonVariants({ variant: "outline" }), "shrink-0")}
@@ -241,7 +235,7 @@ export function InstructorScheduleSlotsDetailsPanel({
         </Link>
       </div>
 
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      <div className="grid gap-4 @lg/panel:grid-cols-2 @4xl/panel:grid-cols-4">
         <UserStatCard
           label="Total slots"
           value={stats.total}
@@ -281,7 +275,7 @@ export function InstructorScheduleSlotsDetailsPanel({
           </CardAction>
         </CardHeader>
         <CardContent className="px-0 pb-0">
-          <div className="flex flex-col gap-3 border-b px-4 pt-2 pb-3 lg:flex-row lg:items-center">
+          <div className="flex flex-col gap-3 border-b px-4 pt-2 pb-3 @2xl/panel:flex-row @2xl/panel:items-center">
             <div className="relative min-w-0 flex-1">
               <SearchIcon className="pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-muted-foreground" />
               <Input
@@ -292,13 +286,13 @@ export function InstructorScheduleSlotsDetailsPanel({
                 aria-label="Search schedule slots"
               />
             </div>
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+            <div className="flex flex-col gap-3 @lg/panel:flex-row @lg/panel:items-center">
               <Select
                 value={slotTypeFilter}
                 onValueChange={handleSlotTypeFilterChange}
               >
                 <SelectTrigger
-                  className="w-full sm:w-40"
+                  className="w-full @lg/panel:w-40"
                   aria-label="Filter by slot type"
                 >
                   <SelectValue placeholder="All types" />
@@ -380,7 +374,7 @@ export function InstructorScheduleSlotsDetailsPanel({
             </div>
           )}
 
-          <div className="flex flex-col gap-3 border-t px-4 pt-2 pb-3 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex flex-col gap-3 border-t px-4 pt-2 pb-3 @lg/panel:flex-row @lg/panel:items-center @lg/panel:justify-between">
             <div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
               <span>
                 Showing {rangeStart}–{rangeEnd} of {totalCount}

@@ -13,6 +13,8 @@ import {
   listClassStudentsForManager,
 } from "@/services/classes/class.service";
 import { getClassComputedGradeLockStateForManager } from "@/services/classes/class-computed-grade-lock.service";
+import { getClassWeekSkipState } from "@/services/classes/class-session-skip.service";
+import { EMPTY_CLASS_WEEK_SKIP_STATE } from "@/lib/manager/class-week-skips";
 import { listClassTasksForManager } from "@/services/classes/session.service";
 import { notFound } from "next/navigation";
 
@@ -57,6 +59,7 @@ export default async function ManagerClassDetailPage({
     teachers,
     computedGradeLock,
     tasks,
+    weekSkipState,
   ] = await Promise.all([
     timer.step("class", () =>
       getClassForManager(adminClient, actorUserId, id)
@@ -89,6 +92,11 @@ export default async function ManagerClassDetailPage({
         ? listClassTasksForManager(adminClient, actorUserId, id)
         : Promise.resolve([])
     ),
+    timer.step("weekSkips", () =>
+      canSessions
+        ? getClassWeekSkipState(adminClient, { classId: id, actorRole: pack.role })
+        : Promise.resolve(EMPTY_CLASS_WEEK_SKIP_STATE)
+    ),
   ]);
   timer.end();
 
@@ -101,6 +109,7 @@ export default async function ManagerClassDetailPage({
       <ClassDetailsPanel
         classRow={classRow}
         initialSessions={sessions}
+        initialWeekSkipState={weekSkipState}
         initialTasks={tasks}
         canViewTasks={canTasks}
         initialStudents={students}
@@ -113,12 +122,16 @@ export default async function ManagerClassDetailPage({
         semesterOptions={[]}
         hasComputedGrades={computedGradeLock.hasComputedGrades}
         lockedUserIds={computedGradeLock.lockedUserIds}
-      />
-      <ClassAnalyticsDeferred
-        classId={id}
-        className={classRow.name}
-        actorUserId={actorUserId}
-        enabled={canAnalytics}
+        analyticsSlot={
+          canAnalytics ? (
+            <ClassAnalyticsDeferred
+              classId={id}
+              className={classRow.name}
+              actorUserId={actorUserId}
+              enabled
+            />
+          ) : null
+        }
       />
     </div>
   );

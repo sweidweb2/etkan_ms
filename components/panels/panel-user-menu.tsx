@@ -1,9 +1,11 @@
 "use client";
 
-import { useTransition } from "react";
+import { useState, useTransition } from "react";
 import Link from "next/link";
 import { Home, LogOut, Settings } from "lucide-react";
 import { logoutAction } from "@/app/(public)/auth/actions";
+import { InlineSpinner } from "@/components/loaders/inline-spinner";
+import { usePanelSessionAvatarUrl } from "@/components/panels/panel-session-avatar";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -24,22 +26,55 @@ type PanelUserMenuProps = {
   settingsHref?: string;
 };
 
+function UserAvatarFace({
+  displayName,
+  avatarUrl,
+}: {
+  displayName: string;
+  avatarUrl: string | null;
+}) {
+  const [failedUrl, setFailedUrl] = useState<string | null>(null);
+
+  if (avatarUrl && failedUrl !== avatarUrl) {
+    return (
+      // eslint-disable-next-line @next/next/no-img-element -- public Storage URL, already a 512px WebP
+      <img
+        src={avatarUrl}
+        alt=""
+        className="size-full rounded-full object-cover"
+        onError={() => setFailedUrl(avatarUrl)}
+      />
+    );
+  }
+
+  return getInitials(displayName);
+}
+
 export function PanelUserMenu({
   displayName,
   className,
   settingsHref,
 }: PanelUserMenuProps) {
   const [isPending, startTransition] = useTransition();
-  const initials = getInitials(displayName);
+  const avatarUrl = usePanelSessionAvatarUrl();
+  const avatarFace = (
+    <UserAvatarFace displayName={displayName} avatarUrl={avatarUrl} />
+  );
 
   function handleSignOut() {
+    if (isPending) {
+      return;
+    }
+
     startTransition(async () => {
       await logoutAction();
     });
   }
 
+  const avatarContent = isPending ? <InlineSpinner /> : avatarFace;
+
   const avatarClassName = cn(
-    "flex size-9 items-center justify-center rounded-full bg-primary text-sm font-semibold text-primary-foreground outline-none transition-opacity hover:opacity-90 focus-visible:ring-3 focus-visible:ring-ring/50",
+    "flex size-9 shrink-0 items-center justify-center overflow-hidden rounded-full bg-primary text-sm font-semibold text-primary-foreground outline-none transition-opacity hover:opacity-90 focus-visible:ring-3 focus-visible:ring-ring/50",
     className
   );
 
@@ -61,9 +96,10 @@ export function PanelUserMenu({
           size="icon"
           disabled={isPending}
           aria-label={isPending ? "Signing out" : "Log out"}
+          aria-busy={isPending}
           onClick={handleSignOut}
         >
-          <LogOut />
+          {isPending ? <InlineSpinner /> : <LogOut />}
         </Button>
         {settingsHref ? (
           <DropdownMenu>
@@ -71,7 +107,7 @@ export function PanelUserMenu({
               className={avatarClassName}
               aria-label="Account menu"
             >
-              {initials}
+              {avatarContent}
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-48">
               <DropdownMenuLabel className="truncate">
@@ -92,7 +128,7 @@ export function PanelUserMenu({
             aria-label={displayName}
             title={displayName}
           >
-            {initials}
+            {avatarFace}
           </span>
         )}
       </div>
@@ -102,8 +138,9 @@ export function PanelUserMenu({
           <DropdownMenuTrigger
             className={avatarClassName}
             aria-label="Account menu"
+            aria-busy={isPending}
           >
-            {initials}
+            {avatarContent}
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="w-48">
             <DropdownMenuLabel className="truncate">
@@ -124,8 +161,16 @@ export function PanelUserMenu({
                 Go to home
               </Link>
             </DropdownMenuItem>
-            <DropdownMenuItem disabled={isPending} onClick={handleSignOut}>
-              <LogOut />
+            <DropdownMenuItem
+              disabled={isPending}
+              aria-busy={isPending}
+              className={cn(isPending && "data-[disabled]:opacity-100")}
+              onSelect={(event) => {
+                event.preventDefault();
+                handleSignOut();
+              }}
+            >
+              {isPending ? <InlineSpinner /> : <LogOut />}
               {isPending ? "Signing out…" : "Log out"}
             </DropdownMenuItem>
           </DropdownMenuContent>

@@ -19,11 +19,13 @@ import {
   getTaskCompletionBarData,
   getTaskStudentGradeLineData,
 } from "@/lib/constants/manager-session-task-analytics";
+import { formatYesNoGrade } from "@/lib/format/format-task-grade";
 import type { ManagerStudentTaskRow } from "@/types/manager-class-session-detail";
 
 type SessionTaskAnalyticsSectionProps = {
   studentTasks: ManagerStudentTaskRow[];
   maxGrade: number | null;
+  isYesNo?: boolean;
 };
 
 function CompletionBarTooltip({
@@ -55,9 +57,11 @@ function CompletionBarTooltip({
 function GradeBarTooltip({
   active,
   payload,
+  isYesNo = false,
 }: {
   active?: boolean;
   payload?: Array<{ payload: { student_label: string; grade: number | null } }>;
+  isYesNo?: boolean;
 }) {
   if (!active || !payload || payload.length === 0) {
     return null;
@@ -71,7 +75,7 @@ function GradeBarTooltip({
       <p className="mt-1 text-xs text-muted-foreground">
         Grade:{" "}
         <span className="font-semibold text-foreground tabular-nums">
-          {item.grade ?? "—"}
+          {isYesNo ? formatYesNoGrade(item.grade) : (item.grade ?? "—")}
         </span>
       </p>
     </div>
@@ -81,6 +85,7 @@ function GradeBarTooltip({
 export function SessionTaskAnalyticsSection({
   studentTasks,
   maxGrade,
+  isYesNo = false,
 }: SessionTaskAnalyticsSectionProps) {
   const completionData = useMemo(
     () => getTaskCompletionBarData(studentTasks),
@@ -110,7 +115,7 @@ export function SessionTaskAnalyticsSection({
           Completion breakdown and per-student scores for this assignment.
         </p>
       </CardHeader>
-      <CardContent className="grid gap-6 pt-2 pb-3 lg:grid-cols-2">
+      <CardContent className="grid gap-6 pt-2 pb-3 @2xl/panel:grid-cols-2">
         <AnalyticsChartCard
           title="Completion"
           description={`${finishedTotal} finished · ${notFinishedTotal} not finished`}
@@ -157,7 +162,9 @@ export function SessionTaskAnalyticsSection({
           description={
             averageGrade === null
               ? "No graded submissions yet"
-              : `Class average · ${averageGrade}${maxGrade !== null ? ` / ${maxGrade}` : ""}`
+              : isYesNo
+                ? `${averageGrade}% answered Yes`
+                : `Class average · ${averageGrade}${maxGrade !== null ? ` / ${maxGrade}` : ""}`
           }
         >
           <div className="h-[18rem] w-full min-w-0">
@@ -208,7 +215,7 @@ export function SessionTaskAnalyticsSection({
                   />
                   <Tooltip
                     cursor={{ fill: "var(--muted)", opacity: 0.4 }}
-                    content={<GradeBarTooltip />}
+                    content={<GradeBarTooltip isYesNo={isYesNo} />}
                   />
                   {averageGrade !== null ? (
                     <ReferenceLine

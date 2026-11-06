@@ -52,24 +52,13 @@ describe("filterPanelNavigation", () => {
       PERMISSIONS.REGISTRATIONS_VIEW,
       PERMISSIONS.GUESTS_VIEW,
       PERMISSIONS.SUBJECTS_VIEW,
-      PERMISSIONS.INSTRUCTORS_VIEW,
-      PERMISSIONS.INSTRUCTOR_SCHEDULES_VIEW,
-      PERMISSIONS.WORKSHOPS_VIEW,
-      PERMISSIONS.CLOUDFLARE_AI_USAGE_VIEW,
       PERMISSIONS.CLASSES_VIEW,
       PERMISSIONS.SEMESTERS_VIEW,
-      PERMISSIONS.EQUIPMENT_VIEW,
-      PERMISSIONS.GALLERY_VIEW,
-      PERMISSIONS.PROJECTS_VIEW,
-      PERMISSIONS.BLOGS_VIEW,
       PERMISSIONS.ACCOUNTING_VIEW,
       PERMISSIONS.ACCOUNTING_INCOME_STATEMENT_VIEW,
       PERMISSIONS.ACCOUNTING_INCOME_STATEMENT_ANALYTICS_VIEW,
       PERMISSIONS.ACADEMIC_ANALYSIS_VIEW,
       PERMISSIONS.NOTIFICATIONS_VIEW,
-      PERMISSIONS.EMAILING_VIEW,
-      PERMISSIONS.BACKUP_VIEW,
-      PERMISSIONS.LOGS_VIEW,
       PERMISSIONS.SETTINGS_VIEW,
       PERMISSIONS.RBAC_MANAGE,
     ]);
@@ -81,9 +70,18 @@ describe("filterPanelNavigation", () => {
     );
 
     expect(hrefs(filtered).length).toBe(hrefs(MANAGER_PANEL_NAVIGATION).length);
+    expect(hrefs(filtered)).toContain(ROUTES.MANAGER_PAGES);
   });
 
-  it("hides manage workshops without instructor/mentor even with workshops.view", () => {
+  it("always keeps the Pages hub link", () => {
+    const filtered = filterPanelNavigation(
+      MANAGER_PANEL_NAVIGATION,
+      new Set<PermissionKey>()
+    );
+    expect(hrefs(filtered)).toContain(ROUTES.MANAGER_PAGES);
+  });
+
+  it("hides manage workshops without instructor even with workshops.view", () => {
     const permissions = new Set<PermissionKey>([
       PERMISSIONS.STUDENTS_VIEW,
       PERMISSIONS.WORKSHOPS_VIEW,
@@ -92,32 +90,12 @@ describe("filterPanelNavigation", () => {
     const filtered = filterPanelNavigation(
       MANAGER_PANEL_NAVIGATION,
       permissions,
-      { isInstructor: false, isMentor: false }
+      { isInstructor: false }
     );
     const paths = hrefs(filtered);
 
     expect(paths).toContain(ROUTES.MANAGER_STUDENTS);
     expect(paths).not.toContain(ROUTES.MANAGER_WORKSHOPS);
-  });
-
-  it("keeps manage workshops for mentors with workshops.view", () => {
-    const permissions = new Set<PermissionKey>([PERMISSIONS.WORKSHOPS_VIEW]);
-    const workshopNav: PanelNavigation = {
-      items: [
-        {
-          title: "Manage workshops",
-          href: ROUTES.MANAGER_WORKSHOPS,
-          icon: "presentation",
-        },
-      ],
-    };
-
-    const filtered = filterPanelNavigation(workshopNav, permissions, {
-      isMentor: true,
-    });
-    const paths = hrefs(filtered);
-
-    expect(paths).toContain(ROUTES.MANAGER_WORKSHOPS);
   });
 
   it("keeps role-native links and workshops when instructor + workshops.view", () => {

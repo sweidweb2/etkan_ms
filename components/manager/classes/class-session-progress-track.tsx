@@ -31,6 +31,8 @@ import type { ManagerClassRow } from "@/types/manager-class-list";
 type ClassSessionProgressTrackProps = {
   classRow: ManagerClassRow;
   sessions: ManagerClassSessionRow[];
+  /** When false, section stays open with no expand/collapse controls. */
+  collapsible?: boolean;
 };
 
 const TRACK_Y = "top-4";
@@ -110,6 +112,7 @@ function CheckpointLabel({ slot }: { slot: ClassSessionSlot }) {
 export function ClassSessionProgressTrack({
   classRow,
   sessions,
+  collapsible = true,
 }: ClassSessionProgressTrackProps) {
   if (classRow.subject_nb_sessions <= 0) {
     return null;
@@ -127,6 +130,7 @@ export function ClassSessionProgressTrack({
         storageKey={
           COLLAPSIBLE_SECTION_STORAGE_KEYS.CLASS_DETAILS_SESSION_PROGRESS
         }
+        collapsible={collapsible}
         action={
           <div className="pr-1 text-right">
             <p className="text-lg font-semibold tabular-nums tracking-tight leading-none">

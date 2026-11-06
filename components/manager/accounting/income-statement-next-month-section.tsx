@@ -1,5 +1,5 @@
 import { IncomeStatementNextMonthCards } from "@/components/manager/accounting/income-statement-next-month-cards";
-import { createSupabaseAdminClient } from "@/lib/supabase/admin";
+import { getRequestAdminClient } from "@/lib/supabase/admin";
 import { getNextMonthIncomeForecastForManager } from "@/services/accounting/income-statement-analytics.service";
 
 type IncomeStatementNextMonthSectionProps = {
@@ -9,7 +9,7 @@ type IncomeStatementNextMonthSectionProps = {
 export async function IncomeStatementNextMonthSection({
   actorUserId,
 }: IncomeStatementNextMonthSectionProps) {
-  const adminClient = createSupabaseAdminClient();
+  const adminClient = getRequestAdminClient();
   const forecast = await getNextMonthIncomeForecastForManager(
     adminClient,
     actorUserId

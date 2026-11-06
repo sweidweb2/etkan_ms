@@ -1,6 +1,6 @@
 /**
  * Short-lived per-user process cache for panel shell identity
- * (role, displayName, isInstructor, isMentor, **effective** permission keys).
+ * (role, displayName, avatarUrl, isInstructor, **effective** permission keys).
  *
  * Every navigation still verifies JWT via getClaims; this avoids repeating
  * profiles + role_permissions round-trips on sidebar hops within the TTL.
@@ -22,8 +22,8 @@ export const SESSION_SHELL_TTL_MS = 300_000;
 export type SessionShellPayload = {
   role: RoleValue;
   displayName: string;
+  avatarUrl: string | null;
   isInstructor: boolean;
-  isMentor: boolean;
   permissionKeys: PermissionKey[];
   /** JWT claims role at store time (for mismatch bust). */
   cachedClaimsRole: RoleValue | null;
@@ -59,8 +59,8 @@ export function getCachedSessionShell(
   const payload: SessionShellPayload = {
     role: entry.role,
     displayName: entry.displayName,
+    avatarUrl: entry.avatarUrl,
     isInstructor: entry.isInstructor,
-    isMentor: entry.isMentor,
     permissionKeys: entry.permissionKeys,
     cachedClaimsRole: entry.cachedClaimsRole,
   };
@@ -94,6 +94,17 @@ export function setCachedSessionShell(
     ...payload,
     expiresAt: Date.now() + ttlMs,
   });
+}
+
+/** Update the cached avatar in place so the next panel hop stays a HIT. */
+export function setCachedSessionShellAvatar(
+  userId: string,
+  avatarUrl: string | null
+): void {
+  const entry = userId ? cache.get(userId) : undefined;
+  if (entry) {
+    entry.avatarUrl = avatarUrl;
+  }
 }
 
 /**

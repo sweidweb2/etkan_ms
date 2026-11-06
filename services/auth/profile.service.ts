@@ -1,9 +1,5 @@
 import "server-only";
 
-import {
-  baseUsernameFromEmail,
-  usernameWithSuffix,
-} from "@/lib/auth/username";
 import { ROLES, type RoleValue } from "@/lib/constants/roles";
 import * as profileRepository from "@/repositories/profile.repository";
 import * as studentProfileRepository from "@/repositories/student-profile.repository";
@@ -12,34 +8,10 @@ import type { Database } from "@/types/supabase";
 
 type Supabase = SupabaseClient<Database>;
 
-export async function generateUniqueUsername(
-  client: Supabase,
-  email: string
-): Promise<string> {
-  const base = baseUsernameFromEmail(email);
-
-  if (!(await profileRepository.findProfileByUsername(client, base)).data) {
-    return base;
-  }
-
-  for (let suffix = 1; suffix < 1000; suffix++) {
-    const candidate = usernameWithSuffix(base, suffix);
-    if (
-      !(await profileRepository.findProfileByUsername(client, candidate)).data
-    ) {
-      return candidate;
-    }
-  }
-
-  throw new Error("Unable to generate a unique username.");
-}
-
 export async function ensureStudentRegistration(
   client: Supabase,
   input: {
     authId: string;
-    username?: string;
-    email: string;
     fullName: string;
     birthDate?: string | null;
     phone?: string | null;
@@ -75,14 +47,12 @@ export async function ensureStudentRegistration(
     return { profileId: existingProfile.data.id };
   }
 
-  const username =
-    input.username ?? (await generateUniqueUsername(client, input.email));
   const role = input.role ?? ROLES.STUDENT;
 
   const { data: profile, error: profileError } =
     await profileRepository.createProfile(client, {
       id: input.authId,
-      username,
+      full_name: input.fullName,
       role,
     });
 

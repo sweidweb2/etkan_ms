@@ -31,7 +31,6 @@ export function parseSignupFormData(formData: FormData):
   | { success: true; data: SignupInput }
   | { success: false; error: string; fieldErrors?: FieldErrors } {
   const parsed = signupSchema.safeParse({
-    username: formData.get("username"),
     fullName: formData.get("fullName"),
     email: formData.get("email"),
     password: formData.get("password"),
