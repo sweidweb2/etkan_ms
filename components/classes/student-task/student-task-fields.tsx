@@ -13,6 +13,7 @@ import {
   STUDENT_TASK_TEXTAREA_CLASS,
 } from "@/components/classes/student-task/student-task-form-utils";
 import { FieldLabel } from "@/components/auth/field-label";
+import { YesNoGradeControl } from "@/components/classes/student-task/yes-no-grade-control";
 import { DateTimePicker } from "@/components/ui/datetime-picker";
 import { Input } from "@/components/ui/input";
 import {
@@ -33,6 +34,8 @@ import type { FieldErrors } from "@/types/auth";
 type StudentTaskFieldsProps = {
   idPrefix: string;
   maxGrade: number | null;
+  /** Yes/No tasks grade with Not graded / Yes (100) / No (0) instead of a number. */
+  isYesNo?: boolean;
   disabled: boolean;
   /** useZodForm output; kept loose to avoid zod/RHF grade type friction. */
   register: UseFormRegister<FieldValues>;
@@ -50,6 +53,7 @@ type StudentTaskFieldsProps = {
 export function StudentTaskFields({
   idPrefix,
   maxGrade,
+  isYesNo = false,
   disabled,
   register,
   setValue,
@@ -129,20 +133,45 @@ export function StudentTaskFields({
         <FieldLabel
           htmlFor={`${idPrefix}-grade`}
           label="Grade"
-          hint={maxGrade === null ? "Optional" : `Optional · max ${maxGrade}`}
+          hint={
+            isYesNo
+              ? "Optional · Yes = 100, No = 0"
+              : maxGrade === null
+                ? "Optional"
+                : `Optional · max ${maxGrade}`
+          }
         />
-        <Input
-          id={`${idPrefix}-grade`}
-          type="number"
-          min={0}
-          max={maxGrade ?? undefined}
-          step={0.5}
-          aria-invalid={!!gradeError}
-          disabled={disabled}
-          {...register("grade")}
-        />
+        {isYesNo ? (
+          <YesNoGradeControl
+            id={`${idPrefix}-grade`}
+            name={`${idPrefix}-grade`}
+            value={gradeValue}
+            invalid={!!gradeError}
+            disabled={disabled}
+            describedBy={gradeError ? `${idPrefix}-grade-error` : undefined}
+            onChange={(next) =>
+              setValue("grade", next, {
+                shouldDirty: true,
+                shouldValidate: true,
+              })
+            }
+          />
+        ) : (
+          <Input
+            id={`${idPrefix}-grade`}
+            type="number"
+            min={0}
+            max={maxGrade ?? undefined}
+            step={0.5}
+            aria-invalid={!!gradeError}
+            disabled={disabled}
+            {...register("grade")}
+          />
+        )}
         {gradeError ? (
-          <p className="text-sm text-destructive">{gradeError}</p>
+          <p id={`${idPrefix}-grade-error`} className="text-sm text-destructive">
+            {gradeError}
+          </p>
         ) : null}
         {showAnalyticsHint ? (
           <p className="text-sm text-muted-foreground">

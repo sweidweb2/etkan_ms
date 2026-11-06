@@ -1,6 +1,7 @@
 import { createClassTaskSchema } from "@/lib/validators/manager/create-class-task";
 import { formValidationFailure } from "@/lib/validators/safe-parse-form-data";
 import { zodFieldErrors } from "@/lib/validators/auth/parse-form";
+import { parseTaskYesNoFormValue } from "@/lib/validators/manager/task-yes-no";
 import type { FieldErrors } from "@/types/auth";
 import { z } from "zod";
 
@@ -31,6 +32,7 @@ export function parseUpdateClassTaskFormData(formData: FormData):
     description: formData.get("description") ?? undefined,
     period: formData.get("period"),
     max_grade: formData.get("max_grade") ?? undefined,
+    is_yes_no: parseTaskYesNoFormValue(formData.get("is_yes_no")),
     sort_order: formData.get("sort_order") ?? 0,
   });
 

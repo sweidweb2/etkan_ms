@@ -34,6 +34,7 @@ export interface ManagerStudentClassTaskRow {
   title: string;
   due_date: string | null;
   max_grade: number;
+  is_yes_no: boolean;
   status: StudentTaskStatusValue;
   grade: number | null;
   submitted_at: string | null;

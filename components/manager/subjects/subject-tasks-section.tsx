@@ -16,6 +16,7 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { useMutationDialogForm } from "@/hooks/use-mutation-dialog-form";
 import { SESSION_TASK_TABLE_LIMITS } from "@/lib/constants/manager-class-session-detail-display";
 import { PERMISSIONS } from "@/lib/constants/permissions";
+import { formatTaskMaxGrade } from "@/lib/format/format-task-grade";
 import { truncateText } from "@/lib/utils/truncate-text";
 import type {
   DeleteSubjectTaskActionState,
@@ -212,7 +213,10 @@ export function SubjectTasksSection({
                       {task.period}
                     </td>
                     <td className="whitespace-nowrap px-4 py-3 tabular-nums">
-                      {task.max_grade ?? "—"}
+                      {formatTaskMaxGrade({
+                        maxGrade: task.max_grade,
+                        isYesNo: task.is_yes_no,
+                      })}
                     </td>
                     <Can
                       anyOf={[

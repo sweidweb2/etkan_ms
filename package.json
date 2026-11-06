@@ -73,7 +73,7 @@
     "recharts": "^3.8.1",
     "server-only": "^0.0.1",
     "shadcn": "^4.10.0",
-    "sharp": "0.34.5",
+    "sharp": "0.35.5",
     "sonner": "^2.0.7",
     "supabase": "^2.106.0",
     "tailwind-merge": "^3.6.0",

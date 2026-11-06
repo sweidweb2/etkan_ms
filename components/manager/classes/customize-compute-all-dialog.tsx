@@ -24,6 +24,7 @@ import {
   validateTaskWeights,
 } from "@/lib/compute/custom-compute-form-utils";
 import { DEFAULT_CLASS_GRADE_FACTOR_WEIGHTS } from "@/lib/constants/manager-class-grade-defaults";
+import { YES_NO_TASK_LABEL } from "@/lib/constants/task-yes-no";
 import { cn } from "@/lib/utils";
 import type { ManagerClassTaskForGradesRow } from "@/types/manager-class-task-for-grades";
 
@@ -297,7 +298,10 @@ export function CustomizeComputeAllDialog({
                             {task.title}
                           </p>
                           <p className="truncate text-xs text-muted-foreground">
-                            {task.session_label} · max {task.max_grade ?? "—"}
+                            {task.session_label} ·{" "}
+                            {task.is_yes_no
+                              ? YES_NO_TASK_LABEL
+                              : `max ${task.max_grade ?? "—"}`}
                           </p>
                         </div>
                         <Input

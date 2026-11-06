@@ -1,6 +1,6 @@
 import "server-only";
 
-import type { RoleValue } from "@/lib/constants/roles";
+import { ROLES, type RoleValue } from "@/lib/constants/roles";
 import { chunkedIn } from "@/repositories/_shared/chunked-in";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/types/supabase";
@@ -139,12 +139,12 @@ export async function listInstructorProfiles(client: Supabase) {
     .order("full_name", { ascending: true });
 }
 
-/** Slim rows for teacher/instructor pickers (`id`, `full_name` only). */
-export async function listInstructorProfileOptions(client: Supabase) {
+/** Slim rows for class teacher pickers (`id`, `full_name` only). */
+export async function listTeacherProfileOptions(client: Supabase) {
   return client
     .from("profiles")
     .select(PROFILE_OPTION_COLUMNS)
-    .eq("is_instructor", true)
+    .eq("role", ROLES.TEACHER)
     .order("full_name", { ascending: true });
 }
 

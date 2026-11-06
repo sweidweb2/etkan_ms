@@ -43,6 +43,7 @@ export type StudentClassTaskDetailForSelf = {
     description: string | null;
     due_date: string | null;
     max_grade: number;
+    is_yes_no: boolean;
   };
   studentTask: {
     id: string;

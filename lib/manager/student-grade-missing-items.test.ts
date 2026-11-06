@@ -83,6 +83,7 @@ describe("buildStudentGradeMissingItems", () => {
           session_nb_order: 1,
           title: "Worksheet",
           max_grade: 100,
+          is_yes_no: false,
           due_date: "2026-07-01T00:00:00.000Z",
           created_at: "2026-06-01T00:00:00.000Z",
         },

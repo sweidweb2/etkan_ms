@@ -7,6 +7,7 @@ export type ManagerSubjectTaskRow = {
   description: string | null;
   period: number;
   max_grade: number | null;
+  is_yes_no: boolean;
   sort_order: number;
   created_at: string;
   updated_at: string;

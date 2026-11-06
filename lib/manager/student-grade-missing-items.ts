@@ -83,6 +83,7 @@ function buildTaskMissingItems(
       sessionId: task.session_id,
       studentTaskId: studentTask?.id ?? null,
       maxGrade: task.max_grade,
+      isYesNo: task.is_yes_no,
       dueDate: task.due_date ?? null,
     });
   }

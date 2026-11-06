@@ -314,8 +314,8 @@ export function EditUserDialog({
           <div className="flex flex-col gap-2">
             <FieldLabel
               htmlFor="edit-user-is-instructor"
-              label="Instructor"
-              hint="Can teach scheduled sessions"
+              label="Workshop instructor"
+              hint="Unlocks Manage workshops"
             />
             <div className="flex h-8 items-center gap-2.5 rounded-lg border border-input bg-transparent px-2.5 text-sm dark:bg-input/30">
               <Checkbox

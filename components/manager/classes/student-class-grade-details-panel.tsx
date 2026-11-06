@@ -70,6 +70,7 @@ import {
   getManagerStudentDetailRoute,
   ROUTES,
 } from "@/lib/constants/routes";
+import { formatTaskGrade } from "@/lib/format/format-task-grade";
 import { showErrorToast, showSuccessToast } from "@/lib/toast";
 import { cn } from "@/lib/utils";
 import type { ManagerClassFinalExamRow } from "@/types/manager-class-final-exam";
@@ -242,9 +243,12 @@ function TaskGradesSection({ detail }: { detail: ManagerStudentClassTabDetail })
                     <div>
                       <dt className="inline">Grade: </dt>
                       <dd className="inline text-foreground">
-                        {task.grade === null
-                          ? "Not done"
-                          : `${task.grade}/${task.max_grade}`}
+                        {formatTaskGrade({
+                          grade: task.grade,
+                          maxGrade: task.max_grade,
+                          isYesNo: task.is_yes_no,
+                          emptyLabel: "Not done",
+                        })}
                       </dd>
                     </div>
                     <div>

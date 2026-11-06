@@ -1,11 +1,19 @@
 "use client";
 
 import {
+  GridCardBody,
+  GridCardFooter,
+  GridCardViewButton,
+} from "@/components/manager/shared/grid-card";
+import { FrostedGlassCard } from "@/components/ui/frosted-glass-card";
+import {
+  MANAGER_CLASS_STATUS_DOT_CLASSES,
+  MANAGER_CLASS_STATUS_LABELS,
+} from "@/lib/constants/manager-class-display";
+import {
   getClassProgressTone,
   getClassSessionCompletionRate,
 } from "@/lib/constants/manager-semester-class-progress";
-import { FrostedGlassCard } from "@/components/ui/frosted-glass-card";
-import { MANAGER_CLASS_STATUS_BORDER_LEFT_CLASSES } from "@/lib/constants/manager-class-display";
 import { getManagerClassDetailRoute } from "@/lib/constants/routes";
 import { cn } from "@/lib/utils";
 import type { ManagerClassRow } from "@/types/manager-class-list";
@@ -18,42 +26,57 @@ export function ClassCard({ classRow }: ClassCardProps) {
   const sessionRate = getClassSessionCompletionRate(classRow);
   const sessionTone = getClassProgressTone(classRow);
   const detailHref = getManagerClassDetailRoute(classRow.id);
+  const statusLabel = MANAGER_CLASS_STATUS_LABELS[classRow.status];
 
   return (
-    <FrostedGlassCard
-      href={detailHref}
-      hrefAriaLabel={`View ${classRow.name}`}
-      className={cn(
-        "h-full border-l-4",
-        MANAGER_CLASS_STATUS_BORDER_LEFT_CLASSES[classRow.status]
-      )}
-    >
-      <div className="pointer-events-none relative z-10 flex min-h-32 flex-1 flex-col px-4 pt-5 pb-5">
-        <h2
-          className="truncate text-base leading-6 font-semibold tracking-tight"
-          title={classRow.name}
-        >
-          {classRow.name}
-        </h2>
-        <div className="mt-auto flex flex-col gap-1.5 pt-4">
-          <div className="flex items-center justify-between gap-2 text-xs">
-            <span className="text-muted-foreground">Session progress</span>
-            <span className="font-medium tabular-nums">
-              {classRow.completed_sessions}/{classRow.subject_nb_sessions} ·{" "}
-              {sessionRate}%
-            </span>
-          </div>
-          <div className="h-1.5 overflow-hidden rounded-full bg-foreground/10">
-            <div
-              className={cn(
-                "h-full rounded-full transition-[width]",
-                sessionTone.fillClassName
-              )}
-              style={{ width: `${sessionRate}%` }}
-            />
-          </div>
-        </div>
+    <FrostedGlassCard href={detailHref} hrefAriaLabel={`View ${classRow.name}`}>
+      <GridCardBody title={classRow.name} subtitle={classRow.subject_name} />
+
+      <div
+        role="progressbar"
+        aria-label={`Session progress for ${classRow.name}`}
+        aria-valuemin={0}
+        aria-valuemax={100}
+        aria-valuenow={sessionRate}
+        className="pointer-events-none relative z-10 h-0.5 bg-border"
+      >
+        <div
+          className={cn(
+            "h-full transition-[width]",
+            sessionTone.fillClassName
+          )}
+          style={{ width: `${sessionRate}%` }}
+        />
       </div>
+
+      <GridCardFooter
+        className="border-t-0"
+        meta={
+          <>
+            <span
+              aria-hidden
+              title={statusLabel}
+              className={cn(
+                "size-2 shrink-0 rounded-full",
+                MANAGER_CLASS_STATUS_DOT_CLASSES[classRow.status]
+              )}
+            />
+            <span className="sr-only">{statusLabel},</span>
+            <span className="truncate">
+              <span className="font-medium text-foreground tabular-nums">
+                {classRow.completed_sessions}/{classRow.subject_nb_sessions}
+              </span>{" "}
+              sessions
+            </span>
+          </>
+        }
+        actions={
+          <GridCardViewButton
+            href={detailHref}
+            label={`View ${classRow.name}`}
+          />
+        }
+      />
     </FrostedGlassCard>
   );
 }

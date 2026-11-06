@@ -11,6 +11,7 @@ export interface ManagerClassTaskRow {
   description: string | null;
   period: number;
   max_grade: number | null;
+  is_yes_no: boolean;
   sort_order: number;
   started: boolean;
   started_at: string | null;

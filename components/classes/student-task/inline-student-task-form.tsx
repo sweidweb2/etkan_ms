@@ -34,6 +34,7 @@ const initialUpdateState: UpdateStudentTaskActionState = {};
 type InlineStudentTaskFormProps = {
   studentTask: ManagerStudentTaskRow;
   maxGrade: number | null;
+  isYesNo?: boolean;
   dueDate: string | null;
   readOnly: boolean;
   onUpdateStudentTask: (studentTask: ManagerStudentTaskRow) => void;
@@ -42,6 +43,7 @@ type InlineStudentTaskFormProps = {
 export function InlineStudentTaskForm({
   studentTask,
   maxGrade,
+  isYesNo = false,
   dueDate,
   readOnly,
   onUpdateStudentTask,
@@ -58,8 +60,8 @@ export function InlineStudentTaskForm({
   );
 
   const schema = useMemo(
-    () => createEditStudentTaskSchema(maxGrade, dueDate),
-    [dueDate, maxGrade]
+    () => createEditStudentTaskSchema(maxGrade, dueDate, { isYesNo }),
+    [dueDate, isYesNo, maxGrade]
   );
 
   useActionStateToast(state, isPending);
@@ -125,6 +127,7 @@ export function InlineStudentTaskForm({
       <StudentTaskFields
         idPrefix={`student-task-${studentTask.id}`}
         maxGrade={maxGrade}
+        isYesNo={isYesNo}
         disabled={isFormDisabled}
         register={register as never}
         setValue={setValue as never}

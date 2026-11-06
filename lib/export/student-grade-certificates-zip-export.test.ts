@@ -59,6 +59,7 @@ const bundle: ComputedStudentGradeSheetBundle = {
         title: "Build a robot arm",
         due_date: null,
         max_grade: 100,
+        is_yes_no: false,
         status: "graded",
         grade: 90,
         submitted_at: null,

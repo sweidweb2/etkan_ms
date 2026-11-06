@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { safeParseFormData } from "@/lib/validators/safe-parse-form-data";
 import { subjectTaskFieldsSchema } from "@/lib/validators/manager/create-subject-task";
+import { parseTaskYesNoFormValue } from "@/lib/validators/manager/task-yes-no";
 import type { FieldErrors } from "@/types/auth";
 
 export const updateSubjectTaskSchema = subjectTaskFieldsSchema.extend({
@@ -30,6 +31,7 @@ export function parseUpdateSubjectTaskFormData(formData: FormData):
     description: formData.get("description") ?? undefined,
     period: formData.get("period"),
     max_grade: formData.get("max_grade") ?? undefined,
+    is_yes_no: parseTaskYesNoFormValue(formData.get("is_yes_no")),
     sort_order: formData.get("sort_order") ?? "0",
   });
 }

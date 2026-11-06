@@ -84,6 +84,17 @@ export async function listStudentTasksByTaskId(
     .eq("task_id", taskId);
 }
 
+export async function countGradedStudentTasksByTaskId(
+  client: Supabase,
+  taskId: string
+) {
+  return client
+    .from("student_tasks")
+    .select("id", { count: "exact", head: true })
+    .eq("task_id", taskId)
+    .not("grade", "is", null);
+}
+
 const STUDENT_TASK_GRADE_ANALYTICS_COLUMNS = "student_id, task_id, grade, status";
 const STUDENT_TASKS_PAGE_SIZE = 1000;
 const TASK_ID_QUERY_CHUNK_SIZE = 100;

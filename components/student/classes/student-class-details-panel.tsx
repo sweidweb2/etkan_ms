@@ -62,6 +62,7 @@ import {
   getSessionTimingLabel,
   type ManagerClassSessionRow,
 } from "@/types/manager-class-session";
+import { formatTaskGrade } from "@/lib/format/format-task-grade";
 import { cn } from "@/lib/utils";
 import type { ManagerStudentClassRow } from "@/types/manager-student-class";
 import type { ManagerStudentClassTabDetail } from "@/types/manager-student-class-detail";
@@ -360,9 +361,11 @@ export function StudentClassDetailsPanel({
                             <StudentTaskStatusBadge status={task.status} />
                           </td>
                           <td className="whitespace-nowrap px-3 py-2.5 tabular-nums">
-                            {task.grade == null
-                              ? "—"
-                              : `${task.grade}/${task.max_grade}`}
+                            {formatTaskGrade({
+                              grade: task.grade,
+                              maxGrade: task.max_grade,
+                              isYesNo: task.is_yes_no,
+                            })}
                           </td>
                         </tr>
                       ))}
@@ -522,9 +525,11 @@ export function StudentClassDetailsPanel({
                         <StudentTaskStatusBadge status={task.status} />
                       </TableCell>
                       <TableCell className="px-2 py-2 tabular-nums">
-                        {task.grade == null
-                          ? "—"
-                          : `${task.grade}/${task.max_grade}`}
+                        {formatTaskGrade({
+                          grade: task.grade,
+                          maxGrade: task.max_grade,
+                          isYesNo: task.is_yes_no,
+                        })}
                       </TableCell>
                       <TableCell className="px-2 py-2 text-muted-foreground">
                         {task.due_date

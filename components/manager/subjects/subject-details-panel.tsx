@@ -2,9 +2,13 @@
 
 import { DetailField } from "@/components/manager/shared/detail-field";
 import { useActionState, useState, useTransition } from "react";
-import Link from "next/link";
 import { format } from "date-fns";
-import { ExternalLinkIcon, PencilIcon, Trash2Icon } from "lucide-react";
+import {
+  ExternalLinkIcon,
+  LockIcon,
+  PencilIcon,
+  Trash2Icon,
+} from "lucide-react";
 import { deleteSubjectAction } from "@/app/manager/subjects/actions";
 import {
   Tabs as TabsPrimitive,
@@ -29,7 +33,7 @@ import {
   BreadcrumbPage,
   BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb";
-import { Button, buttonVariants } from "@/components/ui/button";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import {
   Dialog,
@@ -170,13 +174,17 @@ export function SubjectDetailsPanel({
         </Breadcrumb>
 
         <Can permission={PERMISSIONS.SUBJECTS_VIEW}>
-          <Link
-            href={ROUTES.MANAGER_SUBJECTS_CATALOG}
-            prefetch={false}
-            className={cn(buttonVariants({ variant: "outline" }))}
+          <Button
+            type="button"
+            variant="outline"
+            disabled
+            aria-disabled
+            title="Coming soon"
+            className="disabled:cursor-not-allowed"
           >
+            <LockIcon data-icon="inline-start" aria-hidden />
             Categories & exercises
-          </Link>
+          </Button>
         </Can>
       </div>
 
@@ -244,7 +252,17 @@ export function SubjectDetailsPanel({
           <TabsTriggerPrimitive value="details" className={TAB_TRIGGER_CLASS}>
             Details
           </TabsTriggerPrimitive>
-          <TabsTriggerPrimitive value="catalog" className={TAB_TRIGGER_CLASS}>
+          <TabsTriggerPrimitive
+            value="catalog"
+            disabled
+            aria-disabled
+            title="Coming soon"
+            className={cn(
+              TAB_TRIGGER_CLASS,
+              "gap-1.5 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:border-transparent disabled:hover:bg-transparent disabled:hover:text-muted-foreground disabled:hover:shadow-none",
+            )}
+          >
+            <LockIcon className="size-3.5 shrink-0" aria-hidden />
             Categories & exercises
           </TabsTriggerPrimitive>
         </TabsListPrimitive>

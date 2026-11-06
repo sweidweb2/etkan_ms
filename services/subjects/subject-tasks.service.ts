@@ -1,6 +1,7 @@
 import "server-only";
 
 import { PERMISSIONS } from "@/lib/constants/permissions";
+import { YES_NO_MAX_GRADE } from "@/lib/constants/task-yes-no";
 import { createSubjectTaskSchema } from "@/lib/validators/manager/create-subject-task";
 import { updateSubjectTaskSchema } from "@/lib/validators/manager/update-subject-task";
 import { zodFieldErrors } from "@/lib/validators/auth/parse-form";
@@ -41,6 +42,7 @@ function mapSubjectTask(record: SubjectTaskRecord): ManagerSubjectTaskRow {
     description: record.description,
     period: record.period,
     max_grade: record.max_grade,
+    is_yes_no: record.is_yes_no,
     sort_order: record.sort_order,
     created_at: record.created_at,
     updated_at: record.updated_at,
@@ -59,8 +61,12 @@ function normalizeOptionalString(value?: string | null): string | null {
 }
 
 function normalizeMaxGrade(
-  value: "" | number | undefined
+  value: "" | number | undefined,
+  isYesNo: boolean
 ): number | null {
+  if (isYesNo) {
+    return YES_NO_MAX_GRADE;
+  }
   if (value === "" || value === undefined) {
     return null;
   }
@@ -128,6 +134,7 @@ export async function createSubjectTaskForManager(
     return { success: false, error: "Subject not found." };
   }
 
+  const isYesNo = parsed.data.is_yes_no ?? false;
   const { data, error } = await subjectTaskRepository.createSubjectTask(
     adminClient,
     {
@@ -135,7 +142,8 @@ export async function createSubjectTaskForManager(
       title: parsed.data.title,
       description: normalizeOptionalString(parsed.data.description),
       period: parsed.data.period,
-      max_grade: normalizeMaxGrade(parsed.data.max_grade),
+      max_grade: normalizeMaxGrade(parsed.data.max_grade, isYesNo),
+      is_yes_no: isYesNo,
       sort_order: parsed.data.sort_order,
     }
   );
@@ -159,6 +167,7 @@ export async function createSubjectTaskForManager(
       title: task.title,
       period: task.period,
       max_grade: task.max_grade,
+      is_yes_no: task.is_yes_no,
       sort_order: task.sort_order,
     },
     metadata: { note: "Subject task created." },
@@ -212,6 +221,7 @@ export async function updateSubjectTaskForManager(
     return { success: false, error: "Subject task not found." };
   }
 
+  const isYesNo = parsed.data.is_yes_no ?? existing.is_yes_no;
   const { data, error } = await subjectTaskRepository.updateSubjectTaskById(
     adminClient,
     parsed.data.id,
@@ -219,7 +229,8 @@ export async function updateSubjectTaskForManager(
       title: parsed.data.title,
       description: normalizeOptionalString(parsed.data.description),
       period: parsed.data.period,
-      max_grade: normalizeMaxGrade(parsed.data.max_grade),
+      max_grade: normalizeMaxGrade(parsed.data.max_grade, isYesNo),
+      is_yes_no: isYesNo,
       sort_order: parsed.data.sort_order,
     }
   );
@@ -242,12 +253,14 @@ export async function updateSubjectTaskForManager(
       title: existing.title,
       period: existing.period,
       max_grade: existing.max_grade,
+      is_yes_no: existing.is_yes_no,
       sort_order: existing.sort_order,
     },
     new_data: {
       title: task.title,
       period: task.period,
       max_grade: task.max_grade,
+      is_yes_no: task.is_yes_no,
       sort_order: task.sort_order,
     },
     metadata: { note: "Subject task updated." },
