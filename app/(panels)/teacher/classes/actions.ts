@@ -15,6 +15,7 @@ import {
   deleteStudentTaskUploadAction,
   getStudentTaskUploadSignedUrlAction,
   setClassTaskStartedAction,
+  setStudentTeamLeaderAction,
   updateStudentTaskAction,
   uploadStudentTaskFileAction,
 } from "@/app/manager/classes/actions";
@@ -35,6 +36,14 @@ import type {
   TeacherClassRow,
   TeachingClassSessionInlineDetail,
 } from "@/types/class-teaching";
+import type { SetTeamLeaderActionState } from "@/types/manager-class-detail";
+
+export async function setTeacherStudentTeamLeaderAction(
+  prevState: SetTeamLeaderActionState,
+  formData: FormData
+): Promise<SetTeamLeaderActionState> {
+  return setStudentTeamLeaderAction(prevState, formData);
+}
 
 export async function deleteTeacherClassTaskAction(
   prevState: DeleteClassTaskActionState,

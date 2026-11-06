@@ -3,6 +3,10 @@
 import { useMemo, useState } from "react";
 import { format } from "date-fns";
 import { GraduationCapIcon, SearchIcon } from "lucide-react";
+import {
+  TeamLeaderToggle,
+  type SetTeamLeaderAction,
+} from "@/components/manager/classes/team-leader-toggle";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Input } from "@/components/ui/input";
 import { CLASS_STUDENT_TABLE_LIMITS } from "@/lib/constants/manager-class-student-display";
@@ -22,6 +26,11 @@ type ClassStudentsRosterProps = {
    * @default true
    */
   showEmail?: boolean;
+  /** Adds a per-row team leader toggle column (caller gates the permission). */
+  teamLeader?: {
+    classId: string;
+    action: SetTeamLeaderAction;
+  };
 };
 
 function TruncatedCell({
@@ -78,8 +87,12 @@ export function ClassStudentsRoster({
   variant = "card",
   showPhone = true,
   showEmail = true,
+  teamLeader,
 }: ClassStudentsRosterProps) {
   const [query, setQuery] = useState("");
+  const [teamLeaderById, setTeamLeaderById] = useState<Record<string, boolean>>(
+    {}
+  );
 
   const filtered = useMemo(
     () =>
@@ -147,6 +160,9 @@ export function ClassStudentsRoster({
                   <th className="px-4 py-3 font-medium">Phone</th>
                 ) : null}
                 <th className="px-4 py-3 font-medium">Joined</th>
+                {teamLeader ? (
+                  <th className="px-4 py-3 font-medium">Team leader</th>
+                ) : null}
               </tr>
             </thead>
             <tbody>
@@ -178,6 +194,26 @@ export function ClassStudentsRoster({
                   <td className="whitespace-nowrap px-4 py-3 text-muted-foreground">
                     {format(new Date(student.joined_at), "MMM d, yyyy")}
                   </td>
+                  {teamLeader ? (
+                    <td className="px-4 py-3">
+                      <TeamLeaderToggle
+                        classId={teamLeader.classId}
+                        studentClassId={student.id}
+                        studentName={student.full_name}
+                        isTeamLeader={
+                          teamLeaderById[student.id] ??
+                          Boolean(student.is_team_leader)
+                        }
+                        action={teamLeader.action}
+                        onChange={(studentClassId, isTeamLeader) =>
+                          setTeamLeaderById((prev) => ({
+                            ...prev,
+                            [studentClassId]: isTeamLeader,
+                          }))
+                        }
+                      />
+                    </td>
+                  ) : null}
                 </tr>
               ))}
             </tbody>

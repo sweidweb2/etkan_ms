@@ -24,6 +24,7 @@ export const PERMISSION_FEATURES = [
   "sessions",
   "attendance",
   "tasks",
+  "team_leader",
   "final_exams",
   "grades",
   "semesters",
@@ -59,6 +60,7 @@ export const PERMISSION_FEATURE_LABELS: Record<PermissionFeature, string> = {
   sessions: "Sessions",
   attendance: "Attendance",
   tasks: "Tasks",
+  team_leader: "Team Leader",
   final_exams: "Final Exams",
   grades: "Grades",
   semesters: "Semesters",
@@ -134,6 +136,7 @@ export const PERMISSIONS = {
   CLASSES_REMOVE_STUDENT: "classes.remove_student",
   CLASSES_DROP_SEMESTER: "classes.drop_semester",
   CLASSES_VIEW_ANALYTICS: "classes.view_analytics",
+  CLASSES_SET_TEAM_LEADER: "classes.set_team_leader",
 
   SESSIONS_VIEW: "sessions.view",
   SESSIONS_CREATE: "sessions.create",
@@ -152,6 +155,11 @@ export const PERMISSIONS = {
   TASKS_UPDATE: "tasks.update",
   TASKS_UPDATE_STUDENT: "tasks.update_student",
   TASKS_DELETE: "tasks.delete",
+
+  TEAM_LEADER_ATTENDANCE_UPDATE: "team_leader.attendance.update",
+  TEAM_LEADER_TASKS_CREATE: "team_leader.tasks.create",
+  TEAM_LEADER_TASKS_UPDATE: "team_leader.tasks.update",
+  TEAM_LEADER_TASKS_START: "team_leader.tasks.start",
 
   FINAL_EXAMS_VIEW: "final_exams.view",
   FINAL_EXAMS_CREATE: "final_exams.create",
@@ -584,6 +592,12 @@ export const PERMISSION_DEFINITIONS: readonly PermissionDefinition[] = [
     label: "View class analytics",
     access: PERMISSION_ACCESS.READ,
   },
+  {
+    key: PERMISSIONS.CLASSES_SET_TEAM_LEADER,
+    feature: "classes",
+    label: "Set or clear a student's team leader role in a class",
+    access: PERMISSION_ACCESS.WRITE,
+  },
 
   {
     key: PERMISSIONS.SESSIONS_VIEW,
@@ -675,6 +689,31 @@ export const PERMISSION_DEFINITIONS: readonly PermissionDefinition[] = [
     key: PERMISSIONS.TASKS_DELETE,
     feature: "tasks",
     label: "Delete task",
+    access: PERMISSION_ACCESS.WRITE,
+  },
+
+  {
+    key: PERMISSIONS.TEAM_LEADER_ATTENDANCE_UPDATE,
+    feature: "team_leader",
+    label: "Team leader: update session attendance in own class",
+    access: PERMISSION_ACCESS.WRITE,
+  },
+  {
+    key: PERMISSIONS.TEAM_LEADER_TASKS_CREATE,
+    feature: "team_leader",
+    label: "Team leader: create class tasks in own class",
+    access: PERMISSION_ACCESS.WRITE,
+  },
+  {
+    key: PERMISSIONS.TEAM_LEADER_TASKS_UPDATE,
+    feature: "team_leader",
+    label: "Team leader: edit class tasks in own class",
+    access: PERMISSION_ACCESS.WRITE,
+  },
+  {
+    key: PERMISSIONS.TEAM_LEADER_TASKS_START,
+    feature: "team_leader",
+    label: "Team leader: start class tasks in own class",
     access: PERMISSION_ACCESS.WRITE,
   },
 

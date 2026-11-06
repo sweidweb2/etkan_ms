@@ -435,6 +435,7 @@ export function TeacherClassDetailsPanel({
             </div>
 
             <TeacherClassStudentsSection
+              classId={classRow.id}
               className={classRow.name}
               students={initialStudents}
             />

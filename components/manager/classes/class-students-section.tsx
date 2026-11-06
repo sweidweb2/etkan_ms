@@ -17,8 +17,14 @@ import {
   UsersIcon,
   XIcon,
 } from "lucide-react";
-import { removeStudentFromClassAction } from "@/app/manager/classes/actions";
+import {
+  removeStudentFromClassAction,
+  setStudentTeamLeaderAction,
+} from "@/app/manager/classes/actions";
 import { Can } from "@/components/auth/can";
+import { usePermissions } from "@/components/auth/permissions-provider";
+import { TeamLeaderToggle } from "@/components/manager/classes/team-leader-toggle";
+import { hasPermissionInSet } from "@/lib/auth/permission-checks";
 import { AddStudentToClassDialog } from "@/components/manager/classes/add-student-to-class-dialog";
 import { CancelSemesterDropDialog } from "@/components/manager/classes/cancel-semester-drop-dialog";
 import { CopyStudentsFromClassDialog } from "@/components/manager/classes/copy-students-from-class-dialog";
@@ -171,6 +177,11 @@ export function ClassStudentsSection({
   collapsible = true,
 }: ClassStudentsSectionProps) {
   const router = useRouter();
+  const permissions = usePermissions();
+  const canSetTeamLeader = hasPermissionInSet(
+    permissions,
+    PERMISSIONS.CLASSES_SET_TEAM_LEADER
+  );
   const [isTransitionPending, startTransition] = useTransition();
   const [removeState, removeAction, isRemovePending] = useActionState(
     removeStudentFromClassAction,
@@ -244,6 +255,19 @@ export function ClassStudentsSection({
   const handleSearchChange = (value: string) => {
     setSearchQuery(value);
     setCurrentPage(1);
+  };
+
+  const handleTeamLeaderChange = (
+    studentClassId: string,
+    isTeamLeader: boolean
+  ) => {
+    setStudents((prev) => {
+      const nextStudents = prev.map((row) =>
+        row.id === studentClassId ? { ...row, is_team_leader: isTeamLeader } : row
+      );
+      onStudentsChange(nextStudents);
+      return nextStudents;
+    });
   };
 
   function handleConfirmRemove() {
@@ -490,7 +514,7 @@ export function ClassStudentsSection({
             </div>
           ) : (
             <div className="overflow-x-auto">
-              <table className="w-full min-w-[760px] text-sm">
+              <table className="w-full min-w-[860px] text-sm">
                 <thead>
                   <tr className="border-b bg-muted/40 text-left">
                     <th className="w-12 px-4 py-3 font-medium">#</th>
@@ -498,6 +522,9 @@ export function ClassStudentsSection({
                     <th className="px-4 py-3 font-medium">Email</th>
                     <th className="px-4 py-3 font-medium">Phone</th>
                     <th className="px-4 py-3 font-medium">Joined</th>
+                    {canSetTeamLeader ? (
+                      <th className="px-4 py-3 font-medium">Team leader</th>
+                    ) : null}
                     <th className="px-4 py-3 font-medium text-right">Actions</th>
                   </tr>
                 </thead>
@@ -540,6 +567,18 @@ export function ClassStudentsSection({
                           ? format(new Date(student.joined_at), "MMM d, yyyy")
                           : "—"}
                       </td>
+                      {canSetTeamLeader ? (
+                        <td className="px-4 py-3">
+                          <TeamLeaderToggle
+                            classId={classId}
+                            studentClassId={student.id}
+                            studentName={student.full_name}
+                            isTeamLeader={Boolean(student.is_team_leader)}
+                            action={setStudentTeamLeaderAction}
+                            onChange={handleTeamLeaderChange}
+                          />
+                        </td>
+                      ) : null}
                       <td className="px-4 py-3 text-right">
                         <div className="inline-flex items-center justify-end gap-1">
                           <Can permission={PERMISSIONS.CLASSES_DROP_SEMESTER}>

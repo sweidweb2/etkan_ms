@@ -33,6 +33,7 @@ import {
 import { removeStorageForStudentTaskUploads } from "@/services/classes/student-task-upload.service";
 import { assertAssignedTeacherForClassMutation } from "@/services/classes/teacher-class-scope.service";
 import {
+  attachTaskEditorNames,
   buildStudentDisplayByUserId,
   didTaskMaxGradeDecrease,
   isUuid,
@@ -41,6 +42,7 @@ import {
   normalizeOptionalString,
   parseTaskMaxGrade,
   toIsoOrNull,
+  type ClassMutationAuthorizer,
   type MutationFailure,
   type Supabase,
 } from "@/services/classes/session-shared";
@@ -64,29 +66,48 @@ export type CreateClassTaskResult =
     }
   | MutationFailure;
 
+export type CreateClassTaskInput = {
+  class_id: string;
+  title: string;
+  description?: string;
+  period: string | number;
+  max_grade?: string | number;
+  is_yes_no?: boolean;
+  sort_order?: string | number;
+};
+
 export async function createClassTaskForManager(
   adminClient: Supabase,
   actorUserId: string | null,
   actor: AuditActor,
-  input: {
-    class_id: string;
-    title: string;
-    description?: string;
-    period: string | number;
-    max_grade?: string | number;
-    is_yes_no?: boolean;
-    sort_order?: string | number;
+  input: CreateClassTaskInput
+): Promise<CreateClassTaskResult> {
+  const unauthorized = await getUnauthorizedError(
+    adminClient,
+    actorUserId,
+    PERMISSIONS.TASKS_CREATE
+  );
+  if (unauthorized) {
+    return { success: false, error: unauthorized };
   }
+
+  return applyCreateClassTask(adminClient, actor, input, (classId) =>
+    assertAssignedTeacherForClassMutation(adminClient, actor, classId)
+  );
+}
+
+/**
+ * Shared create core. Callers check their role permission first;
+ * `authorizeClass` scopes the actor to the target class.
+ */
+export async function applyCreateClassTask(
+  adminClient: Supabase,
+  actor: AuditActor,
+  input: CreateClassTaskInput,
+  authorizeClass: ClassMutationAuthorizer
 ): Promise<CreateClassTaskResult> {
   const timer = createNavStepTimer("createClassTask");
   try {
-    const unauthorized = await timer.step("auth", () =>
-      getUnauthorizedError(adminClient, actorUserId, PERMISSIONS.TASKS_CREATE)
-    );
-    if (unauthorized) {
-      return { success: false, error: unauthorized };
-    }
-
     const parsed = createClassTaskSchema.safeParse({
       title: input.title,
       description: input.description,
@@ -108,11 +129,7 @@ export async function createClassTaskForManager(
       return { success: false, error: "Class not found." };
     }
 
-    const scope = await assertAssignedTeacherForClassMutation(
-      adminClient,
-      actor,
-      input.class_id
-    );
+    const scope = await timer.step("auth", () => authorizeClass(input.class_id));
     if (!scope.ok) {
       return { success: false, error: scope.error };
     }
@@ -169,6 +186,7 @@ export async function createClassTaskForManager(
         started: false,
         started_at: null,
         due_date: null,
+        created_by: actor.userId,
       })
     );
 
@@ -187,14 +205,17 @@ export async function createClassTaskForManager(
     }
 
     const studentTaskRecords = gradesResult.data ?? [];
-    const displayByUserId = await timer.step("hydrate", () =>
-      buildStudentDisplayByUserId(
-        adminClient,
-        studentTaskRecords.map((row) => row.student_id)
-      )
+    const [displayByUserId, [task]] = await timer.step("hydrate", () =>
+      Promise.all([
+        buildStudentDisplayByUserId(
+          adminClient,
+          studentTaskRecords.map((row) => row.student_id)
+        ),
+        attachTaskEditorNames(adminClient, [
+          mapTaskRecord(data as ClassTaskRecord),
+        ]),
+      ])
     );
-
-    const task = mapTaskRecord(data as ClassTaskRecord);
     const studentTasks: ManagerStudentTaskRow[] = studentTaskRecords.map((row) =>
       mapStudentTaskRow(row, displayByUserId)
     );
@@ -235,20 +256,22 @@ export type UpdateClassTaskResult =
     }
   | MutationFailure;
 
+export type UpdateClassTaskInput = {
+  id: string;
+  class_id: string;
+  title: string;
+  description?: string;
+  period: string | number;
+  max_grade?: string | number;
+  is_yes_no?: boolean;
+  sort_order: string | number;
+};
+
 export async function updateClassTaskForManager(
   adminClient: Supabase,
   actorUserId: string | null,
   actor: AuditActor,
-  input: {
-    id: string;
-    class_id: string;
-    title: string;
-    description?: string;
-    period: string | number;
-    max_grade?: string | number;
-    is_yes_no?: boolean;
-    sort_order: string | number;
-  }
+  input: UpdateClassTaskInput
 ): Promise<UpdateClassTaskResult> {
   const unauthorized = await getUnauthorizedError(
     adminClient,
@@ -259,6 +282,18 @@ export async function updateClassTaskForManager(
     return { success: false, error: unauthorized };
   }
 
+  return applyUpdateClassTask(adminClient, actor, input, (classId) =>
+    assertAssignedTeacherForClassMutation(adminClient, actor, classId)
+  );
+}
+
+/** Shared update core (structure lock, yes/no lock, grade clamping). */
+export async function applyUpdateClassTask(
+  adminClient: Supabase,
+  actor: AuditActor,
+  input: UpdateClassTaskInput,
+  authorizeClass: ClassMutationAuthorizer
+): Promise<UpdateClassTaskResult> {
   if (!isUuid(input.id) || !isUuid(input.class_id)) {
     return { success: false, error: "Task not found." };
   }
@@ -293,11 +328,7 @@ export async function updateClassTaskForManager(
     return { success: false, error: "Task not found." };
   }
 
-  const scope = await assertAssignedTeacherForClassMutation(
-    adminClient,
-    actor,
-    input.class_id
-  );
+  const scope = await authorizeClass(input.class_id);
   if (!scope.ok) {
     return { success: false, error: scope.error };
   }
@@ -356,6 +387,7 @@ export async function updateClassTaskForManager(
       max_grade: nextMaxGrade,
       is_yes_no: nextIsYesNo,
       sort_order: parsed.data.sort_order,
+      updated_by: actor.userId,
     }
   );
 
@@ -366,7 +398,9 @@ export async function updateClassTaskForManager(
     };
   }
 
-  const task = mapTaskRecord(data as ClassTaskRecord);
+  const [task] = await attachTaskEditorNames(adminClient, [
+    mapTaskRecord(data as ClassTaskRecord),
+  ]);
 
   await recordManagerAuditLog(adminClient, actor, {
     action: "update",
@@ -526,11 +560,17 @@ export type SetClassTaskStartedResult =
   | { success: true; task: ManagerClassTaskRow; message: string }
   | MutationFailure;
 
+export type SetClassTaskStartedInput = {
+  id: string;
+  class_id: string;
+  started: boolean;
+};
+
 export async function setClassTaskStartedForManager(
   adminClient: Supabase,
   actorUserId: string | null,
   actor: AuditActor,
-  input: { id: string; class_id: string; started: boolean }
+  input: SetClassTaskStartedInput
 ): Promise<SetClassTaskStartedResult> {
   const unauthorized = await getUnauthorizedError(
     adminClient,
@@ -541,6 +581,18 @@ export async function setClassTaskStartedForManager(
     return { success: false, error: unauthorized };
   }
 
+  return applyClassTaskStart(adminClient, actor, input, (classId) =>
+    assertAssignedTeacherForClassMutation(adminClient, actor, classId)
+  );
+}
+
+/** Shared start/unstart core (structure lock, unstart guard, due date). */
+export async function applyClassTaskStart(
+  adminClient: Supabase,
+  actor: AuditActor,
+  input: SetClassTaskStartedInput,
+  authorizeClass: ClassMutationAuthorizer
+): Promise<SetClassTaskStartedResult> {
   if (!isUuid(input.id) || !isUuid(input.class_id)) {
     return { success: false, error: "Task not found." };
   }
@@ -558,11 +610,7 @@ export async function setClassTaskStartedForManager(
     return { success: false, error: "Task not found." };
   }
 
-  const scope = await assertAssignedTeacherForClassMutation(
-    adminClient,
-    actor,
-    input.class_id
-  );
+  const scope = await authorizeClass(input.class_id);
   if (!scope.ok) {
     return { success: false, error: scope.error };
   }
@@ -614,6 +662,7 @@ export async function setClassTaskStartedForManager(
       started: input.started,
       started_at: startedAt,
       due_date: dueDate,
+      updated_by: actor.userId,
     }
   );
 
@@ -624,7 +673,9 @@ export async function setClassTaskStartedForManager(
     };
   }
 
-  const task = mapTaskRecord(data as ClassTaskRecord);
+  const [task] = await attachTaskEditorNames(adminClient, [
+    mapTaskRecord(data as ClassTaskRecord),
+  ]);
 
   await recordManagerAuditLog(adminClient, actor, {
     action: "update",

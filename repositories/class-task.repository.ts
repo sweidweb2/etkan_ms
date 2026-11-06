@@ -6,7 +6,7 @@ import type { Database } from "@/types/supabase";
 type Supabase = SupabaseClient<Database>;
 
 const CLASS_TASK_COLUMNS =
-  "id, class_id, source_subject_task_id, title, description, period, max_grade, is_yes_no, sort_order, started, started_at, due_date, created_at, updated_at";
+  "id, class_id, source_subject_task_id, title, description, period, max_grade, is_yes_no, sort_order, started, started_at, due_date, created_at, updated_at, created_by, updated_by";
 
 const CLASS_TASK_FOR_GRADES_COLUMNS =
   "id, class_id, title, max_grade, is_yes_no, due_date, sort_order, created_at";
@@ -26,6 +26,8 @@ export type ClassTaskRecord = {
   due_date: string | null;
   created_at: string;
   updated_at: string;
+  created_by: string | null;
+  updated_by: string | null;
 };
 
 export type CreateClassTaskInput = {
@@ -40,6 +42,7 @@ export type CreateClassTaskInput = {
   started?: boolean;
   started_at?: string | null;
   due_date?: string | null;
+  created_by?: string | null;
 };
 
 export type UpdateClassTaskInput = {
@@ -49,12 +52,14 @@ export type UpdateClassTaskInput = {
   max_grade?: number | null;
   is_yes_no?: boolean;
   sort_order: number;
+  updated_by?: string | null;
 };
 
 export type ClassTaskStartStateInput = {
   started: boolean;
   started_at: string | null;
   due_date: string | null;
+  updated_by?: string | null;
 };
 
 export async function listClassTasksByClassId(client: Supabase, classId: string) {
@@ -138,6 +143,8 @@ export async function createClassTask(
       started: input.started ?? false,
       started_at: input.started_at ?? null,
       due_date: input.due_date ?? null,
+      created_by: input.created_by ?? null,
+      updated_by: input.created_by ?? null,
     })
     .select(CLASS_TASK_COLUMNS)
     .single();
@@ -166,6 +173,8 @@ export async function createClassTasks(
         started: input.started ?? false,
         started_at: input.started_at ?? null,
         due_date: input.due_date ?? null,
+        created_by: input.created_by ?? null,
+        updated_by: input.created_by ?? null,
       }))
     )
     .select(CLASS_TASK_COLUMNS);
@@ -185,6 +194,7 @@ export async function updateClassTaskById(
       max_grade: input.max_grade ?? null,
       ...(input.is_yes_no === undefined ? {} : { is_yes_no: input.is_yes_no }),
       sort_order: input.sort_order,
+      ...(input.updated_by === undefined ? {} : { updated_by: input.updated_by }),
       updated_at: new Date().toISOString(),
     })
     .eq("id", id)
@@ -203,6 +213,7 @@ export async function updateClassTaskStartState(
       started: input.started,
       started_at: input.started_at,
       due_date: input.due_date,
+      ...(input.updated_by === undefined ? {} : { updated_by: input.updated_by }),
       updated_at: new Date().toISOString(),
     })
     .eq("id", id)

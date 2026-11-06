@@ -17,7 +17,9 @@ import {
 import { assertAssignedTeacherForClassMutation } from "@/services/classes/teacher-class-scope.service";
 import {
   buildStudentDisplayByUserId,
+  loadEditorNameById,
   mapAttendeeStatus,
+  type ClassMutationAuthorizer,
   type MutationFailure,
   type Supabase,
 } from "@/services/classes/session-shared";
@@ -119,6 +121,13 @@ export type UpdateAttendeeResult =
     }
   | MutationFailure;
 
+export type UpdateAttendeeInput = {
+  id: string;
+  class_id: string;
+  session_id: string;
+  status: AttendeeStatusValue;
+};
+
 /**
  * Update an existing attendee row. No membership gate: former members keep
  * historical rows and those rows remain editable.
@@ -127,18 +136,28 @@ export async function updateAttendeeForManager(
   adminClient: Supabase,
   actorUserId: string | null,
   actor: AuditActor,
-  input: {
-    id: string;
-    class_id: string;
-    session_id: string;
-    status: AttendeeStatusValue;
-  }
+  input: UpdateAttendeeInput
 ): Promise<UpdateAttendeeResult> {
   const unauthorized = await getUnauthorizedError(adminClient, actorUserId, PERMISSIONS.ATTENDANCE_UPDATE);
   if (unauthorized) {
     return { success: false, error: unauthorized };
   }
 
+  return applyAttendeeUpdate(adminClient, actor, input, (classId) =>
+    assertAssignedTeacherForClassMutation(adminClient, actor, classId)
+  );
+}
+
+/**
+ * Shared attendance update core. Callers check their role permission first;
+ * `authorizeClass` runs once the attendee/session/class chain is verified.
+ */
+export async function applyAttendeeUpdate(
+  adminClient: Supabase,
+  actor: AuditActor,
+  input: UpdateAttendeeInput,
+  authorizeClass: ClassMutationAuthorizer
+): Promise<UpdateAttendeeResult> {
   const parsed = updateAttendeeSchema.safeParse({
     status: input.status,
   });
@@ -172,11 +191,7 @@ export async function updateAttendeeForManager(
     return { success: false, error: "Session not found." };
   }
 
-  const scope = await assertAssignedTeacherForClassMutation(
-    adminClient,
-    actor,
-    input.class_id
-  );
+  const scope = await authorizeClass(input.class_id);
   if (!scope.ok) {
     return { success: false, error: scope.error };
   }
@@ -196,6 +211,7 @@ export async function updateAttendeeForManager(
     input.id,
     {
       status: parsed.data.status,
+      updated_by: actor.userId,
     }
   );
 
@@ -206,8 +222,9 @@ export async function updateAttendeeForManager(
     };
   }
 
-  const displayByUserId = await buildStudentDisplayByUserId(adminClient, [
-    data.student_id,
+  const [displayByUserId, editorNameById] = await Promise.all([
+    buildStudentDisplayByUserId(adminClient, [data.student_id]),
+    loadEditorNameById(adminClient, [data.updated_by]),
   ]);
   const display = displayByUserId.get(data.student_id);
 
@@ -219,6 +236,11 @@ export async function updateAttendeeForManager(
     email: display?.email ?? "",
     status: mapAttendeeStatus(data.status),
     created_at: data.created_at,
+    updated_at: data.updated_at,
+    updated_by: data.updated_by,
+    updated_by_name: data.updated_by
+      ? (editorNameById.get(data.updated_by) ?? null)
+      : null,
   };
 
   await recordManagerAuditLog(adminClient, actor, {

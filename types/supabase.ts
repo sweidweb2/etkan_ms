@@ -64,6 +64,8 @@ export type Database = {
           session_id: string
           status: string
           student_id: string
+          updated_at: string | null
+          updated_by: string | null
         }
         Insert: {
           created_at?: string
@@ -71,6 +73,8 @@ export type Database = {
           session_id: string
           status?: string
           student_id: string
+          updated_at?: string | null
+          updated_by?: string | null
         }
         Update: {
           created_at?: string
@@ -78,6 +82,8 @@ export type Database = {
           session_id?: string
           status?: string
           student_id?: string
+          updated_at?: string | null
+          updated_by?: string | null
         }
         Relationships: [
           {
@@ -1263,18 +1269,21 @@ export type Database = {
         Row: {
           class_id: string
           id: string
+          is_team_leader: boolean
           joined_at: string | null
           user_id: string
         }
         Insert: {
           class_id: string
           id?: string
+          is_team_leader?: boolean
           joined_at?: string | null
           user_id: string
         }
         Update: {
           class_id?: string
           id?: string
+          is_team_leader?: boolean
           joined_at?: string | null
           user_id?: string
         }
@@ -2473,6 +2482,7 @@ export type Database = {
         Row: {
           class_id: string
           created_at: string
+          created_by: string | null
           description: string | null
           due_date: string | null
           id: string
@@ -2485,10 +2495,12 @@ export type Database = {
           started_at: string | null
           title: string
           updated_at: string
+          updated_by: string | null
         }
         Insert: {
           class_id: string
           created_at?: string
+          created_by?: string | null
           description?: string | null
           due_date?: string | null
           id?: string
@@ -2501,10 +2513,12 @@ export type Database = {
           started_at?: string | null
           title: string
           updated_at?: string
+          updated_by?: string | null
         }
         Update: {
           class_id?: string
           created_at?: string
+          created_by?: string | null
           description?: string | null
           due_date?: string | null
           id?: string
@@ -2517,6 +2531,7 @@ export type Database = {
           started_at?: string | null
           title?: string
           updated_at?: string
+          updated_by?: string | null
         }
         Relationships: [
           {

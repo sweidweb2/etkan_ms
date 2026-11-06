@@ -33,6 +33,8 @@ export default async function StudentClassDetailPage({
       detail={detail.detail}
       finalExam={detail.finalExam}
       studentFinalExamGrade={detail.studentFinalExamGrade}
+      teamLeader={detail.teamLeader}
+      currentUserId={actorUserId}
     />
   );
 }

@@ -6,13 +6,14 @@ import type { Database } from "@/types/supabase";
 
 type Supabase = SupabaseClient<Database>;
 
-const STUDENT_CLASS_COLUMNS = "id, user_id, class_id, joined_at";
+const STUDENT_CLASS_COLUMNS = "id, user_id, class_id, joined_at, is_team_leader";
 
 export type StudentClassRecord = {
   id: string;
   user_id: string;
   class_id: string;
   joined_at: string | null;
+  is_team_leader: boolean;
 };
 
 export type CreateStudentClassInput = {
@@ -99,7 +100,7 @@ export async function listStudentClassesWithClassByUserId(
   return client
     .from("student_class")
     .select(
-      "id, user_id, class_id, joined_at, classes ( id, name, status )"
+      "id, user_id, class_id, joined_at, is_team_leader, classes ( id, name, status )"
     )
     .eq("user_id", userId)
     .order("joined_at", { ascending: false });
@@ -204,6 +205,7 @@ function asStudentClassRecord(value: unknown): StudentClassRecord | null {
     user_id: row.user_id,
     class_id: row.class_id,
     joined_at: typeof row.joined_at === "string" ? row.joined_at : null,
+    is_team_leader: row.is_team_leader === true,
   };
 }
 
@@ -368,6 +370,19 @@ export async function findStudentClassById(client: Supabase, id: string) {
     .select(STUDENT_CLASS_COLUMNS)
     .eq("id", id)
     .maybeSingle();
+}
+
+export async function updateStudentClassTeamLeader(
+  client: Supabase,
+  id: string,
+  isTeamLeader: boolean
+) {
+  return client
+    .from("student_class")
+    .update({ is_team_leader: isTeamLeader })
+    .eq("id", id)
+    .select(STUDENT_CLASS_COLUMNS)
+    .single();
 }
 
 export async function deleteStudentClassById(client: Supabase, id: string) {
