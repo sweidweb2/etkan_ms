@@ -5,6 +5,7 @@ import { useFormActionState as useActionState } from "@/hooks/use-form-action-st
 import { createClassTaskAction } from "@/app/manager/classes/actions";
 import { FieldLabel } from "@/components/auth/field-label";
 import { InlineSpinner } from "@/components/loaders/inline-spinner";
+import { TaskYesNoField } from "@/components/manager/shared/task-yes-no-field";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -18,6 +19,10 @@ import { Input } from "@/components/ui/input";
 import { useActionStateSuccess } from "@/hooks/use-action-state-success";
 import { useActionStateToast } from "@/hooks/use-action-state-toast";
 import { usePendingAwareOpenChange } from "@/hooks/use-pending-aware-open-change";
+import {
+  serializeTaskMaxGrade,
+  useTaskYesNoToggle,
+} from "@/hooks/use-task-yes-no-toggle";
 import { useZodForm } from "@/hooks/use-zod-form";
 import {
   createClassTaskSchema,
@@ -64,6 +69,9 @@ export function AddClassTaskDialog({
     register,
     handleSubmit,
     reset,
+    watch,
+    setValue,
+    getValues,
     formState: { errors },
   } = useZodForm({
     schema: createClassTaskSchema,
@@ -73,7 +81,16 @@ export function AddClassTaskDialog({
       description: "",
       period: DEFAULT_PERIOD_DAYS,
       max_grade: DEFAULT_MAX_GRADE,
+      is_yes_no: false,
     },
+  });
+  const isYesNo = Boolean(watch("is_yes_no"));
+  const { onYesNoChange, resetYesNoToggle } = useTaskYesNoToggle({
+    getMaxGrade: () => getValues("max_grade"),
+    setMaxGrade: (value) =>
+      setValue("max_grade", value, { shouldValidate: true }),
+    setIsYesNo: (value) =>
+      setValue("is_yes_no", value, { shouldDirty: true }),
   });
 
   useEffect(() => {
@@ -82,8 +99,10 @@ export function AddClassTaskDialog({
       description: "",
       period: DEFAULT_PERIOD_DAYS,
       max_grade: DEFAULT_MAX_GRADE,
+      is_yes_no: false,
     });
-  }, [open, reset]);
+    resetYesNoToggle();
+  }, [open, reset, resetYesNoToggle]);
 
   useActionStateSuccess(
     state,
@@ -105,11 +124,10 @@ export function AddClassTaskDialog({
     formData.set("title", values.title);
     formData.set("description", values.description ?? "");
     formData.set("period", String(values.period));
+    formData.set("is_yes_no", values.is_yes_no ? "true" : "false");
     formData.set(
       "max_grade",
-      values.max_grade === undefined || values.max_grade === ""
-        ? ""
-        : String(values.max_grade)
+      serializeTaskMaxGrade(values.max_grade, values.is_yes_no)
     );
 
     startTransition(() => {
@@ -180,6 +198,13 @@ export function AddClassTaskDialog({
             ) : null}
           </div>
 
+          <TaskYesNoField
+            id="add-class-task-yes-no"
+            checked={isYesNo}
+            onCheckedChange={onYesNoChange}
+            disabled={isPending}
+          />
+
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="flex flex-col gap-2">
               <FieldLabel
@@ -202,26 +227,28 @@ export function AddClassTaskDialog({
               ) : null}
             </div>
 
-            <div className="flex flex-col gap-2">
-              <FieldLabel
-                htmlFor="add-class-task-max-grade"
-                label="Max grade"
-                hint="Optional"
-              />
-              <Input
-                id="add-class-task-max-grade"
-                type="number"
-                min={0}
-                max={999}
-                step={0.5}
-                aria-invalid={!!maxGradeError}
-                disabled={isPending}
-                {...register("max_grade")}
-              />
-              {maxGradeError ? (
-                <p className="text-sm text-destructive">{maxGradeError}</p>
-              ) : null}
-            </div>
+            {isYesNo ? null : (
+              <div className="flex flex-col gap-2">
+                <FieldLabel
+                  htmlFor="add-class-task-max-grade"
+                  label="Max grade"
+                  hint="Optional"
+                />
+                <Input
+                  id="add-class-task-max-grade"
+                  type="number"
+                  min={0}
+                  max={999}
+                  step={0.5}
+                  aria-invalid={!!maxGradeError}
+                  disabled={isPending}
+                  {...register("max_grade")}
+                />
+                {maxGradeError ? (
+                  <p className="text-sm text-destructive">{maxGradeError}</p>
+                ) : null}
+              </div>
+            )}
           </div>
         </form>
 

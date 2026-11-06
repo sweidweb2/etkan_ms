@@ -6,7 +6,7 @@ import type { Database } from "@/types/supabase";
 type Supabase = SupabaseClient<Database>;
 
 const SUBJECT_TASK_COLUMNS =
-  "id, subject_id, title, description, period, max_grade, sort_order, created_at, updated_at";
+  "id, subject_id, title, description, period, max_grade, is_yes_no, sort_order, created_at, updated_at";
 
 export type SubjectTaskRecord = {
   id: string;
@@ -15,6 +15,7 @@ export type SubjectTaskRecord = {
   description: string | null;
   period: number;
   max_grade: number | null;
+  is_yes_no: boolean;
   sort_order: number;
   created_at: string;
   updated_at: string;
@@ -26,6 +27,7 @@ export type CreateSubjectTaskInput = {
   description?: string | null;
   period: number;
   max_grade?: number | null;
+  is_yes_no?: boolean;
   sort_order?: number;
 };
 
@@ -34,6 +36,7 @@ export type UpdateSubjectTaskInput = {
   description?: string | null;
   period: number;
   max_grade?: number | null;
+  is_yes_no?: boolean;
   sort_order: number;
 };
 
@@ -69,6 +72,7 @@ export async function createSubjectTask(
       description: input.description ?? null,
       period: input.period,
       max_grade: input.max_grade ?? null,
+      is_yes_no: input.is_yes_no ?? false,
       sort_order: input.sort_order ?? 0,
     })
     .select(SUBJECT_TASK_COLUMNS)
@@ -87,6 +91,7 @@ export async function updateSubjectTaskById(
       description: input.description ?? null,
       period: input.period,
       max_grade: input.max_grade ?? null,
+      ...(input.is_yes_no === undefined ? {} : { is_yes_no: input.is_yes_no }),
       sort_order: input.sort_order,
       updated_at: new Date().toISOString(),
     })

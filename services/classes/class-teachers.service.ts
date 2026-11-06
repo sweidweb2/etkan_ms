@@ -1,6 +1,7 @@
 import "server-only";
 
 import { PERMISSIONS } from "@/lib/constants/permissions";
+import { ROLES } from "@/lib/constants/roles";
 import { getUnauthorizedError } from "@/services/auth/authorization.service";
 import { assignClassTeacherSchema } from "@/lib/validators/manager/assign-class-teacher";
 import * as classRepository from "@/repositories/class.repository";
@@ -86,10 +87,10 @@ export async function assignTeacherToClassForManager(
     };
   }
 
-  if (!teacherResult.data.is_instructor) {
+  if (teacherResult.data.role !== ROLES.TEACHER) {
     return {
       success: false,
-      error: "Only instructor profiles can be assigned to a class.",
+      error: "Only teachers can be assigned to a class.",
     };
   }
 

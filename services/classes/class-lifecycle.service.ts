@@ -1,6 +1,7 @@
 import "server-only";
 
 import { PERMISSIONS } from "@/lib/constants/permissions";
+import { ROLES } from "@/lib/constants/roles";
 import { optimizeClassCoverForStorage } from "@/lib/manager/classes/optimize-class-cover";
 import {
   buildClassCoverStoragePath,
@@ -232,6 +233,14 @@ export async function createClassForManager(
         success: false,
         error: "Please fix the errors below.",
         fieldErrors: { teacher_id: ["User not found."] },
+      };
+    }
+
+    if (teacherResult.data.role !== ROLES.TEACHER) {
+      return {
+        success: false,
+        error: "Please fix the errors below.",
+        fieldErrors: { teacher_id: ["Only teachers can be assigned to a class."] },
       };
     }
   }

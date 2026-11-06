@@ -107,6 +107,7 @@ export function mapTaskRecord(record: ClassTaskRecord): ManagerClassTaskRow {
     description: record.description,
     period: record.period,
     max_grade: record.max_grade,
+    is_yes_no: record.is_yes_no ?? false,
     sort_order: record.sort_order,
     started: record.started,
     started_at: record.started_at,

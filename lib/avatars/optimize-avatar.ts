@@ -53,11 +53,17 @@ export async function optimizeAvatarForStorage(
     }
 
     let quality = 80;
-    let bytes = await encodeWebp(input, quality);
-
-    while (bytes.length > AVATAR_OUTPUT_MAX_BYTES && quality > 40) {
-      quality -= 10;
+    let bytes: Buffer;
+    try {
       bytes = await encodeWebp(input, quality);
+
+      while (bytes.length > AVATAR_OUTPUT_MAX_BYTES && quality > 40) {
+        quality -= 10;
+        bytes = await encodeWebp(input, quality);
+      }
+    } catch (error) {
+      console.error("[avatar] optimize failed", error);
+      return { ok: false, error: "Unable to process this image. Try another photo." };
     }
 
     if (bytes.length > AVATAR_OUTPUT_MAX_BYTES) {

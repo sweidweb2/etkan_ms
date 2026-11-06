@@ -19,6 +19,7 @@ import {
   ClassStatsDialog,
   type ClassStats,
 } from "@/components/manager/classes/class-stats-dialog";
+import { MANAGER_CARD_GRID_CLASS_NAME } from "@/components/manager/shared/grid-card";
 import { StudentsWithoutActiveClassCard } from "@/components/manager/shared/students-without-active-class-card";
 import { PanelPageHeader } from "@/components/panels/panel-page-header";
 import { Button } from "@/components/ui/button";
@@ -357,7 +358,7 @@ export function ManageClassesPanel({ initialData }: ManageClassesPanelProps) {
         ) : (
           <div
             className={cn(
-              "grid w-full gap-4 [grid-template-columns:repeat(auto-fill,minmax(min(100%,15rem),1fr))]",
+              MANAGER_CARD_GRID_CLASS_NAME,
               isLoading && "opacity-60"
             )}
           >

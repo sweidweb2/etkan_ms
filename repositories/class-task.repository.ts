@@ -6,7 +6,10 @@ import type { Database } from "@/types/supabase";
 type Supabase = SupabaseClient<Database>;
 
 const CLASS_TASK_COLUMNS =
-  "id, class_id, source_subject_task_id, title, description, period, max_grade, sort_order, started, started_at, due_date, created_at, updated_at";
+  "id, class_id, source_subject_task_id, title, description, period, max_grade, is_yes_no, sort_order, started, started_at, due_date, created_at, updated_at";
+
+const CLASS_TASK_FOR_GRADES_COLUMNS =
+  "id, class_id, title, max_grade, is_yes_no, due_date, sort_order, created_at";
 
 export type ClassTaskRecord = {
   id: string;
@@ -16,6 +19,7 @@ export type ClassTaskRecord = {
   description: string | null;
   period: number;
   max_grade: number | null;
+  is_yes_no: boolean;
   sort_order: number;
   started: boolean;
   started_at: string | null;
@@ -31,6 +35,7 @@ export type CreateClassTaskInput = {
   description?: string | null;
   period: number;
   max_grade?: number | null;
+  is_yes_no?: boolean;
   sort_order?: number;
   started?: boolean;
   started_at?: string | null;
@@ -42,6 +47,7 @@ export type UpdateClassTaskInput = {
   description?: string | null;
   period: number;
   max_grade?: number | null;
+  is_yes_no?: boolean;
   sort_order: number;
 };
 
@@ -66,7 +72,7 @@ export async function listClassTasksForGradesByClassId(
 ) {
   return client
     .from("class_tasks")
-    .select("id, class_id, title, max_grade, due_date, sort_order, created_at")
+    .select(CLASS_TASK_FOR_GRADES_COLUMNS)
     .eq("class_id", classId)
     .order("sort_order", { ascending: true })
     .order("created_at", { ascending: true });
@@ -82,14 +88,17 @@ export async function listClassTasksForGradesByClassIds(
 
   return client
     .from("class_tasks")
-    .select("id, class_id, title, max_grade, due_date, sort_order, created_at")
+    .select(CLASS_TASK_FOR_GRADES_COLUMNS)
     .in("class_id", classIds)
     .order("sort_order", { ascending: true })
     .order("created_at", { ascending: true });
 }
 
 export async function listClassTaskIdsByClassId(client: Supabase, classId: string) {
-  return client.from("class_tasks").select("id, max_grade, due_date").eq("class_id", classId);
+  return client
+    .from("class_tasks")
+    .select("id, max_grade, is_yes_no, due_date")
+    .eq("class_id", classId);
 }
 
 export async function findClassTaskById(client: Supabase, id: string) {
@@ -124,6 +133,7 @@ export async function createClassTask(
       description: input.description ?? null,
       period: input.period,
       max_grade: input.max_grade ?? null,
+      is_yes_no: input.is_yes_no ?? false,
       sort_order: input.sort_order ?? 0,
       started: input.started ?? false,
       started_at: input.started_at ?? null,
@@ -151,6 +161,7 @@ export async function createClassTasks(
         description: input.description ?? null,
         period: input.period,
         max_grade: input.max_grade ?? null,
+        is_yes_no: input.is_yes_no ?? false,
         sort_order: input.sort_order ?? 0,
         started: input.started ?? false,
         started_at: input.started_at ?? null,
@@ -172,6 +183,7 @@ export async function updateClassTaskById(
       description: input.description ?? null,
       period: input.period,
       max_grade: input.max_grade ?? null,
+      ...(input.is_yes_no === undefined ? {} : { is_yes_no: input.is_yes_no }),
       sort_order: input.sort_order,
       updated_at: new Date().toISOString(),
     })

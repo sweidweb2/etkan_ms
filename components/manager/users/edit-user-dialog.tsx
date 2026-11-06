@@ -224,7 +224,11 @@ export function EditUserDialog({
             <FieldLabel
               htmlFor="edit-user-password"
               label="New password"
-              hint="Optional. Leave blank to keep the current password."
+              hint={
+                user.role === ROLES.STUDENT
+                  ? undefined
+                  : "Optional. Leave blank to keep the current password."
+              }
             />
             <PasswordInput
               id="edit-user-password"
@@ -314,8 +318,8 @@ export function EditUserDialog({
           <div className="flex flex-col gap-2">
             <FieldLabel
               htmlFor="edit-user-is-instructor"
-              label="Instructor"
-              hint="Can teach scheduled sessions"
+              label="Workshop instructor"
+              hint="Unlocks Manage workshops"
             />
             <div className="flex h-8 items-center gap-2.5 rounded-lg border border-input bg-transparent px-2.5 text-sm dark:bg-input/30">
               <Checkbox
@@ -349,6 +353,7 @@ export function EditUserDialog({
                   id="edit-user-phone"
                   type="tel"
                   autoComplete="tel"
+                  placeholder="+961 70 000 000"
                   maxLength={AUTH_LIMITS.phone.max}
                   aria-invalid={!!phoneError}
                   disabled={isPending}

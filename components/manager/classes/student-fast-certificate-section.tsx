@@ -27,6 +27,7 @@ import {
   resolveFastCertificateAvailability,
   resolveFastCertificateFactorDefaults,
 } from "@/lib/manager/fast-certificate-grade";
+import { formatTaskGrade } from "@/lib/format/format-task-grade";
 import { showErrorToast, showSuccessToast } from "@/lib/toast";
 import { cn } from "@/lib/utils";
 import type { ManagerClassFinalExamRow } from "@/types/manager-class-final-exam";
@@ -343,8 +344,12 @@ export function StudentFastCertificateContent({
                       {task.title}
                     </p>
                     <p className="text-xs text-muted-foreground">
-                      {task.sessionLabel ?? "—"} · grade {task.grade} /{" "}
-                      {task.maxGrade}
+                      {task.sessionLabel ?? "—"} · grade{" "}
+                      {formatTaskGrade({
+                        grade: task.grade,
+                        maxGrade: task.maxGrade,
+                        isYesNo: task.isYesNo,
+                      })}
                     </p>
                   </div>
                   <Input

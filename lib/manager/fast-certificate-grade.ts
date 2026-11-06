@@ -17,6 +17,7 @@ export type FastCertificateGradedTask = {
   sessionLabel: string | null;
   grade: number;
   maxGrade: number;
+  isYesNo?: boolean;
   status: string;
 };
 
@@ -78,6 +79,7 @@ export function getGradedTasksFromDetail(
         : null,
       grade: task.grade!,
       maxGrade: task.max_grade,
+      isYesNo: task.is_yes_no,
       status: task.status,
     }));
 }

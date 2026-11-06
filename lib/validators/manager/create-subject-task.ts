@@ -1,5 +1,9 @@
 import { z } from "zod";
 import { safeParseFormData } from "@/lib/validators/safe-parse-form-data";
+import {
+  parseTaskYesNoFormValue,
+  taskYesNoFieldSchema,
+} from "@/lib/validators/manager/task-yes-no";
 import type { FieldErrors } from "@/types/auth";
 
 /** Shared fields for create and update subject task (no id). */
@@ -28,6 +32,7 @@ export const subjectTaskFieldsSchema = z.object({
         .max(999, { message: "Max grade must be at most 999." }),
     ])
     .optional(),
+  is_yes_no: taskYesNoFieldSchema,
   sort_order: z.coerce
     .number()
     .int({ message: "Sort order must be a whole number." })
@@ -54,6 +59,7 @@ export function parseCreateSubjectTaskFormData(formData: FormData):
     description: formData.get("description") ?? undefined,
     period: formData.get("period"),
     max_grade: formData.get("max_grade") ?? undefined,
+    is_yes_no: parseTaskYesNoFormValue(formData.get("is_yes_no")),
     sort_order: formData.get("sort_order") ?? "0",
   });
 }

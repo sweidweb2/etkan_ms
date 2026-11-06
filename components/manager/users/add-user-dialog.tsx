@@ -255,7 +255,7 @@ export function AddUserDialog({
                 })
               }
             />
-            Instructor
+            Workshop instructor (unlocks Manage workshops)
           </label>
         </form>
 

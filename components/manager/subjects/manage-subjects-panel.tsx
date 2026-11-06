@@ -1,19 +1,20 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import Link from "next/link";
 import {
   BookOpenIcon,
   ChevronLeftIcon,
   ChevronRightIcon,
+  LockIcon,
   PlusIcon,
   SearchIcon,
 } from "lucide-react";
 import { Can } from "@/components/auth/can";
+import { MANAGER_CARD_GRID_CLASS_NAME } from "@/components/manager/shared/grid-card";
 import { AddSubjectDialog } from "@/components/manager/subjects/add-subject-dialog";
 import { SubjectCard } from "@/components/manager/subjects/subject-card";
 import { PanelPageHeader } from "@/components/panels/panel-page-header";
-import { Button, buttonVariants } from "@/components/ui/button";
+import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Input } from "@/components/ui/input";
 import {
@@ -24,8 +25,6 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { PERMISSIONS } from "@/lib/constants/permissions";
-import { ROUTES } from "@/lib/constants/routes";
-import { cn } from "@/lib/utils";
 import { prependUniqueById } from "@/lib/utils/prepend-unique-by-id";
 import type { ManagerSubjectRow } from "@/types/manager-subject";
 
@@ -271,13 +270,17 @@ export function ManageSubjectsPanel({
       <PanelPageHeader title="Manage subjects" />
       <div className="flex flex-wrap items-center justify-end gap-2 empty:hidden">
         <Can permission={PERMISSIONS.SUBJECTS_VIEW}>
-          <Link
-            href={ROUTES.MANAGER_SUBJECTS_CATALOG}
-            prefetch={false}
-            className={cn(buttonVariants({ variant: "outline" }))}
+          <Button
+            type="button"
+            variant="outline"
+            disabled
+            aria-disabled
+            title="Coming soon"
+            className="disabled:cursor-not-allowed"
           >
+            <LockIcon data-icon="inline-start" aria-hidden />
             Categories & exercises
-          </Link>
+          </Button>
         </Can>
         <Can permission={PERMISSIONS.SUBJECTS_CREATE}>
           <Button type="button" onClick={() => setIsAddOpen(true)}>
@@ -347,7 +350,7 @@ export function ManageSubjectsPanel({
             }
           />
         ) : (
-          <div className="grid grid-cols-2 gap-4 @2xl/panel:grid-cols-3 @4xl/panel:grid-cols-4 @6xl/panel:grid-cols-5">
+          <div className={MANAGER_CARD_GRID_CLASS_NAME}>
             {paginatedSubjects.map((subject) => (
               <SubjectCard key={subject.id} subject={subject} />
             ))}

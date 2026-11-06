@@ -19,6 +19,7 @@ import {
   getManagerClassDetailRoute,
   getManagerClassTaskDetailRoute,
 } from "@/lib/constants/routes";
+import { formatYesNoGrade } from "@/lib/format/format-task-grade";
 import type { ManagerClassFinalExamRow, ManagerStudentFinalExamGradeRow } from "@/types/manager-class-final-exam";
 import type {
   ManagerClassStudentGradeMissingItem,
@@ -109,6 +110,9 @@ export function StudentGradeMissingDataDialog({
     () => missingItems.filter((item) => item.kind === "final_exam"),
     [missingItems]
   );
+  const taskEditItem = taskEditTarget
+    ? missingItems.find((item) => item.studentTaskId === taskEditTarget.id)
+    : undefined;
 
   function handleRefresh() {
     onDataChanged?.();
@@ -220,7 +224,9 @@ export function StudentGradeMissingDataDialog({
                           <div>
                             <dt className="text-muted-foreground">Grade</dt>
                             <dd className="font-medium tabular-nums">
-                              {formatGrade(item.grade)}
+                              {item.isYesNo
+                                ? formatYesNoGrade(item.grade)
+                                : formatGrade(item.grade)}
                             </dd>
                           </div>
                         </dl>
@@ -269,14 +275,9 @@ export function StudentGradeMissingDataDialog({
           open
           onOpenChange={setIsTaskEditOpen}
           studentTask={taskEditTarget}
-          maxGrade={
-            missingItems.find((item) => item.studentTaskId === taskEditTarget.id)
-              ?.maxGrade ?? null
-          }
-          dueDate={
-            missingItems.find((item) => item.studentTaskId === taskEditTarget.id)
-              ?.dueDate ?? null
-          }
+          maxGrade={taskEditItem?.maxGrade ?? null}
+          isYesNo={taskEditItem?.isYesNo ?? false}
+          dueDate={taskEditItem?.dueDate ?? null}
           readOnly={recordLocked}
           onUpdateStudentTask={() => {
             handleRefresh();

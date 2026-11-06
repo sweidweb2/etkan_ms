@@ -6,6 +6,7 @@ import { Can } from "@/components/auth/can";
 import { AddPhaseDialog } from "@/components/manager/phases/add-phase-dialog";
 import { EditPhaseDialog } from "@/components/manager/phases/edit-phase-dialog";
 import { PhaseCard } from "@/components/manager/phases/phase-card";
+import { MANAGER_CARD_GRID_CLASS_NAME } from "@/components/manager/shared/grid-card";
 import { PanelPageHeader } from "@/components/panels/panel-page-header";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -263,7 +264,7 @@ export function ManagePhasesPanel({ initialSemesters }: ManagePhasesPanelProps) 
           No semesters match your search.
         </p>
       ) : (
-        <div className="grid gap-4 @lg/panel:grid-cols-2 @4xl/panel:grid-cols-3">
+        <div className={MANAGER_CARD_GRID_CLASS_NAME}>
           {paginatedPhases.map((phase) => (
             <PhaseCard
               key={phase.id}

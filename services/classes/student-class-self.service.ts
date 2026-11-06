@@ -234,6 +234,7 @@ export async function getStudentClassTaskForSelf(
       description: taskRecord.description,
       due_date: taskRecord.due_date,
       max_grade: Number(taskRecord.max_grade ?? 0),
+      is_yes_no: taskRecord.is_yes_no ?? false,
     },
     studentTask: studentTaskRecord
       ? {

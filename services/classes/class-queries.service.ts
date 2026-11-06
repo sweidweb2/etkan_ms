@@ -195,7 +195,7 @@ export async function getClassCreateDialogDataForManager(
   const [subjectsResult, semestersResult, teachersResult] = await Promise.all([
     subjectRepository.listSubjects(adminClient),
     semesterRepository.listSemesters(adminClient),
-    profileRepository.listInstructorProfileOptions(adminClient),
+    profileRepository.listTeacherProfileOptions(adminClient),
   ]);
 
   if (subjectsResult.error) {
@@ -317,7 +317,7 @@ export async function listTeacherOptionsForManager(
   await assertPermission(adminClient, actorUserId, PERMISSIONS.CLASSES_VIEW);
 
   const teachersResult =
-    await profileRepository.listInstructorProfileOptions(adminClient);
+    await profileRepository.listTeacherProfileOptions(adminClient);
 
   if (teachersResult.error) {
     throw new Error(teachersResult.error.message);

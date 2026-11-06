@@ -44,11 +44,9 @@ test.describe("manager academics @mutation", () => {
     await expect(dialog).toBeHidden({ timeout: 20_000 });
     await expect(page.getByText(subjectName).first()).toBeVisible();
 
-    await page.getByRole("link", { name: "Categories & exercises" }).click();
-    await expect(page).toHaveURL(/\/manager\/subjects\/catalog/);
     await expect(
-      page.getByRole("heading", { level: 1, name: "Categories & exercises" })
-    ).toBeVisible();
+      page.getByRole("button", { name: "Categories & exercises" })
+    ).toBeDisabled();
   });
 
   test("create semester and open detail", async ({ page }) => {

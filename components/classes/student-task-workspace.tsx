@@ -120,6 +120,7 @@ export function StudentTaskWorkspace({
                   key={selectedStudentTask.id}
                   studentTask={selectedStudentTask}
                   maxGrade={task.max_grade}
+                  isYesNo={task.is_yes_no}
                   dueDate={task.due_date}
                   readOnly={selectedLocked}
                   onUpdateStudentTask={handleUpdateStudentTask}

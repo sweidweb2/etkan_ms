@@ -15,4 +15,4 @@ export const AUTH_RATE_LIMITS = {
 export const DEFAULT_CREATED_STUDENT_PASSWORD = "password";
 
 /** Inactivity window before server/client session logout (matches Supabase config). */
-export const SESSION_INACTIVITY_MS = 30 * 60 * 1000;
+export const SESSION_INACTIVITY_MS = 3 * 60 * 60 * 1000;

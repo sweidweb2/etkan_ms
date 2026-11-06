@@ -72,6 +72,7 @@ export async function RolePanelLayout({
       label={panelConfig.label}
       navigation={navigation}
       displayName={pack.displayName}
+      avatarUrl={pack.avatarUrl}
       permissions={permissionsArray}
     >
       {debugOn && tripId && bag ? (

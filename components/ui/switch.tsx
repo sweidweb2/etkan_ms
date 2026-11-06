@@ -8,6 +8,7 @@ type SwitchProps = {
   disabled?: boolean;
   id?: string;
   "aria-label"?: string;
+  "aria-describedby"?: string;
   className?: string;
 };
 
@@ -17,6 +18,7 @@ export function Switch({
   disabled,
   id,
   "aria-label": ariaLabel,
+  "aria-describedby": ariaDescribedBy,
   className,
 }: SwitchProps) {
   return (
@@ -26,6 +28,7 @@ export function Switch({
       id={id}
       aria-checked={checked}
       aria-label={ariaLabel}
+      aria-describedby={ariaDescribedBy}
       disabled={disabled}
       onClick={() => onCheckedChange(!checked)}
       className={cn(

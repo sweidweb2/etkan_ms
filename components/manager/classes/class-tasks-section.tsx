@@ -31,6 +31,8 @@ import { COLLAPSIBLE_SECTION_STORAGE_KEYS } from "@/lib/constants/collapsible-se
 import { SESSION_TASK_TABLE_LIMITS } from "@/lib/constants/manager-class-session-detail-display";
 import { PERMISSIONS } from "@/lib/constants/permissions";
 import { getManagerClassTaskDetailRoute } from "@/lib/constants/routes";
+import { YES_NO_TASK_LABEL } from "@/lib/constants/task-yes-no";
+import { formatTaskMaxGrade } from "@/lib/format/format-task-grade";
 import { CLASS_COMPUTED_GRADES_STRUCTURE_LOCKED_ERROR } from "@/lib/manager/class-grades-access";
 import { getPageNumbers } from "@/lib/pagination/page-numbers";
 import { cn } from "@/lib/utils";
@@ -363,8 +365,9 @@ export function ClassTasksSection({
                       coverBadge={task.started ? "Started" : undefined}
                       meta={{
                         icon: SparklesIcon,
-                        label:
-                          task.max_grade != null
+                        label: task.is_yes_no
+                          ? `${YES_NO_TASK_LABEL} · ${task.period}d`
+                          : task.max_grade != null
                             ? `${task.max_grade} max · ${task.period}d`
                             : `${task.period} day period`,
                       }}
@@ -524,7 +527,10 @@ export function ClassTasksSection({
                         {formatDateCell(task.due_date)}
                       </td>
                       <td className="whitespace-nowrap px-4 py-3 tabular-nums">
-                        {task.max_grade ?? "—"}
+                        {formatTaskMaxGrade({
+                          maxGrade: task.max_grade,
+                          isYesNo: task.is_yes_no,
+                        })}
                       </td>
                     </tr>
                   ))}

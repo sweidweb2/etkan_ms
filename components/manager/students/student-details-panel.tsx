@@ -21,6 +21,7 @@ import {
 } from "@/app/manager/students/actions";
 import { Can } from "@/components/auth/can";
 import { EditStudentDialog } from "@/components/manager/students/edit-student-dialog";
+import { useSetPanelSessionAvatarUrl } from "@/components/panels/panel-session-avatar";
 import { ProfileAvatar } from "@/components/shared/profile-avatar";
 import { ChangeAvatarDialog } from "@/components/student/avatar/change-avatar-dialog";
 import { ChangeOwnPasswordDialog } from "@/components/student/change-own-password-dialog";
@@ -127,10 +128,14 @@ export function StudentDetailsPanel({
   const [isPasswordOpen, setIsPasswordOpen] = useState(false);
   const [isAvatarOpen, setIsAvatarOpen] = useState(false);
   const isSelf = variant === "self";
+  const setPanelSessionAvatarUrl = useSetPanelSessionAvatarUrl();
   const avatarUrl = student.avatar_url ?? null;
 
   function handleAvatarChange(nextAvatarUrl: string | null) {
     setStudent((current) => ({ ...current, avatar_url: nextAvatarUrl }));
+    if (isSelf) {
+      setPanelSessionAvatarUrl(nextAvatarUrl);
+    }
   }
 
   if (initialStudent !== prevStudent) {

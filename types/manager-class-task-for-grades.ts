@@ -5,6 +5,7 @@ export type ManagerClassTaskForGradesRow = {
   session_nb_order: number;
   title: string;
   max_grade: number | null;
+  is_yes_no: boolean;
   due_date: string | null;
   created_at: string | null;
 };

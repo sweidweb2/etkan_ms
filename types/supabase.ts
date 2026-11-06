@@ -2427,6 +2427,7 @@ export type Database = {
           created_at: string
           description: string | null
           id: string
+          is_yes_no: boolean
           max_grade: number | null
           period: number
           sort_order: number
@@ -2438,6 +2439,7 @@ export type Database = {
           created_at?: string
           description?: string | null
           id?: string
+          is_yes_no?: boolean
           max_grade?: number | null
           period: number
           sort_order?: number
@@ -2449,6 +2451,7 @@ export type Database = {
           created_at?: string
           description?: string | null
           id?: string
+          is_yes_no?: boolean
           max_grade?: number | null
           period?: number
           sort_order?: number
@@ -2473,6 +2476,7 @@ export type Database = {
           description: string | null
           due_date: string | null
           id: string
+          is_yes_no: boolean
           max_grade: number | null
           period: number
           sort_order: number
@@ -2488,6 +2492,7 @@ export type Database = {
           description?: string | null
           due_date?: string | null
           id?: string
+          is_yes_no?: boolean
           max_grade?: number | null
           period: number
           sort_order?: number
@@ -2503,6 +2508,7 @@ export type Database = {
           description?: string | null
           due_date?: string | null
           id?: string
+          is_yes_no?: boolean
           max_grade?: number | null
           period?: number
           sort_order?: number

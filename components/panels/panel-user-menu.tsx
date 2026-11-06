@@ -1,10 +1,11 @@
 "use client";
 
-import { useTransition } from "react";
+import { useState, useTransition } from "react";
 import Link from "next/link";
 import { Home, LogOut, Settings } from "lucide-react";
 import { logoutAction } from "@/app/(public)/auth/actions";
 import { InlineSpinner } from "@/components/loaders/inline-spinner";
+import { usePanelSessionAvatarUrl } from "@/components/panels/panel-session-avatar";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -25,13 +26,40 @@ type PanelUserMenuProps = {
   settingsHref?: string;
 };
 
+function UserAvatarFace({
+  displayName,
+  avatarUrl,
+}: {
+  displayName: string;
+  avatarUrl: string | null;
+}) {
+  const [failedUrl, setFailedUrl] = useState<string | null>(null);
+
+  if (avatarUrl && failedUrl !== avatarUrl) {
+    return (
+      // eslint-disable-next-line @next/next/no-img-element -- public Storage URL, already a 512px WebP
+      <img
+        src={avatarUrl}
+        alt=""
+        className="size-full rounded-full object-cover"
+        onError={() => setFailedUrl(avatarUrl)}
+      />
+    );
+  }
+
+  return getInitials(displayName);
+}
+
 export function PanelUserMenu({
   displayName,
   className,
   settingsHref,
 }: PanelUserMenuProps) {
   const [isPending, startTransition] = useTransition();
-  const initials = getInitials(displayName);
+  const avatarUrl = usePanelSessionAvatarUrl();
+  const avatarFace = (
+    <UserAvatarFace displayName={displayName} avatarUrl={avatarUrl} />
+  );
 
   function handleSignOut() {
     if (isPending) {
@@ -43,10 +71,10 @@ export function PanelUserMenu({
     });
   }
 
-  const avatarContent = isPending ? <InlineSpinner /> : initials;
+  const avatarContent = isPending ? <InlineSpinner /> : avatarFace;
 
   const avatarClassName = cn(
-    "flex size-9 items-center justify-center rounded-full bg-primary text-sm font-semibold text-primary-foreground outline-none transition-opacity hover:opacity-90 focus-visible:ring-3 focus-visible:ring-ring/50",
+    "flex size-9 shrink-0 items-center justify-center overflow-hidden rounded-full bg-primary text-sm font-semibold text-primary-foreground outline-none transition-opacity hover:opacity-90 focus-visible:ring-3 focus-visible:ring-ring/50",
     className
   );
 
@@ -100,7 +128,7 @@ export function PanelUserMenu({
             aria-label={displayName}
             title={displayName}
           >
-            {initials}
+            {avatarFace}
           </span>
         )}
       </div>

@@ -11,6 +11,7 @@ const FOOTER_LINKS = [
   { href: ROUTES.CAREERS, labelKey: "nav.careers" as const },
   { href: ROUTES.PROJECTS, labelKey: "nav.projects" as const },
   { href: ROUTES.GALLERY, labelKey: "nav.gallery" as const },
+  // `/blogs` is footer-only (not in the navbar) — keep this link for internal SEO equity.
   { href: ROUTES.BLOGS, labelKey: "nav.blogs" as const },
   // `/life` is admin-gated — do not link it from public chrome (SXO / crawl honesty).
   { href: ROUTES.REGISTER, labelKey: "nav.register" as const },

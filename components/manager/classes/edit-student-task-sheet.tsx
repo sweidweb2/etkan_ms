@@ -42,6 +42,7 @@ type EditStudentTaskSheetProps = {
   onOpenChange: (open: boolean) => void;
   studentTask: ManagerStudentTaskRow | null;
   maxGrade: number | null;
+  isYesNo?: boolean;
   dueDate?: string | null;
   readOnly?: boolean;
   onUpdateStudentTask: (studentTask: ManagerStudentTaskRow) => void;
@@ -52,6 +53,7 @@ export function EditStudentTaskSheet({
   onOpenChange,
   studentTask,
   maxGrade,
+  isYesNo = false,
   dueDate = null,
   readOnly = false,
   onUpdateStudentTask,
@@ -68,8 +70,8 @@ export function EditStudentTaskSheet({
   );
 
   const schema = useMemo(
-    () => createEditStudentTaskSchema(maxGrade, dueDate),
-    [dueDate, maxGrade]
+    () => createEditStudentTaskSchema(maxGrade, dueDate, { isYesNo }),
+    [dueDate, isYesNo, maxGrade]
   );
 
   useActionStateToast(state, isPending);
@@ -175,6 +177,7 @@ export function EditStudentTaskSheet({
           <StudentTaskFields
             idPrefix="edit-student-task"
             maxGrade={maxGrade}
+            isYesNo={isYesNo}
             disabled={isFormDisabled}
             register={register as never}
             setValue={setValue as never}

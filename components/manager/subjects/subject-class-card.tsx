@@ -4,7 +4,6 @@ import { ClassCoverImage } from "@/components/classes/class-cover-image";
 import {
   Card,
   CardContent,
-  CardFooter,
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
@@ -121,13 +120,6 @@ export function SubjectClassCard({
             </div>
           </div>
         </CardContent>
-
-        <CardFooter className="border-t bg-muted/20 py-3 text-xs text-muted-foreground">
-          Status:{" "}
-          <span className="ml-1 font-medium capitalize text-foreground">
-            {statusLabel}
-          </span>
-        </CardFooter>
       </Card>
     </TooltipProvider>
   );

@@ -16,6 +16,7 @@ export type ManagerClassStudentGradeMissingItem = {
   studentTaskId?: string | null;
   finalExamGradeId?: string | null;
   maxGrade?: number | null;
+  isYesNo?: boolean;
   dueDate?: string | null;
 };
 
