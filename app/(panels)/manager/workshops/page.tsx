@@ -13,7 +13,7 @@ export default async function ManagerWorkshopsPage() {
     pack.role,
     {
       page: 1,
-      type: WORKSHOP_OFFERING_TYPES.COURSE,
+      type: WORKSHOP_OFFERING_TYPES.WORKSHOP,
       showCompleted: true,
     }
   );

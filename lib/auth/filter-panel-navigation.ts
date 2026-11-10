@@ -2,6 +2,7 @@ import { getRequiredViewPermissionForManagerPath } from "@/lib/auth/manager-rout
 import { hasPermissionInSet } from "@/lib/auth/permission-checks";
 import { canAccessManageWorkshops } from "@/lib/auth/workshop-attribute-access";
 import type { PermissionKey } from "@/lib/constants/permissions";
+import type { RoleValue } from "@/lib/constants/roles";
 import { ROUTES } from "@/lib/constants/routes";
 import type {
   PanelNavGroup,
@@ -11,6 +12,7 @@ import type {
 
 export type FilterPanelNavigationOptions = {
   isInstructor?: boolean;
+  role?: RoleValue | null;
 };
 
 function isManageWorkshopsHref(href: string): boolean {
@@ -81,7 +83,7 @@ function filterNavGroups(
 /**
  * Keep nav items whose href maps to a granted manager view permission,
  * plus role-native (non-manager) links.
- * Manage workshops also requires `is_instructor`.
+ * Manage workshops also requires instructor (or manager/supervisor role).
  */
 export function filterPanelNavigation(
   navigation: PanelNavigation,

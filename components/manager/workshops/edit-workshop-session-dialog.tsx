@@ -232,7 +232,7 @@ export function EditWorkshopSessionDialog({
                 }
                 disabled={isPending}
               >
-                <SelectTrigger id="edit-session-status">
+                <SelectTrigger id="edit-session-status" className="w-full">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>

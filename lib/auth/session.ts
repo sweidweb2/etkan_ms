@@ -292,7 +292,10 @@ export async function getSessionIsInstructor(): Promise<boolean> {
 
 export async function getSessionCanAccessManageWorkshops(): Promise<boolean> {
   const pack = await getSessionPack();
-  return canAccessManageWorkshops({ isInstructor: pack.isInstructor });
+  return canAccessManageWorkshops({
+    isInstructor: pack.isInstructor,
+    role: pack.role,
+  });
 }
 
 export async function getSessionDisplayName(): Promise<string> {

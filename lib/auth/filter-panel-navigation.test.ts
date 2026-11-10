@@ -1,7 +1,11 @@
 import { describe, expect, it } from "vitest";
 import { filterPanelNavigation } from "@/lib/auth/filter-panel-navigation";
 import { PERMISSIONS, type PermissionKey } from "@/lib/constants/permissions";
-import { MANAGER_PANEL_NAVIGATION } from "@/lib/constants/panel-nav";
+import {
+  MANAGER_PAGES_HUB_GROUPS,
+  MANAGER_PANEL_NAVIGATION,
+} from "@/lib/constants/panel-nav";
+import { ROLES } from "@/lib/constants/roles";
 import { ROUTES } from "@/lib/constants/routes";
 import type { PanelNavigation } from "@/types/panel";
 
@@ -81,21 +85,30 @@ describe("filterPanelNavigation", () => {
     expect(hrefs(filtered)).toContain(ROUTES.MANAGER_PAGES);
   });
 
-  it("hides manage workshops without instructor even with workshops.view", () => {
-    const permissions = new Set<PermissionKey>([
-      PERMISSIONS.STUDENTS_VIEW,
-      PERMISSIONS.WORKSHOPS_VIEW,
-    ]);
+  it("hides manage workshops on Pages hub without instructor even with workshops.view", () => {
+    const permissions = new Set<PermissionKey>([PERMISSIONS.WORKSHOPS_VIEW]);
 
     const filtered = filterPanelNavigation(
-      MANAGER_PANEL_NAVIGATION,
+      { groups: MANAGER_PAGES_HUB_GROUPS },
       permissions,
       { isInstructor: false }
     );
     const paths = hrefs(filtered);
 
-    expect(paths).toContain(ROUTES.MANAGER_STUDENTS);
     expect(paths).not.toContain(ROUTES.MANAGER_WORKSHOPS);
+  });
+
+  it("shows manage workshops on Pages hub for managers with workshops.view without instructor", () => {
+    const permissions = new Set<PermissionKey>([PERMISSIONS.WORKSHOPS_VIEW]);
+
+    const filtered = filterPanelNavigation(
+      { groups: MANAGER_PAGES_HUB_GROUPS },
+      permissions,
+      { isInstructor: false, role: ROLES.MANAGER }
+    );
+    const paths = hrefs(filtered);
+
+    expect(paths).toContain(ROUTES.MANAGER_WORKSHOPS);
   });
 
   it("keeps role-native links and workshops when instructor + workshops.view", () => {

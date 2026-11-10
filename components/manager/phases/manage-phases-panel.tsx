@@ -163,14 +163,6 @@ export function ManagePhasesPanel({ initialSemesters }: ManagePhasesPanelProps) 
   return (
     <div className="flex flex-col gap-6">
       <PanelPageHeader title="Manage semesters" />
-      <div className="flex flex-wrap items-center justify-end gap-2 empty:hidden">
-        <Can permission={PERMISSIONS.SEMESTERS_CREATE}>
-          <Button type="button" onClick={() => setIsAddOpen(true)}>
-            <PlusIcon data-icon="inline-start" />
-            Add semester
-          </Button>
-        </Can>
-      </div>
 
       <AddPhaseDialog
         open={isAddOpen}
@@ -205,7 +197,7 @@ export function ManagePhasesPanel({ initialSemesters }: ManagePhasesPanelProps) 
             aria-label="Search semesters"
           />
         </div>
-        <div className="flex flex-col gap-3 @lg/panel:flex-row">
+        <div className="flex flex-col gap-3 @sm/panel:flex-row @sm/panel:items-center">
           <Select
             value={sortBy}
             onValueChange={(value) => {
@@ -217,7 +209,7 @@ export function ManagePhasesPanel({ initialSemesters }: ManagePhasesPanelProps) 
             }}
           >
             <SelectTrigger
-              className="w-full @lg/panel:w-44"
+              className="w-full @sm/panel:w-44"
               aria-label="Sort semesters by"
             >
               <SelectValue placeholder="Sort by">
@@ -242,7 +234,7 @@ export function ManagePhasesPanel({ initialSemesters }: ManagePhasesPanelProps) 
             }}
           >
             <SelectTrigger
-              className="w-full @lg/panel:w-40"
+              className="w-full @sm/panel:w-40"
               aria-label="Sort order"
             >
               <SelectValue placeholder="Order">
@@ -256,6 +248,16 @@ export function ManagePhasesPanel({ initialSemesters }: ManagePhasesPanelProps) 
               <SelectItem value={SORT_ORDER_DESC}>Descending</SelectItem>
             </SelectContent>
           </Select>
+          <Can permission={PERMISSIONS.SEMESTERS_CREATE}>
+            <Button
+              type="button"
+              className="w-full shrink-0 @sm/panel:w-auto"
+              onClick={() => setIsAddOpen(true)}
+            >
+              <PlusIcon data-icon="inline-start" />
+              Add semester
+            </Button>
+          </Can>
         </div>
       </div>
 
