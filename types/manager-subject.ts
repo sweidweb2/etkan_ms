@@ -11,6 +11,10 @@ export interface ManagerSubjectRow {
   nb_sessions: number;
   /** Classes linked to this subject. */
   class_count: number;
+  /** Optional stage grouping; null = unassigned column. */
+  stage_id: string | null;
+  /** Order within the stage / unassigned column. */
+  sort_order: number;
 }
 
 export type CreateSubjectActionState = {

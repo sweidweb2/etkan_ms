@@ -116,14 +116,15 @@ export const PERMISSIONS = {
   SUBJECTS_TASKS_CREATE: "subjects.tasks.create",
   SUBJECTS_TASKS_UPDATE: "subjects.tasks.update",
   SUBJECTS_TASKS_DELETE: "subjects.tasks.delete",
+  SUBJECTS_STAGES_VIEW: "subjects.stages.view",
+  SUBJECTS_STAGES_CREATE: "subjects.stages.create",
+  SUBJECTS_STAGES_UPDATE: "subjects.stages.update",
+  SUBJECTS_STAGES_DELETE: "subjects.stages.delete",
 
   INSTRUCTORS_VIEW: "instructors.view",
   INSTRUCTORS_CREATE: "instructors.create",
   INSTRUCTORS_DELETE: "instructors.delete",
   INSTRUCTORS_CAPABILITIES_UPDATE: "instructors.capabilities.update",
-  INSTRUCTORS_SUBJECTS_CREATE: "instructors.subjects.create",
-  INSTRUCTORS_SUBJECTS_UPDATE: "instructors.subjects.update",
-  INSTRUCTORS_SUBJECTS_DELETE: "instructors.subjects.delete",
 
   CLASSES_VIEW: "classes.view",
   CLASSES_CREATE: "classes.create",
@@ -482,6 +483,30 @@ export const PERMISSION_DEFINITIONS: readonly PermissionDefinition[] = [
     label: "Delete subject task",
     access: PERMISSION_ACCESS.WRITE,
   },
+  {
+    key: PERMISSIONS.SUBJECTS_STAGES_VIEW,
+    feature: "subjects",
+    label: "View subject stages",
+    access: PERMISSION_ACCESS.READ,
+  },
+  {
+    key: PERMISSIONS.SUBJECTS_STAGES_CREATE,
+    feature: "subjects",
+    label: "Create subject stage",
+    access: PERMISSION_ACCESS.WRITE,
+  },
+  {
+    key: PERMISSIONS.SUBJECTS_STAGES_UPDATE,
+    feature: "subjects",
+    label: "Edit subject stage",
+    access: PERMISSION_ACCESS.WRITE,
+  },
+  {
+    key: PERMISSIONS.SUBJECTS_STAGES_DELETE,
+    feature: "subjects",
+    label: "Delete subject stage",
+    access: PERMISSION_ACCESS.WRITE,
+  },
 
   {
     key: PERMISSIONS.INSTRUCTORS_VIEW,
@@ -504,28 +529,9 @@ export const PERMISSION_DEFINITIONS: readonly PermissionDefinition[] = [
   {
     key: PERMISSIONS.INSTRUCTORS_CAPABILITIES_UPDATE,
     feature: "instructors",
-    label: "Update instructor subject capabilities",
+    label: "Update instructor capabilities",
     access: PERMISSION_ACCESS.WRITE,
   },
-  {
-    key: PERMISSIONS.INSTRUCTORS_SUBJECTS_CREATE,
-    feature: "instructors",
-    label: "Create instructor subjects",
-    access: PERMISSION_ACCESS.WRITE,
-  },
-  {
-    key: PERMISSIONS.INSTRUCTORS_SUBJECTS_UPDATE,
-    feature: "instructors",
-    label: "Update instructor subjects",
-    access: PERMISSION_ACCESS.WRITE,
-  },
-  {
-    key: PERMISSIONS.INSTRUCTORS_SUBJECTS_DELETE,
-    feature: "instructors",
-    label: "Delete instructor subjects",
-    access: PERMISSION_ACCESS.WRITE,
-  },
-
   {
     key: PERMISSIONS.CLASSES_VIEW,
     feature: "classes",

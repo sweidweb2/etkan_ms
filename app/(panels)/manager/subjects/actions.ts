@@ -11,7 +11,12 @@ import {
   ROUTES,
 } from "@/lib/constants/routes";
 import { appendQueryParam } from "@/lib/url/append-query-param";
+import { parseAssignSubjectsToStageFormData } from "@/lib/validators/manager/assign-subjects-to-stage";
+import { parseCreateStageFormData } from "@/lib/validators/manager/create-stage";
 import { parseCreateSubjectFormData } from "@/lib/validators/manager/create-subject";
+import { parseReorderStagesFormData } from "@/lib/validators/manager/reorder-stages";
+import { parseSaveSubjectBoardFormData } from "@/lib/validators/manager/save-subject-board";
+import { parseSetSubjectStageFormData } from "@/lib/validators/manager/set-subject-stage";
 import { parseUpdateSubjectFormData } from "@/lib/validators/manager/update-subject";
 import { parseCreateSubjectTaskFormData } from "@/lib/validators/manager/create-subject-task";
 import { parseUpdateSubjectTaskFormData } from "@/lib/validators/manager/update-subject-task";
@@ -21,10 +26,24 @@ import {
   updateSubjectForManager,
 } from "@/services/classes/subject.service";
 import {
+  assignSubjectsToStageForManager,
+  createStageForManager,
+  reorderStagesForManager,
+  saveSubjectBoardForManager,
+  setSubjectStageForManager,
+} from "@/services/subjects/stage.service";
+import {
   createSubjectTaskForManager,
   deleteSubjectTaskForManager,
   updateSubjectTaskForManager,
 } from "@/services/subjects/subject-tasks.service";
+import type {
+  AssignSubjectsToStageActionState,
+  CreateStageActionState,
+  ReorderStagesActionState,
+  SaveSubjectBoardActionState,
+  SetSubjectStageActionState,
+} from "@/types/manager-stage";
 import type {
   CreateSubjectActionState,
   DeleteSubjectActionState,
@@ -35,6 +54,107 @@ import type {
   DeleteSubjectTaskActionState,
   UpdateSubjectTaskActionState,
 } from "@/types/manager-subject-task";
+
+export async function createStageAction(
+  _prevState: CreateStageActionState,
+  formData: FormData
+): Promise<CreateStageActionState> {
+  return runManagerAction({
+    formData,
+    parse: parseCreateStageFormData,
+    mutate: ({ adminClient, actor, data }) =>
+      createStageForManager(adminClient, actor.userId, actor, data),
+    revalidate: () => {
+      revalidatePath(ROUTES.MANAGER_SUBJECTS);
+    },
+    mapSuccess: (result) => ({
+      success: true,
+      message: result.message,
+      stage: result.stage,
+    }),
+  });
+}
+
+export async function assignSubjectsToStageAction(
+  _prevState: AssignSubjectsToStageActionState,
+  formData: FormData
+): Promise<AssignSubjectsToStageActionState> {
+  return runManagerAction({
+    formData,
+    parse: parseAssignSubjectsToStageFormData,
+    mutate: ({ adminClient, actor, data }) =>
+      assignSubjectsToStageForManager(adminClient, actor.userId, actor, data),
+    revalidate: () => {
+      revalidatePath(ROUTES.MANAGER_SUBJECTS);
+    },
+    mapSuccess: (result, data) => ({
+      success: true,
+      message: result.message,
+      subjectIds: data.subject_ids,
+      stageId: result.stageId,
+    }),
+  });
+}
+
+export async function setSubjectStageAction(
+  _prevState: SetSubjectStageActionState,
+  formData: FormData
+): Promise<SetSubjectStageActionState> {
+  return runManagerAction({
+    formData,
+    parse: parseSetSubjectStageFormData,
+    mutate: ({ adminClient, actor, data }) =>
+      setSubjectStageForManager(adminClient, actor.userId, actor, data),
+    revalidate: () => {
+      revalidatePath(ROUTES.MANAGER_SUBJECTS);
+    },
+    mapSuccess: (result, data) => ({
+      success: true,
+      message: result.message,
+      subjectId: data.subject_id,
+      stageId: data.stage_id,
+    }),
+  });
+}
+
+export async function reorderStagesAction(
+  _prevState: ReorderStagesActionState,
+  formData: FormData
+): Promise<ReorderStagesActionState> {
+  return runManagerAction({
+    formData,
+    parse: parseReorderStagesFormData,
+    mutate: ({ adminClient, actor, data }) =>
+      reorderStagesForManager(adminClient, actor.userId, actor, data),
+    revalidate: () => {
+      revalidatePath(ROUTES.MANAGER_SUBJECTS);
+    },
+    mapSuccess: (result) => ({
+      success: true,
+      message: result.message,
+      stages: result.stages,
+    }),
+  });
+}
+
+export async function saveSubjectBoardAction(
+  _prevState: SaveSubjectBoardActionState,
+  formData: FormData
+): Promise<SaveSubjectBoardActionState> {
+  return runManagerAction({
+    formData,
+    parse: parseSaveSubjectBoardFormData,
+    mutate: ({ adminClient, actor, data }) =>
+      saveSubjectBoardForManager(adminClient, actor.userId, actor, data),
+    revalidate: () => {
+      revalidatePath(ROUTES.MANAGER_SUBJECTS);
+    },
+    mapSuccess: (result) => ({
+      success: true,
+      message: result.message,
+    }),
+  });
+}
 
 export async function createSubjectAction(
   _prevState: CreateSubjectActionState,
