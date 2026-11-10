@@ -359,6 +359,7 @@ export function SubjectsKanbanBoard({
   const listElementsRef = useRef(new Map<string, HTMLElement>());
   const rafRef = useRef<number | null>(null);
   const autoScrollRafRef = useRef<number | null>(null);
+  const tickAutoScrollRef = useRef<() => void>(() => {});
   const latestPointerRef = useRef({ x: 0, y: 0 });
   const boardRollbackRef = useRef<{
     columns: SubjectBoardColumns;
@@ -723,13 +724,19 @@ export function SubjectsKanbanBoard({
       }
     }
 
-    autoScrollRafRef.current = requestAnimationFrame(tickAutoScroll);
+    autoScrollRafRef.current = requestAnimationFrame(() => {
+      tickAutoScrollRef.current();
+    });
   }, [
     boardScrollRef,
     recomputeCardHitTest,
     recomputeColumnHitTest,
     stopAutoScroll,
   ]);
+
+  useEffect(() => {
+    tickAutoScrollRef.current = tickAutoScroll;
+  }, [tickAutoScroll]);
 
   const endGesture = useCallback(() => {
     const capture = pointerCaptureRef.current;

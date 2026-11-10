@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { assignSubjectsToStageAction } from "@/app/manager/subjects/actions";
 import { FieldLabel } from "@/components/auth/field-label";
 import { InlineSpinner } from "@/components/loaders/inline-spinner";
@@ -50,26 +50,36 @@ export function AssignSubjectsToStageDialog({
     () => new Set()
   );
 
-  const { state, formAction, isPending, handleOpenChange } =
-    useMutationDialogForm({
-      action: assignSubjectsToStageAction,
-      initialState,
-      open,
-      onOpenChange,
-      onSuccess: (nextState) => {
-        onOpenChange(false);
-        if (nextState.subjectIds) {
-          onAssigned(nextState.subjectIds, nextState.stageId ?? null);
-        }
-      },
-    });
+  function resetLocalFields() {
+    setStageValue("");
+    setSelectedIds(new Set());
+  }
 
-  useEffect(() => {
-    if (!open) {
-      setStageValue("");
-      setSelectedIds(new Set());
+  const {
+    state,
+    formAction,
+    isPending,
+    handleOpenChange: pendingAwareOpenChange,
+  } = useMutationDialogForm({
+    action: assignSubjectsToStageAction,
+    initialState,
+    open,
+    onOpenChange,
+    onSuccess: (nextState) => {
+      resetLocalFields();
+      onOpenChange(false);
+      if (nextState.subjectIds) {
+        onAssigned(nextState.subjectIds, nextState.stageId ?? null);
+      }
+    },
+  });
+
+  function handleOpenChange(nextOpen: boolean) {
+    pendingAwareOpenChange(nextOpen);
+    if (!nextOpen) {
+      resetLocalFields();
     }
-  }, [open]);
+  }
 
   const sortedSubjects = useMemo(
     () => [...subjects].sort((a, b) => a.name.localeCompare(b.name)),
@@ -170,8 +180,15 @@ export function AssignSubjectsToStageDialog({
           </div>
 
           <div className="flex flex-col gap-2">
-            <FieldLabel label="Subjects" hint="Select one or more" />
-            <div className="max-h-64 overflow-y-auto rounded-lg border">
+            <FieldLabel
+              htmlFor="assign-subjects-picker"
+              label="Subjects"
+              hint="Select one or more"
+            />
+            <div
+              id="assign-subjects-picker"
+              className="max-h-64 overflow-y-auto rounded-lg border"
+            >
               {sortedSubjects.length === 0 ? (
                 <p className="px-3 py-4 text-sm text-muted-foreground">
                   No subjects available.
