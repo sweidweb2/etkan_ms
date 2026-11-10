@@ -7,10 +7,9 @@ import {
 } from "@/app/manager/classes/actions";
 import {
   ChartColumnIcon,
-  ChevronLeftIcon,
-  ChevronRightIcon,
   GraduationCapIcon,
   PlusIcon,
+  UserRoundXIcon,
 } from "lucide-react";
 import { Can } from "@/components/auth/can";
 import { AddClassDialog } from "@/components/manager/classes/add-class-dialog";
@@ -19,8 +18,8 @@ import {
   ClassStatsDialog,
   type ClassStats,
 } from "@/components/manager/classes/class-stats-dialog";
+import { StudentsWithoutActiveClassDialog } from "@/components/manager/classes/students-without-active-class-dialog";
 import { MANAGER_CARD_GRID_CLASS_NAME } from "@/components/manager/shared/grid-card";
-import { StudentsWithoutActiveClassCard } from "@/components/manager/shared/students-without-active-class-card";
 import { PanelPageHeader } from "@/components/panels/panel-page-header";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -39,8 +38,8 @@ import {
   MANAGER_CLASS_STATUS_LABELS,
   MANAGER_CLASS_STATUS_TAB_CLASSES,
 } from "@/lib/constants/manager-class-display";
-import { COLLAPSIBLE_SECTION_STORAGE_KEYS } from "@/lib/constants/collapsible-section-storage";
 import { PERMISSIONS } from "@/lib/constants/permissions";
+import { getPageNumbers } from "@/lib/pagination/page-numbers";
 import { cn } from "@/lib/utils";
 import { showErrorToast } from "@/lib/toast";
 import type {
@@ -55,34 +54,6 @@ const PAGE_SIZE = 40;
 const STATUS_FILTER_ALL = "all";
 
 type StatusFilterValue = ClassStatusValue | typeof STATUS_FILTER_ALL;
-
-function getPageNumbers(currentPage: number, totalPages: number) {
-  if (totalPages <= 7) {
-    return Array.from({ length: totalPages }, (_, index) => index + 1);
-  }
-
-  const pages = new Set<number>([1, totalPages, currentPage]);
-
-  for (let offset = -1; offset <= 1; offset += 1) {
-    const page = currentPage + offset;
-    if (page > 1 && page < totalPages) {
-      pages.add(page);
-    }
-  }
-
-  const sortedPages = [...pages].sort((a, b) => a - b);
-  const result: Array<number | "ellipsis"> = [];
-
-  sortedPages.forEach((page, index) => {
-    const previousPage = sortedPages[index - 1];
-    if (previousPage !== undefined && page - previousPage > 1) {
-      result.push("ellipsis");
-    }
-    result.push(page);
-  });
-
-  return result;
-}
 
 function listQueryKey(query: { status: StatusFilterValue; page: number }) {
   return `${query.status}|${query.page}`;
@@ -108,7 +79,8 @@ export function ManageClassesPanel({ initialData }: ManageClassesPanelProps) {
   const [classes, setClasses] = useState<ManagerClassRow[]>(
     initialData.classes
   );
-  const [totalCount, setTotalCount] = useState(initialData.totalCount);  const [statusCounts, setStatusCounts] = useState<ManagerClassStatusCounts>(
+  const [totalCount, setTotalCount] = useState(initialData.totalCount);
+  const [statusCounts, setStatusCounts] = useState<ManagerClassStatusCounts>(
     initialData.statusCounts
   );
   const [isLoading, setIsLoading] = useState(false);
@@ -139,6 +111,7 @@ export function ManageClassesPanel({ initialData }: ManageClassesPanelProps) {
   }, []);
   const [isAddOpen, setIsAddOpen] = useState(false);
   const [isStatsOpen, setIsStatsOpen] = useState(false);
+  const [isStudentsOpen, setIsStudentsOpen] = useState(false);
   const [statusFilter, setStatusFilter] =
     useState<StatusFilterValue>(STATUS_FILTER_ALL);
   const [currentPage, setCurrentPage] = useState(initialData.page);
@@ -197,9 +170,6 @@ export function ManageClassesPanel({ initialData }: ManageClassesPanelProps) {
   const safeCurrentPage = Math.min(currentPage, totalPages);
 
   const pageNumbers = getPageNumbers(safeCurrentPage, totalPages);
-  const rangeStart =
-    totalCount === 0 ? 0 : (safeCurrentPage - 1) * pageSize + 1;
-  const rangeEnd = Math.min(safeCurrentPage * pageSize, totalCount);
 
   const handleStatusFilterChange = (value: StatusFilterValue) => {
     if (value === statusFilter) {
@@ -317,6 +287,22 @@ export function ManageClassesPanel({ initialData }: ManageClassesPanelProps) {
             />
             <TooltipContent>Class statistics</TooltipContent>
           </Tooltip>
+          <Tooltip>
+            <TooltipTrigger
+              render={
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="icon"
+                  aria-label="Students without an active class"
+                  onClick={() => setIsStudentsOpen(true)}
+                >
+                  <UserRoundXIcon />
+                </Button>
+              }
+            />
+            <TooltipContent>Students without an active class</TooltipContent>
+          </Tooltip>
           <Can permission={PERMISSIONS.CLASSES_CREATE}>
             <Button type="button" onClick={() => setIsAddOpen(true)}>
               <PlusIcon data-icon="inline-start" />
@@ -338,6 +324,13 @@ export function ManageClassesPanel({ initialData }: ManageClassesPanelProps) {
         open={isStatsOpen}
         onOpenChange={setIsStatsOpen}
         stats={stats}
+      />
+
+      <StudentsWithoutActiveClassDialog
+        open={isStudentsOpen}
+        onOpenChange={setIsStudentsOpen}
+        students={studentsWithoutActiveClass}
+        isLoading={!studentsWithoutActiveClassLoaded}
       />
 
       <div className="flex flex-col gap-6">
@@ -368,72 +361,38 @@ export function ManageClassesPanel({ initialData }: ManageClassesPanelProps) {
           </div>
         )}
 
-        {totalCount > 0 ? (
-          <div className="flex flex-col gap-3 border-t pt-4 @lg/panel:flex-row @lg/panel:items-center @lg/panel:justify-between">
-            <p className="text-sm text-muted-foreground">
-              Showing {rangeStart}–{rangeEnd} of {totalCount}
-            </p>
-
-            <div className="flex items-center gap-1">
-              <Button
-                type="button"
-                variant="outline"
-                size="icon-sm"
-                disabled={isLoading || safeCurrentPage <= 1}
-                onClick={() => setCurrentPage((page) => page - 1)}
-                aria-label="Previous page"
-              >
-                <ChevronLeftIcon />
-              </Button>
-
-              {pageNumbers.map((page, index) =>
-                page === "ellipsis" ? (
-                  <span
-                    key={`ellipsis-${index}`}
-                    className="px-1 text-sm text-muted-foreground"
-                  >
-                    …
-                  </span>
-                ) : (
-                  <Button
-                    key={page}
-                    type="button"
-                    disabled={isLoading}
-                    variant={page === safeCurrentPage ? "default" : "outline"}
-                    size="icon-sm"
-                    className="min-w-7"
-                    onClick={() => setCurrentPage(page)}
-                    aria-label={`Page ${page}`}
-                    aria-current={page === safeCurrentPage ? "page" : undefined}
-                  >
-                    {page}
-                  </Button>
-                )
-              )}
-
-              <Button
-                type="button"
-                variant="outline"
-                size="icon-sm"
-                disabled={isLoading || safeCurrentPage >= totalPages}
-                onClick={() => setCurrentPage((page) => page + 1)}
-                aria-label="Next page"
-              >
-                <ChevronRightIcon />
-              </Button>
-            </div>
-          </div>
+        {totalPages > 1 ? (
+          <nav
+            aria-label="Class pages"
+            className="flex items-center justify-center gap-1"
+          >
+            {pageNumbers.map((page, index) =>
+              page === "ellipsis" ? (
+                <span
+                  key={`ellipsis-${index}`}
+                  className="px-1 text-sm text-muted-foreground"
+                >
+                  …
+                </span>
+              ) : (
+                <Button
+                  key={page}
+                  type="button"
+                  disabled={isLoading}
+                  variant={page === safeCurrentPage ? "default" : "outline"}
+                  size="icon-sm"
+                  className="min-w-7"
+                  onClick={() => setCurrentPage(page)}
+                  aria-label={`Page ${page}`}
+                  aria-current={page === safeCurrentPage ? "page" : undefined}
+                >
+                  {page}
+                </Button>
+              )
+            )}
+          </nav>
         ) : null}
       </div>
-
-      <StudentsWithoutActiveClassCard
-        students={studentsWithoutActiveClass}
-        description="Students who are not enrolled in any in-progress class."
-        storageKey={
-          COLLAPSIBLE_SECTION_STORAGE_KEYS.CLASSES_STUDENTS_WITHOUT_ACTIVE_CLASS
-        }
-        defaultOpen
-      />
     </div>
   );
 }

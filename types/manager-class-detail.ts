@@ -121,6 +121,15 @@ export type UnassignClassTeacherActionState = {
   classRow?: ManagerClassRow;
 };
 
+export type SetTeamLeaderActionState = {
+  success?: boolean;
+  error?: string;
+  message?: string;
+  fieldErrors?: FieldErrors;
+  studentClassId?: string;
+  isTeamLeader?: boolean;
+};
+
 export type RemoveStudentFromClassActionState = {
   success?: boolean;
   error?: string;

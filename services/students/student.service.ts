@@ -867,6 +867,7 @@ export async function getJoinedClassForStudentSelf(
     image_url: classRow.image_url,
     card_gradient: classRow.card_gradient,
     joined_at: enrollment.joined_at ?? "",
+    is_team_leader: enrollment.is_team_leader,
   };
 }
 

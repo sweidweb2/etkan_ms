@@ -19,9 +19,7 @@ import { AddInstructorsDialog } from "@/components/manager/instructors/add-instr
 import {
   SubjectCapabilitiesMatrix,
   removePersonFromCapabilitiesCache,
-  removeSubjectFromCapabilitiesCache,
 } from "@/components/manager/instructors/subject-capabilities-matrix";
-import { SubjectCatalogSection } from "@/components/manager/instructors/subject-catalog-section";
 import { UserRoleBadge } from "@/components/manager/users/user-role-badge";
 import { InlineSpinner } from "@/components/loaders/inline-spinner";
 import { PanelPageHeader } from "@/components/panels/panel-page-header";
@@ -56,7 +54,6 @@ import type {
   ManagerInstructorsPageData,
   RemoveInstructorActionState,
 } from "@/types/manager-instructor";
-import type { ManagerSubjectColumn } from "@/types/manager-capability-subject";
 
 const PAGE_SIZE_OPTIONS = [4, 5, 10, 25] as const;
 
@@ -71,17 +68,12 @@ export function ManageInstructorsPanel({ data }: ManageInstructorsPanelProps) {
   const queryClient = useQueryClient();
   const [instructors, setInstructors] = useState(data.instructors);
   const [candidateUsers, setCandidateUsers] = useState(data.candidateUsers);
-  const [instructorSubjects, setInstructorSubjects] = useState(data.subjects);
 
   const instructorsKey = data.instructors.map((row) => row.id).join("|");
   const candidatesKey = data.candidateUsers.map((row) => row.id).join("|");
-  const subjectsKey = data.subjects
-    .map((row) => `${row.id}:${row.name}:${row.sort_order}`)
-    .join("|");
   const [syncedInstructorsKey, setSyncedInstructorsKey] =
     useState(instructorsKey);
   const [syncedCandidatesKey, setSyncedCandidatesKey] = useState(candidatesKey);
-  const [syncedSubjectsKey, setSyncedSubjectsKey] = useState(subjectsKey);
 
   if (instructorsKey !== syncedInstructorsKey) {
     setSyncedInstructorsKey(instructorsKey);
@@ -91,11 +83,6 @@ export function ManageInstructorsPanel({ data }: ManageInstructorsPanelProps) {
   if (candidatesKey !== syncedCandidatesKey) {
     setSyncedCandidatesKey(candidatesKey);
     setCandidateUsers(data.candidateUsers);
-  }
-
-  if (subjectsKey !== syncedSubjectsKey) {
-    setSyncedSubjectsKey(subjectsKey);
-    setInstructorSubjects(data.subjects);
   }
 
   const canUpdateCapabilities = hasPermissionInSet(
@@ -187,27 +174,6 @@ export function ManageInstructorsPanel({ data }: ManageInstructorsPanelProps) {
     startRemoveTransition(() => {
       removeFormAction(formData);
     });
-  }
-
-  function handleInstructorSubjectsChange(next: ManagerSubjectColumn[]) {
-    const seen = new Set<string>();
-    const unique: ManagerSubjectColumn[] = [];
-    for (const row of next) {
-      if (seen.has(row.id)) {
-        continue;
-      }
-      seen.add(row.id);
-      unique.push(row);
-    }
-    setInstructorSubjects(unique);
-  }
-
-  function handleInstructorSubjectDeleted(subjectId: string) {
-    removeSubjectFromCapabilitiesCache(
-      queryClient,
-      SUBJECT_SCOPES.INSTRUCTOR,
-      subjectId
-    );
   }
 
   return (
@@ -381,34 +347,26 @@ export function ManageInstructorsPanel({ data }: ManageInstructorsPanelProps) {
         </div>
       </section>
 
-      <SubjectCatalogSection
-        scope={SUBJECT_SCOPES.INSTRUCTOR}
-        subjects={instructorSubjects}
-        onSubjectsChange={handleInstructorSubjectsChange}
-        onSubjectDeleted={handleInstructorSubjectDeleted}
-        busy={isRemovePending}
-      />
-
       <section className="space-y-3">
         <div>
           <h2 className="text-lg font-semibold tracking-tight">
-            Instructor subject capabilities
+            Subject capabilities
           </h2>
           <p className="text-sm text-muted-foreground">
-            Toggle which instructor subjects each instructor can teach.
-            Changes save immediately.
+            Toggle which subjects each instructor can teach. Changes save
+            immediately.
           </p>
         </div>
 
-        {instructorSubjects.length === 0 ? (
+        {data.subjects.length === 0 ? (
           <div className="rounded-xl border px-4 py-10 text-center text-sm text-muted-foreground">
-            Create an instructor subject first.
+            No subjects yet. Add them from Manage subjects.
           </div>
         ) : (
           <SubjectCapabilitiesMatrix
             scope={SUBJECT_SCOPES.INSTRUCTOR}
             rows={instructors}
-            subjects={instructorSubjects}
+            subjects={data.subjects}
             initialCapabilities={data.capabilities}
             canUpdate={canUpdateCapabilities}
             disabled={isRemovePending}
@@ -445,7 +403,7 @@ export function ManageInstructorsPanel({ data }: ManageInstructorsPanelProps) {
           <DialogHeader>
             <DialogTitle>Remove instructor</DialogTitle>
             <DialogDescription>
-              This clears all instructor subject capabilities for{" "}
+              This clears all subject capabilities for{" "}
               {removeTarget?.full_name || removeTarget?.email || "this user"} and
               turns off their instructor flag. Their account stays intact.
             </DialogDescription>

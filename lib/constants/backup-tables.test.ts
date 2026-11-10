@@ -22,6 +22,18 @@ describe("BACKUP_TABLES", () => {
     );
   });
 
+  it("places stages before subjects", () => {
+    expect(BACKUP_TABLES.indexOf("stages")).toBeLessThan(
+      BACKUP_TABLES.indexOf("subjects")
+    );
+  });
+
+  it("places subjects before instructor_subject_capability", () => {
+    expect(BACKUP_TABLES.indexOf("subjects")).toBeLessThan(
+      BACKUP_TABLES.indexOf("instructor_subject_capability")
+    );
+  });
+
   it("places financial form invites before submitted forms", () => {
     expect(BACKUP_TABLES.indexOf("student_financial_form_invites")).toBeLessThan(
       BACKUP_TABLES.indexOf("student_financial_forms")

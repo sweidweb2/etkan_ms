@@ -49,6 +49,11 @@ type EditClassTaskDialogProps = {
     task: ManagerClassTaskRow,
     options?: { gradesClamped?: boolean }
   ) => void;
+  /** Defaults to the manager/teacher update action. */
+  action?: (
+    prevState: UpdateClassTaskActionState,
+    formData: FormData
+  ) => Promise<UpdateClassTaskActionState>;
 };
 
 function getDefaultValues(task: ManagerClassTaskRow) {
@@ -70,10 +75,11 @@ export function EditClassTaskDialog({
   className,
   hasGradedStudents = false,
   onTaskUpdated,
+  action = updateClassTaskAction,
 }: EditClassTaskDialogProps) {
   const [isTransitionPending, startTransition] = useTransition();
   const [state, formAction, isActionPending] = useActionState(
-    updateClassTaskAction,
+    action,
     initialState
   );
   const isPending = isActionPending || isTransitionPending;

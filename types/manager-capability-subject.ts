@@ -1,9 +1,7 @@
 import type { SubjectScope } from "@/lib/constants/subject-scope";
-import type { FieldErrors } from "@/types/auth";
 
 /**
- * Instructor capability catalog. Distinct from academic subjects
- * (`types/manager-subject.ts`) — this only drives the capability matrix.
+ * Academic subjects shown as columns on a capability matrix.
  */
 export type ManagerSubjectColumn = {
   id: string;
@@ -31,34 +29,4 @@ export type SetSubjectCapabilityResult = {
   user_id?: string;
   subject_id?: string;
   enabled?: boolean;
-};
-
-export type CreateSubjectActionState = {
-  success?: boolean;
-  error?: string;
-  message?: string;
-  fieldErrors?: FieldErrors;
-  subject?: ManagerSubjectColumn;
-};
-
-export type UpdateSubjectActionState = {
-  success?: boolean;
-  error?: string;
-  message?: string;
-  fieldErrors?: FieldErrors;
-  subject?: ManagerSubjectColumn;
-};
-
-export type DeleteSubjectActionState = {
-  success?: boolean;
-  error?: string;
-  message?: string;
-  subjectId?: string;
-};
-
-export type SaveSubjectOrderActionState = {
-  success?: boolean;
-  error?: string;
-  message?: string;
-  subjects?: ManagerSubjectColumn[];
 };

@@ -85,14 +85,12 @@ import type {
   ManagerWorkshopSessionRow,
 } from "@/types/manager-workshop";
 
-type WorkshopPageTabValue = "status" | "manage";
+type WorkshopPageTabValue = "status" | "manage" | "sessions" | "payments";
 
 type WorkshopDetailsTabValue =
   | "schedule"
-  | "sessions"
   | "instructors"
-  | "documents"
-  | "payments";
+  | "documents";
 
 const MANAGEMENT_TAB_TRIGGER_CLASS = cn(
   "inline-flex items-center rounded-full border px-4 py-2 text-sm font-medium transition-all duration-200 sm:px-5",
@@ -185,13 +183,10 @@ export function WorkshopDetailsPanel({
       tabs.push("schedule");
     }
     if (canViewWorkshop) {
-      tabs.push("sessions", "instructors", "documents");
-    }
-    if (canViewPayments) {
-      tabs.push("payments");
+      tabs.push("instructors", "documents");
     }
     return tabs;
-  }, [canViewPayments, canViewSchedule, canViewWorkshop]);
+  }, [canViewSchedule, canViewWorkshop]);
   const [activeTab, setActiveTab] =
     useState<WorkshopDetailsTabValue>("schedule");
   const resolvedTab = availableTabs.includes(activeTab)
@@ -357,6 +352,16 @@ export function WorkshopDetailsPanel({
           <TabsTrigger value="status" className="px-4">
             Status
           </TabsTrigger>
+          {canViewWorkshop ? (
+            <TabsTrigger value="sessions" className="px-4">
+              Sessions
+            </TabsTrigger>
+          ) : null}
+          {canViewPayments ? (
+            <TabsTrigger value="payments" className="px-4">
+              Payments
+            </TabsTrigger>
+          ) : null}
           <TabsTrigger value="manage" className="px-4">
             Manage
           </TabsTrigger>
@@ -496,12 +501,6 @@ export function WorkshopDetailsPanel({
                     {canViewWorkshop ? (
                       <>
                         <TabsTriggerPrimitive
-                          value="sessions"
-                          className={MANAGEMENT_TAB_TRIGGER_CLASS}
-                        >
-                          Sessions
-                        </TabsTriggerPrimitive>
-                        <TabsTriggerPrimitive
                           value="instructors"
                           className={MANAGEMENT_TAB_TRIGGER_CLASS}
                         >
@@ -514,14 +513,6 @@ export function WorkshopDetailsPanel({
                           Documents
                         </TabsTriggerPrimitive>
                       </>
-                    ) : null}
-                    {canViewPayments ? (
-                      <TabsTriggerPrimitive
-                        value="payments"
-                        className={MANAGEMENT_TAB_TRIGGER_CLASS}
-                      >
-                        Payments
-                      </TabsTriggerPrimitive>
                     ) : null}
                   </TabsListPrimitive>
                 </div>
@@ -536,18 +527,6 @@ export function WorkshopDetailsPanel({
                       <WorkshopScheduleSlotsSection
                         workshopId={workshop.id}
                         workshopName={workshop.name}
-                        mutationsLocked={contentMutationsLocked}
-                      />
-                    </TabsContentPrimitive>
-                  ) : null}
-                  {canViewWorkshop ? (
-                    <TabsContentPrimitive
-                      value="sessions"
-                      className={NESTED_TAB_BODY_CLASS}
-                    >
-                      <WorkshopSessionsSection
-                        workshopId={workshop.id}
-                        sessions={sessions}
                         mutationsLocked={contentMutationsLocked}
                       />
                     </TabsContentPrimitive>
@@ -576,22 +555,30 @@ export function WorkshopDetailsPanel({
                       />
                     </TabsContentPrimitive>
                   ) : null}
-                  {canViewPayments ? (
-                    <TabsContentPrimitive
-                      value="payments"
-                      className={NESTED_TAB_BODY_CLASS}
-                    >
-                      <WorkshopPaymentsSection
-                        workshopId={workshop.id}
-                        workshopPrice={workshop.price}
-                        mutationsLocked={contentMutationsLocked}
-                      />
-                    </TabsContentPrimitive>
-                  ) : null}
                 </TabsContentsPrimitive>
               </TabsPrimitive>
             ) : null}
           </TabsContent>
+
+          {canViewWorkshop ? (
+            <TabsContent value="sessions" className={PAGE_TAB_BODY_CLASS}>
+              <WorkshopSessionsSection
+                workshopId={workshop.id}
+                sessions={sessions}
+                mutationsLocked={contentMutationsLocked}
+              />
+            </TabsContent>
+          ) : null}
+
+          {canViewPayments ? (
+            <TabsContent value="payments" className={PAGE_TAB_BODY_CLASS}>
+              <WorkshopPaymentsSection
+                workshopId={workshop.id}
+                workshopPrice={workshop.price}
+                mutationsLocked={contentMutationsLocked}
+              />
+            </TabsContent>
+          ) : null}
         </TabsContents>
       </Tabs>
     </div>

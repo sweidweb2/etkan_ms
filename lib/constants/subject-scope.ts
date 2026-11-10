@@ -1,8 +1,8 @@
 import { PERMISSIONS } from "@/lib/constants/permissions";
 
 /**
- * Subject catalogs are scoped: each scope owns an independent catalog and
- * capability matrix backed by its own tables.
+ * Capability matrices are scoped. Columns come from the academic `subjects`
+ * table; each scope stores its own capability rows.
  */
 export const SUBJECT_SCOPES = {
   INSTRUCTOR: "instructor",
@@ -15,9 +15,9 @@ export const SUBJECT_SCOPE_VALUES = [
 ] as const satisfies readonly SubjectScope[];
 
 export type SubjectScopeCopy = {
-  /** "Instructor subject" */
+  /** "Subject" */
   subjectSingular: string;
-  /** "Instructor subjects" */
+  /** "Subjects" */
   subjectPlural: string;
   /** Lowercased for mid-sentence use. */
   subjectSingularLower: string;
@@ -30,10 +30,10 @@ export type SubjectScopeCopy = {
 
 export const SUBJECT_SCOPE_COPY: Record<SubjectScope, SubjectScopeCopy> = {
   instructor: {
-    subjectSingular: "Instructor subject",
-    subjectPlural: "Instructor subjects",
-    subjectSingularLower: "instructor subject",
-    subjectPluralLower: "instructor subjects",
+    subjectSingular: "Subject",
+    subjectPlural: "Subjects",
+    subjectSingularLower: "subject",
+    subjectPluralLower: "subjects",
     personSingular: "Instructor",
     personPlural: "Instructors",
     personPluralLower: "instructors",
@@ -43,9 +43,6 @@ export const SUBJECT_SCOPE_COPY: Record<SubjectScope, SubjectScopeCopy> = {
 export const SUBJECT_SCOPE_PERMISSIONS = {
   instructor: {
     view: PERMISSIONS.INSTRUCTORS_VIEW,
-    subjectsCreate: PERMISSIONS.INSTRUCTORS_SUBJECTS_CREATE,
-    subjectsUpdate: PERMISSIONS.INSTRUCTORS_SUBJECTS_UPDATE,
-    subjectsDelete: PERMISSIONS.INSTRUCTORS_SUBJECTS_DELETE,
     capabilitiesUpdate: PERMISSIONS.INSTRUCTORS_CAPABILITIES_UPDATE,
   },
 } as const satisfies Record<

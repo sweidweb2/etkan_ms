@@ -11,4 +11,6 @@ export interface ManagerStudentClassRow {
   /** Key into `CLASS_CARD_GRADIENTS` directory. */
   card_gradient: string;
   joined_at: string;
+  /** Set on student self routes only. */
+  is_team_leader?: boolean;
 }

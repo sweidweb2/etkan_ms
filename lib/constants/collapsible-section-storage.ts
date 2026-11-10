@@ -17,7 +17,5 @@ export const COLLAPSIBLE_SECTION_STORAGE_KEYS = {
     "etkan:collapsible:income-analytics:students-unpaid",
   INCOME_ANALYTICS_STUDENTS_ADJUSTMENTS:
     "etkan:collapsible:income-analytics:students-adjustments",
-  CLASSES_STUDENTS_WITHOUT_ACTIVE_CLASS:
-    "etkan:collapsible:classes:students-without-active-class",
   STUDENT_DETAILS_ACTIVITY: "etkan:collapsible:student-details:activity:v2",
 } as const;

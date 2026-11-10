@@ -9,6 +9,7 @@ import type {
   ManagerStudentFinalExamGradeRow,
 } from "@/types/manager-class-final-exam";
 import type { StudentTaskStatusValue } from "@/lib/constants/manager-student-task-status";
+import type { StudentTeamLeaderBundle } from "@/types/student-team-leader";
 
 /** Student panel class detail payload (read-only, self-scoped). */
 export type StudentClassDetailForSelf = {
@@ -18,6 +19,7 @@ export type StudentClassDetailForSelf = {
   finalExam: ManagerClassFinalExamRow | null;
   studentFinalExamGrade: ManagerStudentFinalExamGradeRow | null;
   uploads: StudentTaskUploadForSelf[];
+  teamLeader: StudentTeamLeaderBundle | null;
 };
 
 /** Own task file shown in the student portal. Storage path stays on the server. */

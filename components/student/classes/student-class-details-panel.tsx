@@ -6,6 +6,7 @@ import Link from "next/link";
 import { useState } from "react";
 import { ClassLineChart } from "@/components/manager/students/class-line-chart";
 import { StudentTaskStatusBadge } from "@/components/manager/students/student-task-status-badge";
+import { TeamLeaderTab } from "@/components/student/classes/team-leader/team-leader-tab";
 import { StudentClassOverview } from "@/components/student/classes/student-class-overview";
 import {
   Breadcrumb,
@@ -40,12 +41,14 @@ import {
 } from "@/lib/constants/routes";
 import type { ManagerClassSessionRow } from "@/types/manager-class-session";
 import { formatTaskGrade } from "@/lib/format/format-task-grade";
+import { cn } from "@/lib/utils";
 import type { ManagerStudentClassRow } from "@/types/manager-student-class";
 import type { ManagerStudentClassTabDetail } from "@/types/manager-student-class-detail";
 import type {
   ManagerClassFinalExamRow,
   ManagerStudentFinalExamGradeRow,
 } from "@/types/manager-class-final-exam";
+import type { StudentTeamLeaderBundle } from "@/types/student-team-leader";
 
 type StudentClassDetailsPanelProps = {
   classRow: ManagerStudentClassRow;
@@ -53,6 +56,8 @@ type StudentClassDetailsPanelProps = {
   detail: ManagerStudentClassTabDetail;
   finalExam: ManagerClassFinalExamRow | null;
   studentFinalExamGrade: ManagerStudentFinalExamGradeRow | null;
+  teamLeader: StudentTeamLeaderBundle | null;
+  currentUserId: string | null;
 };
 
 const TASK_ROW_CLASS =
@@ -64,6 +69,8 @@ export function StudentClassDetailsPanel({
   detail,
   finalExam,
   studentFinalExamGrade,
+  teamLeader,
+  currentUserId,
 }: StudentClassDetailsPanelProps) {
   const [tab, setTab] = useState("details");
 
@@ -77,7 +84,8 @@ export function StudentClassDetailsPanel({
     { value: "details", label: "Details" },
     { value: "grades", label: "Grades & final exam" },
     { value: "tasks", label: "Tasks" },
-  ] as const;
+    ...(teamLeader ? [{ value: "team-leader", label: "Team leader" }] : []),
+  ];
 
   return (
     <div className="flex flex-col gap-6">
@@ -96,7 +104,12 @@ export function StudentClassDetailsPanel({
       </Breadcrumb>
 
       <Tabs value={tab} onValueChange={setTab} className="gap-4">
-        <TabsListPrimitive className="grid w-full grid-cols-2 gap-1 self-start rounded-lg bg-muted p-1 sm:grid-cols-3 md:w-1/2">
+        <TabsListPrimitive
+          className={cn(
+            "grid w-full grid-cols-2 gap-1 self-start rounded-lg bg-muted p-1",
+            teamLeader ? "sm:grid-cols-4 md:w-2/3" : "sm:grid-cols-3 md:w-1/2"
+          )}
+        >
           {classTabs.map((item) => (
             <TabsTriggerPrimitive
               key={item.value}
@@ -343,6 +356,18 @@ export function StudentClassDetailsPanel({
               </Table>
             )}
           </TabsContent>
+
+          {teamLeader ? (
+            <TabsContent value="team-leader">
+              <TeamLeaderTab
+                classId={classRow.class_id}
+                className={classRow.name}
+                currentUserId={currentUserId}
+                sessions={sessions}
+                bundle={teamLeader}
+              />
+            </TabsContent>
+          ) : null}
         </TabsContents>
       </Tabs>
     </div>

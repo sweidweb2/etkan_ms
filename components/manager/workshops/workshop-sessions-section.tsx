@@ -77,12 +77,33 @@ function formatTime(value: string) {
   return value.slice(0, 5);
 }
 
+function compareSessionsByDate(
+  left: ManagerWorkshopSessionRow,
+  right: ManagerWorkshopSessionRow
+) {
+  const dateCompare = left.session_date.localeCompare(right.session_date);
+  if (dateCompare !== 0) {
+    return dateCompare;
+  }
+  const timeCompare = left.start_time.localeCompare(right.start_time);
+  if (timeCompare !== 0) {
+    return timeCompare;
+  }
+  return left.nb_order - right.nb_order;
+}
+
+function sortSessionsByDate(rows: ManagerWorkshopSessionRow[]) {
+  return [...rows].sort(compareSessionsByDate);
+}
+
 export function WorkshopSessionsSection({
   workshopId,
   sessions: initialSessions,
   mutationsLocked = false,
 }: WorkshopSessionsSectionProps) {
-  const [sessions, setSessions] = useState(initialSessions);
+  const [sessions, setSessions] = useState(() =>
+    sortSessionsByDate(initialSessions)
+  );
   const [prevSessions, setPrevSessions] = useState(initialSessions);
   const [isAddOpen, setIsAddOpen] = useState(false);
   const [editingSession, setEditingSession] =
@@ -111,7 +132,7 @@ export function WorkshopSessionsSection({
 
   if (initialSessions !== prevSessions) {
     setPrevSessions(initialSessions);
-    setSessions(initialSessions);
+    setSessions(sortSessionsByDate(initialSessions));
   }
 
   useActionStateToast(deleteState, isDeleteActionPending);
@@ -171,9 +192,11 @@ export function WorkshopSessionsSection({
         workshopId={workshopId}
         onCreated={(session) => {
           setSessions((current) =>
-            current.some((row) => row.id === session.id)
-              ? current.map((row) => (row.id === session.id ? session : row))
-              : [...current, session]
+            sortSessionsByDate(
+              current.some((row) => row.id === session.id)
+                ? current.map((row) => (row.id === session.id ? session : row))
+                : [...current, session]
+            )
           );
         }}
       />
@@ -188,7 +211,9 @@ export function WorkshopSessionsSection({
         session={editingSession}
         onUpdated={(session) => {
           setSessions((current) =>
-            current.map((row) => (row.id === session.id ? session : row))
+            sortSessionsByDate(
+              current.map((row) => (row.id === session.id ? session : row))
+            )
           );
           setEditingSession((current) =>
             current?.id === session.id ? session : current

@@ -37,6 +37,7 @@ export {
   addStudentToClassAction,
   copyStudentsFromClassAction,
   removeStudentFromClassAction,
+  setStudentTeamLeaderAction,
   transferStudentBetweenClassesAction,
 } from "./actions/enrollment";
 

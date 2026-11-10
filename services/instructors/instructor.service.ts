@@ -86,7 +86,7 @@ const getInstructorsPageForManagerCached = unstable_cache(
     const adminClient = createSupabaseAdminClient();
     return fetchInstructorsPageForManager(adminClient);
   },
-  ["manager-instructors-page-v2"],
+  ["manager-instructors-page-v3"],
   { tags: [MANAGER_CACHE_TAGS.INSTRUCTORS], revalidate: 3600 }
 );
 

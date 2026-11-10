@@ -63,8 +63,9 @@ export async function listWorkshopSessionsByWorkshopId(
     .from("workshop_sessions")
     .select(WORKSHOP_SESSION_COLUMNS)
     .eq("workshop_id", workshopId)
-    .order("nb_order", { ascending: true })
-    .order("session_date", { ascending: true });
+    .order("session_date", { ascending: true })
+    .order("start_time", { ascending: true })
+    .order("nb_order", { ascending: true });
 }
 
 export async function findWorkshopSessionById(client: Supabase, id: string) {
