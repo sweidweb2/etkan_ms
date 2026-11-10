@@ -2,13 +2,13 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { ROLES } from "@/lib/constants/roles";
 import { SUBJECT_SCOPES } from "@/lib/constants/subject-scope";
 import * as instructorSubjectCapabilityRepository from "@/repositories/instructor-subject-capability.repository";
-import * as instructorSubjectRepository from "@/repositories/instructor-subject.repository";
 import * as profileRepository from "@/repositories/profile.repository";
+import * as subjectRepository from "@/repositories/subject.repository";
 import { setSubjectCapabilityForManager } from "@/services/subjects/subject-catalog.service";
 
 vi.mock("@/repositories/instructor-subject-capability.repository");
-vi.mock("@/repositories/instructor-subject.repository");
 vi.mock("@/repositories/profile.repository");
+vi.mock("@/repositories/subject.repository");
 vi.mock("@/services/auth/authorization.service", () => ({
   UNAUTHORIZED_MESSAGE: "Unauthorized.",
   assertPermission: vi.fn().mockResolvedValue(undefined),
@@ -34,7 +34,7 @@ describe("setSubjectCapabilityForManager", () => {
     vi.resetAllMocks();
   });
 
-  it("writes to the instructor tables for the instructor scope", async () => {
+  it("writes a capability against an academic subject", async () => {
     vi.mocked(profileRepository.findProfileById).mockResolvedValue({
       data: {
         id: userId,
@@ -46,7 +46,7 @@ describe("setSubjectCapabilityForManager", () => {
       ...okResult,
     });
     vi.mocked(
-      instructorSubjectRepository.findInstructorSubjectById
+      subjectRepository.findSubjectForCapabilityMatrix
     ).mockResolvedValue({ data: subjectRow, ...okResult });
     vi.mocked(
       instructorSubjectCapabilityRepository.listCapabilitiesByUserIds
@@ -88,7 +88,7 @@ describe("setSubjectCapabilityForManager", () => {
       ...okResult,
     });
     vi.mocked(
-      instructorSubjectRepository.findInstructorSubjectById
+      subjectRepository.findSubjectForCapabilityMatrix
     ).mockResolvedValue({ data: subjectRow, ...okResult });
     vi.mocked(
       instructorSubjectCapabilityRepository.listCapabilitiesByUserIds

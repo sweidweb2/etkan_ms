@@ -18,7 +18,7 @@ export async function listCapabilitiesByUserIds(
 
   const { data, error } = await client
     .from("instructor_subject_capability")
-    .select("id, user_id, instructor_subject_id, created_at")
+    .select("id, user_id, subject_id, created_at")
     .in("user_id", userIds)
     .order("created_at", { ascending: true });
 
@@ -30,7 +30,7 @@ export async function listCapabilitiesByUserIds(
     data: (data ?? []).map((row) => ({
       id: row.id,
       user_id: row.user_id,
-      subject_id: row.instructor_subject_id,
+      subject_id: row.subject_id,
       created_at: row.created_at,
     })),
     error: null,
@@ -47,7 +47,7 @@ export async function deleteCapabilitiesByPairs(
 
   return client.rpc("delete_instructor_subject_capability_pairs", {
     p_user_ids: pairs.map((pair) => pair.user_id),
-    p_instructor_subject_ids: pairs.map((pair) => pair.subject_id),
+    p_subject_ids: pairs.map((pair) => pair.subject_id),
   });
 }
 
@@ -62,7 +62,7 @@ export async function insertCapabilities(
   return client.from("instructor_subject_capability").insert(
     pairs.map((pair) => ({
       user_id: pair.user_id,
-      instructor_subject_id: pair.subject_id,
+      subject_id: pair.subject_id,
     }))
   );
 }

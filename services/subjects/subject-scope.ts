@@ -9,8 +9,8 @@ import {
   type SubjectScopeCopy,
 } from "@/lib/constants/subject-scope";
 import * as instructorSubjectCapabilityRepository from "@/repositories/instructor-subject-capability.repository";
-import * as instructorSubjectRepository from "@/repositories/instructor-subject.repository";
 import * as profileRepository from "@/repositories/profile.repository";
+import * as subjectRepository from "@/repositories/subject.repository";
 import type { SubjectCapabilityRecord } from "@/repositories/subject-capability";
 import type { Database } from "@/types/supabase";
 import type { PostgrestError, SupabaseClient } from "@supabase/supabase-js";
@@ -21,7 +21,7 @@ type CatalogRow = {
   id: string;
   name: string;
   sort_order: number;
-  created_at: string;
+  created_at: string | null;
 };
 
 type RepoResult<T> = Promise<{
@@ -30,45 +30,20 @@ type RepoResult<T> = Promise<{
 }>;
 
 /**
- * Everything the scoped catalog service needs to talk to one scope's tables.
- * Repositories stay concrete per table; only this adapter varies.
+ * Read path for one capability matrix. Subjects come from the academic
+ * catalog; capabilities stay on the scope's own table.
  */
 export type SubjectScopeAdapter = {
   scope: SubjectScope;
   copy: SubjectScopeCopy;
   permissions: {
     view: PermissionKey;
-    subjectsCreate: PermissionKey;
-    subjectsUpdate: PermissionKey;
-    subjectsDelete: PermissionKey;
     capabilitiesUpdate: PermissionKey;
   };
   catalog: {
     list: (client: Supabase) => RepoResult<CatalogRow[]>;
     listIds: (client: Supabase) => RepoResult<{ id: string }[]>;
     findById: (client: Supabase, id: string) => RepoResult<CatalogRow>;
-    findByName: (
-      client: Supabase,
-      name: string
-    ) => RepoResult<{ id: string; name: string }>;
-    getMaxSortOrder: (client: Supabase) => RepoResult<{ sort_order: number }>;
-    create: (
-      client: Supabase,
-      input: { name: string; sort_order: number }
-    ) => RepoResult<CatalogRow>;
-    updateById: (
-      client: Supabase,
-      id: string,
-      input: { name: string }
-    ) => RepoResult<CatalogRow>;
-    reorder: (
-      client: Supabase,
-      orderedIds: string[]
-    ) => RepoResult<CatalogRow[]>;
-    deleteById: (
-      client: Supabase,
-      id: string
-    ) => Promise<{ error: PostgrestError | null }>;
   };
   capabilities: {
     listByUserIds: (
@@ -99,18 +74,14 @@ export type SubjectScopeAdapter = {
 const instructorAdapter: SubjectScopeAdapter = {
   scope: SUBJECT_SCOPES.INSTRUCTOR,
   copy: SUBJECT_SCOPE_COPY.instructor,
-  permissions: SUBJECT_SCOPE_PERMISSIONS.instructor,
+  permissions: {
+    view: SUBJECT_SCOPE_PERMISSIONS.instructor.view,
+    capabilitiesUpdate: SUBJECT_SCOPE_PERMISSIONS.instructor.capabilitiesUpdate,
+  },
   catalog: {
-    list: instructorSubjectRepository.listInstructorSubjects,
-    listIds: instructorSubjectRepository.listInstructorSubjectIds,
-    findById: instructorSubjectRepository.findInstructorSubjectById,
-    findByName: instructorSubjectRepository.findInstructorSubjectByName,
-    getMaxSortOrder:
-      instructorSubjectRepository.getMaxInstructorSubjectSortOrder,
-    create: instructorSubjectRepository.createInstructorSubject,
-    updateById: instructorSubjectRepository.updateInstructorSubjectById,
-    reorder: instructorSubjectRepository.reorderInstructorSubjects,
-    deleteById: instructorSubjectRepository.deleteInstructorSubjectById,
+    list: subjectRepository.listSubjectsForCapabilityMatrix,
+    listIds: subjectRepository.listSubjectIds,
+    findById: subjectRepository.findSubjectForCapabilityMatrix,
   },
   capabilities: {
     listByUserIds: instructorSubjectCapabilityRepository.listCapabilitiesByUserIds,
