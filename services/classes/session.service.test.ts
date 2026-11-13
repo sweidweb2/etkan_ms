@@ -666,7 +666,7 @@ describe("updateAttendeeForManager", () => {
     expect(attendeeRepository.updateAttendee).toHaveBeenCalledWith(
       adminClient,
       attendeeId,
-      { status: ATTENDEE_STATUSES.ABSENT }
+      { status: ATTENDEE_STATUSES.ABSENT, updated_by: actor.userId }
     );
     expect(result.success).toBe(true);
   });

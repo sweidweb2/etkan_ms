@@ -50,8 +50,8 @@ export async function RolePanelLayout({
   if (pack.user?.id) {
     permissionsArray = [...pack.permissions];
     navigation = filterPanelNavigation(navigation, pack.permissions, {
-      // Supervisors manage workshops by role+permission, not profile attributes.
-      isInstructor: pack.isInstructor || role === ROLES.SUPERVISOR,
+      isInstructor: pack.isInstructor,
+      role,
     });
   }
 

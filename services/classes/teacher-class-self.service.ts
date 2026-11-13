@@ -36,6 +36,8 @@ import { getClassWeekSkipState } from "@/services/classes/class-session-skip.ser
 import { loadClassStudentRows } from "@/services/classes/class.service";
 import { ensureSessionAttendeesForMembers } from "@/services/classes/session-seed.service";
 import {
+  attachAttendeeEditorNames,
+  attachTaskEditorNames,
   buildStudentDisplayByUserId,
   isUuid,
   mapAttendeeStatus,
@@ -285,7 +287,10 @@ export async function getTeachingClassPageBundleForSelf(
     card_gradient: detail.card_gradient,
   };
 
-  const tasks = (tasksResult.data ?? []).map(mapTaskRecord);
+  const tasks = await attachTaskEditorNames(
+    adminClient,
+    (tasksResult.data ?? []).map(mapTaskRecord)
+  );
 
   // Teachers get the student name (not Auth email); omit phone from RSC payload.
   const teacherStudents = students.map((student) => ({
@@ -478,15 +483,20 @@ export async function getTeachingClassSessionInlineDetailForSelf(
 
   return {
     session: mapSessionRecord(sessionResult.data as SessionRecord),
-    attendees: attendeeRecords.map((row) => ({
-      id: row.id,
-      session_id: row.session_id,
-      student_id: row.student_id,
-      full_name: nameByUserId.get(row.student_id) ?? "Unknown student",
-      // Attendance UI does not display email; skip Auth Admin fan-out.
-      email: "",
-      status: mapAttendeeStatus(row.status),
-      created_at: row.created_at,
-    })),
+    attendees: await attachAttendeeEditorNames(
+      adminClient,
+      attendeeRecords.map((row) => ({
+        id: row.id,
+        session_id: row.session_id,
+        student_id: row.student_id,
+        full_name: nameByUserId.get(row.student_id) ?? "Unknown student",
+        // Attendance UI does not display email; skip Auth Admin fan-out.
+        email: "",
+        status: mapAttendeeStatus(row.status),
+        created_at: row.created_at,
+        updated_at: row.updated_at,
+        updated_by: row.updated_by,
+      }))
+    ),
   };
 }

@@ -27,6 +27,7 @@ import {
   assertPermissions,
   assertStudentSelfAccess,
 } from "@/services/auth/authorization.service";
+import { getStudentTeamLeaderBundle } from "@/services/classes/class-team-leader.service";
 import { mapStudentTaskUploadForSelf } from "@/services/classes/student-task-upload-self.service";
 import { listStudentClassAcademicBundlesForSelf } from "@/services/classes/student-course-grade.service";
 import {
@@ -135,9 +136,10 @@ export async function getStudentClassDetailForSelf(
     return null;
   }
 
-  const [bundles, sessionsResult] = await Promise.all([
+  const [bundles, sessionsResult, teamLeader] = await Promise.all([
     listStudentClassAcademicBundlesForSelf(adminClient, userId, [classRow]),
     sessionRepository.listSessionsByClassId(adminClient, classId),
+    getStudentTeamLeaderBundle(adminClient, userId, classRow),
   ]);
 
   if (sessionsResult.error) {
@@ -172,6 +174,7 @@ export async function getStudentClassDetailForSelf(
     uploads: ((uploadResult.data ?? []) as StudentTaskUploadRecord[]).map(
       mapStudentTaskUploadForSelf
     ),
+    teamLeader,
   };
 }
 

@@ -17,6 +17,10 @@ export interface ManagerClassTaskRow {
   started_at: string | null;
   due_date: string | null;
   created_at: string;
+  created_by?: string | null;
+  updated_by?: string | null;
+  created_by_name?: string | null;
+  updated_by_name?: string | null;
 }
 
 /** @deprecated Use ManagerClassTaskRow — session-scoped tasks are gone. */
@@ -32,6 +36,9 @@ export interface ManagerSessionAttendeeRow {
   /** Matches `attendee.status` (present|absent|late|excused). */
   status: AttendeeStatusValue;
   created_at: string;
+  updated_at?: string | null;
+  updated_by?: string | null;
+  updated_by_name?: string | null;
 }
 
 /** student_tasks row joined with student profile for task detail. */

@@ -207,7 +207,7 @@ export function AddWorkshopSessionDialog({
                 }
                 disabled={isPending}
               >
-                <SelectTrigger id="add-session-status">
+                <SelectTrigger id="add-session-status" className="w-full">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>

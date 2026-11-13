@@ -118,6 +118,8 @@ function mapSubjectRecordToRow(
     created_at: record.created_at ?? "",
     nb_sessions: record.nb_sessions,
     class_count: classCount,
+    stage_id: record.stage_id,
+    sort_order: record.sort_order,
   };
 }
 
@@ -238,12 +240,24 @@ export async function createSubjectForManager(
     };
   }
 
+  const nextSort = await subjectRepository.getNextSubjectSortOrderForStage(
+    adminClient,
+    null
+  );
+  if (nextSort.error) {
+    return {
+      success: false,
+      error: mapCreateSubjectError(nextSort.error.message),
+    };
+  }
+
   const { data, error } = await subjectRepository.createSubject(adminClient, {
     name: normalizedName,
     syllabus_link: normalizeOptionalString(syllabus_link),
     reference_link: normalizeOptionalString(reference_link),
     handout_link: normalizeOptionalString(handout_link),
     nb_sessions,
+    sort_order: nextSort.data ?? 0,
   });
 
   if (error || !data) {

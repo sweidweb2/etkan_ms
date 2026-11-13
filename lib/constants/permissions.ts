@@ -24,6 +24,7 @@ export const PERMISSION_FEATURES = [
   "sessions",
   "attendance",
   "tasks",
+  "team_leader",
   "final_exams",
   "grades",
   "semesters",
@@ -59,6 +60,7 @@ export const PERMISSION_FEATURE_LABELS: Record<PermissionFeature, string> = {
   sessions: "Sessions",
   attendance: "Attendance",
   tasks: "Tasks",
+  team_leader: "Team Leader",
   final_exams: "Final Exams",
   grades: "Grades",
   semesters: "Semesters",
@@ -114,14 +116,15 @@ export const PERMISSIONS = {
   SUBJECTS_TASKS_CREATE: "subjects.tasks.create",
   SUBJECTS_TASKS_UPDATE: "subjects.tasks.update",
   SUBJECTS_TASKS_DELETE: "subjects.tasks.delete",
+  SUBJECTS_STAGES_VIEW: "subjects.stages.view",
+  SUBJECTS_STAGES_CREATE: "subjects.stages.create",
+  SUBJECTS_STAGES_UPDATE: "subjects.stages.update",
+  SUBJECTS_STAGES_DELETE: "subjects.stages.delete",
 
   INSTRUCTORS_VIEW: "instructors.view",
   INSTRUCTORS_CREATE: "instructors.create",
   INSTRUCTORS_DELETE: "instructors.delete",
   INSTRUCTORS_CAPABILITIES_UPDATE: "instructors.capabilities.update",
-  INSTRUCTORS_SUBJECTS_CREATE: "instructors.subjects.create",
-  INSTRUCTORS_SUBJECTS_UPDATE: "instructors.subjects.update",
-  INSTRUCTORS_SUBJECTS_DELETE: "instructors.subjects.delete",
 
   CLASSES_VIEW: "classes.view",
   CLASSES_CREATE: "classes.create",
@@ -134,6 +137,7 @@ export const PERMISSIONS = {
   CLASSES_REMOVE_STUDENT: "classes.remove_student",
   CLASSES_DROP_SEMESTER: "classes.drop_semester",
   CLASSES_VIEW_ANALYTICS: "classes.view_analytics",
+  CLASSES_SET_TEAM_LEADER: "classes.set_team_leader",
 
   SESSIONS_VIEW: "sessions.view",
   SESSIONS_CREATE: "sessions.create",
@@ -152,6 +156,11 @@ export const PERMISSIONS = {
   TASKS_UPDATE: "tasks.update",
   TASKS_UPDATE_STUDENT: "tasks.update_student",
   TASKS_DELETE: "tasks.delete",
+
+  TEAM_LEADER_ATTENDANCE_UPDATE: "team_leader.attendance.update",
+  TEAM_LEADER_TASKS_CREATE: "team_leader.tasks.create",
+  TEAM_LEADER_TASKS_UPDATE: "team_leader.tasks.update",
+  TEAM_LEADER_TASKS_START: "team_leader.tasks.start",
 
   FINAL_EXAMS_VIEW: "final_exams.view",
   FINAL_EXAMS_CREATE: "final_exams.create",
@@ -474,6 +483,30 @@ export const PERMISSION_DEFINITIONS: readonly PermissionDefinition[] = [
     label: "Delete subject task",
     access: PERMISSION_ACCESS.WRITE,
   },
+  {
+    key: PERMISSIONS.SUBJECTS_STAGES_VIEW,
+    feature: "subjects",
+    label: "View subject stages",
+    access: PERMISSION_ACCESS.READ,
+  },
+  {
+    key: PERMISSIONS.SUBJECTS_STAGES_CREATE,
+    feature: "subjects",
+    label: "Create subject stage",
+    access: PERMISSION_ACCESS.WRITE,
+  },
+  {
+    key: PERMISSIONS.SUBJECTS_STAGES_UPDATE,
+    feature: "subjects",
+    label: "Edit subject stage",
+    access: PERMISSION_ACCESS.WRITE,
+  },
+  {
+    key: PERMISSIONS.SUBJECTS_STAGES_DELETE,
+    feature: "subjects",
+    label: "Delete subject stage",
+    access: PERMISSION_ACCESS.WRITE,
+  },
 
   {
     key: PERMISSIONS.INSTRUCTORS_VIEW,
@@ -496,28 +529,9 @@ export const PERMISSION_DEFINITIONS: readonly PermissionDefinition[] = [
   {
     key: PERMISSIONS.INSTRUCTORS_CAPABILITIES_UPDATE,
     feature: "instructors",
-    label: "Update instructor subject capabilities",
+    label: "Update instructor capabilities",
     access: PERMISSION_ACCESS.WRITE,
   },
-  {
-    key: PERMISSIONS.INSTRUCTORS_SUBJECTS_CREATE,
-    feature: "instructors",
-    label: "Create instructor subjects",
-    access: PERMISSION_ACCESS.WRITE,
-  },
-  {
-    key: PERMISSIONS.INSTRUCTORS_SUBJECTS_UPDATE,
-    feature: "instructors",
-    label: "Update instructor subjects",
-    access: PERMISSION_ACCESS.WRITE,
-  },
-  {
-    key: PERMISSIONS.INSTRUCTORS_SUBJECTS_DELETE,
-    feature: "instructors",
-    label: "Delete instructor subjects",
-    access: PERMISSION_ACCESS.WRITE,
-  },
-
   {
     key: PERMISSIONS.CLASSES_VIEW,
     feature: "classes",
@@ -583,6 +597,12 @@ export const PERMISSION_DEFINITIONS: readonly PermissionDefinition[] = [
     feature: "classes",
     label: "View class analytics",
     access: PERMISSION_ACCESS.READ,
+  },
+  {
+    key: PERMISSIONS.CLASSES_SET_TEAM_LEADER,
+    feature: "classes",
+    label: "Set or clear a student's team leader role in a class",
+    access: PERMISSION_ACCESS.WRITE,
   },
 
   {
@@ -675,6 +695,31 @@ export const PERMISSION_DEFINITIONS: readonly PermissionDefinition[] = [
     key: PERMISSIONS.TASKS_DELETE,
     feature: "tasks",
     label: "Delete task",
+    access: PERMISSION_ACCESS.WRITE,
+  },
+
+  {
+    key: PERMISSIONS.TEAM_LEADER_ATTENDANCE_UPDATE,
+    feature: "team_leader",
+    label: "Team leader: update session attendance in own class",
+    access: PERMISSION_ACCESS.WRITE,
+  },
+  {
+    key: PERMISSIONS.TEAM_LEADER_TASKS_CREATE,
+    feature: "team_leader",
+    label: "Team leader: create class tasks in own class",
+    access: PERMISSION_ACCESS.WRITE,
+  },
+  {
+    key: PERMISSIONS.TEAM_LEADER_TASKS_UPDATE,
+    feature: "team_leader",
+    label: "Team leader: edit class tasks in own class",
+    access: PERMISSION_ACCESS.WRITE,
+  },
+  {
+    key: PERMISSIONS.TEAM_LEADER_TASKS_START,
+    feature: "team_leader",
+    label: "Team leader: start class tasks in own class",
     access: PERMISSION_ACCESS.WRITE,
   },
 

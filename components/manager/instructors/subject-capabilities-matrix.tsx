@@ -289,17 +289,6 @@ export function SubjectCapabilitiesMatrix({
   );
 }
 
-export function removeSubjectFromCapabilitiesCache(
-  queryClient: ReturnType<typeof useQueryClient>,
-  scope: SubjectScope,
-  subjectId: string
-) {
-  queryClient.setQueryData<ManagerSubjectCapabilityPair[]>(
-    subjectCapabilitiesQueryKey(scope),
-    (current) => (current ?? []).filter((pair) => pair.subject_id !== subjectId)
-  );
-}
-
 export function removePersonFromCapabilitiesCache(
   queryClient: ReturnType<typeof useQueryClient>,
   scope: SubjectScope,

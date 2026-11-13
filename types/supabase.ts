@@ -64,6 +64,8 @@ export type Database = {
           session_id: string
           status: string
           student_id: string
+          updated_at: string | null
+          updated_by: string | null
         }
         Insert: {
           created_at?: string
@@ -71,6 +73,8 @@ export type Database = {
           session_id: string
           status?: string
           student_id: string
+          updated_at?: string | null
+          updated_by?: string | null
         }
         Update: {
           created_at?: string
@@ -78,6 +82,8 @@ export type Database = {
           session_id?: string
           status?: string
           student_id?: string
+          updated_at?: string | null
+          updated_by?: string | null
         }
         Relationships: [
           {
@@ -849,27 +855,27 @@ export type Database = {
         Row: {
           created_at: string
           id: string
-          instructor_subject_id: string
+          subject_id: string
           user_id: string
         }
         Insert: {
           created_at?: string
           id?: string
-          instructor_subject_id: string
+          subject_id: string
           user_id: string
         }
         Update: {
           created_at?: string
           id?: string
-          instructor_subject_id?: string
+          subject_id?: string
           user_id?: string
         }
         Relationships: [
           {
-            foreignKeyName: "instructor_subject_capability_instructor_subject_id_fkey"
-            columns: ["instructor_subject_id"]
+            foreignKeyName: "instructor_subject_capability_subject_id_fkey"
+            columns: ["subject_id"]
             isOneToOne: false
-            referencedRelation: "instructor_subjects"
+            referencedRelation: "subjects"
             referencedColumns: ["id"]
           },
           {
@@ -880,27 +886,6 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
-      }
-      instructor_subjects: {
-        Row: {
-          created_at: string
-          id: string
-          name: string
-          sort_order: number
-        }
-        Insert: {
-          created_at?: string
-          id?: string
-          name: string
-          sort_order: number
-        }
-        Update: {
-          created_at?: string
-          id?: string
-          name?: string
-          sort_order?: number
-        }
-        Relationships: []
       }
       notifications: {
         Row: {
@@ -1263,18 +1248,21 @@ export type Database = {
         Row: {
           class_id: string
           id: string
+          is_team_leader: boolean
           joined_at: string | null
           user_id: string
         }
         Insert: {
           class_id: string
           id?: string
+          is_team_leader?: boolean
           joined_at?: string | null
           user_id: string
         }
         Update: {
           class_id?: string
           id?: string
+          is_team_leader?: boolean
           joined_at?: string | null
           user_id?: string
         }
@@ -2392,6 +2380,33 @@ export type Database = {
           },
         ]
       }
+      stages: {
+        Row: {
+          created_at: string
+          id: string
+          level: number
+          name: string
+          period: number
+          sort_order: number
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          level: number
+          name: string
+          period: number
+          sort_order?: number
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          level?: number
+          name?: string
+          period?: number
+          sort_order?: number
+        }
+        Relationships: []
+      }
       subjects: {
         Row: {
           created_at: string | null
@@ -2400,6 +2415,8 @@ export type Database = {
           name: string
           nb_sessions: number
           reference_link: string | null
+          sort_order: number
+          stage_id: string | null
           syllabus_link: string | null
         }
         Insert: {
@@ -2409,6 +2426,8 @@ export type Database = {
           name: string
           nb_sessions?: number
           reference_link?: string | null
+          sort_order?: number
+          stage_id?: string | null
           syllabus_link?: string | null
         }
         Update: {
@@ -2418,9 +2437,19 @@ export type Database = {
           name?: string
           nb_sessions?: number
           reference_link?: string | null
+          sort_order?: number
+          stage_id?: string | null
           syllabus_link?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "subjects_stage_id_fkey"
+            columns: ["stage_id"]
+            isOneToOne: false
+            referencedRelation: "stages"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       subject_tasks: {
         Row: {
@@ -2473,6 +2502,7 @@ export type Database = {
         Row: {
           class_id: string
           created_at: string
+          created_by: string | null
           description: string | null
           due_date: string | null
           id: string
@@ -2485,10 +2515,12 @@ export type Database = {
           started_at: string | null
           title: string
           updated_at: string
+          updated_by: string | null
         }
         Insert: {
           class_id: string
           created_at?: string
+          created_by?: string | null
           description?: string | null
           due_date?: string | null
           id?: string
@@ -2501,10 +2533,12 @@ export type Database = {
           started_at?: string | null
           title: string
           updated_at?: string
+          updated_by?: string | null
         }
         Update: {
           class_id?: string
           created_at?: string
+          created_by?: string | null
           description?: string | null
           due_date?: string | null
           id?: string
@@ -2517,6 +2551,7 @@ export type Database = {
           started_at?: string | null
           title?: string
           updated_at?: string
+          updated_by?: string | null
         }
         Relationships: [
           {
@@ -3071,23 +3106,8 @@ export type Database = {
         Returns: Json
       }
       export_auth_schema_backup: { Args: never; Returns: Json }
-      reorder_instructor_subjects: {
-        Args: { p_ordered_ids: string[] }
-        Returns: {
-          created_at: string
-          id: string
-          name: string
-          sort_order: number
-        }[]
-        SetofOptions: {
-          from: "*"
-          to: "instructor_subjects"
-          isOneToOne: false
-          isSetofReturn: true
-        }
-      }
       delete_instructor_subject_capability_pairs: {
-        Args: { p_user_ids: string[]; p_instructor_subject_ids: string[] }
+        Args: { p_user_ids: string[]; p_subject_ids: string[] }
         Returns: number
       }
       clear_instructor_related_data: {

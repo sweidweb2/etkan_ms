@@ -18,9 +18,16 @@ import type { ManagerSubjectRow } from "@/types/manager-subject";
 
 type SubjectCardProps = {
   subject: ManagerSubjectRow;
+  /** When false, the card body is not a link (kanban drag surface). */
+  linkToDetail?: boolean;
+  className?: string;
 };
 
-export function SubjectCard({ subject: initialSubject }: SubjectCardProps) {
+export function SubjectCard({
+  subject: initialSubject,
+  linkToDetail = true,
+  className,
+}: SubjectCardProps) {
   const [subject, setSubject] = useState(initialSubject);
   const [prevSubject, setPrevSubject] = useState(initialSubject);
   const [isEditOpen, setIsEditOpen] = useState(false);
@@ -48,8 +55,9 @@ export function SubjectCard({ subject: initialSubject }: SubjectCardProps) {
         />
       ) : null}
       <FrostedGlassCard
-        href={detailHref}
-        hrefAriaLabel={`View ${subject.name}`}
+        href={linkToDetail ? detailHref : undefined}
+        hrefAriaLabel={linkToDetail ? `View ${subject.name}` : undefined}
+        className={className}
       >
         <GridCardBody title={subject.name} />
         <GridCardFooter
@@ -73,6 +81,9 @@ export function SubjectCard({ subject: initialSubject }: SubjectCardProps) {
                   size="icon-sm"
                   className={GRID_CARD_ACTION_BUTTON_CLASS_NAME}
                   aria-label={`Edit ${subject.name}`}
+                  onPointerDown={(event) => {
+                    event.stopPropagation();
+                  }}
                   onClick={(event) => {
                     event.preventDefault();
                     event.stopPropagation();
@@ -82,10 +93,17 @@ export function SubjectCard({ subject: initialSubject }: SubjectCardProps) {
                   <PencilIcon className="size-3.5" />
                 </Button>
               </Can>
-              <GridCardViewButton
-                href={detailHref}
-                label={`View ${subject.name}`}
-              />
+              <span
+                className="contents"
+                onPointerDown={(event) => {
+                  event.stopPropagation();
+                }}
+              >
+                <GridCardViewButton
+                  href={detailHref}
+                  label={`View ${subject.name}`}
+                />
+              </span>
             </>
           }
         />

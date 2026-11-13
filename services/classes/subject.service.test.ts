@@ -45,6 +45,8 @@ const subjectRecord = {
   reference_link: null,
   handout_link: "https://school.edu/handouts/physics",
   nb_sessions: 10,
+  stage_id: null,
+  sort_order: 0,
   created_at: "2026-01-01T00:00:00.000Z",
 };
 
@@ -98,6 +100,8 @@ describe("listSubjectsForManager", () => {
         reference_link: null,
         handout_link: "https://school.edu/handouts/physics",
         nb_sessions: 10,
+        stage_id: null,
+        sort_order: 0,
         created_at: "2026-01-01T00:00:00.000Z",
         class_count: 2,
       },
@@ -194,6 +198,13 @@ describe("createSubjectForManager", () => {
       statusText: "OK",
     });
 
+    vi.mocked(
+      subjectRepository.getNextSubjectSortOrderForStage
+    ).mockResolvedValue({
+      data: 0,
+      error: null,
+    });
+
     vi.mocked(subjectRepository.createSubject).mockResolvedValue({
       data: subjectRecord,
       error: null,
@@ -218,6 +229,8 @@ describe("createSubjectForManager", () => {
         reference_link: null,
         handout_link: "https://school.edu/handouts/physics",
         nb_sessions: 10,
+        stage_id: null,
+        sort_order: 0,
         created_at: "2026-01-01T00:00:00.000Z",
         class_count: 0,
       },
@@ -230,6 +243,7 @@ describe("createSubjectForManager", () => {
       reference_link: null,
       handout_link: "https://school.edu/handouts/physics",
       nb_sessions: 10,
+      sort_order: 0,
     });
   });
 });
@@ -301,6 +315,8 @@ describe("getSubjectForManager", () => {
       reference_link: null,
       handout_link: "https://school.edu/handouts/physics",
       nb_sessions: 10,
+      stage_id: null,
+      sort_order: 0,
       created_at: "2026-01-01T00:00:00.000Z",
       class_count: 3,
     });

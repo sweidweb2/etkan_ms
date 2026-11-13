@@ -590,6 +590,7 @@ export async function loadClassStudentRows(
         joined_at: enrollment.joined_at ?? "",
         pending_drop_request_id: pendingDropId,
         has_pending_drop: Boolean(pendingDropId),
+        is_team_leader: enrollment.is_team_leader,
       });
     }
 
@@ -649,6 +650,7 @@ export async function fetchClassStudentRowForManager(
     email: emailResult.data.get(userId) ?? "",
     phone: studentProfile.phone,
     joined_at: enrollment.joined_at ?? "",
+    is_team_leader: enrollment.is_team_leader,
   };
 }
 

@@ -15,6 +15,8 @@ import * as classTaskRepository from "@/repositories/class-task.repository";
 import type { ClassTaskRecord } from "@/repositories/class-task.repository";
 import { ensureSessionAttendeesForMembers } from "@/services/classes/session-seed.service";
 import {
+  attachAttendeeEditorNames,
+  attachTaskEditorNames,
   buildStudentDisplayByUserId,
   isUuid,
   mapAttendeeStatus,
@@ -52,18 +54,21 @@ export async function listClassTasksForManager(
     throw new Error(tasksResult.error.message);
   }
 
-  return ((tasksResult.data ?? []) as ClassTaskRecord[])
-    .map(mapTaskRecord)
-    .sort((left, right) => {
-      const orderCompare = left.sort_order - right.sort_order;
-      if (orderCompare !== 0) {
-        return orderCompare;
-      }
+  const tasks = await attachTaskEditorNames(
+    adminClient,
+    ((tasksResult.data ?? []) as ClassTaskRecord[]).map(mapTaskRecord)
+  );
 
-      return (
-        new Date(left.created_at).getTime() - new Date(right.created_at).getTime()
-      );
-    });
+  return tasks.sort((left, right) => {
+    const orderCompare = left.sort_order - right.sort_order;
+    if (orderCompare !== 0) {
+      return orderCompare;
+    }
+
+    return (
+      new Date(left.created_at).getTime() - new Date(right.created_at).getTime()
+    );
+  });
 }
 
 export type ManagerSessionDetailBundle = {
@@ -139,18 +144,23 @@ export async function getSessionDetailForManager(
       semester_name: classResult.data.semesters?.name ?? null,
     },
     tasks: [],
-    attendees: attendeeRecords.map((row) => {
-      const display = displayByUserId.get(row.student_id);
-      return {
-        id: row.id,
-        session_id: row.session_id,
-        student_id: row.student_id,
-        full_name: display?.full_name ?? "Unknown student",
-        email: display?.email ?? "",
-        status: mapAttendeeStatus(row.status),
-        created_at: row.created_at,
-      };
-    }),
+    attendees: await attachAttendeeEditorNames(
+      adminClient,
+      attendeeRecords.map((row) => {
+        const display = displayByUserId.get(row.student_id);
+        return {
+          id: row.id,
+          session_id: row.session_id,
+          student_id: row.student_id,
+          full_name: display?.full_name ?? "Unknown student",
+          email: display?.email ?? "",
+          status: mapAttendeeStatus(row.status),
+          created_at: row.created_at,
+          updated_at: row.updated_at,
+          updated_by: row.updated_by,
+        };
+      })
+    ),
   };
 }
 

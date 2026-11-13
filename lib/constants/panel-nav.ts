@@ -5,7 +5,7 @@ import type {
   PanelNavigation,
 } from "@/types/panel";
 
-/** Shared across roles; filtered by `workshops.view` + instructor flag. */
+/** Shared across roles; filtered by `workshops.view` + instructor (or manager/supervisor role). */
 const MANAGE_WORKSHOPS_NAV_ITEM: PanelNavItem = {
   title: "Manage workshops",
   href: ROUTES.MANAGER_WORKSHOPS,

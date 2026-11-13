@@ -10,6 +10,7 @@ import {
 } from "@/lib/constants/manager-student-task-status";
 import { datetimeLocalToUtcIso } from "@/lib/utils/datetime-local-to-utc-iso";
 import * as authRepository from "@/repositories/auth.repository";
+import * as profileRepository from "@/repositories/profile.repository";
 import type { SessionRecord } from "@/repositories/session.repository";
 import * as studentProfileRepository from "@/repositories/student-profile.repository";
 import type { StudentTaskRecord } from "@/repositories/student-task.repository";
@@ -18,6 +19,7 @@ import type { FieldErrors } from "@/types/auth";
 import type { ManagerClassSessionRow } from "@/types/manager-class-session";
 import type {
   ManagerClassTaskRow,
+  ManagerSessionAttendeeRow,
   ManagerStudentTaskRow,
 } from "@/types/manager-class-session-detail";
 import {
@@ -35,6 +37,14 @@ export type MutationFailure = {
   error: string;
   fieldErrors?: FieldErrors;
 };
+
+/**
+ * Class-scoped access check run by shared mutation cores after the target
+ * row is resolved (teacher assignment, team-leader flag, ...).
+ */
+export type ClassMutationAuthorizer = (
+  classId: string
+) => Promise<{ ok: true } | { ok: false; error: string }>;
 
 export function isUuid(value: string): boolean {
   return z.string().uuid().safeParse(value).success;
@@ -113,7 +123,67 @@ export function mapTaskRecord(record: ClassTaskRecord): ManagerClassTaskRow {
     started_at: record.started_at,
     due_date: record.due_date,
     created_at: record.created_at ?? "",
+    created_by: record.created_by ?? null,
+    updated_by: record.updated_by ?? null,
   };
+}
+
+/** Profile names for "edited by" captions (staff or students). */
+export async function loadEditorNameById(
+  adminClient: Supabase,
+  profileIds: Array<string | null | undefined>
+): Promise<Map<string, string>> {
+  const uniqueIds = [
+    ...new Set(profileIds.filter((id): id is string => Boolean(id))),
+  ];
+  if (uniqueIds.length === 0) {
+    return new Map();
+  }
+
+  const { data, error } = await profileRepository.listProfileOptionsByIds(
+    adminClient,
+    uniqueIds
+  );
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  return new Map((data ?? []).map((row) => [row.id, row.full_name]));
+}
+
+export async function attachTaskEditorNames(
+  adminClient: Supabase,
+  tasks: ManagerClassTaskRow[]
+): Promise<ManagerClassTaskRow[]> {
+  const nameById = await loadEditorNameById(
+    adminClient,
+    tasks.flatMap((task) => [task.created_by, task.updated_by])
+  );
+  return tasks.map((task) => ({
+    ...task,
+    created_by_name: task.created_by
+      ? (nameById.get(task.created_by) ?? null)
+      : null,
+    updated_by_name: task.updated_by
+      ? (nameById.get(task.updated_by) ?? null)
+      : null,
+  }));
+}
+
+export async function attachAttendeeEditorNames(
+  adminClient: Supabase,
+  attendees: ManagerSessionAttendeeRow[]
+): Promise<ManagerSessionAttendeeRow[]> {
+  const nameById = await loadEditorNameById(
+    adminClient,
+    attendees.map((row) => row.updated_by)
+  );
+  return attendees.map((row) => ({
+    ...row,
+    updated_by_name: row.updated_by
+      ? (nameById.get(row.updated_by) ?? null)
+      : null,
+  }));
 }
 
 export function mapStudentTaskStatus(status: string): StudentTaskStatusValue {

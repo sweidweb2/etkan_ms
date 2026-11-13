@@ -460,11 +460,25 @@ function AttendanceNameChip({
   onMarkAbsent?: () => void;
 }) {
   const label = SESSION_ATTENDEE_STATUS_LABELS[status];
-  const title = locked
+  const editedBy = attendee.updated_by_name
+    ? `Edited by ${attendee.updated_by_name}`
+    : null;
+  const baseTitle = locked
     ? STUDENT_COMPUTED_GRADE_RECORD_LOCKED_ERROR
     : canDrag
       ? `Drag to change status · ${attendee.full_name}`
       : `${attendee.full_name} · ${label}`;
+  const title = editedBy ? `${baseTitle} · ${editedBy}` : baseTitle;
+  const nameBlock = (
+    <span className="flex min-w-0 flex-col">
+      <span className="truncate">{attendee.full_name}</span>
+      {editedBy ? (
+        <span className="truncate text-[11px] font-normal opacity-75">
+          {editedBy}
+        </span>
+      ) : null}
+    </span>
+  );
 
   if (!canDrag) {
     return (
@@ -482,7 +496,7 @@ function AttendanceNameChip({
         {locked ? (
           <LockIcon className="size-3.5 shrink-0 opacity-80" aria-hidden />
         ) : null}
-        <span className="truncate">{attendee.full_name}</span>
+        {nameBlock}
       </span>
     );
   }
@@ -507,7 +521,7 @@ function AttendanceNameChip({
           "focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50"
         )}
       >
-        <span className="truncate">{attendee.full_name}</span>
+        {nameBlock}
       </button>
       {onMarkAbsent ? (
         <button

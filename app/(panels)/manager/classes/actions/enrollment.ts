@@ -2,7 +2,11 @@
 
 import { revalidatePath } from "next/cache";
 import { runManagerAction } from "@/lib/actions/run-manager-action";
-import { getManagerClassDetailRoute } from "@/lib/constants/routes";
+import {
+  getManagerClassDetailRoute,
+  getStudentClassDetailRoute,
+} from "@/lib/constants/routes";
+import { parseSetTeamLeaderFormData } from "@/lib/validators/manager/set-team-leader";
 import {
   parseAddStudentsToClassFormData,
 } from "@/lib/validators/manager/add-student-to-class";
@@ -21,10 +25,12 @@ import {
   transferStudentBetweenClassesForManager,
   removeStudentFromClassForManager,
 } from "@/services/classes/class.service";
+import { setStudentTeamLeaderForStaff } from "@/services/classes/class-team-leader.service";
 import type {
   AddStudentToClassActionState,
   TransferStudentBetweenClassesActionState,
   RemoveStudentFromClassActionState,
+  SetTeamLeaderActionState,
 } from "@/types/manager-class-detail";
 
 export async function addStudentToClassAction(
@@ -89,6 +95,27 @@ export async function removeStudentFromClassAction(
       message: result.message,
       warning: result.warning,
       removedStudentId: result.removedStudentId,
+    }),
+  });
+}
+
+export async function setStudentTeamLeaderAction(
+  _prevState: SetTeamLeaderActionState,
+  formData: FormData
+): Promise<SetTeamLeaderActionState> {
+  return runManagerAction({
+    formData,
+    parse: parseSetTeamLeaderFormData,
+    mutate: ({ adminClient, actor, data }) =>
+      setStudentTeamLeaderForStaff(adminClient, actor.userId, actor, data),
+    revalidate: (_result, data) => {
+      revalidatePath(getStudentClassDetailRoute(data.class_id));
+    },
+    mapSuccess: (result) => ({
+      success: true,
+      message: result.message,
+      studentClassId: result.studentClassId,
+      isTeamLeader: result.isTeamLeader,
     }),
   });
 }

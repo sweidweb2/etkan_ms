@@ -63,8 +63,8 @@ const PAGE_SIZE = 12;
 const STATUS_ALL = "all";
 
 const TYPE_TAB_ORDER = [
-  WORKSHOP_OFFERING_TYPES.COURSE,
   WORKSHOP_OFFERING_TYPES.WORKSHOP,
+  WORKSHOP_OFFERING_TYPES.COURSE,
   WORKSHOP_OFFERING_TYPES.PRIVATE,
 ] as const satisfies readonly WorkshopOfferingType[];
 
@@ -108,7 +108,7 @@ export function ManageWorkshopsPanel({
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [typeTab, setTypeTab] = useState<WorkshopOfferingType>(
-    WORKSHOP_OFFERING_TYPES.COURSE
+    WORKSHOP_OFFERING_TYPES.WORKSHOP
   );
   const [search, setSearch] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
@@ -119,7 +119,7 @@ export function ManageWorkshopsPanel({
   const [page, setPage] = useState(initialData.page);
   const loadedKeyRef = useRef(
     listQueryKey({
-      type: WORKSHOP_OFFERING_TYPES.COURSE,
+      type: WORKSHOP_OFFERING_TYPES.WORKSHOP,
       status: STATUS_ALL,
       showCompleted: true,
       search: "",

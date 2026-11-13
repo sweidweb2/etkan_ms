@@ -89,6 +89,10 @@ function formatTaskEyebrow(task: ManagerClassTaskRow) {
   return format(date, "MMM d");
 }
 
+function getTaskEditorName(task: ManagerClassTaskRow) {
+  return task.updated_by_name ?? task.created_by_name ?? null;
+}
+
 const CARD_GLOWS = ["lavender", "blue", "mint"] as const;
 
 function TruncatedCell({
@@ -359,7 +363,11 @@ export function ClassTasksSection({
                     <LibraryCard
                       key={task.id}
                       href={href}
-                      eyebrow={formatTaskEyebrow(task)}
+                      eyebrow={
+                        getTaskEditorName(task)
+                          ? `${formatTaskEyebrow(task)} · by ${getTaskEditorName(task)}`
+                          : formatTaskEyebrow(task)
+                      }
                       title={task.title}
                       badge={task.started ? "Started" : "Not started"}
                       coverBadge={task.started ? "Started" : undefined}
@@ -465,7 +473,7 @@ export function ClassTasksSection({
             </div>
           ) : (
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[860px] text-sm">
+            <table className="w-full min-w-[980px] text-sm">
               <thead>
                 <tr className="border-b bg-muted/40 text-left">
                   <th className="w-12 px-4 py-3 font-medium">#</th>
@@ -475,6 +483,7 @@ export function ClassTasksSection({
                   <th className="px-4 py-3 font-medium">Started</th>
                   <th className="px-4 py-3 font-medium">Due date</th>
                   <th className="px-4 py-3 font-medium">Max grade</th>
+                  <th className="px-4 py-3 font-medium">Edited by</th>
                 </tr>
               </thead>
               <tbody>
@@ -531,6 +540,12 @@ export function ClassTasksSection({
                           maxGrade: task.max_grade,
                           isYesNo: task.is_yes_no,
                         })}
+                      </td>
+                      <td className="max-w-[10rem] px-4 py-3 text-muted-foreground">
+                        <TruncatedCell
+                          value={getTaskEditorName(task) ?? "—"}
+                          maxLength={SESSION_TASK_TABLE_LIMITS.title}
+                        />
                       </td>
                     </tr>
                   ))}

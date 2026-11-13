@@ -65,7 +65,6 @@ import * as guestRepository from "@/repositories/guest.repository";
 import * as guestStatusEventRepository from "@/repositories/guest-status-event.repository";
 import * as instructorScheduleSlotRepository from "@/repositories/instructor-schedule-slot.repository";
 import * as instructorSubjectCapabilityRepository from "@/repositories/instructor-subject-capability.repository";
-import * as instructorSubjectRepository from "@/repositories/instructor-subject.repository";
 import * as paymentPhaseRepository from "@/repositories/payment-phase.repository";
 import * as permissionRepository from "@/repositories/permission.repository";
 import * as profileRepository from "@/repositories/profile.repository";
@@ -1661,38 +1660,16 @@ async function ensureInstructorCatalog(
   client: Supabase,
   instructorId: string
 ) {
-  let subjectId: string | null = null;
-  const listed = await instructorSubjectRepository.findInstructorSubjectByName(
-    client,
-    "Demo Robotics"
-  );
-  if (listed.error) throw new Error(listed.error.message);
-
-  if (listed.data) {
-    subjectId = listed.data.id;
-  } else {
-    const maxOrder =
-      await instructorSubjectRepository.getMaxInstructorSubjectSortOrder(client);
-    if (maxOrder.error) throw new Error(maxOrder.error.message);
-    const sortOrder =
-      typeof maxOrder.data?.sort_order === "number"
-        ? maxOrder.data.sort_order + 1
-        : 1;
-    const created = await instructorSubjectRepository.createInstructorSubject(
-      client,
-      { name: "Demo Robotics", sort_order: sortOrder }
-    );
-    if (created.error || !created.data) {
-      throw new Error(created.error?.message ?? "Unable to create instructor subject.");
-    }
-    subjectId = created.data.id;
-  }
+  const subjectId = await findOrCreateSubject(client, {
+    name: "Demo Robotics",
+    nbSessions: 1,
+  });
 
   const cap = await client
     .from("instructor_subject_capability")
     .select("user_id")
     .eq("user_id", instructorId)
-    .eq("instructor_subject_id", subjectId)
+    .eq("subject_id", subjectId)
     .maybeSingle();
   if (cap.error) throw new Error(cap.error.message);
   if (!cap.data) {

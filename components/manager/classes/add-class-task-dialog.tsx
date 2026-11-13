@@ -39,12 +39,19 @@ const initialState: CreateClassTaskActionState = {};
 const DEFAULT_PERIOD_DAYS = 7;
 const DEFAULT_MAX_GRADE = 100;
 
+type CreateClassTaskFormAction = (
+  prevState: CreateClassTaskActionState,
+  formData: FormData
+) => Promise<CreateClassTaskActionState>;
+
 type AddClassTaskDialogProps = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   classId: string;
   className: string;
   onCreateTask: (task: ManagerClassTaskRow) => void;
+  /** Defaults to the manager/teacher create action. */
+  action?: CreateClassTaskFormAction;
 };
 
 export function AddClassTaskDialog({
@@ -53,10 +60,11 @@ export function AddClassTaskDialog({
   classId,
   className,
   onCreateTask,
+  action = createClassTaskAction,
 }: AddClassTaskDialogProps) {
   const [isTransitionPending, startTransition] = useTransition();
   const [state, formAction, isActionPending] = useActionState(
-    createClassTaskAction,
+    action,
     initialState
   );
   const isPending = isActionPending || isTransitionPending;
