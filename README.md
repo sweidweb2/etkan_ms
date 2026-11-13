@@ -104,6 +104,7 @@ Architecture rules for contributors and agents live in [.cursor/rules/etkan_ms.m
 | [docs/cmds/packages.md](docs/cmds/packages.md) | Dependency install reference |
 | [docs/[03] Config/local-supabase.md](docs/[03]%20Config/local-supabase.md) | Local slim Supabase via Docker CLI |
 | [docs/docker.md](docs/docker.md) | Next.js Docker: local / staging.etkan.org / etkan.org |
+| [docs/[12] Deploy/[01] vps-staging-and-prod.md](docs/[12]%20Deploy/[01]%20vps-staging-and-prod.md) | VPS staging/prod: compose, Caddy, Supabase stacks, Actions, ops cmds |
 
 ## Scripts
 
