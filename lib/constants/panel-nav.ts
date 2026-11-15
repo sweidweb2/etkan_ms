@@ -24,8 +24,9 @@ export const ADMIN_PANEL_NAVIGATION = withManageWorkshops({ items: [] });
 export const CO_MANAGER_PANEL_NAVIGATION = withManageWorkshops({ items: [] });
 
 /**
- * Manager sidebar groups parked on `/manager/pages` while focus is elsewhere.
- * Cards on that hub still navigate to the same routes (permission-filtered).
+ * Secondary manager destinations parked on `/manager/pages`.
+ * Instructors + workshops live in the main sidebar; this hub keeps the rest.
+ * Cards still navigate to the same routes (permission-filtered).
  */
 export const MANAGER_PAGES_HUB_GROUPS: PanelNavGroup[] = [
   {
@@ -42,23 +43,13 @@ export const MANAGER_PAGES_HUB_GROUPS: PanelNavGroup[] = [
   },
   {
     id: "instructors-workshops",
-    label: "Instructors & workshops",
+    label: "Instructor schedules",
     defaultOpen: true,
     items: [
-      {
-        title: "Manage instructors",
-        href: ROUTES.MANAGER_INSTRUCTORS,
-        icon: "school",
-      },
       {
         title: "Instructor schedules",
         href: ROUTES.MANAGER_INSTRUCTOR_SCHEDULES,
         icon: "calendar-days",
-      },
-      {
-        title: "Manage workshops",
-        href: ROUTES.MANAGER_WORKSHOPS,
-        icon: "presentation",
       },
     ],
   },
@@ -143,6 +134,11 @@ export const MANAGER_PANEL_NAVIGATION: PanelNavigation = {
           icon: "book-open",
         },
         {
+          title: "Manage instructors",
+          href: ROUTES.MANAGER_INSTRUCTORS,
+          icon: "school",
+        },
+        {
           title: "Guests",
           href: ROUTES.MANAGER_GUESTS,
           icon: "user-plus",
@@ -163,6 +159,11 @@ export const MANAGER_PANEL_NAVIGATION: PanelNavigation = {
           title: "Manage classes",
           href: ROUTES.MANAGER_CLASSES,
           icon: "school",
+        },
+        {
+          title: "Manage workshops",
+          href: ROUTES.MANAGER_WORKSHOPS,
+          icon: "presentation",
         },
         {
           title: "Manage semesters",
