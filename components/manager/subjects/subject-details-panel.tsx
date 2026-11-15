@@ -56,6 +56,7 @@ import type { ManagerSubjectClassRow } from "@/types/manager-subject-class";
 import type { ManagerSubjectTaskRow } from "@/types/manager-subject-task";
 import type { ManagerCategoryRow } from "@/types/manager-category";
 import type { ManagerExerciseRow } from "@/types/manager-exercise";
+import type { TaskAttachmentRow } from "@/types/task-attachment";
 
 type SubjectDetailsPanelProps = {
   subject: ManagerSubjectRow;
@@ -65,6 +66,7 @@ type SubjectDetailsPanelProps = {
   linkedCategoryIds: string[];
   linkedExerciseIds: string[];
   tasks?: ManagerSubjectTaskRow[];
+  taskAttachmentsByTaskId?: Record<string, TaskAttachmentRow[]>;
 };
 
 const initialDeleteState: DeleteSubjectActionState = {};
@@ -109,6 +111,7 @@ export function SubjectDetailsPanel({
   linkedCategoryIds,
   linkedExerciseIds,
   tasks = [],
+  taskAttachmentsByTaskId = {},
 }: SubjectDetailsPanelProps) {
   const [subject, setSubject] = useState<ManagerSubjectRow>(initialSubject);
   const [prevSubject, setPrevSubject] =
@@ -281,6 +284,7 @@ export function SubjectDetailsPanel({
                 subjectId={subject.id}
                 subjectName={subject.name}
                 tasks={tasks}
+                attachmentsByTaskId={taskAttachmentsByTaskId}
               />
             </TabsContentPrimitive>
           ) : null}

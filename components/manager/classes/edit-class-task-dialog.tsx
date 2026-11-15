@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useTransition } from "react";
+import { useEffect, useTransition, type ReactNode } from "react";
 import { useFormActionState as useActionState } from "@/hooks/use-form-action-state";
 import { updateClassTaskAction } from "@/app/manager/classes/actions";
 import { FieldLabel } from "@/components/auth/field-label";
@@ -54,6 +54,8 @@ type EditClassTaskDialogProps = {
     prevState: UpdateClassTaskActionState,
     formData: FormData
   ) => Promise<UpdateClassTaskActionState>;
+  /** Optional attachments UI (e.g. team-leader edit flow). */
+  attachmentsSlot?: ReactNode;
 };
 
 function getDefaultValues(task: ManagerClassTaskRow) {
@@ -76,6 +78,7 @@ export function EditClassTaskDialog({
   hasGradedStudents = false,
   onTaskUpdated,
   action = updateClassTaskAction,
+  attachmentsSlot,
 }: EditClassTaskDialogProps) {
   const [isTransitionPending, startTransition] = useTransition();
   const [state, formAction, isActionPending] = useActionState(
@@ -163,7 +166,7 @@ export function EditClassTaskDialog({
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogContent className="sm:max-w-md" showCloseButton={!isPending}>
+      <DialogContent className="sm:max-w-lg" showCloseButton={!isPending}>
         <DialogHeader>
           <DialogTitle>Edit task</DialogTitle>
           <DialogDescription>
@@ -270,6 +273,8 @@ export function EditClassTaskDialog({
             )}
           </div>
         </form>
+
+        {attachmentsSlot}
 
         <DialogFooter className="mt-2 sm:justify-end">
           <Button

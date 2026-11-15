@@ -9,6 +9,10 @@ import type {
   ManagerStudentTaskRow,
   ManagerStudentTaskUploadRow,
 } from "@/types/manager-class-session-detail";
+import type {
+  TaskAttachmentCloneJobRow,
+  TaskAttachmentRow,
+} from "@/types/task-attachment";
 
 /** Class the signed-in teacher is assigned to teach. */
 export type TeacherClassRow = {
@@ -62,6 +66,8 @@ export type TeachingClassTaskPageBundle = {
   classRow: { id: string; name: string };
   studentTasks: ManagerStudentTaskRow[];
   uploads: ManagerStudentTaskUploadRow[];
+  taskAttachments: TaskAttachmentRow[];
+  attachmentCloneJob: TaskAttachmentCloneJobRow | null;
   hasComputedGrades: boolean;
   lockedUserIds: string[];
 };

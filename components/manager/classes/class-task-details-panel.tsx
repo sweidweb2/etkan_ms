@@ -6,15 +6,26 @@ import { useActionState, useState, useTransition } from "react";
 import { PencilIcon, PlayIcon, SquareIcon, Trash2Icon } from "lucide-react";
 import {
   deleteClassTaskAction,
+  deleteTaskAttachmentAction,
+  getTaskAttachmentSignedUrlAction,
   setClassTaskStartedAction,
+  uploadTaskAttachmentAction,
 } from "@/app/manager/classes/actions";
 import { Can } from "@/components/auth/can";
+import { usePermissions } from "@/components/auth/permissions-provider";
 import { EditClassTaskDialog } from "@/components/manager/classes/edit-class-task-dialog";
+import { hasPermissionInSet } from "@/lib/auth/permission-checks";
 import { SessionTaskStudentTasksSection } from "@/components/manager/classes/session-task-student-tasks-section";
 import { SessionTaskUploadsSection } from "@/components/manager/classes/session-task-uploads-section";
 import { SessionTaskAnalyticsSection } from "@/components/manager/classes/session-task-analytics-section";
+import { TaskAttachmentsSection } from "@/components/tasks/task-attachments-section";
 import { InlineSpinner } from "@/components/loaders/inline-spinner";
 import { Button } from "@/components/ui/button";
+import { TASK_ATTACHMENT_ENTITIES } from "@/lib/constants/task-attachments";
+import type {
+  TaskAttachmentCloneJobRow,
+  TaskAttachmentRow,
+} from "@/types/task-attachment";
 
 const StudentTaskWorkspace = dynamic(
   () =>
@@ -79,6 +90,8 @@ type ClassTaskDetailsPanelProps = {
   };
   initialStudentTasks: ManagerStudentTaskRow[];
   initialUploads?: ManagerStudentTaskUploadRow[];
+  initialTaskAttachments?: TaskAttachmentRow[];
+  attachmentCloneJob?: TaskAttachmentCloneJobRow | null;
   lockedUserIds?: string[];
   hasComputedGrades?: boolean;
   /** Panel navigation (defaults to manager class routes). */
@@ -94,6 +107,8 @@ type ClassTaskDetailsPanelProps = {
    * `workspace` — sidebar students + inline fields/uploads (lazy-loaded).
    */
   studentTasksLayout?: "sections" | "workspace";
+  /** When false, attachments are read-only (e.g. future restricted views). */
+  canMutateAttachments?: boolean;
 };
 
 export function ClassTaskDetailsPanel({
@@ -101,12 +116,19 @@ export function ClassTaskDetailsPanel({
   classRow,
   initialStudentTasks,
   initialUploads = [],
+  initialTaskAttachments = [],
+  attachmentCloneJob = null,
   lockedUserIds = [],
   hasComputedGrades = false,
   navigation,
   showTaskAnalyticsSection = true,
   studentTasksLayout = "sections",
+  canMutateAttachments = true,
 }: ClassTaskDetailsPanelProps) {
+  const permissions = usePermissions();
+  const canUpdateTaskAttachments =
+    canMutateAttachments &&
+    hasPermissionInSet(permissions, PERMISSIONS.TASKS_UPDATE);
   const nav = navigation ?? {
     classesListHref: ROUTES.MANAGER_CLASSES,
     classesListLabel: "Manage classes",
@@ -286,6 +308,17 @@ export function ClassTaskDetailsPanel({
           </dl>
         </CardContent>
       </Card>
+
+      <TaskAttachmentsSection
+        entity={TASK_ATTACHMENT_ENTITIES.CLASS_TASK}
+        entityId={task.id}
+        attachments={initialTaskAttachments}
+        cloneJob={attachmentCloneJob}
+        canMutate={canUpdateTaskAttachments}
+        uploadAction={uploadTaskAttachmentAction}
+        deleteAction={deleteTaskAttachmentAction}
+        getSignedUrlAction={getTaskAttachmentSignedUrlAction}
+      />
 
       {studentTasksLayout === "workspace" ? (
         <StudentTaskWorkspace

@@ -62,6 +62,12 @@ export {
   getStudentTaskUploadSignedUrlAction,
 } from "./actions/student-tasks";
 
+export {
+  uploadTaskAttachmentAction,
+  deleteTaskAttachmentAction,
+  getTaskAttachmentSignedUrlAction,
+} from "./actions/task-attachments";
+
 export type {
   CancelSemesterDropActionState,
   CreateSemesterDropActionState,

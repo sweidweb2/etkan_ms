@@ -13,6 +13,7 @@ import * as studentTaskUploadRepository from "@/repositories/student-task-upload
 import type { StudentTaskUploadRecord } from "@/repositories/student-task-upload.repository";
 import * as classTaskRepository from "@/repositories/class-task.repository";
 import type { ClassTaskRecord } from "@/repositories/class-task.repository";
+import { TASK_ATTACHMENT_ENTITIES } from "@/lib/constants/task-attachments";
 import { ensureSessionAttendeesForMembers } from "@/services/classes/session-seed.service";
 import {
   attachAttendeeEditorNames,
@@ -25,6 +26,12 @@ import {
   mapTaskRecord,
   type Supabase,
 } from "@/services/classes/session-shared";
+import {
+  getLatestCloneJobForClassTask,
+  isCloneJobBlockingUploads,
+  scheduleAttachmentCloneProcessing,
+} from "@/services/classes/task-attachment-clone.service";
+import { listTaskAttachmentsUnchecked } from "@/services/classes/task-attachments.service";
 import type { ManagerClassRow } from "@/types/manager-class-list";
 import type { ManagerClassSessionRow } from "@/types/manager-class-session";
 import type {
@@ -33,6 +40,10 @@ import type {
   ManagerStudentTaskRow,
   ManagerStudentTaskUploadRow,
 } from "@/types/manager-class-session-detail";
+import type {
+  TaskAttachmentCloneJobRow,
+  TaskAttachmentRow,
+} from "@/types/task-attachment";
 
 export async function listClassTasksForManager(
   adminClient: Supabase,
@@ -169,6 +180,8 @@ export type ManagerClassTaskDetailBundle = {
   classRow: Pick<ManagerClassRow, "id" | "name">;
   studentTasks: ManagerStudentTaskRow[];
   uploads: ManagerStudentTaskUploadRow[];
+  taskAttachments: TaskAttachmentRow[];
+  attachmentCloneJob: TaskAttachmentCloneJobRow | null;
 };
 
 /** Class task detail — does not require a session. */
@@ -218,16 +231,23 @@ export async function getClassTaskDetailForManager(
     []) as StudentTaskRecord[];
   const studentTaskIds = studentTaskRecords.map((row) => row.id);
 
-  const [displayByUserId, uploadsResult] = await Promise.all([
-    buildStudentDisplayByUserId(
-      adminClient,
-      studentTaskRecords.map((row) => row.student_id)
-    ),
-    studentTaskUploadRepository.listStudentTaskUploadsByStudentTaskIds(
-      adminClient,
-      studentTaskIds
-    ),
-  ]);
+  const [displayByUserId, uploadsResult, taskAttachments, latestCloneJob] =
+    await Promise.all([
+      buildStudentDisplayByUserId(
+        adminClient,
+        studentTaskRecords.map((row) => row.student_id)
+      ),
+      studentTaskUploadRepository.listStudentTaskUploadsByStudentTaskIds(
+        adminClient,
+        studentTaskIds
+      ),
+      listTaskAttachmentsUnchecked(
+        adminClient,
+        TASK_ATTACHMENT_ENTITIES.CLASS_TASK,
+        taskId
+      ),
+      getLatestCloneJobForClassTask(adminClient, taskId),
+    ]);
 
   if (uploadsResult.error) {
     throw new Error(uploadsResult.error.message);
@@ -245,6 +265,23 @@ export async function getClassTaskDetailForManager(
     created_at: row.created_at,
   }));
 
+  let attachmentCloneJob: TaskAttachmentCloneJobRow | null = null;
+  if (latestCloneJob) {
+    attachmentCloneJob = {
+      id: latestCloneJob.id,
+      class_task_id: latestCloneJob.class_task_id,
+      source_subject_task_id: latestCloneJob.source_subject_task_id,
+      status: latestCloneJob.status,
+      error_message: latestCloneJob.error_message,
+      created_at: latestCloneJob.created_at,
+      updated_at: latestCloneJob.updated_at,
+      completed_at: latestCloneJob.completed_at,
+    };
+    if (isCloneJobBlockingUploads(latestCloneJob.status)) {
+      scheduleAttachmentCloneProcessing(adminClient);
+    }
+  }
+
   return {
     task: mapTaskRecord(taskResult.data as ClassTaskRecord),
     classRow: {
@@ -255,6 +292,8 @@ export async function getClassTaskDetailForManager(
       mapStudentTaskRow(row, displayByUserId)
     ),
     uploads,
+    taskAttachments,
+    attachmentCloneJob,
   };
 }
 

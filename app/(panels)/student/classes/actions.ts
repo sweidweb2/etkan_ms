@@ -16,10 +16,12 @@ import {
   getStudentTaskUploadSignedUrlForSelf,
   uploadStudentTaskFileForSelf,
 } from "@/services/classes/student-task-upload-self.service";
+import { getTaskAttachmentSignedUrlForStudent } from "@/services/classes/task-attachments.service";
 import type {
   DeleteStudentTaskUploadActionState,
   StudentTaskUploadActionState,
 } from "@/types/student-class";
+import type { TaskAttachmentSignedUrlActionState } from "@/types/task-attachment";
 
 function revalidateStudentTaskSurfaces(classId: string, taskId: string) {
   revalidatePath(getStudentClassDetailRoute(classId));
@@ -110,4 +112,30 @@ export async function getStudentTaskUploadSignedUrlForSelfAction(
   }
 
   return { success: true, signedUrl: result.signedUrl };
+}
+
+export async function getStudentTaskAttachmentSignedUrlForSelfAction(
+  attachmentId: string
+): Promise<TaskAttachmentSignedUrlActionState> {
+  const adminClient = createSupabaseAdminClient();
+  const actor = await getSessionAuditActor();
+  if (!actor.userId) {
+    return { success: false, error: "Unauthorized." };
+  }
+
+  const result = await getTaskAttachmentSignedUrlForStudent(
+    adminClient,
+    actor.userId,
+    { id: attachmentId }
+  );
+
+  if (!result.success) {
+    return { success: false, error: result.error };
+  }
+
+  return {
+    success: true,
+    signedUrl: result.signedUrl,
+    fileName: result.fileName,
+  };
 }

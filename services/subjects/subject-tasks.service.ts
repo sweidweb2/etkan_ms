@@ -12,6 +12,8 @@ import {
   assertPermission,
   getUnauthorizedError,
 } from "@/services/auth/authorization.service";
+import { removeStorageAndRowsForTaskAttachments } from "@/services/classes/task-attachments.service";
+import { TASK_ATTACHMENT_ENTITIES } from "@/lib/constants/task-attachments";
 import {
   recordManagerAuditLog,
   type AuditActor,
@@ -295,6 +297,20 @@ export async function deleteSubjectTaskForManager(
   }
   if (!existing) {
     return { success: false, error: "Subject task not found." };
+  }
+
+  const attachmentCleanup = await removeStorageAndRowsForTaskAttachments(
+    adminClient,
+    TASK_ATTACHMENT_ENTITIES.SUBJECT_TASK,
+    [taskId]
+  );
+  if (attachmentCleanup.error) {
+    return {
+      success: false,
+      error:
+        attachmentCleanup.error.message ||
+        "Unable to delete subject task attachments.",
+    };
   }
 
   const { error } = await subjectTaskRepository.deleteSubjectTaskById(

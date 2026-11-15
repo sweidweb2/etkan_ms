@@ -11,10 +11,13 @@ import {
 } from "@/components/ui/breadcrumb";
 import { StudentTaskFiles } from "@/components/student/classes/student-task-files";
 import { StudentTaskStatusBadge } from "@/components/manager/students/student-task-status-badge";
+import { TaskAttachmentsSection } from "@/components/tasks/task-attachments-section";
+import { getStudentTaskAttachmentSignedUrlForSelfAction } from "@/app/student/classes/actions";
 import {
   getStudentClassDetailRoute,
   ROUTES,
 } from "@/lib/constants/routes";
+import { TASK_ATTACHMENT_ENTITIES } from "@/lib/constants/task-attachments";
 import { formatTaskGrade } from "@/lib/format/format-task-grade";
 import type { StudentClassTaskDetailForSelf } from "@/types/student-class";
 
@@ -107,6 +110,18 @@ export function StudentClassTaskDetailsPanel({
           <p className="max-w-prose text-sm whitespace-pre-wrap">{description}</p>
         ) : null}
       </div>
+
+      {task.started ? (
+        <TaskAttachmentsSection
+          entity={TASK_ATTACHMENT_ENTITIES.CLASS_TASK}
+          entityId={task.id}
+          attachments={detail.taskAttachments ?? []}
+          canMutate={false}
+          title="Task files"
+          getSignedUrlAction={async () => ({ success: false, error: "Unavailable." })}
+          getSignedUrlById={getStudentTaskAttachmentSignedUrlForSelfAction}
+        />
+      ) : null}
 
       <StudentTaskFiles
         studentTaskId={studentTask?.id ?? null}

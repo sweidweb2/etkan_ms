@@ -10,7 +10,10 @@ import {
   listSubjectCatalogLinksForManager,
 } from "@/services/classes/exercise.service";
 import { getSubjectDetailForManager } from "@/services/classes/subject.service";
+import { TASK_ATTACHMENT_ENTITIES } from "@/lib/constants/task-attachments";
 import { listSubjectTasksForManager } from "@/services/subjects/subject-tasks.service";
+import { listTaskAttachmentsByEntityIdsUnchecked } from "@/services/classes/task-attachments.service";
+import type { TaskAttachmentRow } from "@/types/task-attachment";
 
 type ManagerSubjectDetailPageProps = {
   params: Promise<{ id: string }>;
@@ -44,6 +47,24 @@ export default async function ManagerSubjectDetailPage({
     notFound();
   }
 
+  const attachmentsByTaskId: Record<string, TaskAttachmentRow[]> = {};
+  if (canViewTasks && tasks.length > 0) {
+    try {
+      const rows = await listTaskAttachmentsByEntityIdsUnchecked(
+        adminClient,
+        TASK_ATTACHMENT_ENTITIES.SUBJECT_TASK,
+        tasks.map((task) => task.id)
+      );
+      for (const row of rows) {
+        const bucket = attachmentsByTaskId[row.entity_id] ?? [];
+        bucket.push(row);
+        attachmentsByTaskId[row.entity_id] = bucket;
+      }
+    } catch {
+      // Keep page usable if attachments fail to load.
+    }
+  }
+
   return (
     <SubjectDetailsPanel
       subject={detail.subject}
@@ -53,6 +74,7 @@ export default async function ManagerSubjectDetailPage({
       linkedCategoryIds={links.categoryIds}
       linkedExerciseIds={links.exerciseIds}
       tasks={tasks}
+      taskAttachmentsByTaskId={attachmentsByTaskId}
     />
   );
 }

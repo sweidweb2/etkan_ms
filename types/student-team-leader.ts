@@ -2,10 +2,16 @@ import type {
   ManagerClassTaskRow,
   ManagerSessionAttendeeRow,
 } from "@/types/manager-class-session-detail";
+import type {
+  TaskAttachmentCloneJobRow,
+  TaskAttachmentRow,
+} from "@/types/task-attachment";
 
 /** Extra data for the student "Team leader" tab (null when not a team leader). */
 export type StudentTeamLeaderBundle = {
   tasks: ManagerClassTaskRow[];
+  taskAttachmentsByTaskId: Record<string, TaskAttachmentRow[]>;
+  attachmentCloneJobsByTaskId: Record<string, TaskAttachmentCloneJobRow | null>;
   hasComputedGrades: boolean;
   lockedUserIds: string[];
 };

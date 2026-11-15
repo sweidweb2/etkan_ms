@@ -420,6 +420,25 @@ export const BACKUP_BUSINESS_CSV_CONFIG: Record<
       raw("created_at", "Uploaded at"),
     ],
   },
+  task_attachments: {
+    columns: [
+      raw("entity", "Entity"),
+      raw("entity_id", "Entity id"),
+      raw("file_name", "File name"),
+      fk("uploaded_by", "Uploaded by", "profiles", "full_name"),
+      raw("created_at", "Uploaded at"),
+    ],
+  },
+  task_attachment_clone_jobs: {
+    columns: [
+      fk("class_task_id", "Class task", "class_tasks", "title"),
+      fk("source_subject_task_id", "Source subject task", "subject_tasks", "title"),
+      raw("status", "Status"),
+      raw("error_message", "Error"),
+      raw("created_at", "Created at"),
+      raw("completed_at", "Completed at"),
+    ],
+  },
   student_course_grade: {
     columns: [
       fk("class_id", "Class", "classes", "name"),

@@ -242,8 +242,66 @@ export async function getStudentTeamLeaderBundle(
     throw new Error(tasksResult.error.message);
   }
 
+  const tasks = ((tasksResult.data ?? []) as ClassTaskRecord[]).map(
+    mapTaskRecord
+  );
+  const taskIds = tasks.map((task) => task.id);
+  const taskAttachmentsByTaskId: StudentTeamLeaderBundle["taskAttachmentsByTaskId"] =
+    {};
+  const attachmentCloneJobsByTaskId: StudentTeamLeaderBundle["attachmentCloneJobsByTaskId"] =
+    {};
+
+  if (taskIds.length > 0) {
+    const { listTaskAttachmentsByEntityIdsUnchecked } = await import(
+      "@/services/classes/task-attachments.service"
+    );
+    const { TASK_ATTACHMENT_ENTITIES } = await import(
+      "@/lib/constants/task-attachments"
+    );
+    const { listOpenCloneJobsByClassTaskIds } = await import(
+      "@/repositories/task-attachment-clone-job.repository"
+    );
+    const { TASK_ATTACHMENT_CLONE_JOB_STATUSES } = await import(
+      "@/lib/constants/task-attachments"
+    );
+
+    const [attachments, openJobs] = await Promise.all([
+      listTaskAttachmentsByEntityIdsUnchecked(
+        adminClient,
+        TASK_ATTACHMENT_ENTITIES.CLASS_TASK,
+        taskIds
+      ),
+      listOpenCloneJobsByClassTaskIds(adminClient, taskIds),
+    ]);
+
+    for (const row of attachments) {
+      const bucket = taskAttachmentsByTaskId[row.entity_id] ?? [];
+      bucket.push(row);
+      taskAttachmentsByTaskId[row.entity_id] = bucket;
+    }
+
+    for (const job of openJobs.data ?? []) {
+      const status =
+        job.status === TASK_ATTACHMENT_CLONE_JOB_STATUSES.RUNNING
+          ? TASK_ATTACHMENT_CLONE_JOB_STATUSES.RUNNING
+          : TASK_ATTACHMENT_CLONE_JOB_STATUSES.PENDING;
+      attachmentCloneJobsByTaskId[job.class_task_id] = {
+        id: job.id,
+        class_task_id: job.class_task_id,
+        source_subject_task_id: job.source_subject_task_id,
+        status,
+        error_message: job.error_message,
+        created_at: job.created_at,
+        updated_at: job.updated_at,
+        completed_at: job.completed_at,
+      };
+    }
+  }
+
   return {
-    tasks: ((tasksResult.data ?? []) as ClassTaskRecord[]).map(mapTaskRecord),
+    tasks,
+    taskAttachmentsByTaskId,
+    attachmentCloneJobsByTaskId,
     hasComputedGrades: gradeLock.hasComputedGrades,
     lockedUserIds: gradeLock.lockedUserIds,
   };

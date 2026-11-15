@@ -37,6 +37,8 @@ export default async function TeacherClassTaskDetailPage({
       classRow={bundle.classRow}
       initialStudentTasks={bundle.studentTasks}
       initialUploads={bundle.uploads}
+      initialTaskAttachments={bundle.taskAttachments}
+      attachmentCloneJob={bundle.attachmentCloneJob}
       lockedUserIds={bundle.lockedUserIds}
       hasComputedGrades={bundle.hasComputedGrades}
       navigation={{

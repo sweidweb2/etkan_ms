@@ -10,6 +10,7 @@ import type {
 } from "@/types/manager-class-final-exam";
 import type { StudentTaskStatusValue } from "@/lib/constants/manager-student-task-status";
 import type { StudentTeamLeaderBundle } from "@/types/student-team-leader";
+import type { TaskAttachmentRow } from "@/types/task-attachment";
 
 /** Student panel class detail payload (read-only, self-scoped). */
 export type StudentClassDetailForSelf = {
@@ -55,6 +56,8 @@ export type StudentClassTaskDetailForSelf = {
     graded_at: string | null;
   } | null;
   uploads: StudentTaskUploadForSelf[];
+  /** Task-definition files; empty until the class task is started. */
+  taskAttachments: TaskAttachmentRow[];
 };
 
 export type StudentTaskUploadActionState = {

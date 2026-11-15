@@ -34,6 +34,8 @@ import { backfillSppsForClassBecomeInProgress } from "@/services/accounting/acco
 import { assertClassStructureUnlockedForComputedGrades } from "@/services/classes/class-computed-grade-lock.service";
 import { ensureSessionAttendeesForMembers } from "@/services/classes/session.service";
 import { removeStorageForStudentTaskUploads } from "@/services/classes/student-task-upload.service";
+import { removeStorageAndRowsForTaskAttachments } from "@/services/classes/task-attachments.service";
+import { TASK_ATTACHMENT_ENTITIES } from "@/lib/constants/task-attachments";
 import {
   assertAssignedTeacherForClassMutation,
   assertTeacherMayCreateClass,
@@ -505,6 +507,8 @@ export async function updateClassForManager(
       return { success: false, error: existingTasks.error.message };
     }
 
+    const existingTaskIds = (existingTasks.data ?? []).map((task) => task.id);
+
     for (const task of existingTasks.data ?? []) {
       const studentTasksResult =
         await studentTaskRepository.listStudentTasksByTaskId(
@@ -527,6 +531,20 @@ export async function updateClassForManager(
             "Unable to delete student task upload files.",
         };
       }
+    }
+
+    const attachmentCleanup = await removeStorageAndRowsForTaskAttachments(
+      adminClient,
+      TASK_ATTACHMENT_ENTITIES.CLASS_TASK,
+      existingTaskIds
+    );
+    if (attachmentCleanup.error) {
+      return {
+        success: false,
+        error:
+          attachmentCleanup.error.message ||
+          "Unable to delete task attachments.",
+      };
     }
 
     const deleteTasks = await classTaskRepository.deleteClassTasksByClassId(

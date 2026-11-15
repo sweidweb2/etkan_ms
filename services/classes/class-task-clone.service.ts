@@ -3,6 +3,7 @@ import "server-only";
 import * as classTaskRepository from "@/repositories/class-task.repository";
 import type { ClassTaskRecord } from "@/repositories/class-task.repository";
 import * as subjectTaskRepository from "@/repositories/subject-task.repository";
+import { enqueueAttachmentCloneJobsForClassTasks } from "@/services/classes/task-attachment-clone.service";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/types/supabase";
 
@@ -11,6 +12,7 @@ type Supabase = SupabaseClient<Database>;
 /**
  * Clone all subject_tasks for `subjectId` onto `classId` as unstarted class_tasks.
  * Does not seed student_tasks (caller seeds when members exist).
+ * Enqueues background attachment deep-copy jobs when source tasks have files.
  */
 export async function cloneAllSubjectTasksToClass(
   adminClient: Supabase,
@@ -45,7 +47,16 @@ export async function cloneAllSubjectTasksToClass(
     return { data: [], error: created.error.message };
   }
 
-  return { data: (created.data ?? []) as ClassTaskRecord[], error: null };
+  const data = (created.data ?? []) as ClassTaskRecord[];
+  const enqueue = await enqueueAttachmentCloneJobsForClassTasks(
+    adminClient,
+    data
+  );
+  if (enqueue.error) {
+    return { data: [], error: enqueue.error };
+  }
+
+  return { data, error: null };
 }
 
 /**
@@ -114,8 +125,17 @@ export async function importMissingSubjectTasksToClass(
     return { data: [], error: created.error.message, skipped };
   }
 
+  const data = (created.data ?? []) as ClassTaskRecord[];
+  const enqueue = await enqueueAttachmentCloneJobsForClassTasks(
+    adminClient,
+    data
+  );
+  if (enqueue.error) {
+    return { data: [], error: enqueue.error, skipped };
+  }
+
   return {
-    data: (created.data ?? []) as ClassTaskRecord[],
+    data,
     error: null,
     skipped,
   };

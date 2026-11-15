@@ -26,6 +26,9 @@ vi.mock("@/repositories/class-task.repository");
 vi.mock("@/services/classes/student-course-grade.service", () => ({
   listStudentClassAcademicBundlesForSelf: vi.fn(),
 }));
+vi.mock("@/services/classes/task-attachments.service", () => ({
+  listClassTaskAttachmentsForStudent: vi.fn(async () => []),
+}));
 vi.mock("@/services/students/student.service", () => ({
   listJoinedClassesForStudentSelf: vi.fn(),
   getJoinedClassForStudentSelf: vi.fn(),

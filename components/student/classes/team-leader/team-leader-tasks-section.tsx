@@ -5,14 +5,23 @@ import { format } from "date-fns";
 import { ClipboardListIcon, PencilIcon, PlayIcon, PlusIcon } from "lucide-react";
 import {
   createTeamLeaderClassTaskAction,
+  deleteTeamLeaderTaskAttachmentAction,
+  getTeamLeaderTaskAttachmentSignedUrlAction,
   startTeamLeaderClassTaskAction,
   updateTeamLeaderClassTaskAction,
+  uploadTeamLeaderTaskAttachmentAction,
 } from "@/app/(panels)/student/classes/team-leader-actions";
 import { Can } from "@/components/auth/can";
 import { InlineSpinner } from "@/components/loaders/inline-spinner";
 import { AddClassTaskDialog } from "@/components/manager/classes/add-class-task-dialog";
 import { EditClassTaskDialog } from "@/components/manager/classes/edit-class-task-dialog";
+import { TaskAttachmentsSection } from "@/components/tasks/task-attachments-section";
 import { Button } from "@/components/ui/button";
+import { TASK_ATTACHMENT_ENTITIES } from "@/lib/constants/task-attachments";
+import type {
+  TaskAttachmentCloneJobRow,
+  TaskAttachmentRow,
+} from "@/types/task-attachment";
 import {
   Dialog,
   DialogContent,
@@ -55,6 +64,8 @@ type TeamLeaderTasksSectionProps = {
   classId: string;
   className: string;
   initialTasks: ManagerClassTaskRow[];
+  attachmentsByTaskId?: Record<string, TaskAttachmentRow[]>;
+  cloneJobsByTaskId?: Record<string, TaskAttachmentCloneJobRow | null>;
   hasComputedGrades: boolean;
 };
 
@@ -94,9 +105,14 @@ export function TeamLeaderTasksSection({
   classId,
   className,
   initialTasks,
+  attachmentsByTaskId: initialAttachmentsByTaskId = {},
+  cloneJobsByTaskId = {},
   hasComputedGrades,
 }: TeamLeaderTasksSectionProps) {
   const [tasks, setTasks] = useState(() => sortTasks(initialTasks));
+  const [attachmentsByTaskId, setAttachmentsByTaskId] = useState(
+    initialAttachmentsByTaskId
+  );
   const [isAddOpen, setIsAddOpen] = useState(false);
   const [editingTask, setEditingTask] = useState<ManagerClassTaskRow | null>(
     null
@@ -288,6 +304,25 @@ export function TeamLeaderTasksSection({
           className={className}
           action={updateTeamLeaderClassTaskAction}
           onTaskUpdated={(task) => replaceTask(task)}
+          attachmentsSlot={
+            <TaskAttachmentsSection
+              entity={TASK_ATTACHMENT_ENTITIES.CLASS_TASK}
+              entityId={editingTask.id}
+              attachments={attachmentsByTaskId[editingTask.id] ?? []}
+              cloneJob={cloneJobsByTaskId[editingTask.id] ?? null}
+              canMutate
+              collapsible={false}
+              uploadAction={uploadTeamLeaderTaskAttachmentAction}
+              deleteAction={deleteTeamLeaderTaskAttachmentAction}
+              getSignedUrlAction={getTeamLeaderTaskAttachmentSignedUrlAction}
+              onAttachmentsChange={(rows) => {
+                setAttachmentsByTaskId((current) => ({
+                  ...current,
+                  [editingTask.id]: rows,
+                }));
+              }}
+            />
+          }
         />
       ) : null}
 

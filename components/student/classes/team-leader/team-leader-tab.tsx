@@ -143,6 +143,8 @@ export function TeamLeaderTab({
         classId={classId}
         className={className}
         initialTasks={bundle.tasks}
+        attachmentsByTaskId={bundle.taskAttachmentsByTaskId}
+        cloneJobsByTaskId={bundle.attachmentCloneJobsByTaskId}
         hasComputedGrades={bundle.hasComputedGrades}
       />
     </div>

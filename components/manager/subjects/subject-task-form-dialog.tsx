@@ -1,14 +1,20 @@
 "use client";
 
-import { useEffect, useTransition } from "react";
+import { useEffect, useState, useTransition } from "react";
 import { useFormActionState as useActionState } from "@/hooks/use-form-action-state";
 import {
   createSubjectTaskAction,
   updateSubjectTaskAction,
 } from "@/app/manager/subjects/actions";
+import {
+  deleteTaskAttachmentAction,
+  getTaskAttachmentSignedUrlAction,
+  uploadTaskAttachmentAction,
+} from "@/app/manager/classes/actions";
 import { FieldLabel } from "@/components/auth/field-label";
 import { InlineSpinner } from "@/components/loaders/inline-spinner";
 import { TaskYesNoField } from "@/components/manager/shared/task-yes-no-field";
+import { TaskAttachmentsSection } from "@/components/tasks/task-attachments-section";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -27,6 +33,7 @@ import {
   useTaskYesNoToggle,
 } from "@/hooks/use-task-yes-no-toggle";
 import { useZodForm } from "@/hooks/use-zod-form";
+import { TASK_ATTACHMENT_ENTITIES } from "@/lib/constants/task-attachments";
 import {
   subjectTaskFieldsSchema,
 } from "@/lib/validators/manager/create-subject-task";
@@ -36,6 +43,7 @@ import type {
   ManagerSubjectTaskRow,
   UpdateSubjectTaskActionState,
 } from "@/types/manager-subject-task";
+import type { TaskAttachmentRow } from "@/types/task-attachment";
 
 const DEFAULT_PERIOD_DAYS = 7;
 const DEFAULT_MAX_GRADE = 100;
@@ -49,7 +57,9 @@ type SubjectTaskFormDialogProps = {
   task?: ManagerSubjectTaskRow | null;
   /** Sort order assigned to new tasks (append to end). */
   nextSortOrder: number;
+  initialAttachments?: TaskAttachmentRow[];
   onSaved: (task: ManagerSubjectTaskRow) => void;
+  onAttachmentsChange?: (taskId: string, rows: TaskAttachmentRow[]) => void;
 };
 
 function getDefaultValues(
@@ -73,9 +83,16 @@ export function SubjectTaskFormDialog({
   subjectName,
   task = null,
   nextSortOrder,
+  initialAttachments = [],
   onSaved,
+  onAttachmentsChange,
 }: SubjectTaskFormDialogProps) {
-  const isEdit = Boolean(task);
+  const [activeTask, setActiveTask] = useState<ManagerSubjectTaskRow | null>(
+    task
+  );
+  const [attachments, setAttachments] =
+    useState<TaskAttachmentRow[]>(initialAttachments);
+  const isEdit = Boolean(activeTask);
   const [isTransitionPending, startTransition] = useTransition();
   const [createState, createAction, isCreatePending] = useActionState(
     createSubjectTaskAction,
@@ -85,9 +102,10 @@ export function SubjectTaskFormDialog({
     updateSubjectTaskAction,
     {} as UpdateSubjectTaskActionState
   );
-  const state = isEdit ? updateState : createState;
+  const state = isEdit && task ? updateState : createState;
   const isPending =
-    isTransitionPending || (isEdit ? isUpdatePending : isCreatePending);
+    isTransitionPending ||
+    (isEdit && task ? isUpdatePending : isCreatePending);
   const handleOpenChange = usePendingAwareOpenChange(isPending, onOpenChange);
 
   useActionStateToast(state, isPending);
@@ -119,9 +137,18 @@ export function SubjectTaskFormDialog({
       return;
     }
 
+    setActiveTask(task);
+    setAttachments(task ? initialAttachments : []);
     reset(getDefaultValues(task, nextSortOrder));
     resetYesNoToggle();
-  }, [open, task, nextSortOrder, reset, resetYesNoToggle]);
+  }, [
+    open,
+    task,
+    initialAttachments,
+    nextSortOrder,
+    reset,
+    resetYesNoToggle,
+  ]);
 
   useActionStateSuccess(
     state,
@@ -132,6 +159,12 @@ export function SubjectTaskFormDialog({
       }
 
       onSaved(nextState.task);
+      if (!task) {
+        // Keep dialog open after create so files can be attached.
+        setActiveTask(nextState.task);
+        setAttachments([]);
+        return;
+      }
       onOpenChange(false);
     },
     (nextState) => Boolean(nextState.success && nextState.task)
@@ -147,7 +180,7 @@ export function SubjectTaskFormDialog({
   }) {
     const formData = new FormData();
     formData.set("subject_id", subjectId);
-    if (task) {
+    if (task?.id) {
       formData.set("id", task.id);
     }
     formData.set("title", values.title);
@@ -161,7 +194,7 @@ export function SubjectTaskFormDialog({
     );
 
     startTransition(() => {
-      if (task) {
+      if (task && activeTask) {
         updateAction(formData);
       } else {
         createAction(formData);
@@ -177,16 +210,25 @@ export function SubjectTaskFormDialog({
     errors.max_grade?.message ?? state.fieldErrors?.max_grade?.[0];
   const formId = isEdit ? "edit-subject-task-form" : "add-subject-task-form";
   const idPrefix = isEdit ? "edit-subject-task" : "add-subject-task";
+  const createdInSession = Boolean(activeTask && !task);
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogContent className="sm:max-w-md" showCloseButton={!isPending}>
+      <DialogContent className="sm:max-w-lg" showCloseButton={!isPending}>
         <DialogHeader>
-          <DialogTitle>{isEdit ? "Edit subject task" : "Create subject task"}</DialogTitle>
+          <DialogTitle>
+            {createdInSession
+              ? "Task created"
+              : isEdit
+                ? "Edit subject task"
+                : "Create subject task"}
+          </DialogTitle>
           <DialogDescription>
-            {isEdit
-              ? `Update this task template for ${subjectName}. Existing class tasks are not changed.`
-              : `Add a task template to ${subjectName}. It is copied onto classes that clone or import subject tasks.`}
+            {createdInSession
+              ? `Add files for this task, then close when you are done.`
+              : isEdit
+                ? `Update this task template for ${subjectName}. Existing class tasks are not changed.`
+                : `Add a task template to ${subjectName}. It is copied onto classes that clone or import subject tasks.`}
           </DialogDescription>
         </DialogHeader>
 
@@ -205,7 +247,7 @@ export function SubjectTaskFormDialog({
             <Input
               id={`${idPrefix}-title`}
               aria-invalid={!!titleError}
-              disabled={isPending}
+              disabled={isPending || createdInSession}
               {...register("title")}
             />
             {titleError ? (
@@ -223,7 +265,7 @@ export function SubjectTaskFormDialog({
               id={`${idPrefix}-description`}
               rows={3}
               aria-invalid={!!descriptionError}
-              disabled={isPending}
+              disabled={isPending || createdInSession}
               className={cn(
                 "w-full min-w-0 rounded-lg border border-input bg-transparent px-2.5 py-2 text-base transition-colors outline-none placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 disabled:pointer-events-none disabled:cursor-not-allowed disabled:bg-input/50 disabled:opacity-50 aria-invalid:border-destructive aria-invalid:ring-3 aria-invalid:ring-destructive/20 md:text-sm dark:bg-input/30 dark:disabled:bg-input/80 dark:aria-invalid:border-destructive/50 dark:aria-invalid:ring-destructive/40"
               )}
@@ -238,7 +280,7 @@ export function SubjectTaskFormDialog({
             id={`${idPrefix}-yes-no`}
             checked={isYesNo}
             onCheckedChange={onYesNoChange}
-            disabled={isPending}
+            disabled={isPending || createdInSession}
           />
 
           <div className="grid gap-4 sm:grid-cols-2">
@@ -254,7 +296,7 @@ export function SubjectTaskFormDialog({
                 min={1}
                 step={1}
                 aria-invalid={!!periodError}
-                disabled={isPending}
+                disabled={isPending || createdInSession}
                 {...register("period")}
               />
               {periodError ? (
@@ -276,7 +318,7 @@ export function SubjectTaskFormDialog({
                   max={999}
                   step={0.5}
                   aria-invalid={!!maxGradeError}
-                  disabled={isPending}
+                  disabled={isPending || createdInSession}
                   {...register("max_grade")}
                 />
                 {maxGradeError ? (
@@ -287,6 +329,23 @@ export function SubjectTaskFormDialog({
           </div>
         </form>
 
+        {activeTask ? (
+          <TaskAttachmentsSection
+            entity={TASK_ATTACHMENT_ENTITIES.SUBJECT_TASK}
+            entityId={activeTask.id}
+            attachments={attachments}
+            canMutate
+            collapsible={false}
+            uploadAction={uploadTaskAttachmentAction}
+            deleteAction={deleteTaskAttachmentAction}
+            getSignedUrlAction={getTaskAttachmentSignedUrlAction}
+            onAttachmentsChange={(rows) => {
+              setAttachments(rows);
+              onAttachmentsChange?.(activeTask.id, rows);
+            }}
+          />
+        ) : null}
+
         <DialogFooter className="mt-2 sm:justify-end">
           <Button
             type="button"
@@ -294,12 +353,14 @@ export function SubjectTaskFormDialog({
             disabled={isPending}
             onClick={() => handleOpenChange(false)}
           >
-            Cancel
+            {createdInSession ? "Done" : "Cancel"}
           </Button>
-          <Button type="submit" form={formId} disabled={isPending}>
-            {isPending ? <InlineSpinner className="mr-2" /> : null}
-            {isEdit ? "Save changes" : "Create task"}
-          </Button>
+          {createdInSession ? null : (
+            <Button type="submit" form={formId} disabled={isPending}>
+              {isPending ? <InlineSpinner className="mr-2" /> : null}
+              {isEdit ? "Save changes" : "Create task"}
+            </Button>
+          )}
         </DialogFooter>
       </DialogContent>
     </Dialog>

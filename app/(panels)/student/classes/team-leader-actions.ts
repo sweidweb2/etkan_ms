@@ -8,13 +8,21 @@ import {
 import { getSessionAuditActor } from "@/lib/auth/session";
 import {
   getManagerClassDetailRoute,
+  getManagerClassTaskDetailRoute,
   getStudentClassDetailRoute,
+  getStudentClassTaskDetailRoute,
   getTeacherClassDetailRoute,
+  getTeacherClassTaskDetailRoute,
 } from "@/lib/constants/routes";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { parseCreateClassTaskFormData } from "@/lib/validators/manager/create-class-task";
 import { parseUpdateClassTaskFormData } from "@/lib/validators/manager/update-class-task";
 import { parseUpdateAttendeeFormData } from "@/lib/validators/manager/update-attendee";
+import {
+  parseDeleteTaskAttachmentFormData,
+  parseTaskAttachmentSignedUrlFormData,
+  parseUploadTaskAttachmentFormData,
+} from "@/lib/validators/manager/task-attachment";
 import {
   createClassTaskForTeamLeader,
   getTeamLeaderSessionAttendanceForSelf,
@@ -22,18 +30,33 @@ import {
   updateAttendeeForTeamLeader,
   updateClassTaskForTeamLeader,
 } from "@/services/classes/class-team-leader.service";
+import {
+  deleteTaskAttachmentForActor,
+  getTaskAttachmentSignedUrlForActor,
+  uploadTaskAttachmentForActor,
+} from "@/services/classes/task-attachments.service";
 import type {
   CreateClassTaskActionState,
   SetClassTaskStartedActionState,
   UpdateAttendeeActionState,
   UpdateClassTaskActionState,
 } from "@/types/manager-class-session-detail";
+import type {
+  DeleteTaskAttachmentActionState,
+  TaskAttachmentSignedUrlActionState,
+  UploadTaskAttachmentActionState,
+} from "@/types/task-attachment";
 import type { LoadTeamLeaderSessionAttendanceResult } from "@/types/student-team-leader";
 
-function revalidateClassTaskSurfaces(classId: string) {
+function revalidateClassTaskSurfaces(classId: string, taskId?: string) {
   revalidatePath(getStudentClassDetailRoute(classId));
   revalidatePath(getManagerClassDetailRoute(classId));
   revalidatePath(getTeacherClassDetailRoute(classId));
+  if (taskId) {
+    revalidatePath(getStudentClassTaskDetailRoute(classId, taskId));
+    revalidatePath(getManagerClassTaskDetailRoute(classId, taskId));
+    revalidatePath(getTeacherClassTaskDetailRoute(classId, taskId));
+  }
 }
 
 export async function loadTeamLeaderSessionAttendanceAction(
@@ -141,6 +164,68 @@ export async function startTeamLeaderClassTaskAction(
       success: true,
       message: result.message,
       task: result.task,
+    }),
+  });
+}
+
+export async function uploadTeamLeaderTaskAttachmentAction(
+  _prevState: UploadTaskAttachmentActionState,
+  formData: FormData
+): Promise<UploadTaskAttachmentActionState> {
+  return runManagerAction({
+    formData,
+    parse: parseUploadTaskAttachmentFormData,
+    mutate: ({ adminClient, actor, data }) =>
+      uploadTaskAttachmentForActor(adminClient, actor, data),
+    revalidate: (result) => {
+      if (result.classId) {
+        revalidateClassTaskSurfaces(
+          result.classId,
+          result.attachment.entity_id
+        );
+      }
+    },
+    mapSuccess: (result) => ({
+      success: true,
+      message: result.message,
+      attachment: result.attachment,
+    }),
+  });
+}
+
+export async function deleteTeamLeaderTaskAttachmentAction(
+  _prevState: DeleteTaskAttachmentActionState,
+  formData: FormData
+): Promise<DeleteTaskAttachmentActionState> {
+  return runManagerAction({
+    formData,
+    parse: parseDeleteTaskAttachmentFormData,
+    mutate: ({ adminClient, actor, data }) =>
+      deleteTaskAttachmentForActor(adminClient, actor, data),
+    revalidate: (result) => {
+      if (result.classId) {
+        revalidateClassTaskSurfaces(result.classId, result.entityId);
+      }
+    },
+    mapSuccess: (result) => ({
+      success: true,
+      message: result.message,
+    }),
+  });
+}
+
+export async function getTeamLeaderTaskAttachmentSignedUrlAction(
+  formData: FormData
+): Promise<TaskAttachmentSignedUrlActionState> {
+  return runManagerAction({
+    formData,
+    parse: parseTaskAttachmentSignedUrlFormData,
+    mutate: ({ adminClient, actor, data }) =>
+      getTaskAttachmentSignedUrlForActor(adminClient, actor.userId, data),
+    mapSuccess: (result) => ({
+      success: true,
+      signedUrl: result.signedUrl,
+      fileName: result.fileName,
     }),
   });
 }

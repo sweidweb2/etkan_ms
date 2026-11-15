@@ -8,6 +8,7 @@ import { WORKSHOPS_STORAGE_BUCKET } from "@/lib/manager/workshops/storage-path";
 import { REGISTRATION_STORAGE_BUCKET } from "@/lib/public/registration/storage-path";
 import { CLASS_COVERS_STORAGE_BUCKET } from "@/lib/manager/classes/storage-path";
 import { STUDENT_TASK_UPLOADS_STORAGE_BUCKET } from "@/lib/constants/manager-student-task-uploads";
+import { TASK_ATTACHMENTS_STORAGE_BUCKET } from "@/lib/constants/task-attachments";
 import { AVATARS_STORAGE_BUCKET } from "@/lib/avatars/storage-path";
 
 export const BACKUP_STORAGE_BUCKETS = [
@@ -17,6 +18,7 @@ export const BACKUP_STORAGE_BUCKETS = [
   WORKSHOPS_STORAGE_BUCKET,
   REGISTRATION_STORAGE_BUCKET,
   STUDENT_TASK_UPLOADS_STORAGE_BUCKET,
+  TASK_ATTACHMENTS_STORAGE_BUCKET,
   GALLERY_STORAGE_BUCKET,
   CLASS_COVERS_STORAGE_BUCKET,
   AVATARS_STORAGE_BUCKET,
@@ -32,6 +34,7 @@ export const BACKUP_STORAGE_BUCKET_LABELS: Record<BackupStorageBucket, string> =
     [WORKSHOPS_STORAGE_BUCKET]: "Workshops",
     [REGISTRATION_STORAGE_BUCKET]: "Registration",
     [STUDENT_TASK_UPLOADS_STORAGE_BUCKET]: "Student task uploads",
+    [TASK_ATTACHMENTS_STORAGE_BUCKET]: "Task attachments",
     [GALLERY_STORAGE_BUCKET]: "Gallery",
     [CLASS_COVERS_STORAGE_BUCKET]: "Class covers",
     [AVATARS_STORAGE_BUCKET]: "Profile avatars",

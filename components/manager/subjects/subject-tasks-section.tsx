@@ -22,6 +22,7 @@ import type {
   DeleteSubjectTaskActionState,
   ManagerSubjectTaskRow,
 } from "@/types/manager-subject-task";
+import type { TaskAttachmentRow } from "@/types/task-attachment";
 
 const initialDeleteState: DeleteSubjectTaskActionState = {};
 
@@ -29,6 +30,7 @@ type SubjectTasksSectionProps = {
   subjectId: string;
   subjectName: string;
   tasks: ManagerSubjectTaskRow[];
+  attachmentsByTaskId?: Record<string, TaskAttachmentRow[]>;
 };
 
 function sortTasks(tasks: ManagerSubjectTaskRow[]) {
@@ -48,9 +50,16 @@ export function SubjectTasksSection({
   subjectId,
   subjectName,
   tasks: initialTasks,
+  attachmentsByTaskId: initialAttachmentsByTaskId = {},
 }: SubjectTasksSectionProps) {
   const [tasks, setTasks] = useState(initialTasks);
   const [prevInitialTasks, setPrevInitialTasks] = useState(initialTasks);
+  const [attachmentsByTaskId, setAttachmentsByTaskId] = useState(
+    initialAttachmentsByTaskId
+  );
+  const [prevAttachmentsByTaskId, setPrevAttachmentsByTaskId] = useState(
+    initialAttachmentsByTaskId
+  );
   const [isAddOpen, setIsAddOpen] = useState(false);
   const [editingTask, setEditingTask] = useState<ManagerSubjectTaskRow | null>(
     null,
@@ -87,6 +96,11 @@ export function SubjectTasksSection({
     setTasks(initialTasks);
   }
 
+  if (initialAttachmentsByTaskId !== prevAttachmentsByTaskId) {
+    setPrevAttachmentsByTaskId(initialAttachmentsByTaskId);
+    setAttachmentsByTaskId(initialAttachmentsByTaskId);
+  }
+
   const nextSortOrder =
     tasks.reduce((max, row) => Math.max(max, row.sort_order), -1) + 1;
 
@@ -104,7 +118,14 @@ export function SubjectTasksSection({
         subjectId={subjectId}
         subjectName={subjectName}
         nextSortOrder={nextSortOrder}
+        initialAttachments={[]}
         onSaved={handleSaved}
+        onAttachmentsChange={(taskId, rows) => {
+          setAttachmentsByTaskId((current) => ({
+            ...current,
+            [taskId]: rows,
+          }));
+        }}
       />
 
       {editingTask ? (
@@ -119,7 +140,14 @@ export function SubjectTasksSection({
           subjectName={subjectName}
           task={editingTask}
           nextSortOrder={nextSortOrder}
+          initialAttachments={attachmentsByTaskId[editingTask.id] ?? []}
           onSaved={handleSaved}
+          onAttachmentsChange={(taskId, rows) => {
+            setAttachmentsByTaskId((current) => ({
+              ...current,
+              [taskId]: rows,
+            }));
+          }}
         />
       ) : null}
 

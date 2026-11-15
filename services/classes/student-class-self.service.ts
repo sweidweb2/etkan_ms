@@ -29,6 +29,7 @@ import {
 } from "@/services/auth/authorization.service";
 import { getStudentTeamLeaderBundle } from "@/services/classes/class-team-leader.service";
 import { mapStudentTaskUploadForSelf } from "@/services/classes/student-task-upload-self.service";
+import { listClassTaskAttachmentsForStudent } from "@/services/classes/task-attachments.service";
 import { listStudentClassAcademicBundlesForSelf } from "@/services/classes/student-course-grade.service";
 import {
   getJoinedClassForStudentSelf,
@@ -226,6 +227,10 @@ export async function getStudentClassTaskForSelf(
   const studentTaskRecord = (studentTasksResult.data?.[0] ??
     null) as StudentTaskRecord | null;
 
+  const taskAttachments = taskRecord.started
+    ? await listClassTaskAttachmentsForStudent(adminClient, userId, taskId)
+    : [];
+
   return {
     classRow,
     task: {
@@ -254,6 +259,7 @@ export async function getStudentClassTaskForSelf(
     uploads: studentTaskRecord
       ? await listOwnTaskUploads(adminClient, studentTaskRecord.id)
       : [],
+    taskAttachments,
   };
 }
 

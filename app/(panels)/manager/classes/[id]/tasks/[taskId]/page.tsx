@@ -30,6 +30,8 @@ export default async function ManagerClassTaskDetailPage({
       classRow={detail.classRow}
       initialStudentTasks={detail.studentTasks}
       initialUploads={detail.uploads}
+      initialTaskAttachments={detail.taskAttachments}
+      attachmentCloneJob={detail.attachmentCloneJob}
       lockedUserIds={computedGradeLock.lockedUserIds}
       hasComputedGrades={computedGradeLock.hasComputedGrades}
     />

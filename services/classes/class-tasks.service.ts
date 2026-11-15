@@ -31,6 +31,8 @@ import {
   importMissingSubjectTasksToClass,
 } from "@/services/classes/class-task-clone.service";
 import { removeStorageForStudentTaskUploads } from "@/services/classes/student-task-upload.service";
+import { removeStorageAndRowsForTaskAttachments } from "@/services/classes/task-attachments.service";
+import { TASK_ATTACHMENT_ENTITIES } from "@/lib/constants/task-attachments";
 import { assertAssignedTeacherForClassMutation } from "@/services/classes/teacher-class-scope.service";
 import {
   attachTaskEditorNames,
@@ -511,6 +513,20 @@ export async function deleteClassTaskForManager(
       error:
         storageCleanup.error.message ||
         "Unable to delete student task upload files.",
+    };
+  }
+
+  const attachmentCleanup = await removeStorageAndRowsForTaskAttachments(
+    adminClient,
+    TASK_ATTACHMENT_ENTITIES.CLASS_TASK,
+    [input.id]
+  );
+  if (attachmentCleanup.error) {
+    return {
+      success: false,
+      error:
+        attachmentCleanup.error.message ||
+        "Unable to delete task attachments.",
     };
   }
 

@@ -45,6 +45,13 @@ import {
   mapStudentTaskRow,
   mapTaskRecord,
 } from "@/services/classes/session-shared";
+import { TASK_ATTACHMENT_ENTITIES } from "@/lib/constants/task-attachments";
+import {
+  getLatestCloneJobForClassTask,
+  isCloneJobBlockingUploads,
+  scheduleAttachmentCloneProcessing,
+} from "@/services/classes/task-attachment-clone.service";
+import { listTaskAttachmentsUnchecked } from "@/services/classes/task-attachments.service";
 import { assertTeachingAssignment } from "@/services/classes/teacher-class-scope.service";
 import type {
   TeacherClassDetailRow,
@@ -53,6 +60,7 @@ import type {
   TeachingClassSessionInlineDetail,
   TeachingClassTaskPageBundle,
 } from "@/types/class-teaching";
+import type { TaskAttachmentCloneJobRow } from "@/types/task-attachment";
 import type { ManagerStudentTaskUploadRow } from "@/types/manager-class-session-detail";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/types/supabase";
@@ -371,17 +379,24 @@ export async function getTeachingClassTaskPageBundleForSelf(
     []) as StudentTaskRecord[];
   const studentTaskIds = studentTaskRecords.map((row) => row.id);
 
-  const [displayByUserId, uploadsResult] = await Promise.all([
-    buildStudentDisplayByUserId(
-      adminClient,
-      studentTaskRecords.map((row) => row.student_id),
-      { includeAuthEmails: false }
-    ),
-    studentTaskUploadRepository.listStudentTaskUploadsByStudentTaskIds(
-      adminClient,
-      studentTaskIds
-    ),
-  ]);
+  const [displayByUserId, uploadsResult, taskAttachments, latestCloneJob] =
+    await Promise.all([
+      buildStudentDisplayByUserId(
+        adminClient,
+        studentTaskRecords.map((row) => row.student_id),
+        { includeAuthEmails: false }
+      ),
+      studentTaskUploadRepository.listStudentTaskUploadsByStudentTaskIds(
+        adminClient,
+        studentTaskIds
+      ),
+      listTaskAttachmentsUnchecked(
+        adminClient,
+        TASK_ATTACHMENT_ENTITIES.CLASS_TASK,
+        taskId
+      ),
+      getLatestCloneJobForClassTask(adminClient, taskId),
+    ]);
 
   if (uploadsResult.error) {
     throw new Error(uploadsResult.error.message);
@@ -399,6 +414,23 @@ export async function getTeachingClassTaskPageBundleForSelf(
     created_at: row.created_at,
   }));
 
+  let attachmentCloneJob: TaskAttachmentCloneJobRow | null = null;
+  if (latestCloneJob) {
+    attachmentCloneJob = {
+      id: latestCloneJob.id,
+      class_task_id: latestCloneJob.class_task_id,
+      source_subject_task_id: latestCloneJob.source_subject_task_id,
+      status: latestCloneJob.status,
+      error_message: latestCloneJob.error_message,
+      created_at: latestCloneJob.created_at,
+      updated_at: latestCloneJob.updated_at,
+      completed_at: latestCloneJob.completed_at,
+    };
+    if (isCloneJobBlockingUploads(latestCloneJob.status)) {
+      scheduleAttachmentCloneProcessing(adminClient);
+    }
+  }
+
   return {
     task: mapTaskRecord(taskResult.data as ClassTaskRecord),
     classRow: {
@@ -409,6 +441,8 @@ export async function getTeachingClassTaskPageBundleForSelf(
       mapStudentTaskRow(row, displayByUserId)
     ),
     uploads,
+    taskAttachments,
+    attachmentCloneJob,
     hasComputedGrades: gradeLock.hasComputedGrades,
     lockedUserIds: gradeLock.lockedUserIds,
   };

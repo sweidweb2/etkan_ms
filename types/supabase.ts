@@ -2570,6 +2570,101 @@ export type Database = {
           },
         ]
       }
+      task_attachment_clone_jobs: {
+        Row: {
+          class_task_id: string
+          completed_at: string | null
+          created_at: string
+          error_message: string | null
+          id: string
+          source_subject_task_id: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          class_task_id: string
+          completed_at?: string | null
+          created_at?: string
+          error_message?: string | null
+          id?: string
+          source_subject_task_id?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          class_task_id?: string
+          completed_at?: string | null
+          created_at?: string
+          error_message?: string | null
+          id?: string
+          source_subject_task_id?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "task_attachment_clone_jobs_class_task_id_fkey"
+            columns: ["class_task_id"]
+            isOneToOne: false
+            referencedRelation: "class_tasks"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "task_attachment_clone_jobs_source_subject_task_id_fkey"
+            columns: ["source_subject_task_id"]
+            isOneToOne: false
+            referencedRelation: "subject_tasks"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      task_attachments: {
+        Row: {
+          created_at: string
+          entity: string
+          entity_id: string
+          file_name: string
+          file_size: number
+          id: string
+          mime_type: string
+          sort_order: number
+          storage_path: string
+          uploaded_by: string | null
+        }
+        Insert: {
+          created_at?: string
+          entity: string
+          entity_id: string
+          file_name: string
+          file_size: number
+          id?: string
+          mime_type: string
+          sort_order?: number
+          storage_path: string
+          uploaded_by?: string | null
+        }
+        Update: {
+          created_at?: string
+          entity?: string
+          entity_id?: string
+          file_name?: string
+          file_size?: number
+          id?: string
+          mime_type?: string
+          sort_order?: number
+          storage_path?: string
+          uploaded_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "task_attachments_uploaded_by_fkey"
+            columns: ["uploaded_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       team_guests: {
         Row: {
           created_at: string

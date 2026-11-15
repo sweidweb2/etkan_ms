@@ -13,12 +13,20 @@
 import {
   deleteClassTaskAction,
   deleteStudentTaskUploadAction,
+  deleteTaskAttachmentAction,
   getStudentTaskUploadSignedUrlAction,
+  getTaskAttachmentSignedUrlAction,
   setClassTaskStartedAction,
   setStudentTeamLeaderAction,
   updateStudentTaskAction,
   uploadStudentTaskFileAction,
+  uploadTaskAttachmentAction,
 } from "@/app/manager/classes/actions";
+import type {
+  DeleteTaskAttachmentActionState,
+  TaskAttachmentSignedUrlActionState,
+  UploadTaskAttachmentActionState,
+} from "@/types/task-attachment";
 import { getSessionAuditActor } from "@/lib/auth/session";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import {
@@ -84,6 +92,26 @@ export async function getTeacherStudentTaskUploadSignedUrlAction(
   formData: FormData
 ): Promise<{ success: boolean; signedUrl?: string; error?: string }> {
   return getStudentTaskUploadSignedUrlAction(formData);
+}
+
+export async function uploadTeacherTaskAttachmentAction(
+  prevState: UploadTaskAttachmentActionState,
+  formData: FormData
+): Promise<UploadTaskAttachmentActionState> {
+  return uploadTaskAttachmentAction(prevState, formData);
+}
+
+export async function deleteTeacherTaskAttachmentAction(
+  prevState: DeleteTaskAttachmentActionState,
+  formData: FormData
+): Promise<DeleteTaskAttachmentActionState> {
+  return deleteTaskAttachmentAction(prevState, formData);
+}
+
+export async function getTeacherTaskAttachmentSignedUrlAction(
+  formData: FormData
+): Promise<TaskAttachmentSignedUrlActionState> {
+  return getTaskAttachmentSignedUrlAction(formData);
 }
 
 export type TeacherClassSessionInlineDetail = TeachingClassSessionInlineDetail;

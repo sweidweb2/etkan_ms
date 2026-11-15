@@ -103,14 +103,15 @@ export const MANAGER_CRON_JOBS: ManagerCronJobRow[] = [
     summary:
       "SQL dump of all public tables plus auth.users/identities into Storage (no media).",
     description:
-      "Runs via GitHub Actions → POST /api/cron/database-backup (Bearer CRON_SECRET). Exports every public table as SQL inserts, appends auth.users + auth.identities, and uploads one .sql file to the private database-backups bucket under weekly/YYYY/MM/DD/. Does not include Storage media. Local/manual: npm run backup:database. Also records a row in backup_history.",
-    function_name: "POST /api/cron/database-backup",
+      "pg_cron calls public.run_weekly_database_sql_backup(), which uses pg_net to POST /api/cron/database-backup (Bearer from vault). The app exports every public table as SQL inserts, appends auth.users + auth.identities, and uploads one .sql file to the private database-backups bucket under weekly/YYYY/MM/DD/. No media. Requires vault secrets database_backup_cron_url + database_backup_cron_secret (must match app CRON_SECRET). Also records backup_history.",
+    function_name: "public.run_weekly_database_sql_backup()",
     tables: ["*", "auth.users", "auth.identities", "storage.buckets/database-backups"],
     migration:
-      "supabase/migrations/20261115140000_database_backups_bucket.sql",
+      "supabase/migrations/20261115143000_cron_weekly_database_sql_backup.sql",
     verify_hint:
-      "List Storage bucket database-backups, or: npm run backup:database then check weekly/… path. Actions: Weekly database SQL backup workflow.",
-    manual_run: "npm run backup:database",
+      "select * from cron.job where jobname = 'weekly-database-sql-backup'; select * from net._http_response order by created desc limit 5; list Storage bucket database-backups.",
+    manual_run:
+      "select public.run_weekly_database_sql_backup(); — or npm run backup:database",
   },
 ];
 
