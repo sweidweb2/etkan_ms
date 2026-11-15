@@ -2,12 +2,14 @@ export const BACKUP_EXPORT_FORMATS = {
   JSON: "json",
   SQL: "sql",
   CSV: "csv",
+  BUSINESS_CSV: "business_csv",
 } as const;
 
 export const BACKUP_EXPORT_FORMAT_VALUES = [
   BACKUP_EXPORT_FORMATS.JSON,
   BACKUP_EXPORT_FORMATS.SQL,
   BACKUP_EXPORT_FORMATS.CSV,
+  BACKUP_EXPORT_FORMATS.BUSINESS_CSV,
 ] as const;
 
 export type BackupExportFormat = (typeof BACKUP_EXPORT_FORMAT_VALUES)[number];
@@ -16,6 +18,7 @@ export const BACKUP_EXPORT_FORMAT_LABELS: Record<BackupExportFormat, string> = {
   json: "JSON (.json)",
   sql: "SQL (.sql)",
   csv: "CSV (.csv)",
+  business_csv: "Business CSV (.csv)",
 };
 
 export function isBackupExportFormat(

@@ -83,7 +83,7 @@ function filterNavGroups(
 /**
  * Keep nav items whose href maps to a granted manager view permission,
  * plus role-native (non-manager) links.
- * Manage workshops also requires instructor (or manager/supervisor role).
+ * Manage workshops also requires instructor (or manager/supervisor/CEO role).
  */
 export function filterPanelNavigation(
   navigation: PanelNavigation,

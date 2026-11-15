@@ -20,7 +20,7 @@ export function parseBackupExportFormat(
   if (!parsed.success) {
     return {
       success: false,
-      error: "Invalid backup format. Choose JSON, SQL, or CSV.",
+      error: "Invalid backup format. Choose JSON, SQL, CSV, or Business CSV.",
     };
   }
 

@@ -84,7 +84,7 @@ describe("canAccessPath", () => {
     expect(canAccessPath(ROUTES.MANAGER_REGISTRATIONS, ROLES.CRM)).toBe(true);
   });
 
-  it("allows supervisor to enter manager paths (layout gates by permission)", () => {
+  it("allows supervisor and CEO to enter manager paths (layout gates by permission)", () => {
     expect(canAccessPath(ROUTES.MANAGER_STUDENTS, ROLES.SUPERVISOR)).toBe(
       true
     );
@@ -95,13 +95,16 @@ describe("canAccessPath", () => {
     expect(canAccessPath(ROUTES.MANAGER_ACCOUNTING, ROLES.SUPERVISOR)).toBe(
       true
     );
+    expect(canAccessPath(ROUTES.MANAGER_STUDENTS, ROLES.CEO)).toBe(true);
+    expect(canAccessPath(ROUTES.MANAGER_CLASSES, ROLES.CEO)).toBe(true);
+    expect(canAccessPath(ROUTES.MANAGER_INCOME_STATEMENT, ROLES.CEO)).toBe(
+      true
+    );
+    expect(canAccessPath(ROUTES.MANAGER_USERS, ROLES.CEO)).toBe(true);
   });
 
   it("still denies non-shared manager paths for other roles", () => {
     expect(canAccessPath(ROUTES.MANAGER_USERS, ROLES.TEACHER)).toBe(false);
-    expect(canAccessPath(ROUTES.MANAGER_INCOME_STATEMENT, ROLES.CEO)).toBe(
-      false
-    );
     expect(canAccessPath(ROUTES.MANAGER_USERS, ROLES.CRM)).toBe(false);
     expect(canAccessPath(ROUTES.MANAGER_STUDENTS, ROLES.CRM)).toBe(false);
     expect(canAccessPath(ROUTES.MANAGER_ACCOUNTING, ROLES.CRM)).toBe(false);

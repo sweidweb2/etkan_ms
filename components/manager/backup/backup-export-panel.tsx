@@ -149,6 +149,10 @@ function buildBackupExportUrl(
   return `/api/manager/backup?${params.toString()}`;
 }
 
+function historyEntryUsesFormatMenu(entry: BackupHistoryEntry) {
+  return entry.scope === "table" || entry.scope === "all";
+}
+
 function getHistoryExportUrl(
   entry: BackupHistoryEntry,
   format: BackupExportFormat
@@ -340,7 +344,7 @@ export function BackupExportPanel({ initialHistory }: BackupExportPanelProps) {
 
   async function handleHistoryExport(
     entry: BackupHistoryEntry,
-    format: BackupExportFormat
+    format: BackupExportFormat = "json"
   ) {
     try {
       setPendingHistoryExportId(entry.id);
@@ -408,14 +412,20 @@ export function BackupExportPanel({ initialHistory }: BackupExportPanelProps) {
 
   return (
     <div className="space-y-6">
-      <PanelPageHeader title="Backup" />
+      <PanelPageHeader title="Manage backups" />
+
+      <p className="text-sm text-muted-foreground">
+        Export-only toolkit for tables, auth, storage, and dashboard auth
+        settings. Downloads go to your browser — this is not the VPS{" "}
+        <code className="text-xs">pg_dump</code> folder.
+      </p>
 
       <div className="grid gap-6 @4xl/panel:grid-cols-[minmax(28rem,1fr)_minmax(0,22rem)]">
         <Card className="h-fit py-0">
           <CardHeader className="border-b bg-muted/40 py-3">
             <CardTitle>Backup History</CardTitle>
             <CardDescription>
-              Recent export activity for this backup page.
+              Recent export activity (latest 100 rows). Filter and page below.
             </CardDescription>
           </CardHeader>
           <CardContent className="py-3">
@@ -501,19 +511,39 @@ export function BackupExportPanel({ initialHistory }: BackupExportPanelProps) {
                           </td>
                           <td className="px-1 py-2 align-middle text-right">
                             <Can permission={PERMISSIONS.BACKUP_DOWNLOAD}>
-                              <BackupExportMenu
-                                pending={pendingHistoryExportId === entry.id}
-                                disabled={pendingHistoryExportId !== null}
-                                variant="ghost"
-                                size="icon-xs"
-                                iconOnly
-                                align="end"
-                                ariaLabel="Re-export backup"
-                                className="text-primary hover:bg-primary/10 hover:text-primary"
-                                onSelectFormat={(format) =>
-                                  handleHistoryExport(entry, format)
-                                }
-                              />
+                              {historyEntryUsesFormatMenu(entry) ? (
+                                <BackupExportMenu
+                                  pending={pendingHistoryExportId === entry.id}
+                                  disabled={pendingHistoryExportId !== null}
+                                  variant="ghost"
+                                  size="icon-xs"
+                                  iconOnly
+                                  align="end"
+                                  ariaLabel="Re-export backup"
+                                  className="text-primary hover:bg-primary/10 hover:text-primary"
+                                  onSelectFormat={(format) =>
+                                    void handleHistoryExport(entry, format)
+                                  }
+                                />
+                              ) : (
+                                <Button
+                                  type="button"
+                                  variant="ghost"
+                                  size="icon-xs"
+                                  disabled={pendingHistoryExportId !== null}
+                                  aria-label="Re-export backup"
+                                  className="text-primary hover:bg-primary/10 hover:text-primary"
+                                  onClick={() =>
+                                    void handleHistoryExport(entry)
+                                  }
+                                >
+                                  {pendingHistoryExportId === entry.id ? (
+                                    <InlineSpinner />
+                                  ) : (
+                                    <Download className="size-4" aria-hidden />
+                                  )}
+                                </Button>
+                              )}
                             </Can>
                           </td>
                           <td className="px-1 py-2 align-middle text-right">

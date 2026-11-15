@@ -39,7 +39,11 @@ export default async function ManagerLayout({
     redirect(ROUTES.LOGIN);
   }
 
-  if (role === ROLES.MANAGER || role === ROLES.SUPERVISOR) {
+  if (
+    role === ROLES.MANAGER ||
+    role === ROLES.SUPERVISOR ||
+    role === ROLES.CEO
+  ) {
     await requireManagerRoutePermission(pathname);
     if (debugOn) {
       const bag = getNavRscTimingBag();

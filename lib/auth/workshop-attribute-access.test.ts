@@ -12,7 +12,7 @@ describe("canAccessManageWorkshops", () => {
     expect(canAccessManageWorkshops({ isInstructor: false })).toBe(false);
   });
 
-  it("allows managers and supervisors by role without instructor", () => {
+  it("allows managers, supervisors, and CEO by role without instructor", () => {
     expect(
       canAccessManageWorkshops({
         isInstructor: false,
@@ -23,6 +23,12 @@ describe("canAccessManageWorkshops", () => {
       canAccessManageWorkshops({
         isInstructor: false,
         role: ROLES.SUPERVISOR,
+      })
+    ).toBe(true);
+    expect(
+      canAccessManageWorkshops({
+        isInstructor: false,
+        role: ROLES.CEO,
       })
     ).toBe(true);
   });
@@ -37,7 +43,7 @@ describe("canAccessManageWorkshops", () => {
     expect(
       canAccessManageWorkshops({
         isInstructor: false,
-        role: ROLES.CEO,
+        role: ROLES.CRM,
       })
     ).toBe(false);
   });

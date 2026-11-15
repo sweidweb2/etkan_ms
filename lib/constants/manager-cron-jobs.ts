@@ -93,6 +93,25 @@ export const MANAGER_CRON_JOBS: ManagerCronJobRow[] = [
       "Dashboard → Integrations → Cron, or: select * from cron.job_run_details order by start_time desc limit 20;",
     manual_run: "select public.purge_expired_spp_clearances();",
   },
+  {
+    id: "weekly-database-sql-backup",
+    job_name: "weekly-database-sql-backup",
+    schedule: "0 3 * * 0",
+    schedule_label: "Weekly Sunday 03:00 UTC",
+    frequency: CRON_JOB_FREQUENCIES.WEEKLY,
+    status: CRON_JOB_STATUSES.ACTIVE,
+    summary:
+      "SQL dump of all public tables plus auth.users/identities into Storage (no media).",
+    description:
+      "Runs via GitHub Actions → POST /api/cron/database-backup (Bearer CRON_SECRET). Exports every public table as SQL inserts, appends auth.users + auth.identities, and uploads one .sql file to the private database-backups bucket under weekly/YYYY/MM/DD/. Does not include Storage media. Local/manual: npm run backup:database. Also records a row in backup_history.",
+    function_name: "POST /api/cron/database-backup",
+    tables: ["*", "auth.users", "auth.identities", "storage.buckets/database-backups"],
+    migration:
+      "supabase/migrations/20261115140000_database_backups_bucket.sql",
+    verify_hint:
+      "List Storage bucket database-backups, or: npm run backup:database then check weekly/… path. Actions: Weekly database SQL backup workflow.",
+    manual_run: "npm run backup:database",
+  },
 ];
 
 export function getManagerCronJobsCatalog(): ManagerCronJobRow[] {

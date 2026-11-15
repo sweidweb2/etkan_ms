@@ -5,7 +5,7 @@ import type {
   PanelNavigation,
 } from "@/types/panel";
 
-/** Shared across roles; filtered by `workshops.view` + instructor (or manager/supervisor role). */
+/** Shared across roles; filtered by `workshops.view` + instructor (or manager/supervisor/CEO role). */
 const MANAGE_WORKSHOPS_NAV_ITEM: PanelNavItem = {
   title: "Manage workshops",
   href: ROUTES.MANAGER_WORKSHOPS,
@@ -112,7 +112,7 @@ export const MANAGER_PAGES_HUB_GROUPS: PanelNavGroup[] = [
         icon: "bell",
       },
       {
-        title: "Backup",
+        title: "Manage backups",
         href: ROUTES.MANAGER_BACKUP,
         icon: "backup",
       },
@@ -223,36 +223,12 @@ export const MANAGER_PANEL_NAVIGATION: PanelNavigation = {
   ],
 };
 
-export const CEO_PANEL_NAVIGATION: PanelNavigation = {
-  items: [
-    {
-      title: "Manage instructors",
-      href: ROUTES.MANAGER_INSTRUCTORS,
-      icon: "school",
-    },
-    {
-      title: "Instructor schedules",
-      href: ROUTES.MANAGER_INSTRUCTOR_SCHEDULES,
-      icon: "calendar-days",
-    },
-    MANAGE_WORKSHOPS_NAV_ITEM,
-    {
-      title: "Guests",
-      href: ROUTES.MANAGER_GUESTS,
-      icon: "user-plus",
-    },
-    {
-      title: "Income analytics",
-      href: ROUTES.MANAGER_INCOME_STATEMENT_ANALYTICS,
-      icon: "analytics",
-    },
-    {
-      title: "Academic analysis",
-      href: ROUTES.MANAGER_ACADEMIC_ANALYSIS,
-      icon: "book-open",
-    },
-  ],
-};
+/**
+ * CEO: same manager catalog; `filterPanelNavigation` keeps only
+ * items whose view permission is granted (seed defaults + RBAC extras).
+ */
+export const CEO_PANEL_NAVIGATION: PanelNavigation =
+  MANAGER_PANEL_NAVIGATION;
 
 /** CRM: guests (+ Manage workshops when instructor + workshops.view). */
 export const CRM_PANEL_NAVIGATION = withManageWorkshops({

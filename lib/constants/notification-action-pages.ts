@@ -1,12 +1,10 @@
 import {
   ADMIN_PANEL_NAVIGATION,
-  CEO_PANEL_NAVIGATION,
   CO_MANAGER_PANEL_NAVIGATION,
   CRM_PANEL_NAVIGATION,
   MANAGER_PAGES_HUB_GROUPS,
   MANAGER_PANEL_NAVIGATION,
   STUDENT_PANEL_NAVIGATION,
-  SUPERVISOR_PANEL_NAVIGATION,
   TEACHER_PANEL_NAVIGATION,
 } from "@/lib/constants/panel-nav";
 import {
@@ -56,7 +54,7 @@ const NOTIFICATION_ACTION_PAGES_BY_AUDIENCE: Record<
   admin: flattenPanelNavigation(ADMIN_PANEL_NAVIGATION),
   manager: flattenManagerCatalog(),
   "co-manager": flattenPanelNavigation(CO_MANAGER_PANEL_NAVIGATION),
-  ceo: flattenPanelNavigation(CEO_PANEL_NAVIGATION),
+  ceo: flattenManagerCatalog(),
   supervisor: flattenManagerCatalog(),
   crm: flattenPanelNavigation(CRM_PANEL_NAVIGATION),
   teacher: flattenPanelNavigation(TEACHER_PANEL_NAVIGATION),

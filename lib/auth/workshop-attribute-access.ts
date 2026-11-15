@@ -4,6 +4,7 @@ import { ROLES, type RoleValue } from "@/lib/constants/roles";
 const WORKSHOP_ACCESS_BY_ROLE = new Set<RoleValue>([
   ROLES.MANAGER,
   ROLES.SUPERVISOR,
+  ROLES.CEO,
 ]);
 
 export type WorkshopAttributeAccessInput = {
@@ -12,7 +13,7 @@ export type WorkshopAttributeAccessInput = {
 };
 
 /**
- * Manage workshops UI: instructors via profile flag; managers/supervisors via role.
+ * Manage workshops UI: instructors via profile flag; manager/supervisor/CEO via role.
  * Callers still gate on `workshops.view` separately.
  */
 export function canAccessManageWorkshops(

@@ -27,8 +27,11 @@ export function canAccessPath(pathname: string, role: RoleValue): boolean {
     return true;
   }
 
-  // Supervisors may enter any /manager/* path; layout gates by view permission.
-  if (role === ROLES.SUPERVISOR && isManagerPanelPath(pathname)) {
+  // Supervisor/CEO may enter any /manager/* path; layout gates by view permission.
+  if (
+    (role === ROLES.SUPERVISOR || role === ROLES.CEO) &&
+    isManagerPanelPath(pathname)
+  ) {
     return true;
   }
 

@@ -23,7 +23,7 @@ export async function createBackupHistoryEntry(
   return client.from("backup_history").insert(values);
 }
 
-export async function listRecentBackupHistory(client: Supabase, limit = 12) {
+export async function listRecentBackupHistory(client: Supabase, limit = 100) {
   return client
     .from("backup_history")
     .select(

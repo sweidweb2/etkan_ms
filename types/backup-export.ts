@@ -5,6 +5,8 @@ export interface TableBackupPayload {
   scope: "table";
   table: BackupTableName;
   rows: unknown[];
+  /** Related tables used to resolve FK labels for business CSV. */
+  lookups?: Partial<Record<BackupTableName, unknown[]>>;
 }
 
 export interface FullBackupPayload {

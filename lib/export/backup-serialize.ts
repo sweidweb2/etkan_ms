@@ -6,6 +6,10 @@ import {
 import type { BackupTableName } from "@/lib/constants/backup-tables";
 import { SITE } from "@/lib/config/site";
 import { runWithBackupZipLimit } from "@/lib/concurrency/heavy-cpu";
+import {
+  buildBusinessCsvLookupIndex,
+  transformRowsToBusinessCsv,
+} from "@/lib/export/backup-business-csv";
 import type { BackupExportPayload } from "@/types/backup-export";
 
 export type SerializedBackupFile = {
@@ -270,6 +274,49 @@ async function serializePayloadToCsv(
   };
 }
 
+async function serializePayloadToBusinessCsv(
+  payload: BackupExportPayload
+): Promise<SerializedBackupFile> {
+  if (payload.scope === "table") {
+    const index = buildBusinessCsvLookupIndex({
+      [payload.table]: payload.rows,
+      ...(payload.lookups ?? {}),
+    });
+    const businessRows = transformRowsToBusinessCsv(
+      payload.table,
+      payload.rows,
+      index
+    );
+
+    return {
+      body: serializeTableRowsToCsv(businessRows),
+      contentType: "text/csv; charset=utf-8",
+      extension: "csv",
+    };
+  }
+
+  const index = buildBusinessCsvLookupIndex(payload.tables);
+  const zip = new JSZip();
+
+  for (const [tableName, rows] of Object.entries(payload.tables) as [
+    BackupTableName,
+    unknown[],
+  ][]) {
+    const businessRows = transformRowsToBusinessCsv(tableName, rows, index);
+    zip.file(`${tableName}.csv`, serializeTableRowsToCsv(businessRows));
+  }
+
+  const body = await runWithBackupZipLimit(() =>
+    zip.generateAsync({ type: "uint8array" })
+  );
+
+  return {
+    body,
+    contentType: "application/zip",
+    extension: "zip",
+  };
+}
+
 export async function serializeBackupExport(
   payload: BackupExportPayload,
   format: BackupExportFormat
@@ -286,8 +333,18 @@ export async function serializeBackupExport(
     return serializePayloadToCsv(payload);
   }
 
+  if (format === BACKUP_EXPORT_FORMATS.BUSINESS_CSV) {
+    return serializePayloadToBusinessCsv(payload);
+  }
+
+  // Strip lookups from JSON dumps — they are only for business CSV resolution.
+  const jsonPayload =
+    payload.scope === "table" && payload.lookups
+      ? { ...payload, lookups: undefined }
+      : payload;
+
   return {
-    body: `${JSON.stringify(payload, null, 2)}\n`,
+    body: `${JSON.stringify(jsonPayload, null, 2)}\n`,
     contentType: "application/json; charset=utf-8",
     extension: "json",
   };
@@ -297,16 +354,19 @@ export function createBackupFilename({
   scope,
   tableName,
   extension,
+  variant,
 }: {
   scope: "all" | "table";
   tableName?: string;
   extension: string;
+  variant?: "business";
 }): string {
   const dateStamp = new Date().toISOString().replace(/[:.]/g, "-");
+  const variantSuffix = variant ? `-${variant}` : "";
 
   if (scope === "table" && tableName) {
-    return `backup-${tableName}-${dateStamp}.${extension}`;
+    return `backup-${tableName}${variantSuffix}-${dateStamp}.${extension}`;
   }
 
-  return `backup-all-tables-${dateStamp}.${extension}`;
+  return `backup-all-tables${variantSuffix}-${dateStamp}.${extension}`;
 }

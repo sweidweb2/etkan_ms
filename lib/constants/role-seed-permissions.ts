@@ -36,9 +36,10 @@ export const WORKSHOP_ACCESS_SEED_PERMISSIONS = [
 ] as const satisfies readonly PermissionKey[];
 
 /**
- * CEO workshop / instructor module: full instructors + schedules + workshops
- * (including payments) plus income statement analytics, academic analysis,
- * and the full manage-guests flow.
+ * CEO default seed: instructors, schedules, workshops (incl. payments),
+ * income analytics, academic analysis, and manage-guests.
+ * Portal uses the full manager catalog; RBAC extras unlock more pages
+ * the same way supervisor grants do.
  */
 export const CEO_WORKSHOP_SEED_PERMISSIONS = [
   PERMISSIONS.INSTRUCTORS_VIEW,

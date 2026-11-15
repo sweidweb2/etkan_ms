@@ -50,7 +50,7 @@ const MANAGER_SMOKE_ROUTES: ReadonlyArray<{
   { path: "/manager/blogs", landmark: /Blogs/i },
   { path: "/manager/notifications", landmark: "Notifications" },
   { path: "/manager/pages", landmark: "Pages" },
-  { path: "/manager/backup", landmark: "Backup" },
+  { path: "/manager/backup", landmark: "Manage backups" },
   { path: "/manager/logs", landmark: "Logs" },
   { path: "/manager/rbac", landmark: "Permissions" },
   { path: "/manager/settings", landmark: "Settings" },

@@ -1,6 +1,7 @@
 "use client";
 
 import { useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 import { FolderArchive } from "lucide-react";
 import { InlineSpinner } from "@/components/loaders/inline-spinner";
 import { PendingFlowChecklist } from "@/components/loaders/pending-flow-checklist";
@@ -14,16 +15,22 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { usePendingAwareOpenChange } from "@/hooks/use-pending-aware-open-change";
-import { BACKUP_STORAGE_BUCKET_LABELS } from "@/lib/constants/backup-storage";
+import {
+  BACKUP_STORAGE_BUCKET_LABELS,
+  BACKUP_STORAGE_BUCKETS,
+} from "@/lib/constants/backup-storage";
 import { downloadBlob } from "@/lib/export/download-blob";
 import { showErrorToast, showSuccessToast } from "@/lib/toast";
-import type { BackupStorageFileList } from "@/types/backup-storage";
 
 const FLOW_STEPS = [
   { id: "scan", label: "Scan storage buckets" },
   { id: "pack", label: "Pack ZIP archive on server" },
   { id: "save", label: "Save ZIP to your computer" },
 ] as const;
+
+const STORAGE_BUCKET_SUMMARY = BACKUP_STORAGE_BUCKETS.map(
+  (bucket) => BACKUP_STORAGE_BUCKET_LABELS[bucket]
+).join(", ");
 
 type ExportStatus = "idle" | "running" | "success" | "error" | "cancelled";
 
@@ -50,11 +57,11 @@ export function ExportStorageImagesDialog({
   open,
   onOpenChange,
 }: ExportStorageImagesDialogProps) {
+  const router = useRouter();
   const abortRef = useRef<AbortController | null>(null);
   const [status, setStatus] = useState<ExportStatus>("idle");
   const [activeIndex, setActiveIndex] = useState(0);
   const [error, setError] = useState<string | null>(null);
-  const [summary, setSummary] = useState<BackupStorageFileList["buckets"]>([]);
   const [progress, setProgress] = useState({
     completed: 0,
     total: 0,
@@ -69,7 +76,6 @@ export function ExportStorageImagesDialog({
       setStatus("idle");
       setActiveIndex(0);
       setError(null);
-      setSummary([]);
       setProgress({ completed: 0, total: 0, failed: 0 });
     }
     onOpenChange(nextOpen);
@@ -91,7 +97,6 @@ export function ExportStorageImagesDialog({
 
     setStatus("running");
     setError(null);
-    setSummary([]);
     setProgress({ completed: 0, total: 0, failed: 0 });
     setActiveIndex(0);
 
@@ -124,6 +129,7 @@ export function ExportStorageImagesDialog({
         setActiveIndex(FLOW_STEPS.length);
         setStatus("success");
         showSuccessToast("No files were found in storage.");
+        router.refresh();
         return;
       }
 
@@ -144,6 +150,7 @@ export function ExportStorageImagesDialog({
       } else {
         showSuccessToast("Storage files ZIP downloaded.", fileName);
       }
+      router.refresh();
     } catch (caught) {
       if (controller.signal.aborted) {
         setStatus("cancelled");
@@ -181,8 +188,7 @@ export function ExportStorageImagesDialog({
             Export storage files
           </DialogTitle>
           <DialogDescription>
-            Scans every file in the projects, blogs, authors, workshops,
-            registration, and student task uploads buckets, packs them into one
+            Scans every file in {STORAGE_BUCKET_SUMMARY}, packs them into one
             ZIP, and downloads it.
           </DialogDescription>
         </DialogHeader>
@@ -201,19 +207,6 @@ export function ExportStorageImagesDialog({
               steps={FLOW_STEPS}
               activeIndex={checklistIndex}
             />
-
-            {summary.length > 0 ? (
-              <ul className="space-y-1 text-sm text-muted-foreground">
-                {summary.map((bucket) => (
-                  <li key={bucket.bucket}>
-                    {BACKUP_STORAGE_BUCKET_LABELS[bucket.bucket] ?? bucket.label}:{" "}
-                    {bucket.error
-                      ? bucket.error
-                      : `${bucket.fileCount} file${bucket.fileCount === 1 ? "" : "s"}`}
-                  </li>
-                ))}
-              </ul>
-            ) : null}
 
             {isPending ? (
               <div className="space-y-2">

@@ -36,9 +36,12 @@ export async function recordBackupHistory(
   }
 }
 
+/** How many recent export rows the Backup page loads for client filters/paging. */
+export const BACKUP_HISTORY_PAGE_LIMIT = 100;
+
 export async function getRecentBackupHistory(
   client: BackupHistoryClient,
-  limit = 12
+  limit = BACKUP_HISTORY_PAGE_LIMIT
 ): Promise<BackupHistoryEntry[]> {
   const { data, error } = await backupHistoryRepository.listRecentBackupHistory(
     client,

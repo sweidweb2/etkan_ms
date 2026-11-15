@@ -10,7 +10,7 @@ describe("parseBackupExportFormat", () => {
     });
   });
 
-  it("accepts json, sql, and csv", () => {
+  it("accepts json, sql, csv, and business_csv", () => {
     expect(parseBackupExportFormat("sql")).toEqual({
       success: true,
       data: BACKUP_EXPORT_FORMATS.SQL,
@@ -18,6 +18,10 @@ describe("parseBackupExportFormat", () => {
     expect(parseBackupExportFormat("csv")).toEqual({
       success: true,
       data: BACKUP_EXPORT_FORMATS.CSV,
+    });
+    expect(parseBackupExportFormat("business_csv")).toEqual({
+      success: true,
+      data: BACKUP_EXPORT_FORMATS.BUSINESS_CSV,
     });
   });
 

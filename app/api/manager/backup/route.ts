@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { PERMISSIONS } from "@/lib/constants/permissions";
+import { BACKUP_EXPORT_FORMATS } from "@/lib/constants/backup-formats";
 import {
   createBackupFilename,
   serializeBackupExport,
@@ -89,12 +90,19 @@ export async function GET(request: Request) {
         );
       }
 
-      const payload = await exportSingleTableBackup(adminClient, tableName);
+      const payload = await exportSingleTableBackup(adminClient, tableName, {
+        includeBusinessLookups:
+          format === BACKUP_EXPORT_FORMATS.BUSINESS_CSV,
+      });
       const file = await serializeBackupExport(payload, format);
       const fileName = createBackupFilename({
         scope: "table",
         tableName,
         extension: file.extension,
+        variant:
+          format === BACKUP_EXPORT_FORMATS.BUSINESS_CSV
+            ? "business"
+            : undefined,
       });
 
       await recordBackupHistory(adminClient, {
@@ -115,6 +123,8 @@ export async function GET(request: Request) {
     const fileName = createBackupFilename({
       scope: "all",
       extension: file.extension,
+      variant:
+        format === BACKUP_EXPORT_FORMATS.BUSINESS_CSV ? "business" : undefined,
     });
     const tableCount = Object.keys(payload.tables).length;
     const rowCount = Object.values(payload.tables).reduce(
