@@ -417,7 +417,7 @@ export async function uploadTaskAttachmentForActor(
 
   const attachment = mapAttachment(created.data as TaskAttachmentRecord);
 
-  let classId: string | null = gate.classId ?? null;
+  const classId: string | null = gate.classId ?? null;
   let subjectId: string | null = null;
   if (attachment.entity === TASK_ATTACHMENT_ENTITIES.SUBJECT_TASK) {
     const subjectTask = await subjectTaskRepository.findSubjectTaskById(
@@ -521,7 +521,7 @@ export async function deleteTaskAttachmentForActor(
     };
   }
 
-  let classId: string | null = gate.classId ?? null;
+  const classId: string | null = gate.classId ?? null;
   let subjectId: string | null = null;
   if (row.entity === TASK_ATTACHMENT_ENTITIES.SUBJECT_TASK) {
     const subjectTask = await subjectTaskRepository.findSubjectTaskById(

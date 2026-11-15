@@ -1,33 +1,28 @@
 "use client";
 
-import { useEffect, useState, useTransition } from "react";
+import { useEffect, useId, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { format } from "date-fns";
 import {
   ExternalLinkIcon,
   FileTextIcon,
-  PlusIcon,
   Trash2Icon,
+  UploadIcon,
 } from "lucide-react";
 import { useFormActionState as useActionState } from "@/hooks/use-form-action-state";
-import { UploadTaskAttachmentDialog } from "@/components/tasks/upload-task-attachment-dialog";
+import { FieldLabel } from "@/components/auth/field-label";
 import { ClassTabCollapsibleSection } from "@/components/manager/students/class-tab-collapsible-section";
 import { InlineSpinner } from "@/components/loaders/inline-spinner";
 import { Button } from "@/components/ui/button";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
 import { EmptyState } from "@/components/ui/empty-state";
+import { Input } from "@/components/ui/input";
 import { useActionStateSuccess } from "@/hooks/use-action-state-success";
 import { useActionStateToast } from "@/hooks/use-action-state-toast";
-import { usePendingAwareOpenChange } from "@/hooks/use-pending-aware-open-change";
+import { useSimulatedProgressPercent } from "@/hooks/use-simulated-progress-percent";
 import {
+  TASK_ATTACHMENT_ACCEPT,
   TASK_ATTACHMENT_CLONE_JOB_STATUSES,
+  TASK_ATTACHMENT_MAX_BYTES,
   TASK_ATTACHMENT_MAX_FILES,
   type TaskAttachmentEntity,
 } from "@/lib/constants/task-attachments";
@@ -40,6 +35,7 @@ import type {
   UploadTaskAttachmentActionState,
 } from "@/types/task-attachment";
 
+const initialUploadState: UploadTaskAttachmentActionState = {};
 const initialDeleteState: DeleteTaskAttachmentActionState = {};
 
 function formatFileSize(bytes: number) {
@@ -73,7 +69,6 @@ type TaskAttachmentsSectionProps = {
   getSignedUrlAction: (
     formData: FormData
   ) => Promise<TaskAttachmentSignedUrlActionState>;
-  /** Student helper that takes an id string instead of FormData. */
   getSignedUrlById?: (
     id: string
   ) => Promise<TaskAttachmentSignedUrlActionState>;
@@ -97,26 +92,28 @@ export function TaskAttachmentsSection({
   onAttachmentsChange,
 }: TaskAttachmentsSectionProps) {
   const router = useRouter();
+  const inputId = useId();
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [attachments, setAttachments] = useState(initialAttachments);
   const [prevAttachments, setPrevAttachments] = useState(initialAttachments);
-  const [isUploadOpen, setIsUploadOpen] = useState(false);
-  const [deletingAttachment, setDeletingAttachment] =
-    useState<TaskAttachmentRow | null>(null);
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
   const [openingId, setOpeningId] = useState<string | null>(null);
-  const [isTransitionPending, startTransition] = useTransition();
-  const [deleteState, deleteFormAction, isDeletePending] = useActionState(
+  const [selectedFileName, setSelectedFileName] = useState<string | null>(null);
+  const [isUploadTransitionPending, startUploadTransition] = useTransition();
+  const [isDeleteTransitionPending, startDeleteTransition] = useTransition();
+
+  const [uploadState, uploadFormAction, isUploadActionPending] = useActionState(
+    uploadAction ?? (async () => initialUploadState),
+    initialUploadState
+  );
+  const [deleteState, deleteFormAction, isDeleteActionPending] = useActionState(
     deleteAction ?? (async () => initialDeleteState),
     initialDeleteState
   );
-  const isDeleteActionPending = isDeletePending || isTransitionPending;
-  const handleDeleteOpenChange = usePendingAwareOpenChange(
-    isDeleteActionPending,
-    (open) => {
-      if (!open) {
-        setDeletingAttachment(null);
-      }
-    }
-  );
+
+  const isUploadPending = isUploadActionPending || isUploadTransitionPending;
+  const isDeletePending = isDeleteActionPending || isDeleteTransitionPending;
+  const uploadProgress = useSimulatedProgressPercent(isUploadPending);
 
   const isCloning =
     cloneJob?.status === TASK_ATTACHMENT_CLONE_JOB_STATUSES.PENDING ||
@@ -125,7 +122,10 @@ export function TaskAttachmentsSection({
     cloneJob?.status === TASK_ATTACHMENT_CLONE_JOB_STATUSES.FAILED;
   const atCap = attachments.length >= TASK_ATTACHMENT_MAX_FILES;
   const showMutations =
-    canMutate && !mutationsLocked && Boolean(uploadAction) && Boolean(deleteAction);
+    canMutate &&
+    !mutationsLocked &&
+    Boolean(uploadAction) &&
+    Boolean(deleteAction);
 
   if (initialAttachments !== prevAttachments) {
     setPrevAttachments(initialAttachments);
@@ -144,27 +144,62 @@ export function TaskAttachmentsSection({
     };
   }, [isCloning, router]);
 
-  useActionStateToast(deleteState, isDeleteActionPending);
-  useActionStateSuccess(deleteState, isDeleteActionPending, () => {
-    if (deletingAttachment) {
-      setAttachments((current) => {
-        const next = current.filter(
-          (row) => row.id !== deletingAttachment.id
-        );
-        onAttachmentsChange?.(next);
-        return next;
-      });
+  useActionStateToast(uploadState, isUploadPending);
+  useActionStateToast(deleteState, isDeletePending);
+
+  useActionStateSuccess(uploadState, isUploadPending, (nextState) => {
+    if (!nextState.attachment) {
+      return;
     }
-    setDeletingAttachment(null);
+    const uploaded = nextState.attachment;
+    setAttachments((current) => {
+      const next = current.some((row) => row.id === uploaded.id)
+        ? current.map((row) => (row.id === uploaded.id ? uploaded : row))
+        : [...current, uploaded];
+      queueMicrotask(() => onAttachmentsChange?.(next));
+      return next;
+    });
+    setSelectedFileName(null);
+    if (fileInputRef.current) {
+      fileInputRef.current.value = "";
+    }
   });
 
-  function handleConfirmDelete() {
-    if (!deletingAttachment || !deleteAction) {
+  useActionStateSuccess(deleteState, isDeletePending, () => {
+    const removedId = confirmDeleteId;
+    if (!removedId) {
+      return;
+    }
+    setAttachments((current) => {
+      const next = current.filter((row) => row.id !== removedId);
+      queueMicrotask(() => onAttachmentsChange?.(next));
+      return next;
+    });
+    setConfirmDeleteId(null);
+  });
+
+  function handleFileChange(file: File | null) {
+    if (!file || !uploadAction || isCloning || atCap) {
+      return;
+    }
+    setSelectedFileName(file.name);
+    const formData = new FormData();
+    formData.set("entity", entity);
+    formData.set("entity_id", entityId);
+    formData.set("file", file);
+    startUploadTransition(() => {
+      uploadFormAction(formData);
+    });
+  }
+
+  function handleDelete(attachmentId: string) {
+    if (!deleteAction) {
       return;
     }
     const formData = new FormData();
-    formData.set("id", deletingAttachment.id);
-    startTransition(() => {
+    formData.set("id", attachmentId);
+    setConfirmDeleteId(attachmentId);
+    startDeleteTransition(() => {
       deleteFormAction(formData);
     });
   }
@@ -199,20 +234,61 @@ export function TaskAttachmentsSection({
     </span>
   ) : null;
 
-  const headerAction =
-    showMutations && !isCloning && !atCap ? (
-      <Button type="button" size="sm" onClick={() => setIsUploadOpen(true)}>
-        <PlusIcon data-icon="inline-start" />
-        Upload
-      </Button>
-    ) : null;
-
   const body = (
-    <div className={cn(collapsible ? "px-3 py-4 sm:px-4" : "py-1")}>
-      {badge && !collapsible ? <div className="mb-3">{badge}</div> : null}
+    <div className={cn("flex flex-col gap-4", collapsible ? "px-3 py-4 sm:px-4" : "py-1")}>
+      {badge && !collapsible ? <div>{badge}</div> : null}
       {cloneFailed && cloneJob?.error_message ? (
-        <p className="mb-3 text-sm text-destructive">{cloneJob.error_message}</p>
+        <p className="text-sm text-destructive">{cloneJob.error_message}</p>
       ) : null}
+
+      {showMutations && !isCloning && !atCap ? (
+        <div className="flex flex-col gap-2">
+          <FieldLabel
+            htmlFor={inputId}
+            label="Add file"
+            hint={`Optional · max ${Math.round(TASK_ATTACHMENT_MAX_BYTES / (1024 * 1024))} MB · up to ${TASK_ATTACHMENT_MAX_FILES}`}
+          />
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+            <Input
+              id={inputId}
+              ref={fileInputRef}
+              type="file"
+              accept={TASK_ATTACHMENT_ACCEPT}
+              disabled={isUploadPending || isDeletePending}
+              className="sm:max-w-md"
+              onChange={(event) => {
+                const file = event.target.files?.[0] ?? null;
+                handleFileChange(file);
+              }}
+            />
+            {isUploadPending ? (
+              <span className="inline-flex items-center gap-1.5 text-sm text-muted-foreground">
+                <InlineSpinner className="size-3.5" />
+                Uploading{selectedFileName ? ` ${selectedFileName}` : "…"}
+              </span>
+            ) : (
+              <span className="inline-flex items-center gap-1.5 text-xs text-muted-foreground">
+                <UploadIcon className="size-3.5" />
+                Choose a file to upload
+              </span>
+            )}
+          </div>
+          {isUploadPending ? (
+            <div className="h-1.5 max-w-md overflow-hidden rounded-full bg-muted">
+              <div
+                className="h-full rounded-full bg-primary transition-[width] duration-200"
+                style={{ width: `${uploadProgress}%` }}
+              />
+            </div>
+          ) : null}
+          {uploadState.fieldErrors?.file?.[0] ? (
+            <p className="text-sm text-destructive">
+              {uploadState.fieldErrors.file[0]}
+            </p>
+          ) : null}
+        </div>
+      ) : null}
+
       {attachments.length === 0 ? (
         <EmptyState
           size="sm"
@@ -226,165 +302,120 @@ export function TaskAttachmentsSection({
             isCloning
               ? "Attachments will appear here when the copy finishes."
               : showMutations
-                ? "Upload files related to this task."
+                ? "Use the file input above to attach files."
                 : "No files for this task."
           }
         />
       ) : (
-        <div className="overflow-x-auto">
-          <table className="w-full min-w-[28rem] border-collapse text-sm">
-            <thead>
-              <tr className="border-b text-left text-muted-foreground">
-                <th className="pb-2 pr-3 font-medium">Name</th>
-                <th className="pb-2 pr-3 font-medium">Size</th>
-                <th className="pb-2 pr-3 font-medium">Uploaded</th>
-                <th className="pb-2 font-medium">
-                  <span className="sr-only">Actions</span>
-                </th>
-              </tr>
-            </thead>
-            <tbody>
-              {attachments.map((attachment) => (
-                <tr
-                  key={attachment.id}
-                  className="border-b border-border/60 last:border-0"
-                >
-                  <td className="py-3 pr-3 align-top font-medium text-foreground">
-                    <button
-                      type="button"
-                      className="inline-flex items-center gap-1.5 text-left text-foreground underline-offset-4 hover:underline"
-                      onClick={() => void openAttachment(attachment)}
-                      disabled={openingId === attachment.id}
-                    >
-                      {attachment.file_name}
-                      {openingId === attachment.id ? (
-                        <InlineSpinner className="size-3.5" />
-                      ) : (
-                        <ExternalLinkIcon className="size-3.5 shrink-0 text-muted-foreground" />
-                      )}
-                    </button>
-                  </td>
-                  <td className="py-3 pr-3 align-top text-muted-foreground">
-                    {formatFileSize(attachment.file_size)}
-                  </td>
-                  <td className="py-3 pr-3 align-top text-muted-foreground">
+        <ul className="grid gap-2 sm:grid-cols-2">
+          {attachments.map((attachment) => {
+            const isConfirming = confirmDeleteId === attachment.id;
+            const isDeletingThis = isDeletePending && isConfirming;
+            return (
+              <li
+                key={attachment.id}
+                className="flex items-start gap-3 rounded-xl border border-border/80 bg-background/60 px-3 py-3"
+              >
+                <div className="mt-0.5 flex size-9 shrink-0 items-center justify-center rounded-lg bg-muted text-muted-foreground">
+                  <FileTextIcon className="size-4" />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <button
+                    type="button"
+                    className="inline-flex max-w-full items-center gap-1.5 text-left text-sm font-medium text-foreground underline-offset-4 hover:underline"
+                    onClick={() => void openAttachment(attachment)}
+                    disabled={openingId === attachment.id || isDeletingThis}
+                  >
+                    <span className="truncate">{attachment.file_name}</span>
+                    {openingId === attachment.id ? (
+                      <InlineSpinner className="size-3.5 shrink-0" />
+                    ) : (
+                      <ExternalLinkIcon className="size-3.5 shrink-0 text-muted-foreground" />
+                    )}
+                  </button>
+                  <p className="mt-0.5 text-xs text-muted-foreground">
+                    {formatFileSize(attachment.file_size)} ·{" "}
                     {format(new Date(attachment.created_at), "MMM d, yyyy")}
-                  </td>
-                  <td className="py-3 align-top">
-                    {showMutations && !isCloning ? (
-                      <div className="flex items-center justify-end">
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="icon"
-                          aria-label={`Delete ${attachment.file_name}`}
-                          onClick={() => setDeletingAttachment(attachment)}
-                        >
-                          <Trash2Icon />
-                        </Button>
-                      </div>
-                    ) : null}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+                  </p>
+                  {isConfirming && !isDeletingThis ? (
+                    <div className="mt-2 flex flex-wrap items-center gap-2">
+                      <span className="text-xs text-destructive">Delete this file?</span>
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="destructive"
+                        disabled={isDeletePending}
+                        onClick={() => handleDelete(attachment.id)}
+                      >
+                        Delete
+                      </Button>
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        disabled={isDeletePending}
+                        onClick={() => setConfirmDeleteId(null)}
+                      >
+                        Cancel
+                      </Button>
+                    </div>
+                  ) : null}
+                </div>
+                {showMutations && !isCloning ? (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon-sm"
+                    className="shrink-0 text-muted-foreground hover:text-destructive"
+                    aria-label={
+                      isConfirming
+                        ? `Confirm delete ${attachment.file_name}`
+                        : `Delete ${attachment.file_name}`
+                    }
+                    disabled={isUploadPending || isDeletePending}
+                    onClick={() => {
+                      if (isConfirming) {
+                        setConfirmDeleteId(null);
+                        return;
+                      }
+                      setConfirmDeleteId(attachment.id);
+                    }}
+                  >
+                    {isDeletingThis ? <InlineSpinner /> : <Trash2Icon />}
+                  </Button>
+                ) : null}
+              </li>
+            );
+          })}
+        </ul>
       )}
     </div>
   );
 
-  return (
-    <>
-      {showMutations && uploadAction ? (
-        <UploadTaskAttachmentDialog
-          open={isUploadOpen}
-          onOpenChange={setIsUploadOpen}
-          entity={entity}
-          entityId={entityId}
-          uploadAction={uploadAction}
-          onUploaded={(attachment) => {
-            setAttachments((current) => {
-              const next = current.some((row) => row.id === attachment.id)
-                ? current.map((row) =>
-                    row.id === attachment.id ? attachment : row
-                  )
-                : [...current, attachment];
-              onAttachmentsChange?.(next);
-              return next;
-            });
-          }}
-        />
-      ) : null}
-
-      <Dialog
-        open={Boolean(deletingAttachment)}
-        onOpenChange={handleDeleteOpenChange}
+  if (collapsible) {
+    return (
+      <ClassTabCollapsibleSection
+        title={title}
+        storageKey={
+          storageKey ?? `task-attachments-v1:${entity}:${entityId}`
+        }
+        defaultOpen
+        action={badge}
       >
-        <DialogContent
-          className="sm:max-w-md"
-          showCloseButton={!isDeleteActionPending}
-        >
-          <DialogHeader>
-            <DialogTitle>Delete file</DialogTitle>
-            <DialogDescription>
-              Permanently delete{" "}
-              {deletingAttachment?.file_name?.trim()
-                ? deletingAttachment.file_name
-                : "this file"}
-              ? This cannot be undone.
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter className="sm:justify-end">
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => handleDeleteOpenChange(false)}
-              disabled={isDeleteActionPending}
-            >
-              Cancel
-            </Button>
-            <Button
-              type="button"
-              variant="destructive"
-              onClick={handleConfirmDelete}
-              disabled={isDeleteActionPending}
-            >
-              {isDeleteActionPending ? <InlineSpinner /> : null}
-              Delete
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+        {body}
+      </ClassTabCollapsibleSection>
+    );
+  }
 
-      {collapsible ? (
-        <ClassTabCollapsibleSection
-          title={title}
-          storageKey={
-            storageKey ?? `task-attachments-v1:${entity}:${entityId}`
-          }
-          defaultOpen
-          action={
-            <div className="flex items-center gap-2">
-              {badge}
-              {headerAction}
-            </div>
-          }
-        >
-          {body}
-        </ClassTabCollapsibleSection>
-      ) : (
-        <div className="rounded-2xl border border-border/80 bg-card">
-          <div className="flex items-center justify-between gap-2 border-b border-border/60 px-3 py-3 sm:px-4">
-            <div className="flex items-center gap-2">
-              <h3 className="text-sm font-semibold">{title}</h3>
-              {badge}
-            </div>
-            {headerAction}
-          </div>
-          {body}
+  return (
+    <div className="rounded-2xl border border-border/80 bg-card">
+      <div className="flex items-center justify-between gap-2 border-b border-border/60 px-3 py-3 sm:px-4">
+        <div className="flex items-center gap-2">
+          <h3 className="text-sm font-semibold">{title}</h3>
+          {badge}
         </div>
-      )}
-    </>
+      </div>
+      <div className="px-3 sm:px-4">{body}</div>
+    </div>
   );
 }

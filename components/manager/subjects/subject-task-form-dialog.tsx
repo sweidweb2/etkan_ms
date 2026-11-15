@@ -1,20 +1,11 @@
 "use client";
 
-import { useEffect, useState, useTransition } from "react";
+import { useEffect, useTransition } from "react";
 import { useFormActionState as useActionState } from "@/hooks/use-form-action-state";
-import {
-  createSubjectTaskAction,
-  updateSubjectTaskAction,
-} from "@/app/manager/subjects/actions";
-import {
-  deleteTaskAttachmentAction,
-  getTaskAttachmentSignedUrlAction,
-  uploadTaskAttachmentAction,
-} from "@/app/manager/classes/actions";
+import { createSubjectTaskAction } from "@/app/manager/subjects/actions";
 import { FieldLabel } from "@/components/auth/field-label";
 import { InlineSpinner } from "@/components/loaders/inline-spinner";
 import { TaskYesNoField } from "@/components/manager/shared/task-yes-no-field";
-import { TaskAttachmentsSection } from "@/components/tasks/task-attachments-section";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -33,17 +24,12 @@ import {
   useTaskYesNoToggle,
 } from "@/hooks/use-task-yes-no-toggle";
 import { useZodForm } from "@/hooks/use-zod-form";
-import { TASK_ATTACHMENT_ENTITIES } from "@/lib/constants/task-attachments";
-import {
-  subjectTaskFieldsSchema,
-} from "@/lib/validators/manager/create-subject-task";
+import { subjectTaskFieldsSchema } from "@/lib/validators/manager/create-subject-task";
 import { cn } from "@/lib/utils";
 import type {
   CreateSubjectTaskActionState,
   ManagerSubjectTaskRow,
-  UpdateSubjectTaskActionState,
 } from "@/types/manager-subject-task";
-import type { TaskAttachmentRow } from "@/types/task-attachment";
 
 const DEFAULT_PERIOD_DAYS = 7;
 const DEFAULT_MAX_GRADE = 100;
@@ -53,26 +39,18 @@ type SubjectTaskFormDialogProps = {
   onOpenChange: (open: boolean) => void;
   subjectId: string;
   subjectName: string;
-  /** When set, the dialog edits this task; otherwise it creates a new one. */
-  task?: ManagerSubjectTaskRow | null;
-  /** Sort order assigned to new tasks (append to end). */
   nextSortOrder: number;
-  initialAttachments?: TaskAttachmentRow[];
   onSaved: (task: ManagerSubjectTaskRow) => void;
-  onAttachmentsChange?: (taskId: string, rows: TaskAttachmentRow[]) => void;
 };
 
-function getDefaultValues(
-  task: ManagerSubjectTaskRow | null | undefined,
-  nextSortOrder: number
-) {
+function getDefaultValues(nextSortOrder: number) {
   return {
-    title: task?.title ?? "",
-    description: task?.description ?? "",
-    period: task?.period ?? DEFAULT_PERIOD_DAYS,
-    max_grade: task ? (task.max_grade ?? "") : DEFAULT_MAX_GRADE,
-    is_yes_no: task?.is_yes_no ?? false,
-    sort_order: task?.sort_order ?? nextSortOrder,
+    title: "",
+    description: "",
+    period: DEFAULT_PERIOD_DAYS,
+    max_grade: DEFAULT_MAX_GRADE as "" | number,
+    is_yes_no: false,
+    sort_order: nextSortOrder,
   };
 }
 
@@ -81,31 +59,15 @@ export function SubjectTaskFormDialog({
   onOpenChange,
   subjectId,
   subjectName,
-  task = null,
   nextSortOrder,
-  initialAttachments = [],
   onSaved,
-  onAttachmentsChange,
 }: SubjectTaskFormDialogProps) {
-  const [activeTask, setActiveTask] = useState<ManagerSubjectTaskRow | null>(
-    task
-  );
-  const [attachments, setAttachments] =
-    useState<TaskAttachmentRow[]>(initialAttachments);
-  const isEdit = Boolean(activeTask);
   const [isTransitionPending, startTransition] = useTransition();
-  const [createState, createAction, isCreatePending] = useActionState(
+  const [state, formAction, isActionPending] = useActionState(
     createSubjectTaskAction,
     {} as CreateSubjectTaskActionState
   );
-  const [updateState, updateAction, isUpdatePending] = useActionState(
-    updateSubjectTaskAction,
-    {} as UpdateSubjectTaskActionState
-  );
-  const state = isEdit && task ? updateState : createState;
-  const isPending =
-    isTransitionPending ||
-    (isEdit && task ? isUpdatePending : isCreatePending);
+  const isPending = isTransitionPending || isActionPending;
   const handleOpenChange = usePendingAwareOpenChange(isPending, onOpenChange);
 
   useActionStateToast(state, isPending);
@@ -121,7 +83,7 @@ export function SubjectTaskFormDialog({
   } = useZodForm({
     schema: subjectTaskFieldsSchema,
     mode: "onBlur",
-    defaultValues: getDefaultValues(task, nextSortOrder),
+    defaultValues: getDefaultValues(nextSortOrder),
   });
   const isYesNo = Boolean(watch("is_yes_no"));
   const { onYesNoChange, resetYesNoToggle } = useTaskYesNoToggle({
@@ -136,19 +98,9 @@ export function SubjectTaskFormDialog({
     if (!open) {
       return;
     }
-
-    setActiveTask(task);
-    setAttachments(task ? initialAttachments : []);
-    reset(getDefaultValues(task, nextSortOrder));
+    reset(getDefaultValues(nextSortOrder));
     resetYesNoToggle();
-  }, [
-    open,
-    task,
-    initialAttachments,
-    nextSortOrder,
-    reset,
-    resetYesNoToggle,
-  ]);
+  }, [open, nextSortOrder, reset, resetYesNoToggle]);
 
   useActionStateSuccess(
     state,
@@ -157,14 +109,7 @@ export function SubjectTaskFormDialog({
       if (!nextState.task) {
         return;
       }
-
       onSaved(nextState.task);
-      if (!task) {
-        // Keep dialog open after create so files can be attached.
-        setActiveTask(nextState.task);
-        setAttachments([]);
-        return;
-      }
       onOpenChange(false);
     },
     (nextState) => Boolean(nextState.success && nextState.task)
@@ -180,9 +125,6 @@ export function SubjectTaskFormDialog({
   }) {
     const formData = new FormData();
     formData.set("subject_id", subjectId);
-    if (task?.id) {
-      formData.set("id", task.id);
-    }
     formData.set("title", values.title);
     formData.set("description", values.description ?? "");
     formData.set("period", String(values.period));
@@ -192,13 +134,8 @@ export function SubjectTaskFormDialog({
       "max_grade",
       serializeTaskMaxGrade(values.max_grade, values.is_yes_no)
     );
-
     startTransition(() => {
-      if (task && activeTask) {
-        updateAction(formData);
-      } else {
-        createAction(formData);
-      }
+      formAction(formData);
     });
   }
 
@@ -208,46 +145,34 @@ export function SubjectTaskFormDialog({
     errors.description?.message ?? state.fieldErrors?.description?.[0];
   const maxGradeError =
     errors.max_grade?.message ?? state.fieldErrors?.max_grade?.[0];
-  const formId = isEdit ? "edit-subject-task-form" : "add-subject-task-form";
-  const idPrefix = isEdit ? "edit-subject-task" : "add-subject-task";
-  const createdInSession = Boolean(activeTask && !task);
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogContent className="sm:max-w-lg" showCloseButton={!isPending}>
+      <DialogContent className="sm:max-w-md" showCloseButton={!isPending}>
         <DialogHeader>
-          <DialogTitle>
-            {createdInSession
-              ? "Task created"
-              : isEdit
-                ? "Edit subject task"
-                : "Create subject task"}
-          </DialogTitle>
+          <DialogTitle>Create subject task</DialogTitle>
           <DialogDescription>
-            {createdInSession
-              ? `Add files for this task, then close when you are done.`
-              : isEdit
-                ? `Update this task template for ${subjectName}. Existing class tasks are not changed.`
-                : `Add a task template to ${subjectName}. It is copied onto classes that clone or import subject tasks.`}
+            Add a task template to {subjectName}. After create, open it in the
+            tasks list to attach files.
           </DialogDescription>
         </DialogHeader>
 
         <form
-          id={formId}
+          id="add-subject-task-form"
           onSubmit={handleSubmit(onSubmit)}
           className="flex flex-col gap-4"
           noValidate
         >
           <div className="flex flex-col gap-2">
             <FieldLabel
-              htmlFor={`${idPrefix}-title`}
+              htmlFor="add-subject-task-title"
               label="Title"
               hint="Required"
             />
             <Input
-              id={`${idPrefix}-title`}
+              id="add-subject-task-title"
               aria-invalid={!!titleError}
-              disabled={isPending || createdInSession}
+              disabled={isPending}
               {...register("title")}
             />
             {titleError ? (
@@ -257,15 +182,15 @@ export function SubjectTaskFormDialog({
 
           <div className="flex flex-col gap-2">
             <FieldLabel
-              htmlFor={`${idPrefix}-description`}
+              htmlFor="add-subject-task-description"
               label="Description"
               hint="Optional"
             />
             <textarea
-              id={`${idPrefix}-description`}
+              id="add-subject-task-description"
               rows={3}
               aria-invalid={!!descriptionError}
-              disabled={isPending || createdInSession}
+              disabled={isPending}
               className={cn(
                 "w-full min-w-0 rounded-lg border border-input bg-transparent px-2.5 py-2 text-base transition-colors outline-none placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 disabled:pointer-events-none disabled:cursor-not-allowed disabled:bg-input/50 disabled:opacity-50 aria-invalid:border-destructive aria-invalid:ring-3 aria-invalid:ring-destructive/20 md:text-sm dark:bg-input/30 dark:disabled:bg-input/80 dark:aria-invalid:border-destructive/50 dark:aria-invalid:ring-destructive/40"
               )}
@@ -277,26 +202,26 @@ export function SubjectTaskFormDialog({
           </div>
 
           <TaskYesNoField
-            id={`${idPrefix}-yes-no`}
+            id="add-subject-task-yes-no"
             checked={isYesNo}
             onCheckedChange={onYesNoChange}
-            disabled={isPending || createdInSession}
+            disabled={isPending}
           />
 
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="flex flex-col gap-2">
               <FieldLabel
-                htmlFor={`${idPrefix}-period`}
+                htmlFor="add-subject-task-period"
                 label="Period (days)"
                 hint="Required"
               />
               <Input
-                id={`${idPrefix}-period`}
+                id="add-subject-task-period"
                 type="number"
                 min={1}
                 step={1}
                 aria-invalid={!!periodError}
-                disabled={isPending || createdInSession}
+                disabled={isPending}
                 {...register("period")}
               />
               {periodError ? (
@@ -307,18 +232,18 @@ export function SubjectTaskFormDialog({
             {isYesNo ? null : (
               <div className="flex flex-col gap-2">
                 <FieldLabel
-                  htmlFor={`${idPrefix}-max-grade`}
+                  htmlFor="add-subject-task-max-grade"
                   label="Max grade"
                   hint="Optional"
                 />
                 <Input
-                  id={`${idPrefix}-max-grade`}
+                  id="add-subject-task-max-grade"
                   type="number"
                   min={0}
                   max={999}
                   step={0.5}
                   aria-invalid={!!maxGradeError}
-                  disabled={isPending || createdInSession}
+                  disabled={isPending}
                   {...register("max_grade")}
                 />
                 {maxGradeError ? (
@@ -329,23 +254,6 @@ export function SubjectTaskFormDialog({
           </div>
         </form>
 
-        {activeTask ? (
-          <TaskAttachmentsSection
-            entity={TASK_ATTACHMENT_ENTITIES.SUBJECT_TASK}
-            entityId={activeTask.id}
-            attachments={attachments}
-            canMutate
-            collapsible={false}
-            uploadAction={uploadTaskAttachmentAction}
-            deleteAction={deleteTaskAttachmentAction}
-            getSignedUrlAction={getTaskAttachmentSignedUrlAction}
-            onAttachmentsChange={(rows) => {
-              setAttachments(rows);
-              onAttachmentsChange?.(activeTask.id, rows);
-            }}
-          />
-        ) : null}
-
         <DialogFooter className="mt-2 sm:justify-end">
           <Button
             type="button"
@@ -353,14 +261,12 @@ export function SubjectTaskFormDialog({
             disabled={isPending}
             onClick={() => handleOpenChange(false)}
           >
-            {createdInSession ? "Done" : "Cancel"}
+            Cancel
           </Button>
-          {createdInSession ? null : (
-            <Button type="submit" form={formId} disabled={isPending}>
-              {isPending ? <InlineSpinner className="mr-2" /> : null}
-              {isEdit ? "Save changes" : "Create task"}
-            </Button>
-          )}
+          <Button type="submit" form="add-subject-task-form" disabled={isPending}>
+            {isPending ? <InlineSpinner className="mr-2" /> : null}
+            Create task
+          </Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

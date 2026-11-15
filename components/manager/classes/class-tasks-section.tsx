@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
 import { format, isToday, isYesterday } from "date-fns";
 import {
@@ -176,6 +177,7 @@ export function ClassTasksSection({
   layout = "table",
   collapsible = true,
 }: ClassTasksSectionProps) {
+  const router = useRouter();
   const [tasks, setTasks] = useState(initialTasks);
   const [prevInitialTasks, setPrevInitialTasks] = useState(initialTasks);
   const [isAddOpen, setIsAddOpen] = useState(false);
@@ -487,20 +489,41 @@ export function ClassTasksSection({
                 </tr>
               </thead>
               <tbody>
-                  {tasks.map((task, index) => (
+                  {tasks.map((task, index) => {
+                    const href =
+                      getTaskDetailHref?.(task.id) ??
+                      getManagerClassTaskDetailRoute(classId, task.id);
+
+                    return (
                     <tr
                       key={task.id}
-                      className="border-b last:border-b-0 transition-colors duration-150 hover:bg-primary/8"
+                      role="link"
+                      tabIndex={0}
+                      aria-label={`View task ${task.title}`}
+                      className="cursor-pointer border-b last:border-b-0 transition-colors duration-150 hover:bg-primary/8"
+                      onClick={(event) => {
+                        if (
+                          (event.target as HTMLElement).closest("a") ||
+                          window.getSelection()?.toString()
+                        ) {
+                          return;
+                        }
+                        router.push(href);
+                      }}
+                      onKeyDown={(event) => {
+                        if (event.key !== "Enter" && event.key !== " ") {
+                          return;
+                        }
+                        event.preventDefault();
+                        router.push(href);
+                      }}
                     >
                       <td className="px-4 py-3 text-muted-foreground tabular-nums">
                         {index + 1}
                       </td>
                       <td className="max-w-[12rem] px-4 py-3">
                         <Link
-                          href={
-                            getTaskDetailHref?.(task.id) ??
-                            getManagerClassTaskDetailRoute(classId, task.id)
-                          }
+                          href={href}
                           prefetch={false}
                           className="block font-medium text-primary underline-offset-4 hover:underline"
                           aria-label={`View task ${task.title}`}
@@ -548,7 +571,8 @@ export function ClassTasksSection({
                         />
                       </td>
                     </tr>
-                  ))}
+                    );
+                  })}
               </tbody>
             </table>
           </div>

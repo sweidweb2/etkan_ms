@@ -1,23 +1,17 @@
 "use client";
 
 import { useState } from "react";
-import {
-  ClipboardListIcon,
-  PencilIcon,
-  PlusIcon,
-  Trash2Icon,
-} from "lucide-react";
+import { ClipboardListIcon, PlusIcon } from "lucide-react";
 import { deleteSubjectTaskAction } from "@/app/manager/subjects/actions";
 import { Can } from "@/components/auth/can";
+import { SubjectTaskDetailPanel } from "@/components/manager/subjects/subject-task-detail-panel";
 import { SubjectTaskFormDialog } from "@/components/manager/subjects/subject-task-form-dialog";
 import { Button } from "@/components/ui/button";
 import { ConfirmDestructiveDialog } from "@/components/ui/confirm-destructive-dialog";
 import { EmptyState } from "@/components/ui/empty-state";
 import { useMutationDialogForm } from "@/hooks/use-mutation-dialog-form";
-import { SESSION_TASK_TABLE_LIMITS } from "@/lib/constants/manager-class-session-detail-display";
 import { PERMISSIONS } from "@/lib/constants/permissions";
-import { formatTaskMaxGrade } from "@/lib/format/format-task-grade";
-import { truncateText } from "@/lib/utils/truncate-text";
+import { cn } from "@/lib/utils";
 import type {
   DeleteSubjectTaskActionState,
   ManagerSubjectTaskRow,
@@ -52,7 +46,7 @@ export function SubjectTasksSection({
   tasks: initialTasks,
   attachmentsByTaskId: initialAttachmentsByTaskId = {},
 }: SubjectTasksSectionProps) {
-  const [tasks, setTasks] = useState(initialTasks);
+  const [tasks, setTasks] = useState(() => sortTasks(initialTasks));
   const [prevInitialTasks, setPrevInitialTasks] = useState(initialTasks);
   const [attachmentsByTaskId, setAttachmentsByTaskId] = useState(
     initialAttachmentsByTaskId
@@ -60,12 +54,14 @@ export function SubjectTasksSection({
   const [prevAttachmentsByTaskId, setPrevAttachmentsByTaskId] = useState(
     initialAttachmentsByTaskId
   );
-  const [isAddOpen, setIsAddOpen] = useState(false);
-  const [editingTask, setEditingTask] = useState<ManagerSubjectTaskRow | null>(
-    null,
+  const [selectedTaskId, setSelectedTaskId] = useState<string | null>(
+    () => sortTasks(initialTasks)[0]?.id ?? null
   );
+  const [isEditing, setIsEditing] = useState(false);
+  const [isAddOpen, setIsAddOpen] = useState(false);
   const [deletingTask, setDeletingTask] =
     useState<ManagerSubjectTaskRow | null>(null);
+
   const {
     formAction: deleteAction,
     isPending: isDeletePending,
@@ -85,7 +81,18 @@ export function SubjectTasksSection({
           ? nextState.taskId
           : deletingTask?.id;
       if (removedId) {
-        setTasks((current) => current.filter((row) => row.id !== removedId));
+        setTasks((current) => {
+          const next = current.filter((row) => row.id !== removedId);
+          if (selectedTaskId === removedId) {
+            setSelectedTaskId(next[0]?.id ?? null);
+            setIsEditing(false);
+          }
+          return next;
+        });
+        setAttachmentsByTaskId((current) => {
+          const { [removedId]: _removed, ...rest } = current;
+          return rest;
+        });
       }
       setDeletingTask(null);
     },
@@ -93,7 +100,17 @@ export function SubjectTasksSection({
 
   if (initialTasks !== prevInitialTasks) {
     setPrevInitialTasks(initialTasks);
-    setTasks(initialTasks);
+    const sorted = sortTasks(initialTasks);
+    setTasks(sorted);
+    if (
+      selectedTaskId &&
+      !sorted.some((task) => task.id === selectedTaskId)
+    ) {
+      setSelectedTaskId(sorted[0]?.id ?? null);
+      setIsEditing(false);
+    } else if (!selectedTaskId && sorted[0]) {
+      setSelectedTaskId(sorted[0].id);
+    }
   }
 
   if (initialAttachmentsByTaskId !== prevAttachmentsByTaskId) {
@@ -104,10 +121,23 @@ export function SubjectTasksSection({
   const nextSortOrder =
     tasks.reduce((max, row) => Math.max(max, row.sort_order), -1) + 1;
 
+  const selectedTask =
+    tasks.find((task) => task.id === selectedTaskId) ?? null;
+
   function handleSaved(task: ManagerSubjectTaskRow) {
     setTasks((current) =>
-      sortTasks([task, ...current.filter((row) => row.id !== task.id)]),
+      sortTasks([task, ...current.filter((row) => row.id !== task.id)])
     );
+    setSelectedTaskId(task.id);
+    setIsEditing(false);
+  }
+
+  function selectTask(taskId: string) {
+    if (taskId === selectedTaskId) {
+      return;
+    }
+    setSelectedTaskId(taskId);
+    setIsEditing(false);
   }
 
   return (
@@ -118,38 +148,15 @@ export function SubjectTasksSection({
         subjectId={subjectId}
         subjectName={subjectName}
         nextSortOrder={nextSortOrder}
-        initialAttachments={[]}
-        onSaved={handleSaved}
-        onAttachmentsChange={(taskId, rows) => {
+        onSaved={(task) => {
+          handleSaved(task);
           setAttachmentsByTaskId((current) => ({
             ...current,
-            [taskId]: rows,
+            [task.id]: current[task.id] ?? [],
           }));
+          setIsAddOpen(false);
         }}
       />
-
-      {editingTask ? (
-        <SubjectTaskFormDialog
-          open
-          onOpenChange={(open) => {
-            if (!open) {
-              setEditingTask(null);
-            }
-          }}
-          subjectId={subjectId}
-          subjectName={subjectName}
-          task={editingTask}
-          nextSortOrder={nextSortOrder}
-          initialAttachments={attachmentsByTaskId[editingTask.id] ?? []}
-          onSaved={handleSaved}
-          onAttachmentsChange={(taskId, rows) => {
-            setAttachmentsByTaskId((current) => ({
-              ...current,
-              [taskId]: rows,
-            }));
-          }}
-        />
-      ) : null}
 
       <ConfirmDestructiveDialog
         open={deletingTask !== null}
@@ -173,119 +180,108 @@ export function SubjectTasksSection({
         ) : null}
       </ConfirmDestructiveDialog>
 
-      <div className="flex flex-col gap-3">
-        <Can permission={PERMISSIONS.SUBJECTS_TASKS_CREATE}>
-          <div className="flex justify-end">
-            <Button type="button" onClick={() => setIsAddOpen(true)}>
-              <PlusIcon data-icon="inline-start" />
-              Create task
-            </Button>
-          </div>
-        </Can>
-
-        {tasks.length === 0 ? (
+      {tasks.length === 0 ? (
+        <div className="flex flex-col gap-3">
+          <Can permission={PERMISSIONS.SUBJECTS_TASKS_CREATE}>
+            <div className="flex justify-end">
+              <Button type="button" onClick={() => setIsAddOpen(true)}>
+                <PlusIcon data-icon="inline-start" />
+                Create task
+              </Button>
+            </div>
+          </Can>
           <EmptyState
             size="sm"
             icon={ClipboardListIcon}
             title="No tasks yet"
             description="No tasks defined for this subject yet."
           />
-        ) : (
-          <div className="overflow-x-auto rounded-lg border">
-            <table className="w-full min-w-[640px] text-sm">
-              <thead>
-                <tr className="border-b bg-muted/40 text-left">
-                  <th className="px-4 py-3 font-medium">Title</th>
-                  <th className="px-4 py-3 font-medium">Description</th>
-                  <th className="px-4 py-3 font-medium">Period (days)</th>
-                  <th className="px-4 py-3 font-medium">Max grade</th>
-                  <Can
-                    anyOf={[
-                      PERMISSIONS.SUBJECTS_TASKS_UPDATE,
-                      PERMISSIONS.SUBJECTS_TASKS_DELETE,
-                    ]}
+        </div>
+      ) : (
+        <section className="overflow-hidden rounded-2xl border border-border/80 bg-card">
+          <div className="flex flex-col @lg/panel:flex-row">
+            <aside className="flex w-full shrink-0 flex-col border-b border-border/60 @lg/panel:w-64 @lg/panel:border-b-0 @lg/panel:border-r">
+              <div className="flex items-center justify-between gap-2 border-b border-border/60 px-3 py-3">
+                <div>
+                  <h3 className="text-sm font-semibold">Tasks</h3>
+                  <p className="text-xs text-muted-foreground">
+                    {tasks.length} template{tasks.length === 1 ? "" : "s"}
+                  </p>
+                </div>
+                <Can permission={PERMISSIONS.SUBJECTS_TASKS_CREATE}>
+                  <Button
+                    type="button"
+                    size="icon-sm"
+                    variant="outline"
+                    aria-label="Create task"
+                    onClick={() => setIsAddOpen(true)}
                   >
-                    <th className="px-4 py-3 text-right font-medium">
-                      Actions
-                    </th>
-                  </Can>
-                </tr>
-              </thead>
-              <tbody>
-                {tasks.map((task) => (
-                  <tr key={task.id} className="border-b last:border-b-0">
-                    <td className="max-w-[14rem] px-4 py-3 font-medium">
-                      <span className="block truncate" title={task.title}>
-                        {
-                          truncateText(
-                            task.title,
-                            SESSION_TASK_TABLE_LIMITS.title,
-                          ).display
-                        }
-                      </span>
-                    </td>
-                    <td className="max-w-[18rem] px-4 py-3 text-muted-foreground">
-                      <span
-                        className="block truncate"
-                        title={task.description ?? undefined}
+                    <PlusIcon />
+                  </Button>
+                </Can>
+              </div>
+              <ul className="max-h-64 overflow-y-auto p-2 @lg/panel:max-h-[min(36rem,70vh)]">
+                {tasks.map((task) => {
+                  const selected = task.id === selectedTask?.id;
+                  const fileCount =
+                    attachmentsByTaskId[task.id]?.length ?? 0;
+                  return (
+                    <li key={task.id}>
+                      <button
+                        type="button"
+                        onClick={() => selectTask(task.id)}
+                        className={cn(
+                          "flex w-full flex-col gap-0.5 rounded-xl px-3 py-2.5 text-left transition-colors",
+                          selected
+                            ? "bg-primary/10 text-foreground"
+                            : "text-foreground hover:bg-muted/60"
+                        )}
                       >
-                        {
-                          truncateText(
-                            task.description ?? "—",
-                            SESSION_TASK_TABLE_LIMITS.description,
-                          ).display
-                        }
-                      </span>
-                    </td>
-                    <td className="whitespace-nowrap px-4 py-3 tabular-nums">
-                      {task.period}
-                    </td>
-                    <td className="whitespace-nowrap px-4 py-3 tabular-nums">
-                      {formatTaskMaxGrade({
-                        maxGrade: task.max_grade,
-                        isYesNo: task.is_yes_no,
-                      })}
-                    </td>
-                    <Can
-                      anyOf={[
-                        PERMISSIONS.SUBJECTS_TASKS_UPDATE,
-                        PERMISSIONS.SUBJECTS_TASKS_DELETE,
-                      ]}
-                    >
-                      <td className="px-4 py-3">
-                        <div className="flex items-center justify-end gap-1">
-                          <Can permission={PERMISSIONS.SUBJECTS_TASKS_UPDATE}>
-                            <Button
-                              type="button"
-                              variant="ghost"
-                              size="icon-sm"
-                              aria-label={`Edit task ${task.title}`}
-                              onClick={() => setEditingTask(task)}
-                            >
-                              <PencilIcon />
-                            </Button>
-                          </Can>
-                          <Can permission={PERMISSIONS.SUBJECTS_TASKS_DELETE}>
-                            <Button
-                              type="button"
-                              variant="ghost"
-                              size="icon-sm"
-                              aria-label={`Delete task ${task.title}`}
-                              onClick={() => setDeletingTask(task)}
-                            >
-                              <Trash2Icon className="text-destructive" />
-                            </Button>
-                          </Can>
-                        </div>
-                      </td>
-                    </Can>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+                        <span className="line-clamp-2 text-sm font-medium">
+                          {task.title}
+                        </span>
+                        <span className="text-xs text-muted-foreground">
+                          {task.period}d
+                          {fileCount > 0
+                            ? ` · ${fileCount} file${fileCount === 1 ? "" : "s"}`
+                            : ""}
+                        </span>
+                      </button>
+                    </li>
+                  );
+                })}
+              </ul>
+            </aside>
+
+            <div className="min-w-0 flex-1 p-4 sm:p-5">
+              {selectedTask ? (
+                <SubjectTaskDetailPanel
+                  subjectId={subjectId}
+                  task={selectedTask}
+                  attachments={attachmentsByTaskId[selectedTask.id] ?? []}
+                  isEditing={isEditing}
+                  onEditingChange={setIsEditing}
+                  onSaved={handleSaved}
+                  onAttachmentsChange={(rows) => {
+                    setAttachmentsByTaskId((current) => ({
+                      ...current,
+                      [selectedTask.id]: rows,
+                    }));
+                  }}
+                  onDelete={() => setDeletingTask(selectedTask)}
+                />
+              ) : (
+                <EmptyState
+                  size="sm"
+                  icon={ClipboardListIcon}
+                  title="Select a task"
+                  description="Choose a task from the list to view its details."
+                />
+              )}
+            </div>
           </div>
-        )}
-      </div>
+        </section>
+      )}
     </>
   );
 }
