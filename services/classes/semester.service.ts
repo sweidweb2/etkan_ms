@@ -88,6 +88,8 @@ function mapSemesterRecordToRow(record: SemesterRecord): ManagerSemesterRow {
     name: record.name,
     semester_code: record.semester_code,
     created_at: record.created_at ?? "",
+    team_id: record.team_id ?? null,
+    sort_order: record.sort_order ?? 0,
   };
 }
 

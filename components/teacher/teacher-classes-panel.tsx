@@ -35,6 +35,8 @@ type TeacherClassesPanelProps = {
 const STATUS_FILTER_ALL = "all";
 const DEFAULT_STATUS_FILTER = CLASS_STATUSES.IN_PROGRESS;
 
+type StatusFilterValue = ClassStatusValue | typeof STATUS_FILTER_ALL;
+
 function matchesSearch(row: TeacherClassRow, query: string) {
   const normalizedQuery = query.trim().toLowerCase();
   if (!normalizedQuery) {
@@ -55,7 +57,8 @@ function matchesSearch(row: TeacherClassRow, query: string) {
 
 export function TeacherClassesPanel({ rows }: TeacherClassesPanelProps) {
   const [searchQuery, setSearchQuery] = useState("");
-  const [statusFilter, setStatusFilter] = useState(DEFAULT_STATUS_FILTER);
+  const [statusFilter, setStatusFilter] =
+    useState<StatusFilterValue>(DEFAULT_STATUS_FILTER);
 
   const filteredRows = useMemo(() => {
     return rows.filter((row) => {

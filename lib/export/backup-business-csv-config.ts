@@ -140,8 +140,16 @@ export const BACKUP_BUSINESS_CSV_CONFIG: Record<
       raw("status", "Status", MANAGER_STUDENT_STATUS_LABELS),
     ],
   },
+  semester_teams: {
+    columns: [raw("name", "Name"), raw("sort_order", "Sort order")],
+  },
   semesters: {
-    columns: [raw("name", "Name"), raw("semester_code", "Semester code")],
+    columns: [
+      raw("name", "Name"),
+      raw("semester_code", "Semester code"),
+      fk("team_id", "Team", "semester_teams", "name"),
+      raw("sort_order", "Sort order"),
+    ],
   },
   student_semester: {
     columns: [

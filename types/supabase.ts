@@ -1179,26 +1179,61 @@ export type Database = {
           },
         ]
       }
+      semester_teams: {
+        Row: {
+          created_at: string
+          id: string
+          name: string
+          sort_order: number
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          name: string
+          sort_order?: number
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          name?: string
+          sort_order?: number
+        }
+        Relationships: []
+      }
       semesters: {
         Row: {
           created_at: string | null
           id: string
           name: string
           semester_code: string
+          sort_order: number
+          team_id: string | null
         }
         Insert: {
           created_at?: string | null
           id?: string
           name: string
           semester_code: string
+          sort_order?: number
+          team_id?: string | null
         }
         Update: {
           created_at?: string | null
           id?: string
           name?: string
           semester_code?: string
+          sort_order?: number
+          team_id?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "semesters_team_id_fkey"
+            columns: ["team_id"]
+            isOneToOne: false
+            referencedRelation: "semester_teams"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       sessions: {
         Row: {

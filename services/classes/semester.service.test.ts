@@ -37,6 +37,8 @@ const semesterRecord = {
   name: "Fall 2026 Core Semester",
   semester_code: "4821",
   created_at: "2026-01-01T00:00:00.000Z",
+  team_id: null,
+  sort_order: 0,
 };
 
 const validCreateInput = {
@@ -71,6 +73,8 @@ describe("listSemestersForManager", () => {
         name: "Fall 2026 Core Semester",
         semester_code: "4821",
         created_at: "2026-01-01T00:00:00.000Z",
+        team_id: null,
+        sort_order: 0,
       },
     ]);
   });
@@ -139,6 +143,8 @@ describe("getSemesterForManager", () => {
       name: "Fall 2026 Core Semester",
       semester_code: "4821",
       created_at: "2026-01-01T00:00:00.000Z",
+      team_id: null,
+      sort_order: 0,
     });
   });
 });
@@ -240,6 +246,8 @@ describe("createSemesterForManager", () => {
         name: "Fall 2026 Core Semester",
         semester_code: "4821",
         created_at: "2026-01-01T00:00:00.000Z",
+        team_id: null,
+        sort_order: 0,
       },
       message: "Semester created.",
     });
@@ -399,6 +407,8 @@ describe("updateSemesterForManager", () => {
         name: "Fall 2026 Renamed",
         semester_code: "4821",
         created_at: "2026-01-01T00:00:00.000Z",
+        team_id: null,
+        sort_order: 0,
       },
       message: "Semester updated.",
     });
