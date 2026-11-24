@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { ClassCoverImage } from "@/components/classes/class-cover-image";
 import {
   Card,
@@ -7,12 +8,6 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
 import {
   getClassProgressTone,
   getClassSessionCompletionRate,
@@ -22,6 +17,7 @@ import {
   CLASS_STATUS_BADGE_CLASSES,
   CLASS_STATUS_LABELS,
 } from "@/lib/constants/manager-subject-display";
+import { getManagerClassDetailRoute } from "@/lib/constants/routes";
 import { cn } from "@/lib/utils";
 import { truncateText } from "@/lib/utils/truncate-text";
 import type { ManagerSubjectClassRow } from "@/types/manager-subject-class";
@@ -42,24 +38,13 @@ function TruncatedText({
 }) {
   const { display, isTruncated } = truncateText(value, maxLength);
 
-  if (!isTruncated) {
-    return <span className={className}>{display}</span>;
-  }
-
   return (
-    <Tooltip>
-      <TooltipTrigger
-        render={
-          <span
-            className={cn("cursor-default truncate", className)}
-            tabIndex={0}
-          />
-        }
-      >
-        {display}
-      </TooltipTrigger>
-      <TooltipContent>{value}</TooltipContent>
-    </Tooltip>
+    <span
+      className={cn(isTruncated && "truncate", className)}
+      title={isTruncated ? value : undefined}
+    >
+      {display}
+    </span>
   );
 }
 
@@ -73,10 +58,17 @@ export function SubjectClassCard({
     "bg-muted text-muted-foreground";
   const sessionRate = getClassSessionCompletionRate(classRow);
   const sessionTone = getClassProgressTone(classRow);
+  const detailHref = getManagerClassDetailRoute(classRow.id);
 
   return (
-    <TooltipProvider>
-      <Card className="flex h-full flex-col overflow-hidden py-0 transition-shadow hover:shadow-md">
+    <div className="group relative h-full">
+      <Link
+        href={detailHref}
+        aria-label={`View ${classRow.name}`}
+        className="absolute inset-0 z-10 rounded-xl"
+        prefetch={false}
+      />
+      <Card className="flex h-full flex-col overflow-hidden py-0 transition-[box-shadow,border-color,transform] duration-200 group-hover:-translate-y-0.5 group-hover:border-primary/30 group-hover:shadow-md motion-reduce:group-hover:translate-y-0">
         <ClassCoverImage src={classRow.image_url} alt={classRow.name} />
         <CardHeader className="gap-2 border-b bg-muted/20 py-3">
           <div className="flex items-start justify-between gap-2">
@@ -121,6 +113,6 @@ export function SubjectClassCard({
           </div>
         </CardContent>
       </Card>
-    </TooltipProvider>
+    </div>
   );
 }

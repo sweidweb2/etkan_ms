@@ -1,19 +1,16 @@
 "use client";
 
-import { useEffect, useRef, useState, type ChangeEvent, type FormEvent } from "react";
+import { useEffect, useId, useRef, useState, type FormEvent } from "react";
 import { format } from "date-fns";
-import {
-  ExternalLinkIcon,
-  FileIcon,
-  FileTextIcon,
-  Trash2Icon,
-} from "lucide-react";
+import { FileIcon } from "lucide-react";
 import {
   deleteStudentTaskUploadForSelfAction,
   getStudentTaskUploadSignedUrlForSelfAction,
   uploadStudentTaskFileForSelfAction,
 } from "@/app/(panels)/student/classes/actions";
 import { InlineSpinner } from "@/components/loaders/inline-spinner";
+import { TaskFileDropzone } from "@/components/tasks/task-file-dropzone";
+import { TaskFileListRow } from "@/components/tasks/task-file-list-row";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
 import {
@@ -29,12 +26,14 @@ import { useActionStateToast } from "@/hooks/use-action-state-toast";
 import { useFormActionState } from "@/hooks/use-form-action-state";
 import { usePendingAwareOpenChange } from "@/hooks/use-pending-aware-open-change";
 import { useSimulatedProgressPercent } from "@/hooks/use-simulated-progress-percent";
+import { formatUploadFileSize } from "@/lib/classes/student-task-upload-format";
 import {
   STUDENT_TASK_UPLOAD_ACCEPT,
   STUDENT_TASK_UPLOAD_MAX_BYTES,
   STUDENT_TASK_UPLOAD_MAX_FILES,
 } from "@/lib/constants/manager-student-task-uploads";
 import { showErrorToast } from "@/lib/toast";
+import { cn } from "@/lib/utils";
 import type {
   DeleteStudentTaskUploadActionState,
   StudentTaskUploadActionState,
@@ -44,6 +43,9 @@ import type {
 const initialUploadState: StudentTaskUploadActionState = {};
 const initialDeleteState: DeleteStudentTaskUploadActionState = {};
 
+const MAX_MB = Math.round(STUDENT_TASK_UPLOAD_MAX_BYTES / (1024 * 1024));
+const DROPZONE_HINT = `PDF, DOCX, XLSX, PNG, JPG · up to ${MAX_MB} MB each`;
+
 type StudentTaskFilesProps = {
   studentTaskId: string | null;
   uploads: StudentTaskUploadForSelf[];
@@ -51,29 +53,22 @@ type StudentTaskFilesProps = {
   started?: boolean;
 };
 
-function formatFileSize(bytes: number) {
-  if (bytes < 1024) {
-    return `${bytes} B`;
-  }
-  if (bytes < 1024 * 1024) {
-    return `${(bytes / 1024).toFixed(1)} KB`;
-  }
-  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
-}
-
 export function StudentTaskFiles({
   studentTaskId,
   uploads: initialUploads = [],
   started = true,
 }: StudentTaskFilesProps) {
+  const inputId = useId();
+  const fileInputKeyRef = useRef(0);
+  const [fileInputKey, setFileInputKey] = useState(0);
   const [uploads, setUploads] = useState(initialUploads);
   const [prevUploads, setPrevUploads] = useState(initialUploads);
   const [pendingDelete, setPendingDelete] =
     useState<StudentTaskUploadForSelf | null>(null);
   const [deleteComplete, setDeleteComplete] = useState(false);
   const [openingId, setOpeningId] = useState<string | null>(null);
-  const [selectedFile, setSelectedFile] = useState<File | null>(null);
-  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [selectedFileName, setSelectedFileName] = useState<string | null>(null);
+  const [clientError, setClientError] = useState<string | null>(null);
 
   if (initialUploads !== prevUploads) {
     setPrevUploads(initialUploads);
@@ -115,10 +110,10 @@ export function StudentTaskFiles({
           : [nextState.upload!, ...current]
       );
     }
-    setSelectedFile(null);
-    if (fileInputRef.current) {
-      fileInputRef.current.value = "";
-    }
+    setSelectedFileName(null);
+    setClientError(null);
+    fileInputKeyRef.current += 1;
+    setFileInputKey(fileInputKeyRef.current);
   });
 
   useActionStateSuccess(deleteState, isDeletePending, () => {
@@ -160,28 +155,26 @@ export function StudentTaskFiles({
     }
   }
 
-  function rejectOversizedFile(file: File) {
-    if (file.size <= STUDENT_TASK_UPLOAD_MAX_BYTES) {
-      return false;
-    }
-    showErrorToast("File must be at most 10 MB.");
-    setSelectedFile(null);
-    if (fileInputRef.current) {
-      fileInputRef.current.value = "";
-    }
-    return true;
-  }
-
-  function onFileChange(event: ChangeEvent<HTMLInputElement>) {
-    const file = event.target.files?.[0] ?? null;
-    if (!file) {
-      setSelectedFile(null);
+  function handleFile(file: File) {
+    if (!started || !studentTaskId || isUploadPending) {
       return;
     }
-    if (rejectOversizedFile(file)) {
+    if (uploads.length >= STUDENT_TASK_UPLOAD_MAX_FILES) {
       return;
     }
-    setSelectedFile(file);
+    setClientError(null);
+    if (file.size > STUDENT_TASK_UPLOAD_MAX_BYTES) {
+      setSelectedFileName(file.name);
+      setClientError(
+        `This file is ${formatUploadFileSize(file.size)}. Files must be under ${MAX_MB} MB.`
+      );
+      return;
+    }
+    setSelectedFileName(file.name);
+    const formData = new FormData();
+    formData.set("student_task_id", studentTaskId);
+    formData.set("file", file);
+    uploadAction(formData);
   }
 
   function onDeleteSubmit(event: FormEvent<HTMLFormElement>) {
@@ -194,20 +187,6 @@ export function StudentTaskFiles({
     deleteAction(formData);
   }
 
-  function onSubmit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    if (!started || !studentTaskId || !selectedFile || isUploadPending) {
-      return;
-    }
-    if (rejectOversizedFile(selectedFile)) {
-      return;
-    }
-    const formData = new FormData();
-    formData.set("student_task_id", studentTaskId);
-    formData.set("file", selectedFile);
-    uploadAction(formData);
-  }
-
   if (!studentTaskId) {
     return (
       <p className="text-sm text-muted-foreground">
@@ -217,167 +196,135 @@ export function StudentTaskFiles({
   }
 
   const atMaxFiles = uploads.length >= STUDENT_TASK_UPLOAD_MAX_FILES;
-  const uploadsBlocked = !started || atMaxFiles;
-  const canSave =
-    started && Boolean(selectedFile) && !isUploadPending && !atMaxFiles;
+  const showUploadPane = started && !atMaxFiles;
+  const fieldError = uploadState.error ?? null;
+  const showUploadRow = isUploadPending && selectedFileName && !clientError;
+  const showErrorRow = Boolean(clientError || fieldError) && selectedFileName;
 
-  return (
-    <div className="overflow-hidden rounded-lg border">
-      <input
-        ref={fileInputRef}
-        type="file"
-        name="file"
-        accept={STUDENT_TASK_UPLOAD_ACCEPT}
-        className="sr-only"
-        disabled={isUploadPending || uploadsBlocked}
-        onChange={onFileChange}
-      />
-
-      <div className="grid border-b sm:grid-cols-[11rem_1fr]">
-        <div className="border-b bg-muted/40 px-3 py-3 text-sm font-medium sm:border-r sm:border-b-0">
-          Choose file
-        </div>
-        <div className="flex flex-col items-start gap-2 px-3 py-3">
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            disabled={isUploadPending || uploadsBlocked}
-            onClick={() => fileInputRef.current?.click()}
-          >
-            {selectedFile ? "Change file" : "Choose file"}
-          </Button>
-          <p className="text-xs text-muted-foreground">
-            PDF, images, text, Word, Excel, or PowerPoint. Up to{" "}
-            {formatFileSize(STUDENT_TASK_UPLOAD_MAX_BYTES)}.
-          </p>
-          {!started ? (
-            <p className="text-xs text-muted-foreground">
-              Not started yet. You can upload files once this task is started.
-            </p>
-          ) : null}
-          {started && atMaxFiles ? (
-            <p className="text-xs text-muted-foreground">
-              {STUDENT_TASK_UPLOAD_MAX_FILES} file limit reached.
-            </p>
-          ) : null}
-        </div>
-      </div>
-
-      {selectedFile ? (
-      <div className="grid border-b sm:grid-cols-[11rem_1fr]">
-        <div className="border-b bg-muted/40 px-3 py-2 text-sm font-medium sm:border-r sm:border-b-0">
-          Chosen file
-        </div>
-        <div className="px-3 py-2">
-            <form onSubmit={onSubmit} className="flex max-w-sm flex-col gap-2">
-              <div className="flex items-start gap-2">
-                <FileTextIcon className="mt-0.5 size-4 shrink-0 text-muted-foreground" />
-                <div className="min-w-0">
-                  <p className="truncate text-sm font-medium">{selectedFile.name}</p>
-                  <p className="text-xs text-muted-foreground">
-                    {formatFileSize(selectedFile.size)}
-                  </p>
-                </div>
-              </div>
-              {isUploadPending ? (
-                <div className="flex items-center gap-2">
-                  <InlineSpinner className="size-3.5" />
-                  <div
-                    className="h-1 min-w-0 flex-1 overflow-hidden rounded-full bg-muted"
-                    role="progressbar"
-                    aria-valuemin={0}
-                    aria-valuemax={100}
-                    aria-valuenow={Math.round(uploadProgress)}
-                    aria-label="Upload progress"
-                  >
-                    <div
-                      className="h-full rounded-full bg-primary transition-[width] duration-150 ease-out"
-                      style={{ width: `${Math.max(uploadProgress, 8)}%` }}
-                    />
-                  </div>
-                  <span className="w-8 text-right text-xs text-muted-foreground tabular-nums">
-                    {Math.round(uploadProgress)}%
-                  </span>
-                </div>
-              ) : null}
-              <Button type="submit" size="sm" disabled={!canSave} className="self-start">
-                {isUploadPending ? <InlineSpinner className="size-3.5" /> : null}
-                Save
-              </Button>
-            </form>
-        </div>
-      </div>
+  const filesList = (
+    <>
+      {showUploadRow ? (
+        <TaskFileListRow
+          fileName={selectedFileName!}
+          isUploading
+          uploadProgress={uploadProgress}
+          className="border-t-0"
+        />
       ) : null}
 
-      <div className="grid sm:grid-cols-[11rem_1fr]">
-        <div className="flex items-start justify-between gap-2 border-b bg-muted/40 px-3 py-3 text-sm font-medium sm:block sm:border-r sm:border-b-0">
-          <span>Uploaded files</span>
-          <span className="text-xs font-normal text-muted-foreground tabular-nums sm:mt-1 sm:block">
-            {uploads.length}/{STUDENT_TASK_UPLOAD_MAX_FILES}
+      {showErrorRow ? (
+        <TaskFileListRow
+          fileName={selectedFileName!}
+          errorMessage={clientError ?? fieldError}
+          onDismissError={() => {
+            setClientError(null);
+            setSelectedFileName(null);
+          }}
+          className={cn(!showUploadRow && "border-t-0")}
+        />
+      ) : null}
+
+      {uploads.length === 0 && !showUploadRow && !showErrorRow ? (
+        <div className="flex h-full min-h-28 items-center justify-center px-4 py-5">
+          <EmptyState
+            size="sm"
+            icon={FileIcon}
+            title="No files yet"
+            description={
+              showUploadPane
+                ? "Uploaded files will show here."
+                : !started
+                  ? "Uploads unlock when the task is started."
+                  : `${STUDENT_TASK_UPLOAD_MAX_FILES} file limit reached.`
+            }
+          />
+        </div>
+      ) : (
+        <ul>
+          {uploads.map((upload, index) => {
+            const isFirstVisible =
+              index === 0 && !showUploadRow && !showErrorRow;
+            return (
+              <li key={upload.id}>
+                <TaskFileListRow
+                  fileName={upload.file_name}
+                  mimeType={upload.mime_type}
+                  meta={
+                    <>
+                      {formatUploadFileSize(upload.file_size)} ·{" "}
+                      {format(new Date(upload.created_at), "MMM d, yyyy")}
+                    </>
+                  }
+                  isOpening={openingId === upload.id}
+                  canOpen
+                  canDelete
+                  onOpen={() => void openFile(upload.id)}
+                  onDelete={() => {
+                    setDeleteComplete(false);
+                    setPendingDelete(upload);
+                  }}
+                  className={isFirstVisible ? "border-t-0" : undefined}
+                />
+              </li>
+            );
+          })}
+        </ul>
+      )}
+    </>
+  );
+
+  return (
+    <>
+      <div className="overflow-hidden rounded-xl border border-border/70 bg-card shadow-sm">
+        <div className="flex items-center justify-between gap-3 px-4 py-3.5">
+          <div className="flex min-w-0 items-center gap-2">
+            <h3 className="truncate text-[15px] font-medium tracking-tight">
+              Your files
+            </h3>
+            <span className="inline-flex shrink-0 rounded-full bg-muted px-2 py-0.5 text-xs tabular-nums text-muted-foreground">
+              {uploads.length} of {STUDENT_TASK_UPLOAD_MAX_FILES}
+            </span>
+          </div>
+          <span className="shrink-0 text-xs text-muted-foreground">
+            {!started
+              ? "Not started"
+              : atMaxFiles
+                ? "Limit reached"
+                : "Required uploads"}
           </span>
         </div>
-        <div className="px-3 py-3">
-          {uploads.length === 0 ? (
-            <EmptyState
-              size="sm"
-              icon={FileIcon}
-              title="No files yet"
-              description="Upload a file to attach it to this task."
-            />
-          ) : (
-            <ul className="grid grid-cols-1 gap-3 lg:grid-cols-2">
-              {uploads.map((upload) => (
-                <li
-                  key={upload.id}
-                  className="flex flex-col gap-3 rounded-lg border p-3"
-                >
-                  <div className="flex items-start gap-2">
-                    <FileTextIcon className="mt-0.5 size-4 shrink-0 text-muted-foreground" />
-                    <div className="min-w-0">
-                      <p className="truncate text-sm font-medium">
-                        {upload.file_name}
-                      </p>
-                      <p className="text-xs text-muted-foreground">
-                        {formatFileSize(upload.file_size)}
-                        {" · "}
-                        {format(new Date(upload.created_at), "MMM d, yyyy")}
-                      </p>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="xs"
-                      disabled={openingId === upload.id}
-                      onClick={() => openFile(upload.id)}
-                    >
-                      {openingId === upload.id ? (
-                        <InlineSpinner className="size-3" />
-                      ) : (
-                        <ExternalLinkIcon />
-                      )}
-                      Open
-                    </Button>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="xs"
-                      onClick={() => {
-                        setDeleteComplete(false);
-                        setPendingDelete(upload);
-                      }}
-                    >
-                      <Trash2Icon />
-                      Delete
-                    </Button>
-                  </div>
-                </li>
-              ))}
-            </ul>
-          )}
-        </div>
+
+        {showUploadPane ? (
+          <div className="relative grid @lg/panel:grid-cols-2">
+            <div className="flex flex-col gap-3 border-b border-border/60 p-4 @lg/panel:border-r @lg/panel:border-b-0">
+              <TaskFileDropzone
+                key={fileInputKey}
+                inputId={inputId}
+                accept={STUDENT_TASK_UPLOAD_ACCEPT}
+                disabled={isUploadPending || deleteBusy}
+                hint={DROPZONE_HINT}
+                onFile={handleFile}
+                className="min-h-[8.5rem] flex-1"
+              />
+            </div>
+            <div className="@lg/panel:absolute @lg/panel:inset-y-0 @lg/panel:right-0 @lg/panel:w-1/2 @lg/panel:overflow-y-auto">
+              {filesList}
+            </div>
+          </div>
+        ) : (
+          <>
+            {!started || atMaxFiles ? (
+              <div className="border-b border-border/60 px-4 py-3">
+                <p className="rounded-xl border border-dashed border-border/70 bg-muted/20 px-4 py-4 text-center text-xs text-muted-foreground">
+                  {!started
+                    ? "You can upload files once this task is started."
+                    : `${STUDENT_TASK_UPLOAD_MAX_FILES} file limit reached.`}
+                </p>
+              </div>
+            ) : null}
+            <div>{filesList}</div>
+          </>
+        )}
       </div>
 
       <Dialog open={pendingDelete !== null} onOpenChange={handleDeleteOpenChange}>
@@ -438,6 +385,6 @@ export function StudentTaskFiles({
           </form>
         </DialogContent>
       </Dialog>
-    </div>
+    </>
   );
 }

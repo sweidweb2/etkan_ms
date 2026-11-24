@@ -257,7 +257,7 @@ export const TEACHER_PANEL_NAVIGATION = withManageWorkshops({
   items: [],
 });
 
-/** Student panel: classes, payments, then profile last. */
+/** Student panel: profile first (landing), then classes and payments. */
 const STUDENT_PANEL_NAVIGATION_BASE = withManageWorkshops({
   items: [
     {
@@ -276,11 +276,11 @@ const STUDENT_PANEL_NAVIGATION_BASE = withManageWorkshops({
 export const STUDENT_PANEL_NAVIGATION: PanelNavigation = {
   ...STUDENT_PANEL_NAVIGATION_BASE,
   items: [
-    ...(STUDENT_PANEL_NAVIGATION_BASE.items ?? []),
     {
       title: "My profile",
       href: ROUTES.STUDENT_ROOT,
       icon: "book-open",
     },
+    ...(STUDENT_PANEL_NAVIGATION_BASE.items ?? []),
   ],
 };

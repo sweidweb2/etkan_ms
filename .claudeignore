@@ -1,0 +1,57 @@
+# Dependencies
+node_modules/
+.pnp
+.pnp.*
+.yarn/*
+!.yarn/patches
+!.yarn/plugins
+!.yarn/releases
+!.yarn/versions
+
+# Build / output / caches
+.next/
+out/
+dist/
+build/
+.vercel/
+*.tsbuildinfo
+next-env.d.ts
+
+# Test artifacts
+coverage/
+test-results/
+playwright-report/
+blob-report/
+playwright/.cache/
+e2e/.auth/
+
+# Logs / debug
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+
+# Local env / secrets (keep *.example templates indexed)
+.env
+.env.*
+!.env.example
+!.env.*.example
+*.pem
+.env.keys
+
+# Large dumps / binary storage exports
+tmp/
+tmp/cloud-dump/
+supabase/dumps/
+supabase/dumps/storage/
+supabase/.branches/
+supabase/.temp/
+
+# OS / misc noise
+.DS_Store
+Thumbs.db
+
+# Generated / leftover test exports
+*-grade-sheet-*.pdf

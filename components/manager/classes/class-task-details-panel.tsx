@@ -103,8 +103,8 @@ type ClassTaskDetailsPanelProps = {
   /** When false, hides the task analytics charts section. Defaults to true. */
   showTaskAnalyticsSection?: boolean;
   /**
-   * `sections` — separate uploads + student table (manager default).
-   * `workspace` — sidebar students + inline fields/uploads (lazy-loaded).
+   * `workspace` — sidebar students + inline grades/notes/uploads (default).
+   * `sections` — legacy separate uploads + student table.
    */
   studentTasksLayout?: "sections" | "workspace";
   /** When false, attachments are read-only (e.g. future restricted views). */
@@ -122,7 +122,7 @@ export function ClassTaskDetailsPanel({
   hasComputedGrades = false,
   navigation,
   showTaskAnalyticsSection = true,
-  studentTasksLayout = "sections",
+  studentTasksLayout = "workspace",
   canMutateAttachments = true,
 }: ClassTaskDetailsPanelProps) {
   const permissions = usePermissions();
@@ -315,6 +315,7 @@ export function ClassTaskDetailsPanel({
         attachments={initialTaskAttachments}
         cloneJob={attachmentCloneJob}
         canMutate={canUpdateTaskAttachments}
+        collapsible={false}
         uploadAction={uploadTaskAttachmentAction}
         deleteAction={deleteTaskAttachmentAction}
         getSignedUrlAction={getTaskAttachmentSignedUrlAction}

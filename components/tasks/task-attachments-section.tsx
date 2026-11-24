@@ -3,22 +3,16 @@
 import { useEffect, useId, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { format } from "date-fns";
-import {
-  ExternalLinkIcon,
-  FileTextIcon,
-  Trash2Icon,
-  UploadIcon,
-} from "lucide-react";
+import { FileTextIcon } from "lucide-react";
 import { useFormActionState as useActionState } from "@/hooks/use-form-action-state";
-import { FieldLabel } from "@/components/auth/field-label";
 import { ClassTabCollapsibleSection } from "@/components/manager/students/class-tab-collapsible-section";
-import { InlineSpinner } from "@/components/loaders/inline-spinner";
-import { Button } from "@/components/ui/button";
+import { TaskFileDropzone } from "@/components/tasks/task-file-dropzone";
+import { TaskFileListRow } from "@/components/tasks/task-file-list-row";
 import { EmptyState } from "@/components/ui/empty-state";
-import { Input } from "@/components/ui/input";
 import { useActionStateSuccess } from "@/hooks/use-action-state-success";
 import { useActionStateToast } from "@/hooks/use-action-state-toast";
 import { useSimulatedProgressPercent } from "@/hooks/use-simulated-progress-percent";
+import { formatUploadFileSize } from "@/lib/classes/student-task-upload-format";
 import {
   TASK_ATTACHMENT_ACCEPT,
   TASK_ATTACHMENT_CLONE_JOB_STATUSES,
@@ -38,15 +32,8 @@ import type {
 const initialUploadState: UploadTaskAttachmentActionState = {};
 const initialDeleteState: DeleteTaskAttachmentActionState = {};
 
-function formatFileSize(bytes: number) {
-  if (bytes < 1024) {
-    return `${bytes} B`;
-  }
-  if (bytes < 1024 * 1024) {
-    return `${(bytes / 1024).toFixed(1)} KB`;
-  }
-  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
-}
+const MAX_MB = Math.round(TASK_ATTACHMENT_MAX_BYTES / (1024 * 1024));
+const DROPZONE_HINT = `PDF, DOCX, XLSX, PNG, JPG · up to ${MAX_MB} MB each`;
 
 type TaskAttachmentsSectionProps = {
   entity: TaskAttachmentEntity;
@@ -93,12 +80,14 @@ export function TaskAttachmentsSection({
 }: TaskAttachmentsSectionProps) {
   const router = useRouter();
   const inputId = useId();
-  const fileInputRef = useRef<HTMLInputElement>(null);
+  const fileInputKeyRef = useRef(0);
+  const [fileInputKey, setFileInputKey] = useState(0);
   const [attachments, setAttachments] = useState(initialAttachments);
   const [prevAttachments, setPrevAttachments] = useState(initialAttachments);
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
   const [openingId, setOpeningId] = useState<string | null>(null);
   const [selectedFileName, setSelectedFileName] = useState<string | null>(null);
+  const [clientError, setClientError] = useState<string | null>(null);
   const [isUploadTransitionPending, startUploadTransition] = useTransition();
   const [isDeleteTransitionPending, startDeleteTransition] = useTransition();
 
@@ -160,9 +149,9 @@ export function TaskAttachmentsSection({
       return next;
     });
     setSelectedFileName(null);
-    if (fileInputRef.current) {
-      fileInputRef.current.value = "";
-    }
+    setClientError(null);
+    fileInputKeyRef.current += 1;
+    setFileInputKey(fileInputKeyRef.current);
   });
 
   useActionStateSuccess(deleteState, isDeletePending, () => {
@@ -178,8 +167,16 @@ export function TaskAttachmentsSection({
     setConfirmDeleteId(null);
   });
 
-  function handleFileChange(file: File | null) {
-    if (!file || !uploadAction || isCloning || atCap) {
+  function handleFile(file: File) {
+    if (!uploadAction || isCloning || atCap || isUploadPending) {
+      return;
+    }
+    setClientError(null);
+    if (file.size > TASK_ATTACHMENT_MAX_BYTES) {
+      setSelectedFileName(file.name);
+      setClientError(
+        `This file is ${formatUploadFileSize(file.size)}. Files must be under ${MAX_MB} MB.`
+      );
       return;
     }
     setSelectedFileName(file.name);
@@ -196,9 +193,12 @@ export function TaskAttachmentsSection({
     if (!deleteAction) {
       return;
     }
+    if (confirmDeleteId !== attachmentId) {
+      setConfirmDeleteId(attachmentId);
+      return;
+    }
     const formData = new FormData();
     formData.set("id", attachmentId);
-    setConfirmDeleteId(attachmentId);
     startDeleteTransition(() => {
       deleteFormAction(formData);
     });
@@ -224,7 +224,7 @@ export function TaskAttachmentsSection({
     }
   }
 
-  const badge = isCloning ? (
+  const statusBadge = isCloning ? (
     <span className="inline-flex items-center rounded-md bg-amber-500/15 px-2 py-0.5 text-xs font-medium text-amber-800 dark:text-amber-200">
       Copying files…
     </span>
@@ -234,161 +234,137 @@ export function TaskAttachmentsSection({
     </span>
   ) : null;
 
-  const body = (
-    <div className={cn("flex flex-col gap-4", collapsible ? "px-3 py-4 sm:px-4" : "py-1")}>
-      {badge && !collapsible ? <div>{badge}</div> : null}
-      {cloneFailed && cloneJob?.error_message ? (
-        <p className="text-sm text-destructive">{cloneJob.error_message}</p>
-      ) : null}
+  const fieldError =
+    uploadState.fieldErrors?.file?.[0] ?? uploadState.error ?? null;
+  const showUploadRow = isUploadPending && selectedFileName && !clientError;
+  const showErrorRow = Boolean(clientError || fieldError) && selectedFileName;
+  const showUploadPane = showMutations && !isCloning && !atCap;
 
-      {showMutations && !isCloning && !atCap ? (
-        <div className="flex flex-col gap-2">
-          <FieldLabel
-            htmlFor={inputId}
-            label="Add file"
-            hint={`Optional · max ${Math.round(TASK_ATTACHMENT_MAX_BYTES / (1024 * 1024))} MB · up to ${TASK_ATTACHMENT_MAX_FILES}`}
-          />
-          <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
-            <Input
-              id={inputId}
-              ref={fileInputRef}
-              type="file"
-              accept={TASK_ATTACHMENT_ACCEPT}
-              disabled={isUploadPending || isDeletePending}
-              className="sm:max-w-md"
-              onChange={(event) => {
-                const file = event.target.files?.[0] ?? null;
-                handleFileChange(file);
-              }}
-            />
-            {isUploadPending ? (
-              <span className="inline-flex items-center gap-1.5 text-sm text-muted-foreground">
-                <InlineSpinner className="size-3.5" />
-                Uploading{selectedFileName ? ` ${selectedFileName}` : "…"}
-              </span>
-            ) : (
-              <span className="inline-flex items-center gap-1.5 text-xs text-muted-foreground">
-                <UploadIcon className="size-3.5" />
-                Choose a file to upload
-              </span>
-            )}
-          </div>
-          {isUploadPending ? (
-            <div className="h-1.5 max-w-md overflow-hidden rounded-full bg-muted">
-              <div
-                className="h-full rounded-full bg-primary transition-[width] duration-200"
-                style={{ width: `${uploadProgress}%` }}
-              />
-            </div>
-          ) : null}
-          {uploadState.fieldErrors?.file?.[0] ? (
-            <p className="text-sm text-destructive">
-              {uploadState.fieldErrors.file[0]}
-            </p>
-          ) : null}
-        </div>
-      ) : null}
-
-      {attachments.length === 0 ? (
-        <EmptyState
-          size="sm"
-          icon={FileTextIcon}
-          title={
-            isCloning
-              ? "Copying files from subject…"
-              : "No files attached yet"
-          }
-          description={
-            isCloning
-              ? "Attachments will appear here when the copy finishes."
-              : showMutations
-                ? "Use the file input above to attach files."
-                : "No files for this task."
-          }
+  const filesList = (
+    <>
+      {showUploadRow ? (
+        <TaskFileListRow
+          fileName={selectedFileName!}
+          isUploading
+          uploadProgress={uploadProgress}
+          className="border-t-0"
         />
+      ) : null}
+
+      {showErrorRow ? (
+        <TaskFileListRow
+          fileName={selectedFileName!}
+          errorMessage={clientError ?? fieldError}
+          onDismissError={() => {
+            setClientError(null);
+            setSelectedFileName(null);
+          }}
+          className={cn(!showUploadRow && "border-t-0")}
+        />
+      ) : null}
+
+      {attachments.length === 0 && !showUploadRow && !showErrorRow ? (
+        <div className="flex h-full min-h-28 items-center justify-center px-4 py-5">
+          <EmptyState
+            size="sm"
+            icon={FileTextIcon}
+            title={
+              isCloning
+                ? "Copying files from subject…"
+                : "No files attached yet"
+            }
+            description={
+              isCloning
+                ? "Attachments will appear here when the copy finishes."
+                : showUploadPane
+                  ? "Uploaded files will show here."
+                  : showMutations
+                    ? "File limit reached."
+                    : "No files for this task."
+            }
+          />
+        </div>
       ) : (
-        <ul className="grid gap-2 sm:grid-cols-2">
-          {attachments.map((attachment) => {
+        <ul>
+          {attachments.map((attachment, index) => {
             const isConfirming = confirmDeleteId === attachment.id;
             const isDeletingThis = isDeletePending && isConfirming;
+            const isFirstVisible =
+              index === 0 && !showUploadRow && !showErrorRow;
             return (
-              <li
-                key={attachment.id}
-                className="flex items-start gap-3 rounded-xl border border-border/80 bg-background/60 px-3 py-3"
-              >
-                <div className="mt-0.5 flex size-9 shrink-0 items-center justify-center rounded-lg bg-muted text-muted-foreground">
-                  <FileTextIcon className="size-4" />
-                </div>
-                <div className="min-w-0 flex-1">
-                  <button
-                    type="button"
-                    className="inline-flex max-w-full items-center gap-1.5 text-left text-sm font-medium text-foreground underline-offset-4 hover:underline"
-                    onClick={() => void openAttachment(attachment)}
-                    disabled={openingId === attachment.id || isDeletingThis}
-                  >
-                    <span className="truncate">{attachment.file_name}</span>
-                    {openingId === attachment.id ? (
-                      <InlineSpinner className="size-3.5 shrink-0" />
-                    ) : (
-                      <ExternalLinkIcon className="size-3.5 shrink-0 text-muted-foreground" />
-                    )}
-                  </button>
-                  <p className="mt-0.5 text-xs text-muted-foreground">
-                    {formatFileSize(attachment.file_size)} ·{" "}
-                    {format(new Date(attachment.created_at), "MMM d, yyyy")}
-                  </p>
-                  {isConfirming && !isDeletingThis ? (
-                    <div className="mt-2 flex flex-wrap items-center gap-2">
-                      <span className="text-xs text-destructive">Delete this file?</span>
-                      <Button
-                        type="button"
-                        size="sm"
-                        variant="destructive"
-                        disabled={isDeletePending}
-                        onClick={() => handleDelete(attachment.id)}
-                      >
-                        Delete
-                      </Button>
-                      <Button
-                        type="button"
-                        size="sm"
-                        variant="outline"
-                        disabled={isDeletePending}
-                        onClick={() => setConfirmDeleteId(null)}
-                      >
-                        Cancel
-                      </Button>
-                    </div>
-                  ) : null}
-                </div>
-                {showMutations && !isCloning ? (
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="icon-sm"
-                    className="shrink-0 text-muted-foreground hover:text-destructive"
-                    aria-label={
-                      isConfirming
-                        ? `Confirm delete ${attachment.file_name}`
-                        : `Delete ${attachment.file_name}`
-                    }
-                    disabled={isUploadPending || isDeletePending}
-                    onClick={() => {
-                      if (isConfirming) {
-                        setConfirmDeleteId(null);
-                        return;
-                      }
-                      setConfirmDeleteId(attachment.id);
-                    }}
-                  >
-                    {isDeletingThis ? <InlineSpinner /> : <Trash2Icon />}
-                  </Button>
-                ) : null}
+              <li key={attachment.id}>
+                <TaskFileListRow
+                  fileName={attachment.file_name}
+                  mimeType={attachment.mime_type}
+                  meta={
+                    <>
+                      {formatUploadFileSize(attachment.file_size)} ·{" "}
+                      {format(new Date(attachment.created_at), "MMM d, yyyy")}
+                    </>
+                  }
+                  isOpening={openingId === attachment.id}
+                  canOpen
+                  canDelete={showMutations && !isCloning}
+                  isDeletePending={isDeletingThis}
+                  isConfirmingDelete={isConfirming}
+                  onOpen={() => void openAttachment(attachment)}
+                  onDelete={() => handleDelete(attachment.id)}
+                  onCancelConfirmDelete={() => setConfirmDeleteId(null)}
+                  className={isFirstVisible ? "border-t-0" : undefined}
+                />
               </li>
             );
           })}
         </ul>
       )}
+    </>
+  );
+
+  const panelBody = (
+    <>
+      {cloneFailed && cloneJob?.error_message ? (
+        <p className="border-b border-border/60 px-4 py-3 text-sm text-destructive">
+          {cloneJob.error_message}
+        </p>
+      ) : null}
+
+      {showUploadPane ? (
+        <div className="relative grid @lg/panel:grid-cols-2">
+          <div className="flex flex-col gap-3 border-b border-border/60 p-4 @lg/panel:border-r @lg/panel:border-b-0">
+            <TaskFileDropzone
+              key={fileInputKey}
+              inputId={inputId}
+              accept={TASK_ATTACHMENT_ACCEPT}
+              disabled={isUploadPending || isDeletePending}
+              hint={DROPZONE_HINT}
+              onFile={handleFile}
+              className="min-h-[8.5rem] flex-1"
+            />
+          </div>
+          <div className="@lg/panel:absolute @lg/panel:inset-y-0 @lg/panel:right-0 @lg/panel:w-1/2 @lg/panel:overflow-y-auto">
+            {filesList}
+          </div>
+        </div>
+      ) : (
+        <div>{filesList}</div>
+      )}
+    </>
+  );
+
+  const header = (
+    <div className="flex items-center justify-between gap-3 px-4 py-3.5">
+      <div className="flex min-w-0 items-center gap-2">
+        <h3 className="truncate text-[15px] font-medium tracking-tight">
+          {title}
+        </h3>
+        <span className="inline-flex shrink-0 rounded-full bg-muted px-2 py-0.5 text-xs tabular-nums text-muted-foreground">
+          {attachments.length} of {TASK_ATTACHMENT_MAX_FILES}
+        </span>
+        {statusBadge}
+      </div>
+      {showMutations ? (
+        <span className="shrink-0 text-xs text-muted-foreground">Optional</span>
+      ) : null}
     </div>
   );
 
@@ -400,22 +376,24 @@ export function TaskAttachmentsSection({
           storageKey ?? `task-attachments-v1:${entity}:${entityId}`
         }
         defaultOpen
-        action={badge}
+        action={
+          <div className="flex items-center gap-2">
+            <span className="inline-flex rounded-full bg-muted px-2 py-0.5 text-xs tabular-nums text-muted-foreground">
+              {attachments.length} of {TASK_ATTACHMENT_MAX_FILES}
+            </span>
+            {statusBadge}
+          </div>
+        }
       >
-        {body}
+        <div className={cn("overflow-hidden")}>{panelBody}</div>
       </ClassTabCollapsibleSection>
     );
   }
 
   return (
-    <div className="rounded-2xl border border-border/80 bg-card">
-      <div className="flex items-center justify-between gap-2 border-b border-border/60 px-3 py-3 sm:px-4">
-        <div className="flex items-center gap-2">
-          <h3 className="text-sm font-semibold">{title}</h3>
-          {badge}
-        </div>
-      </div>
-      <div className="px-3 sm:px-4">{body}</div>
+    <div className="overflow-hidden rounded-xl border border-border/70 bg-card shadow-sm">
+      {header}
+      {panelBody}
     </div>
   );
 }

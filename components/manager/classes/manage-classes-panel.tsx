@@ -24,6 +24,13 @@ import { PanelPageHeader } from "@/components/panels/panel-page-header";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
   Tooltip,
   TooltipContent,
   TooltipTrigger,
@@ -33,11 +40,7 @@ import {
   CLASS_STATUS_VALUES,
   type ClassStatusValue,
 } from "@/lib/constants/manager-class-status";
-import {
-  MANAGER_CLASS_STATUS_DOT_CLASSES,
-  MANAGER_CLASS_STATUS_LABELS,
-  MANAGER_CLASS_STATUS_TAB_CLASSES,
-} from "@/lib/constants/manager-class-display";
+import { MANAGER_CLASS_STATUS_LABELS } from "@/lib/constants/manager-class-display";
 import { PERMISSIONS } from "@/lib/constants/permissions";
 import { getPageNumbers } from "@/lib/pagination/page-numbers";
 import { cn } from "@/lib/utils";
@@ -52,6 +55,7 @@ import type { ManagerStudentWithoutActiveClassRow } from "@/types/manager-studen
 
 const PAGE_SIZE = 40;
 const STATUS_FILTER_ALL = "all";
+const DEFAULT_STATUS_FILTER = CLASS_STATUSES.IN_PROGRESS;
 
 type StatusFilterValue = ClassStatusValue | typeof STATUS_FILTER_ALL;
 
@@ -113,10 +117,10 @@ export function ManageClassesPanel({ initialData }: ManageClassesPanelProps) {
   const [isStatsOpen, setIsStatsOpen] = useState(false);
   const [isStudentsOpen, setIsStudentsOpen] = useState(false);
   const [statusFilter, setStatusFilter] =
-    useState<StatusFilterValue>(STATUS_FILTER_ALL);
+    useState<StatusFilterValue>(DEFAULT_STATUS_FILTER);
   const [currentPage, setCurrentPage] = useState(initialData.page);
   const loadedKeyRef = useRef(
-    listQueryKey({ status: STATUS_FILTER_ALL, page: initialData.page })
+    listQueryKey({ status: DEFAULT_STATUS_FILTER, page: initialData.page })
   );
 
   useEffect(() => {
@@ -171,21 +175,14 @@ export function ManageClassesPanel({ initialData }: ManageClassesPanelProps) {
 
   const pageNumbers = getPageNumbers(safeCurrentPage, totalPages);
 
-  const handleStatusFilterChange = (value: StatusFilterValue) => {
-    if (value === statusFilter) {
+  const handleStatusFilterChange = (value: string | null) => {
+    const next = (value ?? DEFAULT_STATUS_FILTER) as StatusFilterValue;
+    if (next === statusFilter) {
       return;
     }
-    setStatusFilter(value);
+    setStatusFilter(next);
     setCurrentPage(1);
   };
-
-  const statusTabs: Array<{ value: StatusFilterValue; count: number }> = [
-    { value: STATUS_FILTER_ALL, count: stats.total },
-    ...CLASS_STATUS_VALUES.map((status) => ({
-      value: status,
-      count: statusCounts[status] ?? 0,
-    })),
-  ];
 
   const handleCreateClass = () => {
     // Reset to the "All" tab and reload page 1 so the new class (newest first)
@@ -211,66 +208,8 @@ export function ManageClassesPanel({ initialData }: ManageClassesPanelProps) {
   return (
     <div className="flex flex-col gap-6">
       <PanelPageHeader title="Manage classes" />
-      <div className="flex flex-col-reverse items-center gap-3 @4xl/panel:grid @4xl/panel:grid-cols-[1fr_auto_1fr]">
-        <div aria-hidden className="hidden @4xl/panel:block" />
-        <div
-          role="tablist"
-          aria-label="Filter classes by status"
-          className="flex w-fit max-w-full flex-wrap items-center justify-center gap-1.5 rounded-xl border bg-card p-1.5 shadow-xs"
-        >
-          {statusTabs.map((tab) => {
-            const isActive = tab.value === statusFilter;
-            const isAll = tab.value === STATUS_FILTER_ALL;
-            const tabClasses = isAll
-              ? null
-              : MANAGER_CLASS_STATUS_TAB_CLASSES[tab.value as ClassStatusValue];
-
-            return (
-              <button
-                key={tab.value}
-                type="button"
-                role="tab"
-                aria-selected={isActive}
-                onClick={() => handleStatusFilterChange(tab.value)}
-                className={cn(
-                  "inline-flex h-10 items-center gap-2 rounded-lg border border-transparent px-4 text-sm font-medium",
-                  "transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50",
-                  isAll
-                    ? isActive
-                      ? "border-foreground/20 bg-foreground/10 text-foreground"
-                      : "text-muted-foreground hover:bg-muted hover:text-foreground"
-                    : isActive
-                      ? tabClasses?.active
-                      : tabClasses?.idle
-                )}
-              >
-                {isAll ? null : (
-                  <span
-                    aria-hidden
-                    className={cn(
-                      "size-2 shrink-0 rounded-full",
-                      MANAGER_CLASS_STATUS_DOT_CLASSES[
-                        tab.value as ClassStatusValue
-                      ]
-                    )}
-                  />
-                )}
-                {isAll
-                  ? "All"
-                  : MANAGER_CLASS_STATUS_LABELS[tab.value as ClassStatusValue]}
-                <span
-                  className={cn(
-                    "text-sm tabular-nums",
-                    isActive ? "opacity-90" : "opacity-60"
-                  )}
-                >
-                  {tab.count}
-                </span>
-              </button>
-            );
-          })}
-        </div>
-        <div className="flex shrink-0 items-center justify-end gap-2 self-end @4xl/panel:self-auto @4xl/panel:justify-self-end">
+      <div className="flex flex-col gap-3 @lg/panel:flex-row @lg/panel:items-center @lg/panel:justify-between">
+        <div className="flex shrink-0 flex-wrap items-center gap-2">
           <Tooltip>
             <TooltipTrigger
               render={
@@ -310,6 +249,26 @@ export function ManageClassesPanel({ initialData }: ManageClassesPanelProps) {
             </Button>
           </Can>
         </div>
+
+        <Select value={statusFilter} onValueChange={handleStatusFilterChange}>
+          <SelectTrigger
+            className="w-full @lg/panel:w-48"
+            aria-label="Filter classes by status"
+          >
+            <SelectValue placeholder="Status" />
+          </SelectTrigger>
+          <SelectContent align="end">
+            <SelectItem value={STATUS_FILTER_ALL}>
+              All statuses ({stats.total})
+            </SelectItem>
+            {CLASS_STATUS_VALUES.map((status) => (
+              <SelectItem key={status} value={status}>
+                {MANAGER_CLASS_STATUS_LABELS[status]} (
+                {statusCounts[status] ?? 0})
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
       </div>
 
       {isAddOpen ? (

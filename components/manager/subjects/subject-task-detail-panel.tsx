@@ -159,14 +159,17 @@ export function SubjectTaskDetailPanel({
     errors.max_grade?.message ?? state.fieldErrors?.max_grade?.[0];
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col gap-4">
-      <div className="flex flex-wrap items-start justify-between gap-3">
+    <div className="flex min-h-0 flex-1 flex-col gap-5 pb-2">
+      <div className="flex flex-wrap items-start justify-between gap-3 border-b border-border/50 pb-4">
         <div className="min-w-0">
-          <h2 className="truncate text-lg font-semibold tracking-tight">
+          <p className="mb-1 text-[11px] font-medium tracking-[0.08em] text-muted-foreground uppercase">
+            Task template
+          </p>
+          <h2 className="truncate text-xl font-semibold tracking-tight">
             {task.title}
           </h2>
-          <p className="text-sm text-muted-foreground">
-            Subject task template · sort {task.sort_order}
+          <p className="mt-1 text-sm text-muted-foreground">
+            Sort order {task.sort_order}
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -175,6 +178,7 @@ export function SubjectTaskDetailPanel({
               type="button"
               variant="outline"
               size="sm"
+              className="shadow-sm"
               onClick={() => onEditingChange(true)}
             >
               <PencilIcon data-icon="inline-start" />
@@ -199,7 +203,7 @@ export function SubjectTaskDetailPanel({
       {isEditing && canUpdate ? (
         <form
           onSubmit={handleSubmit(onSubmit)}
-          className="flex flex-col gap-4 rounded-2xl border border-border/80 bg-card p-4"
+          className="flex flex-col gap-4 rounded-2xl border border-border/70 bg-background/80 p-5 shadow-sm"
           noValidate
         >
           <div className="flex flex-col gap-2">
@@ -307,7 +311,7 @@ export function SubjectTaskDetailPanel({
           </div>
         </form>
       ) : (
-        <dl className="grid gap-4 rounded-2xl border border-border/80 bg-card p-4 sm:grid-cols-2">
+        <dl className="grid gap-5 rounded-2xl border border-border/70 bg-background/80 p-5 shadow-sm sm:grid-cols-2">
           <DetailField label="Title" value={task.title} className="sm:col-span-2" />
           <DetailField
             label="Description"

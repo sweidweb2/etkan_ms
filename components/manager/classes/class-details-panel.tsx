@@ -283,6 +283,57 @@ export function ClassDetailsPanel({
         ) : null}
 
         <TabsContentsPrimitive>
+          <TabsContentPrimitive value="sessions" className="outline-none">
+            <ClassSessionsSection
+              classId={classRow.id}
+              className={classRow.name}
+              sessions={sessions}
+              onSessionsChange={setSessions}
+              weekSkipState={weekSkipState}
+              onWeekSkipStateChange={setWeekSkipState}
+              onClassUpdated={setClassRow}
+              hasComputedGrades={hasComputedGrades}
+              collapsible={false}
+            />
+          </TabsContentPrimitive>
+
+          {canViewTasks ? (
+            <TabsContentPrimitive value="tasks" className="outline-none">
+              <ClassTasksSection
+                classId={classRow.id}
+                className={classRow.name}
+                tasks={initialTasks}
+                hasSubject={Boolean(classRow.subject_id)}
+                hasComputedGrades={hasComputedGrades}
+                collapsible={false}
+              />
+            </TabsContentPrimitive>
+          ) : null}
+
+          <TabsContentPrimitive value="students" className="outline-none">
+            <ClassStudentsSection
+              classId={classRow.id}
+              className={classRow.name}
+              semesterId={classRow.semester_id}
+              initialStudents={students}
+              availableStudents={availableStudents}
+              transferClassOptions={transferClassOptions}
+              onStudentsChange={setStudents}
+              onAvailableStudentsChange={setAvailableStudents}
+              onClassUpdated={setClassRow}
+              onStudentGradeAdded={(grade) => {
+                setStudentGrades((current) => {
+                  if (current.some((row) => row.id === grade.id)) {
+                    return current;
+                  }
+
+                  return [...current, grade];
+                });
+              }}
+              collapsible={false}
+            />
+          </TabsContentPrimitive>
+
           <TabsContentPrimitive value="general" className="outline-none">
             <ClassTabCollapsibleSection
               title={classRow.name}
@@ -441,57 +492,6 @@ export function ClassDetailsPanel({
                 </div>
               </div>
             </ClassTabCollapsibleSection>
-          </TabsContentPrimitive>
-
-          <TabsContentPrimitive value="sessions" className="outline-none">
-            <ClassSessionsSection
-              classId={classRow.id}
-              className={classRow.name}
-              sessions={sessions}
-              onSessionsChange={setSessions}
-              weekSkipState={weekSkipState}
-              onWeekSkipStateChange={setWeekSkipState}
-              onClassUpdated={setClassRow}
-              hasComputedGrades={hasComputedGrades}
-              collapsible={false}
-            />
-          </TabsContentPrimitive>
-
-          {canViewTasks ? (
-            <TabsContentPrimitive value="tasks" className="outline-none">
-              <ClassTasksSection
-                classId={classRow.id}
-                className={classRow.name}
-                tasks={initialTasks}
-                hasSubject={Boolean(classRow.subject_id)}
-                hasComputedGrades={hasComputedGrades}
-                collapsible={false}
-              />
-            </TabsContentPrimitive>
-          ) : null}
-
-          <TabsContentPrimitive value="students" className="outline-none">
-            <ClassStudentsSection
-              classId={classRow.id}
-              className={classRow.name}
-              semesterId={classRow.semester_id}
-              initialStudents={students}
-              availableStudents={availableStudents}
-              transferClassOptions={transferClassOptions}
-              onStudentsChange={setStudents}
-              onAvailableStudentsChange={setAvailableStudents}
-              onClassUpdated={setClassRow}
-              onStudentGradeAdded={(grade) => {
-                setStudentGrades((current) => {
-                  if (current.some((row) => row.id === grade.id)) {
-                    return current;
-                  }
-
-                  return [...current, grade];
-                });
-              }}
-              collapsible={false}
-            />
           </TabsContentPrimitive>
 
           <TabsContentPrimitive value="final-exam" className="outline-none">

@@ -198,13 +198,15 @@ export function SubjectTasksSection({
           />
         </div>
       ) : (
-        <section className="overflow-hidden rounded-2xl border border-border/80 bg-card">
+        <section className="overflow-hidden rounded-2xl border border-border/70 bg-card shadow-[0_1px_2px_rgb(0_0_0/0.04),0_12px_28px_-20px_rgb(42_42_82/0.28)] dark:shadow-[0_1px_2px_rgb(0_0_0/0.35),0_16px_32px_-22px_rgb(0_0_0/0.55)]">
           <div className="flex flex-col @lg/panel:flex-row">
-            <aside className="flex w-full shrink-0 flex-col border-b border-border/60 @lg/panel:w-64 @lg/panel:border-b-0 @lg/panel:border-r">
-              <div className="flex items-center justify-between gap-2 border-b border-border/60 px-3 py-3">
-                <div>
-                  <h3 className="text-sm font-semibold">Tasks</h3>
-                  <p className="text-xs text-muted-foreground">
+            <aside className="flex w-full shrink-0 flex-col border-b border-border/60 bg-muted/25 @lg/panel:w-72 @lg/panel:border-b-0 @lg/panel:border-r">
+              <div className="flex items-center justify-between gap-2 border-b border-border/50 px-4 py-3.5">
+                <div className="min-w-0">
+                  <h3 className="text-sm font-semibold tracking-tight">
+                    Tasks
+                  </h3>
+                  <p className="mt-0.5 text-xs text-muted-foreground">
                     {tasks.length} template{tasks.length === 1 ? "" : "s"}
                   </p>
                 </div>
@@ -213,6 +215,7 @@ export function SubjectTasksSection({
                     type="button"
                     size="icon-sm"
                     variant="outline"
+                    className="shrink-0 border-border/70 bg-background/80 shadow-sm"
                     aria-label="Create task"
                     onClick={() => setIsAddOpen(true)}
                   >
@@ -220,8 +223,8 @@ export function SubjectTasksSection({
                   </Button>
                 </Can>
               </div>
-              <ul className="max-h-64 overflow-y-auto p-2 @lg/panel:max-h-[min(36rem,70vh)]">
-                {tasks.map((task) => {
+              <ul className="flex max-h-64 flex-col gap-1 overflow-y-auto p-2.5 @lg/panel:max-h-[min(36rem,70vh)]">
+                {tasks.map((task, index) => {
                   const selected = task.id === selectedTask?.id;
                   const fileCount =
                     attachmentsByTaskId[task.id]?.length ?? 0;
@@ -230,21 +233,42 @@ export function SubjectTasksSection({
                       <button
                         type="button"
                         onClick={() => selectTask(task.id)}
+                        aria-current={selected ? "true" : undefined}
                         className={cn(
-                          "flex w-full flex-col gap-0.5 rounded-xl px-3 py-2.5 text-left transition-colors",
+                          "relative flex w-full flex-col gap-1 rounded-xl px-3 py-2.5 text-left transition-[background-color,box-shadow,color] duration-150",
                           selected
-                            ? "bg-primary/10 text-foreground"
-                            : "text-foreground hover:bg-muted/60"
+                            ? "bg-background text-foreground shadow-sm ring-1 ring-border/70"
+                            : "text-foreground/90 hover:bg-background/70"
                         )}
                       >
-                        <span className="line-clamp-2 text-sm font-medium">
-                          {task.title}
-                        </span>
-                        <span className="text-xs text-muted-foreground">
-                          {task.period}d
-                          {fileCount > 0
-                            ? ` · ${fileCount} file${fileCount === 1 ? "" : "s"}`
-                            : ""}
+                        {selected ? (
+                          <span
+                            aria-hidden
+                            className="absolute inset-y-2 left-0 w-0.5 rounded-full bg-primary"
+                          />
+                        ) : null}
+                        <span className="flex items-start gap-2.5">
+                          <span
+                            className={cn(
+                              "mt-0.5 flex size-5 shrink-0 items-center justify-center rounded-md text-[10px] font-semibold tabular-nums",
+                              selected
+                                ? "bg-primary/12 text-primary"
+                                : "bg-muted text-muted-foreground"
+                            )}
+                          >
+                            {index + 1}
+                          </span>
+                          <span className="min-w-0 flex-1">
+                            <span className="line-clamp-2 text-sm font-medium leading-snug">
+                              {task.title}
+                            </span>
+                            <span className="mt-0.5 block text-xs text-muted-foreground">
+                              {task.period}d
+                              {fileCount > 0
+                                ? ` · ${fileCount} file${fileCount === 1 ? "" : "s"}`
+                                : ""}
+                            </span>
+                          </span>
                         </span>
                       </button>
                     </li>
@@ -253,7 +277,7 @@ export function SubjectTasksSection({
               </ul>
             </aside>
 
-            <div className="min-w-0 flex-1 p-4 sm:p-5">
+            <div className="min-w-0 flex-1 bg-[linear-gradient(180deg,rgb(255_255_255/0.45)_0%,transparent_7rem)] p-5 pb-10 sm:p-6 sm:pb-12 dark:bg-[linear-gradient(180deg,rgb(255_255_255/0.03)_0%,transparent_7rem)]">
               {selectedTask ? (
                 <SubjectTaskDetailPanel
                   subjectId={subjectId}

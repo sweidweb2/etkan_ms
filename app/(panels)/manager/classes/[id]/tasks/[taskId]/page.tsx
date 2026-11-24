@@ -34,6 +34,7 @@ export default async function ManagerClassTaskDetailPage({
       attachmentCloneJob={detail.attachmentCloneJob}
       lockedUserIds={computedGradeLock.lockedUserIds}
       hasComputedGrades={computedGradeLock.hasComputedGrades}
+      studentTasksLayout="workspace"
     />
   );
 }

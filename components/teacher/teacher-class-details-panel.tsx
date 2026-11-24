@@ -9,6 +9,7 @@ import {
   type ReactNode,
 } from "react";
 import { format } from "date-fns";
+import type { LucideIcon } from "lucide-react";
 import {
   CalendarDaysIcon,
   ChartColumnIcon,
@@ -115,15 +116,39 @@ function resolveTeacherClassDetailTab(classId: string): TeacherClassDetailTab {
   return readTeacherClassDetailTab(classId) ?? TABS.MAIN;
 }
 
-const CLASS_TABS = [
-  { value: TABS.MAIN, label: "Main", icon: LayoutDashboardIcon },
-  { value: TABS.SESSIONS, label: "Sessions", icon: CalendarDaysIcon },
-  { value: TABS.TASKS, label: "Tasks", icon: ClipboardListIcon },
-  { value: TABS.ANALYTICS, label: "Analytics", icon: ChartColumnIcon },
-] as const;
+type ClassRailItem = {
+  value: TeacherClassDetailTab;
+  label: string;
+  description: string;
+  icon: LucideIcon;
+};
 
-const TAB_TRIGGER_CLASS =
-  "inline-flex items-center justify-center gap-1.5 rounded-md border border-transparent px-3 py-1.5 text-center text-sm font-medium whitespace-nowrap text-muted-foreground outline-none transition-colors duration-150 hover:bg-primary/6 hover:text-foreground focus-visible:ring-3 focus-visible:ring-ring/50 data-[state=active]:border-primary/20 data-[state=active]:bg-primary/12 data-[state=active]:text-primary data-[state=active]:shadow-sm data-[state=active]:hover:bg-primary/12 data-[state=active]:hover:text-primary";
+const CLASS_TABS: ClassRailItem[] = [
+  {
+    value: TABS.MAIN,
+    label: "Main",
+    description: "Overview & students",
+    icon: LayoutDashboardIcon,
+  },
+  {
+    value: TABS.SESSIONS,
+    label: "Sessions",
+    description: "Schedule & attendance",
+    icon: CalendarDaysIcon,
+  },
+  {
+    value: TABS.TASKS,
+    label: "Tasks",
+    description: "Assignments & grading",
+    icon: ClipboardListIcon,
+  },
+  {
+    value: TABS.ANALYTICS,
+    label: "Analytics",
+    description: "Grade trends",
+    icon: ChartColumnIcon,
+  },
+];
 
 export function TeacherClassDetailsPanel({
   classRow: initialClassRow,
@@ -211,6 +236,8 @@ export function TeacherClassDetailsPanel({
   const statusClassName =
     CLASS_STATUS_BADGE_CLASSES[classRow.status] ??
     "bg-muted text-muted-foreground";
+  const activeRail =
+    CLASS_TABS.find((item) => item.value === tab) ?? CLASS_TABS[0];
 
   function handleSessionSelect(sessionId: string) {
     if (selectedSessionId === sessionId) {
@@ -312,57 +339,113 @@ export function TeacherClassDetailsPanel({
         />
       ) : null}
 
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-        <div className="min-w-0">
-          <h1 className="text-2xl font-semibold tracking-tight">
-            {classRow.name}
-          </h1>
-          <p className="mt-1 text-sm text-muted-foreground">
-            {classRow.subject_name}
-          </p>
-        </div>
-        <div className="flex flex-wrap items-center gap-2">
-          <span
-            className={cn(
-              "inline-flex w-fit rounded-full px-2.5 py-1 text-xs font-medium",
-              statusClassName
-            )}
-          >
-            {statusLabel}
-          </span>
-          <Can permission={PERMISSIONS.CLASSES_CHANGE_STATUS}>
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              onClick={() => setIsChangeStatusOpen(true)}
+      <Tabs
+        value={tab}
+        onValueChange={handleTabChange}
+        className="flex flex-col gap-5 @lg/panel:flex-row @lg/panel:items-start"
+      >
+        <aside className="w-full shrink-0 @lg/panel:sticky @lg/panel:top-4 @lg/panel:w-56">
+          <div className="overflow-hidden rounded-2xl border border-border/70 bg-card shadow-[0_1px_2px_rgb(0_0_0/0.04),0_12px_28px_-20px_rgb(42_42_82/0.28)] dark:shadow-[0_1px_2px_rgb(0_0_0/0.35),0_16px_32px_-22px_rgb(0_0_0/0.55)]">
+            <div className="border-b border-border/50 bg-muted/25 px-4 py-3.5">
+              <p className="text-[11px] font-medium tracking-[0.08em] text-muted-foreground uppercase">
+                Class
+              </p>
+              <h2 className="mt-1 truncate text-sm font-semibold tracking-tight">
+                {classRow.name}
+              </h2>
+              <p className="mt-0.5 truncate text-xs text-muted-foreground">
+                {classRow.subject_name}
+              </p>
+              <div className="mt-3 flex flex-col gap-2">
+                <span
+                  className={cn(
+                    "inline-flex w-fit rounded-full px-2.5 py-1 text-xs font-medium",
+                    statusClassName
+                  )}
+                >
+                  {statusLabel}
+                </span>
+                <Can permission={PERMISSIONS.CLASSES_CHANGE_STATUS}>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="w-full justify-start"
+                    onClick={() => setIsChangeStatusOpen(true)}
+                  >
+                    <RefreshCwIcon data-icon="inline-start" />
+                    Change status
+                  </Button>
+                </Can>
+              </div>
+            </div>
+
+            <TabsListPrimitive
+              aria-label="Class sections"
+              className="flex w-full flex-row gap-1.5 overflow-x-auto p-2.5 @lg/panel:flex-col"
             >
-              <RefreshCwIcon data-icon="inline-start" />
-              Change status
-            </Button>
-          </Can>
-        </div>
-      </div>
+              {CLASS_TABS.map((item, index) => {
+                const Icon = item.icon;
+                return (
+                  <TabsTriggerPrimitive
+                    key={item.value}
+                    value={item.value}
+                    className={cn(
+                      "group relative flex min-w-[9.5rem] flex-1 items-start gap-2.5 rounded-xl px-3 py-2.5 text-left transition-[background-color,box-shadow,color] duration-150 @lg/panel:min-w-0 @lg/panel:w-full",
+                      "outline-none focus-visible:ring-3 focus-visible:ring-ring/50",
+                      "text-foreground/90 hover:bg-muted/60",
+                      "data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm data-[state=active]:ring-1 data-[state=active]:ring-border/70"
+                    )}
+                  >
+                    <span
+                      aria-hidden
+                      className="absolute inset-y-2 left-0 w-0.5 rounded-full bg-transparent transition-colors group-data-[state=active]:bg-primary"
+                    />
+                    <span
+                      className={cn(
+                        "mt-0.5 flex size-8 shrink-0 items-center justify-center rounded-lg text-muted-foreground transition-colors",
+                        "bg-muted group-data-[state=active]:bg-primary/12 group-data-[state=active]:text-primary"
+                      )}
+                    >
+                      <Icon className="size-4" aria-hidden />
+                    </span>
+                    <span className="min-w-0 flex-1">
+                      <span className="flex items-center gap-2">
+                        <span className="truncate text-sm font-medium leading-snug">
+                          {item.label}
+                        </span>
+                        <span
+                          className={cn(
+                            "ml-auto hidden size-5 shrink-0 items-center justify-center rounded-md text-[10px] font-semibold tabular-nums @lg/panel:inline-flex",
+                            "bg-muted text-muted-foreground group-data-[state=active]:bg-primary/12 group-data-[state=active]:text-primary"
+                          )}
+                        >
+                          {index + 1}
+                        </span>
+                      </span>
+                      <span className="mt-0.5 hidden text-xs text-muted-foreground @lg/panel:block">
+                        {item.description}
+                      </span>
+                    </span>
+                  </TabsTriggerPrimitive>
+                );
+              })}
+            </TabsListPrimitive>
+          </div>
+        </aside>
 
-      <Tabs value={tab} onValueChange={handleTabChange} className="gap-4">
-        <TabsListPrimitive className="grid w-full grid-cols-4 gap-1 self-start rounded-lg border border-border/70 bg-secondary/80 p-1 sm:w-fit sm:min-w-[24rem]">
-          {CLASS_TABS.map((item) => {
-            const Icon = item.icon;
-            return (
-              <TabsTriggerPrimitive
-                key={item.value}
-                value={item.value}
-                className={TAB_TRIGGER_CLASS}
-              >
-                <Icon data-icon="inline-start" />
-                {item.label}
-              </TabsTriggerPrimitive>
-            );
-          })}
-        </TabsListPrimitive>
+        <div className="min-w-0 flex-1">
+          <div className="mb-4 border-b border-border/50 pb-3 @lg/panel:hidden">
+            <p className="text-[11px] font-medium tracking-[0.08em] text-muted-foreground uppercase">
+              {activeRail?.label}
+            </p>
+            <p className="mt-0.5 text-sm text-muted-foreground">
+              {activeRail?.description}
+            </p>
+          </div>
 
-        <TabsContents>
-          <TabsContent value={TABS.MAIN} className="flex flex-col gap-4">
+          <TabsContents className="mx-0">
+          <TabsContent value={TABS.MAIN} className="flex flex-col gap-4 outline-none">
             {visitedTabs.has(TABS.MAIN) ? (
               <>
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
@@ -443,7 +526,10 @@ export function TeacherClassDetailsPanel({
             ) : null}
           </TabsContent>
 
-          <TabsContent value={TABS.SESSIONS} className="flex flex-col gap-4">
+          <TabsContent
+            value={TABS.SESSIONS}
+            className="flex flex-col gap-4 outline-none"
+          >
             {visitedTabs.has(TABS.SESSIONS) ? (
               <>
                 <ClassSessionsSection
@@ -517,7 +603,10 @@ export function TeacherClassDetailsPanel({
             ) : null}
           </TabsContent>
 
-          <TabsContent value={TABS.TASKS} className="flex flex-col gap-4">
+          <TabsContent
+            value={TABS.TASKS}
+            className="flex flex-col gap-4 outline-none"
+          >
             {visitedTabs.has(TABS.TASKS) ? (
               <>
                 {tab === TABS.TASKS &&
@@ -541,12 +630,16 @@ export function TeacherClassDetailsPanel({
             ) : null}
           </TabsContent>
 
-          <TabsContent value={TABS.ANALYTICS} className="flex flex-col gap-4">
+          <TabsContent
+            value={TABS.ANALYTICS}
+            className="flex flex-col gap-4 outline-none"
+          >
             {visitedTabs.has(TABS.ANALYTICS) && tab === TABS.ANALYTICS
               ? sharedGradeSummarySlot
               : null}
           </TabsContent>
-        </TabsContents>
+          </TabsContents>
+        </div>
       </Tabs>
     </div>
   );

@@ -20,6 +20,7 @@ import {
   MANAGER_CLASS_STATUS_LABELS,
 } from "@/lib/constants/manager-class-display";
 import {
+  CLASS_STATUSES,
   CLASS_STATUS_VALUES,
   type ClassStatusValue,
 } from "@/lib/constants/manager-class-status";
@@ -32,6 +33,7 @@ type TeacherClassesPanelProps = {
 };
 
 const STATUS_FILTER_ALL = "all";
+const DEFAULT_STATUS_FILTER = CLASS_STATUSES.IN_PROGRESS;
 
 function matchesSearch(row: TeacherClassRow, query: string) {
   const normalizedQuery = query.trim().toLowerCase();
@@ -53,7 +55,7 @@ function matchesSearch(row: TeacherClassRow, query: string) {
 
 export function TeacherClassesPanel({ rows }: TeacherClassesPanelProps) {
   const [searchQuery, setSearchQuery] = useState("");
-  const [statusFilter, setStatusFilter] = useState(STATUS_FILTER_ALL);
+  const [statusFilter, setStatusFilter] = useState(DEFAULT_STATUS_FILTER);
 
   const filteredRows = useMemo(() => {
     return rows.filter((row) => {
