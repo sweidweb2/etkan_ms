@@ -57,8 +57,12 @@ describe("permissions", () => {
     expect(isPermissionKey("subjects")).toBe(false);
   });
 
-  it("keeps the catalog size at 181 keys", () => {
-    expect(PERMISSION_KEYS).toHaveLength(181);
+  it("keeps the catalog size at 185 keys", () => {
+    expect(PERMISSION_KEYS).toHaveLength(185);
+    expect(isPermissionKey(PERMISSIONS.SEMESTERS_TEAMS_VIEW)).toBe(true);
+    expect(isPermissionKey(PERMISSIONS.SEMESTERS_TEAMS_CREATE)).toBe(true);
+    expect(isPermissionKey(PERMISSIONS.SEMESTERS_TEAMS_UPDATE)).toBe(true);
+    expect(isPermissionKey(PERMISSIONS.SEMESTERS_TEAMS_DELETE)).toBe(true);
     expect(isPermissionKey(PERMISSIONS.CLASSES_SET_TEAM_LEADER)).toBe(true);
     expect(isPermissionKey(PERMISSIONS.TEAM_LEADER_ATTENDANCE_UPDATE)).toBe(
       true
