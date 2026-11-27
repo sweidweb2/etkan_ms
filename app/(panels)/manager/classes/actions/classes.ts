@@ -1,4 +1,5 @@
 "use server";
+import { PERMISSIONS } from "@/lib/constants/permissions";
 
 import { runManagerAction } from "@/lib/actions/run-manager-action";
 import {
@@ -40,6 +41,7 @@ export async function createClassAction(
   formData: FormData
 ): Promise<CreateClassActionState> {
   return runManagerAction({
+    permission: PERMISSIONS.CLASSES_CREATE,
     formData,
     parse: parseCreateClassFormData,
     mutate: ({ adminClient, actor, data }) =>
@@ -60,6 +62,7 @@ export async function updateClassAction(
   formData: FormData
 ): Promise<UpdateClassActionState> {
   return runManagerAction({
+    permission: PERMISSIONS.CLASSES_UPDATE,
     formData,
     parse: parseUpdateClassFormData,
     mutate: ({ adminClient, actor, data }) =>
@@ -81,6 +84,7 @@ export async function updateClassStatusAction(
   formData: FormData
 ): Promise<UpdateClassStatusActionState> {
   return runManagerAction({
+    permission: PERMISSIONS.CLASSES_CHANGE_STATUS,
     formData,
     parse: parseChangeClassStatusFormData,
     mutate: ({ adminClient, actor, data }) =>
@@ -99,6 +103,7 @@ export async function assignClassTeacherAction(
   formData: FormData
 ): Promise<AssignClassTeacherActionState> {
   return runManagerAction({
+    permission: PERMISSIONS.CLASSES_ASSIGN_TEACHER,
     formData,
     parse: parseAssignClassTeacherFormData,
     mutate: ({ adminClient, actor, data }) =>
@@ -117,6 +122,7 @@ export async function unassignClassTeacherAction(
   formData: FormData
 ): Promise<UnassignClassTeacherActionState> {
   return runManagerAction({
+    permission: PERMISSIONS.CLASSES_UNASSIGN_TEACHER,
     formData,
     parse: parseUnassignClassTeacherFormData,
     mutate: ({ adminClient, actor, data }) =>

@@ -5,6 +5,7 @@ import {
 } from "@/lib/email/templates/brand";
 import { emailChrome } from "@/lib/email/templates/chrome";
 import type { EmailLocale } from "@/lib/email/templates/types";
+import { isHttpUrl } from "@/lib/security/http-url";
 
 export function escapeHtml(value: string): string {
   return value
@@ -89,15 +90,17 @@ export function wrapEmailLayout(content: LayoutContent): {
   const barStyle = brandBarCellStyle(align, dir, textAlign);
   const lockupUrl = brandLockupUrl();
 
-  const ctaHtml = content.cta
+  const safeCta =
+    content.cta && isHttpUrl(content.cta.url) ? content.cta : null;
+  const ctaHtml = safeCta
     ? `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="width:100%;margin:0;">
         <tr>
           <td align="${align}" style="padding:0;">
             <table role="presentation" cellpadding="0" cellspacing="0">
               <tr>
                 <td style="border-radius:6px;background:${EMAIL_BRAND.brand};">
-                  <a href="${escapeHtml(content.cta.url)}" style="display:inline-block;padding:12px 22px;font-size:15px;font-weight:600;line-height:1.25;color:${EMAIL_BRAND.onBrand};text-decoration:none;white-space:nowrap;">
-                    ${escapeHtml(content.cta.label)}
+                  <a href="${escapeHtml(safeCta.url)}" style="display:inline-block;padding:12px 22px;font-size:15px;font-weight:600;line-height:1.25;color:${EMAIL_BRAND.onBrand};text-decoration:none;white-space:nowrap;">
+                    ${escapeHtml(safeCta.label)}
                   </a>
                 </td>
               </tr>
@@ -182,8 +185,8 @@ export function wrapEmailLayout(content: LayoutContent): {
 </body>
 </html>`;
 
-  const ctaText = content.cta
-    ? `\n\n${content.cta.label}: ${content.cta.url}`
+  const ctaText = safeCta
+    ? `\n\n${safeCta.label}: ${safeCta.url}`
     : "";
 
   const text = `${SITE.name}

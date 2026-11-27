@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useRef, useState } from "react";
 import { dropAllSemestersAction } from "@/app/manager/students/actions";
 import { InlineSpinner } from "@/components/loaders/inline-spinner";
 import { Button } from "@/components/ui/button";
@@ -48,10 +48,18 @@ export function DropStudentDropAllDialog({
   onCompleted,
 }: DropStudentDropAllDialogProps) {
   const valueInputRef = useRef<HTMLInputElement>(null);
+  const formResetKey = open ? studentId : "closed";
   const [restrictionMode, setRestrictionMode] =
     useState<SemesterDropRestrictionMode>(
       SEMESTER_DROP_RESTRICTION_MODES.PERCENT
     );
+  const [prevFormResetKey, setPrevFormResetKey] = useState(formResetKey);
+  if (formResetKey !== prevFormResetKey) {
+    setPrevFormResetKey(formResetKey);
+    if (open) {
+      setRestrictionMode(SEMESTER_DROP_RESTRICTION_MODES.PERCENT);
+    }
+  }
 
   const { formAction, isPending, handleOpenChange, state } =
     useMutationDialogForm({
@@ -64,12 +72,6 @@ export function DropStudentDropAllDialog({
         onOpenChange(false);
       },
     });
-
-  useEffect(() => {
-    if (!open) return;
-    setRestrictionMode(SEMESTER_DROP_RESTRICTION_MODES.PERCENT);
-    if (valueInputRef.current) valueInputRef.current.value = "";
-  }, [open, studentId]);
 
   function handleSubmit() {
     if (isPending) return;
@@ -132,6 +134,7 @@ export function DropStudentDropAllDialog({
                 : "Required percent"}
             </Label>
             <Input
+              key={formResetKey}
               id="drop-all-value"
               ref={valueInputRef}
               type="number"

@@ -1,4 +1,5 @@
 "use server";
+import { PERMISSIONS } from "@/lib/constants/permissions";
 
 import { runManagerAction } from "@/lib/actions/run-manager-action";
 import {
@@ -34,6 +35,7 @@ export async function createFinancialFormAction(
   formData: FormData
 ): Promise<UpsertFinancialFormActionState> {
   return runManagerAction({
+    permission: PERMISSIONS.ACCOUNTING_ADJUSTMENTS_UPDATE,
     formData,
     parse: parseCreateFinancialFormFormData,
     mutate: ({ adminClient, actor, data }) =>
@@ -59,6 +61,7 @@ export async function updateFinancialFormAction(
   formData: FormData
 ): Promise<UpsertFinancialFormActionState> {
   return runManagerAction({
+    permission: PERMISSIONS.ACCOUNTING_ADJUSTMENTS_UPDATE,
     formData,
     parse: parseUpdateFinancialFormFormData,
     mutate: ({ adminClient, actor, data }) =>
@@ -84,6 +87,7 @@ export async function createFinancialFormInviteAction(
   formData: FormData
 ): Promise<CreateFinancialFormInviteActionState> {
   return runManagerAction({
+    permission: PERMISSIONS.ACCOUNTING_ADJUSTMENTS_UPDATE,
     formData,
     parse: parseCreateFinancialFormInviteFormData,
     mutate: ({ adminClient, actor, data }) =>
@@ -114,6 +118,7 @@ export async function deleteFinancialFormInviteAction(
   formData: FormData
 ): Promise<DeleteFinancialFormInviteActionState> {
   return runManagerAction({
+    permission: PERMISSIONS.ACCOUNTING_ADJUSTMENTS_DELETE,
     formData,
     parse: parseDeleteFinancialFormInviteFormData,
     mutate: ({ adminClient, actor, data }) =>
@@ -143,6 +148,7 @@ export async function deleteFinancialFormAction(
   formData: FormData
 ): Promise<DeleteFinancialFormActionState> {
   return runManagerAction({
+    permission: PERMISSIONS.ACCOUNTING_ADJUSTMENTS_DELETE,
     formData,
     parse: parseDeleteFinancialFormFormData,
     mutate: ({ adminClient, actor, data }) =>

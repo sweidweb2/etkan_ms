@@ -1,4 +1,5 @@
 "use server";
+import { PERMISSIONS } from "@/lib/constants/permissions";
 
 import { revalidatePath } from "next/cache";
 import { runManagerAction } from "@/lib/actions/run-manager-action";
@@ -24,6 +25,7 @@ export async function createSemesterDropAction(
   formData: FormData
 ): Promise<CreateSemesterDropActionState> {
   return runManagerAction({
+    permission: PERMISSIONS.CLASSES_DROP_SEMESTER,
     formData,
     parse: parseCreateSemesterDropFormData,
     mutate: ({ adminClient, actor, data }) =>
@@ -57,6 +59,7 @@ export async function cancelSemesterDropAction(
   formData: FormData
 ): Promise<CancelSemesterDropActionState> {
   return runManagerAction({
+    permission: PERMISSIONS.CLASSES_DROP_SEMESTER,
     formData,
     parse: parseCancelSemesterDropFormData,
     mutate: ({ adminClient, actor, data }) =>

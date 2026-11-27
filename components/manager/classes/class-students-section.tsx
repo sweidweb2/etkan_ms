@@ -4,7 +4,6 @@ import Link from "next/link";
 import {
   useActionState,
   useEffect,
-  useMemo,
   useRef,
   useState,
   useTransition,
@@ -414,6 +413,7 @@ export function ClassStudentsSection({
               onStudentsChange(nextStudents);
               return nextStudents;
             });
+            setTotalCount((count) => Math.max(0, count - 1));
           } else if (pendingRequestId) {
             setStudents((prev) => {
               const nextStudents = prev.map((row) =>

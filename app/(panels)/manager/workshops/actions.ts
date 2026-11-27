@@ -1,4 +1,5 @@
 "use server";
+import { PERMISSIONS } from "@/lib/constants/permissions";
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
@@ -201,6 +202,7 @@ export async function createWorkshopAction(
   formData: FormData
 ): Promise<CreateWorkshopActionState> {
   return runManagerAction({
+    permission: PERMISSIONS.WORKSHOPS_CREATE,
     formData,
     parse: parseCreateWorkshopFormData,
     mutate: ({ adminClient, actor, data }) =>
@@ -222,6 +224,7 @@ export async function updateWorkshopAction(
   formData: FormData
 ): Promise<UpdateWorkshopActionState> {
   return runManagerAction({
+    permission: PERMISSIONS.WORKSHOPS_UPDATE,
     formData,
     parse: parseUpdateWorkshopFormData,
     mutate: ({ adminClient, actor, data }) =>
@@ -244,6 +247,7 @@ export async function updateWorkshopProposalNotesAction(
   formData: FormData
 ): Promise<UpdateWorkshopActionState> {
   return runManagerAction({
+    permission: PERMISSIONS.WORKSHOPS_UPDATE,
     formData,
     parse: parseUpdateWorkshopProposalNotesFormData,
     mutate: ({ adminClient, actor, data }) =>
@@ -279,6 +283,7 @@ export async function deleteWorkshopAction(
   }
 
   return runManagerMutation({
+    permission: PERMISSIONS.WORKSHOPS_DELETE,
     data: workshopId,
     mutate: ({ adminClient, actor, data }) =>
       deleteWorkshopForManager(adminClient, actor.userId, actor, data),
@@ -299,6 +304,7 @@ export async function changeWorkshopStatusAction(
   formData: FormData
 ): Promise<ChangeWorkshopStatusActionState> {
   return runManagerAction({
+    permission: PERMISSIONS.WORKSHOPS_CHANGE_STATUS,
     formData,
     parse: parseChangeWorkshopStatusFormData,
     mutate: ({ adminClient, actor, data }) =>
@@ -321,6 +327,7 @@ export async function addWorkshopInstructorAction(
   formData: FormData
 ): Promise<AddWorkshopInstructorActionState> {
   return runManagerAction({
+    permission: PERMISSIONS.WORKSHOPS_INSTRUCTORS_CREATE,
     formData,
     parse: parseCreateWorkshopInstructorFormData,
     mutate: ({ adminClient, actor, data }) =>
@@ -344,6 +351,7 @@ export async function updateWorkshopInstructorAction(
   formData: FormData
 ): Promise<UpdateWorkshopInstructorActionState> {
   return runManagerAction({
+    permission: PERMISSIONS.WORKSHOPS_INSTRUCTORS_UPDATE,
     formData,
     parse: parseUpdateWorkshopInstructorFormData,
     mutate: ({ adminClient, actor, data }) =>
@@ -372,6 +380,7 @@ export async function removeWorkshopInstructorAction(
   formData: FormData
 ): Promise<RemoveWorkshopInstructorActionState> {
   return runManagerAction({
+    permission: PERMISSIONS.WORKSHOPS_INSTRUCTORS_DELETE,
     formData,
     parse: parseRemoveWorkshopInstructorFormData,
     mutate: ({ adminClient, actor, data }) =>
@@ -397,6 +406,7 @@ export async function uploadWorkshopDocumentAction(
   formData: FormData
 ): Promise<UploadWorkshopDocumentActionState> {
   return runManagerAction({
+    permission: PERMISSIONS.WORKSHOPS_DOCUMENTS_CREATE,
     formData,
     parse: parseUploadWorkshopDocumentFormData,
     mutate: ({ adminClient, actor, data }) =>
@@ -420,6 +430,7 @@ export async function renameWorkshopDocumentAction(
   formData: FormData
 ): Promise<RenameWorkshopDocumentActionState> {
   return runManagerAction({
+    permission: PERMISSIONS.WORKSHOPS_DOCUMENTS_UPDATE,
     formData,
     parse: parseRenameWorkshopDocumentFormData,
     mutate: ({ adminClient, actor, data }) =>
@@ -443,6 +454,7 @@ export async function deleteWorkshopDocumentAction(
   formData: FormData
 ): Promise<DeleteWorkshopDocumentActionState> {
   return runManagerAction({
+    permission: PERMISSIONS.WORKSHOPS_DOCUMENTS_DELETE,
     formData,
     parse: parseDeleteWorkshopDocumentFormData,
     mutate: ({ adminClient, actor, data }) =>
@@ -472,6 +484,7 @@ export async function createWorkshopPaymentAction(
   formData: FormData
 ): Promise<CreateWorkshopPaymentActionState> {
   return runManagerAction({
+    permission: PERMISSIONS.WORKSHOPS_PAYMENTS_CREATE,
     formData,
     parse: parseCreateWorkshopPaymentFormData,
     mutate: ({ adminClient, actor, data }) =>
@@ -492,6 +505,7 @@ export async function updateWorkshopPaymentAction(
   formData: FormData
 ): Promise<UpdateWorkshopPaymentActionState> {
   return runManagerAction({
+    permission: PERMISSIONS.WORKSHOPS_PAYMENTS_UPDATE,
     formData,
     parse: parseUpdateWorkshopPaymentFormData,
     mutate: ({ adminClient, actor, data }) =>
@@ -512,6 +526,7 @@ export async function deleteWorkshopPaymentAction(
   formData: FormData
 ): Promise<DeleteWorkshopPaymentActionState> {
   return runManagerAction({
+    permission: PERMISSIONS.WORKSHOPS_PAYMENTS_DELETE,
     formData,
     parse: parseDeleteWorkshopPaymentFormData,
     mutate: ({ adminClient, actor, data }) =>
@@ -531,6 +546,7 @@ export async function createWorkshopSessionAction(
   formData: FormData
 ): Promise<CreateWorkshopSessionActionState> {
   return runManagerAction({
+    permission: PERMISSIONS.WORKSHOPS_SESSIONS_CREATE,
     formData,
     parse: parseCreateWorkshopSessionFormData,
     mutate: ({ adminClient, actor, data }) =>
@@ -552,6 +568,7 @@ export async function updateWorkshopSessionAction(
   formData: FormData
 ): Promise<UpdateWorkshopSessionActionState> {
   return runManagerAction({
+    permission: PERMISSIONS.WORKSHOPS_SESSIONS_UPDATE,
     formData,
     parse: parseUpdateWorkshopSessionFormData,
     mutate: ({ adminClient, actor, data }) =>
@@ -573,6 +590,7 @@ export async function deleteWorkshopSessionAction(
   formData: FormData
 ): Promise<DeleteWorkshopSessionActionState> {
   return runManagerAction({
+    permission: PERMISSIONS.WORKSHOPS_SESSIONS_DELETE,
     formData,
     parse: parseDeleteWorkshopSessionFormData,
     mutate: ({ adminClient, actor, data }) =>

@@ -1,4 +1,5 @@
 "use server";
+import { PERMISSIONS } from "@/lib/constants/permissions";
 
 import { revalidatePath } from "next/cache";
 import { runManagerAction } from "@/lib/actions/run-manager-action";
@@ -39,6 +40,7 @@ export async function addStudentToClassAction(
   formData: FormData
 ): Promise<AddStudentToClassActionState> {
   return runManagerAction({
+    permission: PERMISSIONS.CLASSES_ADD_STUDENT,
     formData,
     parse: parseAddStudentsToClassFormData,
     mutate: ({ adminClient, actor, data }) =>
@@ -63,6 +65,7 @@ export async function copyStudentsFromClassAction(
   formData: FormData
 ): Promise<AddStudentToClassActionState> {
   return runManagerAction({
+    permission: PERMISSIONS.CLASSES_COPY_STUDENTS_FROM_CLASS,
     formData,
     parse: parseCopyStudentsFromClassFormData,
     mutate: ({ adminClient, actor, data }) =>
@@ -87,6 +90,7 @@ export async function removeStudentFromClassAction(
   formData: FormData
 ): Promise<RemoveStudentFromClassActionState> {
   return runManagerAction({
+    permission: PERMISSIONS.CLASSES_REMOVE_STUDENT,
     formData,
     parse: parseRemoveStudentFromClassFormData,
     mutate: ({ adminClient, actor, data }) =>
@@ -108,6 +112,7 @@ export async function setStudentTeamLeaderAction(
   formData: FormData
 ): Promise<SetTeamLeaderActionState> {
   return runManagerAction({
+    permission: PERMISSIONS.CLASSES_SET_TEAM_LEADER,
     formData,
     parse: parseSetTeamLeaderFormData,
     mutate: ({ adminClient, actor, data }) =>
@@ -129,6 +134,7 @@ export async function transferStudentBetweenClassesAction(
   formData: FormData
 ): Promise<TransferStudentBetweenClassesActionState> {
   return runManagerAction({
+    permission: [PERMISSIONS.CLASSES_REMOVE_STUDENT, PERMISSIONS.CLASSES_ADD_STUDENT],
     formData,
     parse: parseTransferStudentBetweenClassesFormData,
     mutate: ({ adminClient, actor, data }) =>

@@ -1,4 +1,5 @@
 "use server";
+import { PERMISSIONS } from "@/lib/constants/permissions";
 
 import { runManagerAction } from "@/lib/actions/run-manager-action";
 import { getSessionAuditActor } from "@/lib/auth/session";
@@ -27,6 +28,7 @@ export async function createNotificationAction(
   formData: FormData
 ): Promise<CreateNotificationActionState> {
   return runManagerAction({
+    permission: PERMISSIONS.NOTIFICATIONS_CREATE,
     formData,
     parse: parseCreateNotificationFormData,
     mutate: ({ adminClient, actor, data }) =>
@@ -44,6 +46,7 @@ export async function updateNotificationAction(
   formData: FormData
 ): Promise<UpdateNotificationActionState> {
   return runManagerAction({
+    permission: PERMISSIONS.NOTIFICATIONS_UPDATE,
     formData,
     parse: parseUpdateNotificationFormData,
     mutate: ({ adminClient, actor, data }) =>
@@ -61,6 +64,7 @@ export async function markNotificationReadAction(
   formData: FormData
 ): Promise<MarkNotificationReadActionState> {
   return runManagerAction({
+    permission: PERMISSIONS.NOTIFICATIONS_MARK_READ,
     formData,
     parse: parseMarkNotificationReadFormData,
     mutate: ({ adminClient, actor, data }) =>
@@ -77,6 +81,7 @@ export async function deleteNotificationAction(
   formData: FormData
 ): Promise<DeleteNotificationActionState> {
   return runManagerAction({
+    permission: PERMISSIONS.NOTIFICATIONS_DELETE,
     formData,
     parse: parseNotificationIdFormData,
     mutate: ({ adminClient, actor, data }) =>

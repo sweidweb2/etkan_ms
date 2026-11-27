@@ -16,6 +16,7 @@ import {
   UnderlineIcon,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { isHttpUrl } from "@/lib/security/http-url";
 import { cn } from "@/lib/utils";
 
 const EMPTY_DOC: JSONContent = {
@@ -48,10 +49,12 @@ export function TiptapExerciseEditor({
       Underline,
       Link.configure({
         openOnClick: false,
+        protocols: ["http", "https"],
         HTMLAttributes: {
           rel: "noopener noreferrer",
           target: "_blank",
         },
+        validate: (href) => isHttpUrl(href),
       }),
     ],
     content: value && typeof value === "object" ? value : EMPTY_DOC,
@@ -99,12 +102,12 @@ export function TiptapExerciseEditor({
       editor.chain().focus().extendMarkRange("link").unsetLink().run();
       return;
     }
-    editor
-      .chain()
-      .focus()
-      .extendMarkRange("link")
-      .setLink({ href: url.trim() })
-      .run();
+    const href = url.trim();
+    if (!isHttpUrl(href)) {
+      window.alert("Links must use http:// or https://.");
+      return;
+    }
+    editor.chain().focus().extendMarkRange("link").setLink({ href }).run();
   };
 
   return (

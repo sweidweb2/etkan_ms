@@ -1,4 +1,5 @@
 "use server";
+import { PERMISSIONS } from "@/lib/constants/permissions";
 
 import { redirect } from "next/navigation";
 import { runManagerAction } from "@/lib/actions/run-manager-action";
@@ -43,6 +44,7 @@ export async function repairMissingSppAction(
   formData: FormData
 ): Promise<RepairMissingSppActionState> {
   return runManagerAction({
+    permission: PERMISSIONS.ACCOUNTING_PAYMENT_PHASES_CREATE,
     formData,
     parse: parseRepairMissingSppFormData,
     mutate: ({ adminClient, actor, data }) =>
@@ -62,6 +64,7 @@ export async function assignOptionalEnrollPaymentPhasesAction(
   formData: FormData
 ): Promise<AssignOptionalEnrollPaymentPhasesActionState> {
   return runManagerAction({
+    permission: PERMISSIONS.ACCOUNTING_PAYMENT_PHASES_CREATE,
     formData,
     parse: parseAssignOptionalEnrollPaymentPhasesFormData,
     mutate: ({ adminClient, actor, data }) =>
@@ -87,6 +90,7 @@ export async function transferSppAction(
   formData: FormData
 ): Promise<TransferSppActionState> {
   return runManagerAction({
+    permission: PERMISSIONS.ACCOUNTING_SPP_TRANSFER,
     formData,
     parse: parseTransferSppFormData,
     mutate: ({ adminClient, actor, data }) =>
@@ -116,6 +120,7 @@ export async function deleteStudentPaymentPhaseAction(
   formData: FormData
 ): Promise<DeleteStudentPaymentPhaseActionState> {
   return runManagerAction({
+    permission: PERMISSIONS.ACCOUNTING_SPP_DELETE,
     formData,
     parse: parseDeleteStudentPaymentPhaseFormData,
     mutate: ({ adminClient, actor, data }) =>

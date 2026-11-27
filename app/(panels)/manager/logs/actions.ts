@@ -1,4 +1,5 @@
 "use server";
+import { PERMISSIONS } from "@/lib/constants/permissions";
 
 import { revalidatePath } from "next/cache";
 import { runManagerAction } from "@/lib/actions/run-manager-action";
@@ -49,6 +50,7 @@ export async function deleteAuditLogsAction(
   formData: FormData
 ): Promise<DeleteAuditLogsActionState> {
   return runManagerAction({
+    permission: PERMISSIONS.LOGS_DELETE,
     formData,
     parse: parseDeleteAuditLogsFormData,
     mutate: ({ adminClient, actor, data }) =>

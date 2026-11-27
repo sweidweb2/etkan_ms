@@ -1,4 +1,5 @@
 "use server";
+import { PERMISSIONS } from "@/lib/constants/permissions";
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
@@ -58,6 +59,7 @@ export async function skipClassWeekAction(
   formData: FormData
 ): Promise<SkipClassWeekActionState> {
   return runManagerAction({
+    permission: PERMISSIONS.SESSIONS_SKIP,
     formData,
     parse: parseSkipClassWeekFormData,
     mutate: ({ adminClient, actor, data }) =>
@@ -77,6 +79,7 @@ export async function unskipClassWeekAction(
   formData: FormData
 ): Promise<UnskipClassWeekActionState> {
   return runManagerAction({
+    permission: PERMISSIONS.SESSIONS_SKIP,
     formData,
     parse: parseUnskipClassWeekFormData,
     mutate: ({ adminClient, actor, data }) =>
@@ -96,6 +99,7 @@ export async function createClassSessionAction(
   formData: FormData
 ): Promise<CreateClassSessionActionState> {
   return runManagerAction({
+    permission: PERMISSIONS.SESSIONS_CREATE,
     formData,
     parse: parseCreateClassSessionFormData,
     mutate: ({ adminClient, actor, data }) =>
@@ -114,6 +118,7 @@ export async function updateSessionSettingsAction(
   formData: FormData
 ): Promise<UpdateSessionSettingsActionState> {
   return runManagerAction({
+    permission: PERMISSIONS.SESSIONS_UPDATE_SETTINGS,
     formData,
     parse: parseUpdateSessionSettingsFormData,
     mutate: ({ adminClient, actor, data }) =>
@@ -131,6 +136,7 @@ export async function updateClassSessionAction(
   formData: FormData
 ): Promise<UpdateClassSessionActionState> {
   return runManagerAction({
+    permission: PERMISSIONS.SESSIONS_UPDATE,
     formData,
     parse: parseUpdateClassSessionFormData,
     mutate: ({ adminClient, actor, data }) =>
@@ -158,6 +164,7 @@ export async function deleteClassSessionAction(
   }
 
   return runManagerMutation({
+    permission: PERMISSIONS.SESSIONS_DELETE,
     data: sessionId,
     mutate: ({ adminClient, actor, data }) =>
       deleteClassSessionForManager(adminClient, actor.userId, actor, data),

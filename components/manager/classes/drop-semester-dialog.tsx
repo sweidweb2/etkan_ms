@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createSemesterDropAction } from "@/app/manager/classes/actions";
 import { InlineSpinner } from "@/components/loaders/inline-spinner";
@@ -66,10 +66,18 @@ export function DropSemesterDialog({
   const router = useRouter();
   const valueInputRef = useRef<HTMLInputElement>(null);
   const submittedMembershipIdRef = useRef<string | null>(null);
+  const formResetKey = open ? (student?.id ?? "open") : "closed";
   const [restrictionMode, setRestrictionMode] =
     useState<SemesterDropRestrictionMode>(
       SEMESTER_DROP_RESTRICTION_MODES.PERCENT
     );
+  const [prevFormResetKey, setPrevFormResetKey] = useState(formResetKey);
+  if (formResetKey !== prevFormResetKey) {
+    setPrevFormResetKey(formResetKey);
+    if (open) {
+      setRestrictionMode(SEMESTER_DROP_RESTRICTION_MODES.PERCENT);
+    }
+  }
 
   const { formAction, isPending, handleOpenChange, state } =
     useMutationDialogForm({
@@ -94,16 +102,6 @@ export function DropSemesterDialog({
         router.refresh();
       },
     });
-
-  useEffect(() => {
-    if (!open) {
-      return;
-    }
-    setRestrictionMode(SEMESTER_DROP_RESTRICTION_MODES.PERCENT);
-    if (valueInputRef.current) {
-      valueInputRef.current.value = "";
-    }
-  }, [open, student?.id]);
 
   function handleSubmit() {
     if (!student || isPending) {
@@ -183,6 +181,7 @@ export function DropSemesterDialog({
           <div className="flex flex-col gap-2">
             <Label htmlFor="drop_restriction_value">{valueLabel}</Label>
             <Input
+              key={formResetKey}
               ref={valueInputRef}
               id="drop_restriction_value"
               name="drop_restriction_value"

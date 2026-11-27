@@ -1,4 +1,5 @@
 "use server";
+import { PERMISSIONS } from "@/lib/constants/permissions";
 
 import { revalidatePath } from "next/cache";
 import { runManagerAction } from "@/lib/actions/run-manager-action";
@@ -82,6 +83,7 @@ export async function createStudentAction(
   formData: FormData
 ): Promise<CreateStudentActionState> {
   return runManagerAction({
+    permission: PERMISSIONS.STUDENTS_CREATE,
     formData,
     parse: parseCreateStudentFormData,
     mutate: ({ adminClient, actor, data }) =>
@@ -102,6 +104,7 @@ export async function updateStudentAction(
   formData: FormData
 ): Promise<UpdateStudentActionState> {
   return runManagerAction({
+    permission: PERMISSIONS.STUDENTS_UPDATE,
     formData,
     parse: parseUpdateStudentFormData,
     mutate: ({ adminClient, actor, data }) =>
@@ -122,6 +125,7 @@ export async function changeStudentStatusAction(
   formData: FormData
 ): Promise<ChangeStudentStatusActionState> {
   return runManagerAction({
+    permission: PERMISSIONS.STUDENTS_CHANGE_STATUS,
     formData,
     parse: parseChangeStudentStatusFormData,
     mutate: ({ adminClient, actor, data }) =>
@@ -144,6 +148,7 @@ export async function updateStudentAvatarAction(
   formData: FormData
 ): Promise<AvatarActionState> {
   return runManagerAction({
+    permission: PERMISSIONS.STUDENTS_UPDATE_AVATAR,
     formData,
     parse: parseUpdateStudentAvatarFormData,
     mutate: ({ adminClient, actor, data }) =>
@@ -170,6 +175,7 @@ export async function removeStudentAvatarAction(
   formData: FormData
 ): Promise<AvatarActionState> {
   return runManagerAction({
+    permission: PERMISSIONS.STUDENTS_UPDATE_AVATAR,
     formData,
     parse: parseStudentAvatarTargetFormData,
     mutate: ({ adminClient, actor, data }) =>

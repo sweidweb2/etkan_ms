@@ -1,4 +1,5 @@
 "use server";
+import { PERMISSIONS } from "@/lib/constants/permissions";
 
 import { runManagerAction } from "@/lib/actions/run-manager-action";
 import { getSessionAuditActor } from "@/lib/auth/session";
@@ -44,6 +45,7 @@ export async function createStaffUserAction(
   formData: FormData
 ): Promise<CreateStaffUserActionState> {
   return runManagerAction({
+    permission: PERMISSIONS.USERS_CREATE,
     formData,
     parse: parseCreateStaffUserFormData,
     mutate: ({ adminClient, actor, data }) =>
@@ -66,6 +68,7 @@ export async function updateUserAction(
   formData: FormData
 ): Promise<UpdateManagerUserActionState> {
   return runManagerAction({
+    permission: PERMISSIONS.USERS_UPDATE,
     formData,
     parse: parseUpdateManagerUserFormData,
     mutate: ({ adminClient, actor, data }) =>

@@ -49,10 +49,10 @@ export function resolveDropRestriction(input: {
   requiredAmount: number;
 } {
   const finalDue = Math.max(0, Number(input.finalAmountDue) || 0);
-  let mode = input.mode;
-  let percent =
+  const mode = input.mode;
+  const percent =
     input.requiredPercent == null ? null : Number(input.requiredPercent);
-  let amount =
+  const amount =
     input.requiredAmount == null ? null : Number(input.requiredAmount);
 
   if (mode === SEMESTER_DROP_RESTRICTION_MODES.PERCENT) {

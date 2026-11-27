@@ -1,4 +1,5 @@
 "use server";
+import { PERMISSIONS } from "@/lib/constants/permissions";
 
 import {
   runManagerAction,
@@ -51,6 +52,7 @@ export async function createCategoryAction(
 ): Promise<CreateCategoryActionState> {
   return runManagerAction({
     formData,
+    permission: PERMISSIONS.SUBJECTS_CATEGORIES_CREATE,
     parse: parseCreateCategoryFormData,
     mutate: ({ adminClient, actor, data }) =>
       createCategoryForManager(adminClient, actor.userId, actor, data),
@@ -69,6 +71,7 @@ export async function updateCategoryAction(
 ): Promise<UpdateCategoryActionState> {
   return runManagerAction({
     formData,
+    permission: PERMISSIONS.SUBJECTS_CATEGORIES_UPDATE,
     parse: parseUpdateCategoryFormData,
     mutate: ({ adminClient, actor, data }) =>
       updateCategoryForManager(adminClient, actor.userId, actor, data),
@@ -92,6 +95,7 @@ export async function deleteCategoryAction(
 
   return runManagerMutation({
     data: categoryId,
+    permission: PERMISSIONS.SUBJECTS_CATEGORIES_DELETE,
     mutate: ({ adminClient, actor, data }) =>
       deleteCategoryForManager(adminClient, actor.userId, actor, data),
     revalidate: () => revalidateCatalogAndSubjects(),
@@ -108,6 +112,7 @@ export async function createExerciseAction(
 ): Promise<CreateExerciseActionState> {
   return runManagerAction({
     formData,
+    permission: PERMISSIONS.SUBJECTS_EXERCISES_CREATE,
     parse: parseCreateExerciseFormData,
     mutate: ({ adminClient, actor, data }) =>
       createExerciseForManager(adminClient, actor.userId, actor, data),
@@ -126,6 +131,7 @@ export async function updateExerciseAction(
 ): Promise<UpdateExerciseActionState> {
   return runManagerAction({
     formData,
+    permission: PERMISSIONS.SUBJECTS_EXERCISES_UPDATE,
     parse: parseUpdateExerciseFormData,
     mutate: ({ adminClient, actor, data }) =>
       updateExerciseForManager(adminClient, actor.userId, actor, data),
@@ -149,6 +155,7 @@ export async function deleteExerciseAction(
 
   return runManagerMutation({
     data: exerciseId,
+    permission: PERMISSIONS.SUBJECTS_EXERCISES_DELETE,
     mutate: ({ adminClient, actor, data }) =>
       deleteExerciseForManager(adminClient, actor.userId, actor, data),
     revalidate: () => revalidateCatalogAndSubjects(),
@@ -165,6 +172,7 @@ export async function syncSubjectCatalogLinksAction(
 ): Promise<SyncSubjectCatalogLinksActionState> {
   return runManagerAction({
     formData,
+    permission: PERMISSIONS.SUBJECTS_UPDATE,
     parse: parseSyncSubjectCatalogLinksFormData,
     mutate: ({ adminClient, actor, data }) =>
       syncSubjectCatalogLinksForManager(adminClient, actor.userId, actor, data),

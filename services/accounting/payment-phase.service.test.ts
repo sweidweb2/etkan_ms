@@ -5,6 +5,7 @@ import * as profileRepository from "@/repositories/profile.repository";
 import * as semesterDropRequestRepository from "@/repositories/semester-drop-request.repository";
 import * as studentClassRepository from "@/repositories/student-class.repository";
 import * as studentPaymentPhaseRepository from "@/repositories/student-payment-phase.repository";
+import * as studentPaymentRepository from "@/repositories/student-payment.repository";
 import * as studentProfileRepository from "@/repositories/student-profile.repository";
 import * as auditLogService from "@/services/ops/audit-log.service";
 import type { AuditActor } from "@/services/ops/audit-log.service";
@@ -26,6 +27,7 @@ vi.mock("@/repositories/semester.repository");
 vi.mock("@/repositories/semester-drop-request.repository");
 vi.mock("@/repositories/student-class.repository");
 vi.mock("@/repositories/student-payment-phase.repository");
+vi.mock("@/repositories/student-payment.repository");
 vi.mock("@/repositories/student-profile.repository");
 vi.mock("@/services/ops/audit-log.service", () => ({
   recordManagerAuditLog: vi.fn().mockResolvedValue(null),
@@ -313,6 +315,12 @@ describe("listMissingSppForOpenedPhases", () => {
     vi.resetAllMocks();
     vi.mocked(
       semesterDropRequestRepository.listNeedRefundDropRequests
+    ).mockResolvedValue({
+      data: [],
+      error: null,
+    } as never);
+    vi.mocked(
+      studentPaymentRepository.listDropRefundDebitPayments
     ).mockResolvedValue({
       data: [],
       error: null,

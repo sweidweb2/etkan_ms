@@ -6,13 +6,14 @@ import type {
   CustomTemplateVars,
   RenderedEmail,
 } from "@/lib/email/templates/types";
+import { sanitizeRichHtml } from "@/lib/security/sanitize-rich-html";
 
 export function renderCustomEmail(vars: CustomTemplateVars): RenderedEmail {
   const subject = vars.subject;
   const title = vars.subject;
 
   const htmlBody = vars.bodyHtml?.trim()
-    ? vars.bodyHtml
+    ? sanitizeRichHtml(vars.bodyHtml)
     : plainTextToHtmlParagraphs(vars.body);
   const textBody = vars.body;
 

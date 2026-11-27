@@ -4,8 +4,21 @@ import { safeParseFormData } from "@/lib/validators/safe-parse-form-data";
 const optionalUrlField = z
   .string()
   .trim()
-  .url({ message: "Please enter a valid URL." })
   .max(2048, { message: "URL must be at most 2048 characters." })
+  .refine(
+    (value) => {
+      if (!value) {
+        return true;
+      }
+      try {
+        const url = new URL(value);
+        return url.protocol === "http:" || url.protocol === "https:";
+      } catch {
+        return false;
+      }
+    },
+    { message: "Please enter a valid http(s) URL." }
+  )
   .optional()
   .or(z.literal(""));
 

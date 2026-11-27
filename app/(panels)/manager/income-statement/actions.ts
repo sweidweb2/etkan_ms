@@ -1,4 +1,5 @@
 "use server";
+import { PERMISSIONS } from "@/lib/constants/permissions";
 
 import { revalidatePath } from "next/cache";
 import { runManagerAction } from "@/lib/actions/run-manager-action";
@@ -30,6 +31,7 @@ export async function createTransactionAction(
   formData: FormData
 ): Promise<CreateTransactionActionState> {
   return runManagerAction({
+    permission: PERMISSIONS.ACCOUNTING_TRANSACTIONS_CREATE,
     formData,
     parse: parseCreateTransactionFormData,
     mutate: ({ adminClient, actor, data }) =>
@@ -49,6 +51,7 @@ export async function updateTransactionAction(
   formData: FormData
 ): Promise<UpdateTransactionActionState> {
   return runManagerAction({
+    permission: PERMISSIONS.ACCOUNTING_TRANSACTIONS_UPDATE,
     formData,
     parse: parseUpdateTransactionFormData,
     mutate: ({ adminClient, actor, data }) =>
@@ -68,6 +71,7 @@ export async function deleteTransactionAction(
   formData: FormData
 ): Promise<DeleteTransactionActionState> {
   return runManagerAction({
+    permission: PERMISSIONS.ACCOUNTING_TRANSACTIONS_DELETE,
     formData,
     parse: parseDeleteTransactionFormData,
     mutate: ({ adminClient, actor, data }) =>

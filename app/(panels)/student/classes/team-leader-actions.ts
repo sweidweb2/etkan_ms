@@ -1,4 +1,5 @@
 "use server";
+import { PERMISSIONS } from "@/lib/constants/permissions";
 
 import { revalidatePath } from "next/cache";
 import {
@@ -86,6 +87,7 @@ export async function updateTeamLeaderAttendeeAction(
   formData: FormData
 ): Promise<UpdateAttendeeActionState> {
   return runManagerAction({
+    permission: PERMISSIONS.TEAM_LEADER_ATTENDANCE_UPDATE,
     formData,
     parse: parseUpdateAttendeeFormData,
     mutate: ({ adminClient, actor, data }) =>
@@ -106,6 +108,7 @@ export async function createTeamLeaderClassTaskAction(
   formData: FormData
 ): Promise<CreateClassTaskActionState> {
   return runManagerAction({
+    permission: PERMISSIONS.TEAM_LEADER_TASKS_CREATE,
     formData,
     parse: parseCreateClassTaskFormData,
     mutate: ({ adminClient, actor, data }) =>
@@ -126,6 +129,7 @@ export async function updateTeamLeaderClassTaskAction(
   formData: FormData
 ): Promise<UpdateClassTaskActionState> {
   return runManagerAction({
+    permission: PERMISSIONS.TEAM_LEADER_TASKS_UPDATE,
     formData,
     parse: parseUpdateClassTaskFormData,
     mutate: ({ adminClient, actor, data }) =>
@@ -154,6 +158,7 @@ export async function startTeamLeaderClassTaskAction(
   }
 
   return runManagerMutation({
+    permission: PERMISSIONS.TEAM_LEADER_TASKS_START,
     data: { id, class_id },
     mutate: ({ adminClient, actor, data }) =>
       startClassTaskForTeamLeader(adminClient, actor, data),
@@ -173,6 +178,9 @@ export async function uploadTeamLeaderTaskAttachmentAction(
   formData: FormData
 ): Promise<UploadTaskAttachmentActionState> {
   return runManagerAction({
+    permission: {
+      anyOf: [PERMISSIONS.TASKS_UPDATE, PERMISSIONS.TEAM_LEADER_TASKS_UPDATE],
+    },
     formData,
     parse: parseUploadTaskAttachmentFormData,
     mutate: ({ adminClient, actor, data }) =>
@@ -198,6 +206,9 @@ export async function deleteTeamLeaderTaskAttachmentAction(
   formData: FormData
 ): Promise<DeleteTaskAttachmentActionState> {
   return runManagerAction({
+    permission: {
+      anyOf: [PERMISSIONS.TASKS_UPDATE, PERMISSIONS.TEAM_LEADER_TASKS_UPDATE],
+    },
     formData,
     parse: parseDeleteTaskAttachmentFormData,
     mutate: ({ adminClient, actor, data }) =>
@@ -218,6 +229,9 @@ export async function getTeamLeaderTaskAttachmentSignedUrlAction(
   formData: FormData
 ): Promise<TaskAttachmentSignedUrlActionState> {
   return runManagerAction({
+    permission: {
+      anyOf: [PERMISSIONS.TASKS_VIEW, PERMISSIONS.TEAM_LEADER_TASKS_UPDATE],
+    },
     formData,
     parse: parseTaskAttachmentSignedUrlFormData,
     mutate: ({ adminClient, actor, data }) =>

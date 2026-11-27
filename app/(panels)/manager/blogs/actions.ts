@@ -1,4 +1,5 @@
 "use server";
+import { PERMISSIONS } from "@/lib/constants/permissions";
 
 import {
   runManagerAction,
@@ -31,6 +32,7 @@ export async function createBlogAction(
 ): Promise<CreateBlogActionState> {
   return runManagerAction({
     formData,
+    permission: PERMISSIONS.BLOGS_CREATE,
     parse: parseCreateBlogFormData,
     mutate: ({ adminClient, actor, data }) =>
       createBlogForManager(adminClient, actor.userId, actor, data),
@@ -51,6 +53,7 @@ export async function createBlogFromJsonAction(
 ): Promise<CreateBlogActionState> {
   return runManagerAction({
     formData,
+    permission: PERMISSIONS.BLOGS_CREATE,
     parse: parseCreateBlogFromJsonFormData,
     mutate: ({ adminClient, actor, data }) =>
       createBlogForManager(adminClient, actor.userId, actor, data),
@@ -71,6 +74,7 @@ export async function updateBlogAction(
 ): Promise<UpdateBlogActionState> {
   return runManagerAction({
     formData,
+    permission: PERMISSIONS.BLOGS_UPDATE,
     parse: parseUpdateBlogFormData,
     mutate: ({ adminClient, actor, data }) =>
       updateBlogForManager(adminClient, actor.userId, actor, data),
@@ -100,6 +104,7 @@ export async function deleteBlogAction(
 
   return runManagerMutation({
     data: blogId,
+    permission: PERMISSIONS.BLOGS_DELETE,
     mutate: ({ adminClient, actor, data }) =>
       deleteBlogForManager(adminClient, actor.userId, actor, data),
     revalidate: (result) => {

@@ -1,4 +1,5 @@
 "use server";
+import { PERMISSIONS } from "@/lib/constants/permissions";
 
 import {
   runManagerAction,
@@ -121,6 +122,7 @@ export async function createSemesterTeamAction(
   formData: FormData
 ): Promise<CreateSemesterTeamActionState> {
   return runManagerAction({
+    permission: PERMISSIONS.SEMESTERS_TEAMS_CREATE,
     formData,
     parse: parseCreateSemesterTeamFormData,
     mutate: ({ adminClient, actor, data }) =>
@@ -141,6 +143,7 @@ export async function assignSemestersToTeamAction(
   formData: FormData
 ): Promise<AssignSemestersToTeamActionState> {
   return runManagerAction({
+    permission: PERMISSIONS.SEMESTERS_UPDATE,
     formData,
     parse: parseAssignSemestersToTeamFormData,
     mutate: ({ adminClient, actor, data }) =>
@@ -164,6 +167,7 @@ export async function reorderSemesterTeamsAction(
 ): Promise<ReorderSemesterTeamsActionState> {
   return runManagerAction({
     formData,
+    permission: PERMISSIONS.SEMESTERS_TEAMS_UPDATE,
     parse: parseReorderSemesterTeamsFormData,
     mutate: ({ adminClient, actor, data }) =>
       reorderSemesterTeamsForManager(adminClient, actor.userId, actor, data),
@@ -184,6 +188,7 @@ export async function saveSemesterBoardAction(
 ): Promise<SaveSemesterBoardActionState> {
   return runManagerAction({
     formData,
+    permission: PERMISSIONS.SEMESTERS_UPDATE,
     parse: parseSaveSemesterBoardFormData,
     mutate: ({ adminClient, actor, data }) =>
       saveSemesterBoardForManager(adminClient, actor.userId, actor, data),

@@ -6,6 +6,8 @@ const PUBLIC_MARKETING_CACHE_CONTROL =
 
 const nextConfig: NextConfig = {
   output: "standalone",
+  // jsdom (via isomorphic-dompurify) must stay external for server sanitization.
+  serverExternalPackages: ["isomorphic-dompurify", "jsdom"],
   // Project guidance lives in `.cursor/rules` — skip Next's auto AGENTS.md.
   agentRules: false,
   // Playwright / Docker often hit http://127.0.0.1:3000 while `next dev`

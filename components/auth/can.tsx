@@ -36,7 +36,8 @@ export type CanProps = CanPermissionProps | CanAnyOfProps | CanAllOfProps;
 
 /**
  * Renders children only when the current user holds the required permission(s).
- * Cosmetic only — server actions must still assert permissions.
+ * Cosmetic only — server actions must pass `permission` to
+ * `runManagerAction` / `runManagerMutation` (and services may assert scope).
  */
 export function Can(props: CanProps) {
   const permissions = usePermissions();

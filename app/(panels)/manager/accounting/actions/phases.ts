@@ -1,4 +1,5 @@
 "use server";
+import { PERMISSIONS } from "@/lib/constants/permissions";
 
 import { runManagerAction } from "@/lib/actions/run-manager-action";
 import { getSessionAuditActor } from "@/lib/auth/session";
@@ -46,6 +47,7 @@ export async function createPaymentPhaseAction(
   formData: FormData
 ): Promise<CreatePaymentPhaseActionState> {
   return runManagerAction({
+    permission: PERMISSIONS.ACCOUNTING_PAYMENT_PHASES_CREATE,
     formData,
     parse: parseCreatePaymentPhaseFormData,
     mutate: ({ adminClient, actor, data }) =>
@@ -66,6 +68,7 @@ export async function updatePaymentPhaseAction(
   formData: FormData
 ): Promise<UpdatePaymentPhaseActionState> {
   return runManagerAction({
+    permission: PERMISSIONS.ACCOUNTING_PAYMENT_PHASES_UPDATE,
     formData,
     parse: parseUpdatePaymentPhaseFormData,
     mutate: ({ adminClient, actor, data }) =>
@@ -86,6 +89,7 @@ export async function cancelPaymentPhaseAction(
   formData: FormData
 ): Promise<CancelPaymentPhaseActionState> {
   return runManagerAction({
+    permission: PERMISSIONS.ACCOUNTING_PAYMENT_PHASES_CANCEL,
     formData,
     parse: parseCancelPaymentPhaseFormData,
     mutate: ({ adminClient, actor, data }) =>

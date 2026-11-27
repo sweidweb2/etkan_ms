@@ -1,4 +1,5 @@
 "use server";
+import { PERMISSIONS } from "@/lib/constants/permissions";
 
 import { runManagerAction } from "@/lib/actions/run-manager-action";
 import { getSessionAuditActor } from "@/lib/auth/session";
@@ -37,6 +38,7 @@ export async function createFinancialAdjustmentAction(
   formData: FormData
 ): Promise<CreateFinancialAdjustmentActionState> {
   return runManagerAction({
+    permission: PERMISSIONS.ACCOUNTING_ADJUSTMENTS_CREATE,
     formData,
     parse: parseCreateFinancialAdjustmentFormData,
     mutate: ({ adminClient, actor, data }) =>
@@ -61,6 +63,7 @@ export async function importFinancialAdjustmentAction(
   formData: FormData
 ): Promise<ImportFinancialAdjustmentActionState> {
   return runManagerAction({
+    permission: PERMISSIONS.ACCOUNTING_ADJUSTMENTS_CREATE,
     formData,
     parse: parseImportFinancialAdjustmentFormData,
     mutate: ({ adminClient, actor, data }) =>
@@ -104,6 +107,7 @@ export async function updateFinancialAdjustmentAction(
   formData: FormData
 ): Promise<UpdateFinancialAdjustmentActionState> {
   return runManagerAction({
+    permission: PERMISSIONS.ACCOUNTING_ADJUSTMENTS_UPDATE,
     formData,
     parse: parseUpdateFinancialAdjustmentFormData,
     mutate: ({ adminClient, actor, data }) =>
@@ -128,6 +132,7 @@ export async function deleteFinancialAdjustmentAction(
   formData: FormData
 ): Promise<DeleteFinancialAdjustmentActionState> {
   return runManagerAction({
+    permission: PERMISSIONS.ACCOUNTING_ADJUSTMENTS_DELETE,
     formData,
     parse: parseDeleteFinancialAdjustmentFormData,
     mutate: ({ adminClient, actor, data }) =>

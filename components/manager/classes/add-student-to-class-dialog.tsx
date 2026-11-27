@@ -170,7 +170,11 @@ export function AddStudentToClassDialog({
       return;
     }
 
-    void loadCandidates("", 1, false);
+    // Defer so the open transition is not blocked by picker loading state.
+    const timer = window.setTimeout(() => {
+      void loadCandidates("", 1, false);
+    }, 0);
+    return () => window.clearTimeout(timer);
   }, [open, classId, needsFetch, loadCandidates]);
 
   const handleSearchChange = useCallback(

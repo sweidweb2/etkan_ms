@@ -31,8 +31,8 @@ describe("blog helpers", () => {
 
   it("estimates reading time and sanitizes html", () => {
     expect(estimateReadingTimeMinutes("<p>one two</p>")).toBe(1);
-    expect(sanitizeBlogHtml('<img src=x onerror="alert(1)">')).not.toContain(
-      "onerror"
-    );
+    const clean = sanitizeBlogHtml('<img src=x onerror="alert(1)">');
+    expect(clean).not.toMatch(/onerror/i);
+    expect(clean).not.toMatch(/<img/i);
   });
 });

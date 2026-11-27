@@ -70,13 +70,13 @@ describe("reading time", () => {
 });
 
 describe("sanitizeBlogHtml", () => {
-  it("strips scripts and event handlers", () => {
+  it("strips scripts, handlers, and javascript URLs", () => {
     const dirty =
       '<p onclick="alert(1)">Hi</p><script>alert(2)</script><a href="javascript:alert(3)">x</a>';
     const clean = sanitizeBlogHtml(dirty);
-    expect(clean).not.toContain("script");
-    expect(clean).not.toContain("onclick");
-    expect(clean).not.toContain("javascript:");
+    expect(clean).not.toMatch(/script/i);
+    expect(clean).not.toMatch(/onclick/i);
+    expect(clean).not.toMatch(/javascript:/i);
     expect(clean).toContain("Hi");
   });
 });

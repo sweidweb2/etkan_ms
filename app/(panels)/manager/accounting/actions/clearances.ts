@@ -1,4 +1,5 @@
 "use server";
+import { PERMISSIONS } from "@/lib/constants/permissions";
 
 import { runManagerAction } from "@/lib/actions/run-manager-action";
 import {
@@ -37,6 +38,7 @@ export async function createSppClearanceAction(
   formData: FormData
 ): Promise<UpsertSppClearanceActionState> {
   return runManagerAction({
+    permission: PERMISSIONS.ACCOUNTING_CLEARANCES_CREATE,
     formData,
     parse: parseCreateSppClearanceFormData,
     mutate: ({ adminClient, actor, data }) =>
@@ -62,6 +64,7 @@ export async function updateSppClearanceAction(
   formData: FormData
 ): Promise<UpsertSppClearanceActionState> {
   return runManagerAction({
+    permission: PERMISSIONS.ACCOUNTING_CLEARANCES_UPDATE,
     formData,
     parse: parseUpdateSppClearanceFormData,
     mutate: ({ adminClient, actor, data }) =>
@@ -87,6 +90,7 @@ export async function deleteSppClearanceAction(
   formData: FormData
 ): Promise<DeleteSppClearanceActionState> {
   return runManagerAction({
+    permission: PERMISSIONS.ACCOUNTING_CLEARANCES_DELETE,
     formData,
     parse: parseDeleteSppClearanceFormData,
     mutate: ({ adminClient, actor, data }) =>
@@ -113,6 +117,7 @@ export async function bulkCreateSppClearancesAction(
   formData: FormData
 ): Promise<BulkCreateSppClearancesActionState> {
   return runManagerAction({
+    permission: PERMISSIONS.ACCOUNTING_CLEARANCES_CREATE,
     formData,
     parse: parseBulkCreateSppClearancesFormData,
     mutate: ({ adminClient, actor, data }) =>
@@ -134,6 +139,7 @@ export async function bulkDeleteSppClearancesAction(
   formData: FormData
 ): Promise<BulkDeleteSppClearancesActionState> {
   return runManagerAction({
+    permission: PERMISSIONS.ACCOUNTING_CLEARANCES_DELETE,
     formData,
     parse: parseBulkDeleteSppClearancesFormData,
     mutate: ({ adminClient, actor, data }) =>

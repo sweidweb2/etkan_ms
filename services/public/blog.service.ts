@@ -9,6 +9,7 @@ import {
 } from "@/lib/constants/manager-blog";
 import { PERMISSIONS } from "@/lib/constants/permissions";
 import { estimateReadingTimeMinutes } from "@/lib/manager/blogs/reading-time";
+import { sanitizeBlogHtml } from "@/lib/manager/blogs/sanitize-blog-html";
 import {
   AUTHOR_STORAGE_BUCKET,
   BLOGS_STORAGE_BUCKET,
@@ -419,14 +420,15 @@ export async function createBlogForManager(
     }
   }
 
-  const readingTime = estimateReadingTimeMinutes(parsed.data.body_html);
+  const bodyHtml = sanitizeBlogHtml(parsed.data.body_html);
+  const readingTime = estimateReadingTimeMinutes(bodyHtml);
   const publishedAt = resolvePublishedAt(parsed.data.status, null);
 
   const { data, error } = await blogRepository.createBlog(adminClient, {
     slug: parsed.data.slug,
     title: parsed.data.title,
     summary: parsed.data.summary,
-    body_html: parsed.data.body_html,
+    body_html: bodyHtml,
     categories: parsed.data.categories,
     thumbnail_url: thumbnailUrl,
     author_name: parsed.data.author_name,
@@ -583,7 +585,8 @@ export async function updateBlogForManager(
     }
   }
 
-  const readingTime = estimateReadingTimeMinutes(parsed.data.body_html);
+  const bodyHtml = sanitizeBlogHtml(parsed.data.body_html);
+  const readingTime = estimateReadingTimeMinutes(bodyHtml);
   const publishedAt = resolvePublishedAt(
     parsed.data.status,
     existing.data.published_at
@@ -596,7 +599,7 @@ export async function updateBlogForManager(
       slug: parsed.data.slug,
       title: parsed.data.title,
       summary: parsed.data.summary,
-      body_html: parsed.data.body_html,
+      body_html: bodyHtml,
       categories: parsed.data.categories,
       thumbnail_url: thumbnailUrl,
       author_name: parsed.data.author_name,

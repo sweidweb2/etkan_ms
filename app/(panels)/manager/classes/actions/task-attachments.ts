@@ -1,4 +1,5 @@
 "use server";
+import { PERMISSIONS } from "@/lib/constants/permissions";
 
 import { revalidatePath } from "next/cache";
 import { runManagerAction } from "@/lib/actions/run-manager-action";
@@ -61,6 +62,13 @@ export async function uploadTaskAttachmentAction(
   formData: FormData
 ): Promise<UploadTaskAttachmentActionState> {
   return runManagerAction({
+    permission: {
+      anyOf: [
+        PERMISSIONS.TASKS_UPDATE,
+        PERMISSIONS.SUBJECTS_TASKS_UPDATE,
+        PERMISSIONS.TEAM_LEADER_TASKS_UPDATE,
+      ],
+    },
     formData,
     parse: parseUploadTaskAttachmentFormData,
     mutate: ({ adminClient, actor, data }) =>
@@ -85,6 +93,13 @@ export async function deleteTaskAttachmentAction(
   formData: FormData
 ): Promise<DeleteTaskAttachmentActionState> {
   return runManagerAction({
+    permission: {
+      anyOf: [
+        PERMISSIONS.TASKS_UPDATE,
+        PERMISSIONS.SUBJECTS_TASKS_UPDATE,
+        PERMISSIONS.TEAM_LEADER_TASKS_UPDATE,
+      ],
+    },
     formData,
     parse: parseDeleteTaskAttachmentFormData,
     mutate: ({ adminClient, actor, data }) =>
@@ -107,6 +122,13 @@ export async function getTaskAttachmentSignedUrlAction(
   formData: FormData
 ): Promise<TaskAttachmentSignedUrlActionState> {
   return runManagerAction({
+    permission: {
+      anyOf: [
+        PERMISSIONS.TASKS_VIEW,
+        PERMISSIONS.SUBJECTS_TASKS_VIEW,
+        PERMISSIONS.TEAM_LEADER_TASKS_UPDATE,
+      ],
+    },
     formData,
     parse: parseTaskAttachmentSignedUrlFormData,
     mutate: ({ adminClient, actor, data }) =>

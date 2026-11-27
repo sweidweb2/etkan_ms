@@ -1,4 +1,5 @@
 "use server";
+import { PERMISSIONS } from "@/lib/constants/permissions";
 
 import { runManagerAction } from "@/lib/actions/run-manager-action";
 import {
@@ -26,6 +27,7 @@ export async function createFinalExamAction(
   formData: FormData
 ): Promise<CreateFinalExamActionState> {
   return runManagerAction({
+    permission: PERMISSIONS.FINAL_EXAMS_CREATE,
     formData,
     parse: parseCreateFinalExamFormData,
     mutate: ({ adminClient, actor, data }) =>
@@ -44,6 +46,7 @@ export async function updateFinalExamAction(
   formData: FormData
 ): Promise<UpdateFinalExamActionState> {
   return runManagerAction({
+    permission: PERMISSIONS.FINAL_EXAMS_UPDATE,
     formData,
     parse: parseUpdateFinalExamFormData,
     mutate: ({ adminClient, actor, data }) =>
@@ -61,6 +64,7 @@ export async function updateStudentFinalExamGradeAction(
   formData: FormData
 ): Promise<UpdateStudentFinalExamGradeActionState> {
   return runManagerAction({
+    permission: PERMISSIONS.FINAL_EXAMS_UPDATE_STUDENT,
     formData,
     parse: parseEditStudentFinalExamGradeFormData,
     mutate: ({ adminClient, actor, data }) =>

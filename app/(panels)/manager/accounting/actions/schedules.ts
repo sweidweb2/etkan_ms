@@ -1,4 +1,5 @@
 "use server";
+import { PERMISSIONS } from "@/lib/constants/permissions";
 
 import { runManagerAction } from "@/lib/actions/run-manager-action";
 import {
@@ -31,6 +32,7 @@ export async function createStudentPaymentScheduleAction(
   const paymentPhaseId = String(formData.get("payment_phase_id") ?? "");
 
   return runManagerAction({
+    permission: PERMISSIONS.PAYMENT_SCHEDULES_CREATE,
     formData,
     parse: parseCreateStudentPaymentScheduleFormData,
     mutate: ({ adminClient, actor, data }) =>
@@ -63,6 +65,7 @@ export async function updateStudentPaymentScheduleAction(
   const paymentPhaseId = String(formData.get("payment_phase_id") ?? "");
 
   return runManagerAction({
+    permission: PERMISSIONS.PAYMENT_SCHEDULES_UPDATE,
     formData,
     parse: parseUpdateStudentPaymentScheduleFormData,
     mutate: ({ adminClient, actor, data }) =>
@@ -95,6 +98,7 @@ export async function deleteStudentPaymentScheduleAction(
   const paymentPhaseId = String(formData.get("payment_phase_id") ?? "");
 
   return runManagerAction({
+    permission: PERMISSIONS.PAYMENT_SCHEDULES_DELETE,
     formData,
     parse: parseDeleteStudentPaymentScheduleFormData,
     mutate: ({ adminClient, actor, data }) =>

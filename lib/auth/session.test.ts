@@ -12,6 +12,15 @@ describe("getSessionPack", () => {
     vi.doMock("@/lib/supabase/server", () => ({
       createSupabaseServerComponentClient: vi.fn(async () => ({})),
     }));
+    vi.doMock("@/lib/supabase/admin", () => ({
+      createSupabaseAdminClient: vi.fn(() => ({})),
+    }));
+    vi.doMock("@/lib/auth/claims-role-override-cache", () => ({
+      markClaimsRoleOverride: vi.fn(),
+      resolveEffectiveClaimsRole: vi.fn(
+        (_userId: string, jwtClaimsRole: unknown) => jwtClaimsRole
+      ),
+    }));
     vi.doMock("@/services/auth/auth.service", () => ({
       getSessionAuthIdentity: vi.fn(),
     }));
@@ -250,7 +259,7 @@ describe("getSessionPack", () => {
     );
   });
 
-  it("on MISS with claimsRole, loads profile and permissions in parallel for claimsRole", async () => {
+  it("on MISS with claimsRole, prefers DB role when profile disagrees and reloads permissions", async () => {
     const mod = await loadSessionModule();
     const user = {
       id: "user-pack-4",
@@ -258,7 +267,8 @@ describe("getSessionPack", () => {
       user_metadata: { full_name: "Mgr User" },
       app_metadata: { role: ROLES.MANAGER },
     } as never;
-    const permissions = new Set([PERMISSIONS.DASHBOARD_VIEW]);
+    const claimedPermissions = new Set([PERMISSIONS.DASHBOARD_VIEW]);
+    const teacherPermissions = new Set([PERMISSIONS.WORKSHOPS_VIEW]);
 
     mod.getCachedSessionShell.mockReturnValue(null);
     mod.getSessionAuthIdentity.mockResolvedValue({
@@ -269,7 +279,7 @@ describe("getSessionPack", () => {
       data: {
         id: "user-pack-4",
         full_name: "Manager User",
-        role: ROLES.TEACHER, // profile disagrees; claims win
+        role: ROLES.TEACHER, // profile demotion wins over JWT claims
         is_instructor: false,
         created_at: "2026-01-01",
       },
@@ -278,22 +288,30 @@ describe("getSessionPack", () => {
       status: 200,
       statusText: "OK",
     });
-    mod.getEffectivePermissionsForUserCached.mockResolvedValue(permissions);
+    mod.getEffectivePermissionsForUserCached
+      .mockResolvedValueOnce(claimedPermissions)
+      .mockResolvedValueOnce(teacherPermissions);
 
     const pack = await mod.session.getSessionPack();
 
-    expect(pack.role).toBe(ROLES.MANAGER);
-    expect(pack.permissions).toEqual(permissions);
+    expect(pack.role).toBe(ROLES.TEACHER);
+    expect(pack.permissions).toEqual(teacherPermissions);
     expect(mod.findProfileById).toHaveBeenCalledTimes(1);
-    expect(mod.getEffectivePermissionsForUserCached).toHaveBeenCalledTimes(1);
-    expect(mod.getEffectivePermissionsForUserCached).toHaveBeenCalledWith(
+    expect(mod.getEffectivePermissionsForUserCached).toHaveBeenCalledTimes(2);
+    expect(mod.getEffectivePermissionsForUserCached).toHaveBeenNthCalledWith(
+      1,
       "user-pack-4",
       ROLES.MANAGER
+    );
+    expect(mod.getEffectivePermissionsForUserCached).toHaveBeenNthCalledWith(
+      2,
+      "user-pack-4",
+      ROLES.TEACHER
     );
     expect(mod.setCachedSessionShell).toHaveBeenCalledWith(
       "user-pack-4",
       expect.objectContaining({
-        role: ROLES.MANAGER,
+        role: ROLES.TEACHER,
         cachedClaimsRole: ROLES.MANAGER,
       })
     );

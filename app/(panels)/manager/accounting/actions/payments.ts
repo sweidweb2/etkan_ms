@@ -1,4 +1,5 @@
 "use server";
+import { PERMISSIONS } from "@/lib/constants/permissions";
 
 import { runManagerAction } from "@/lib/actions/run-manager-action";
 import {
@@ -29,6 +30,7 @@ export async function createStudentPaymentAction(
   formData: FormData
 ): Promise<CreateStudentPaymentActionState> {
   return runManagerAction({
+    permission: PERMISSIONS.ACCOUNTING_PAYMENTS_CREATE,
     formData,
     parse: parseCreateStudentPaymentFormData,
     mutate: ({ adminClient, actor, data }) =>
@@ -54,6 +56,7 @@ export async function updateStudentPaymentAction(
   formData: FormData
 ): Promise<UpdateStudentPaymentActionState> {
   return runManagerAction({
+    permission: PERMISSIONS.ACCOUNTING_PAYMENTS_UPDATE,
     formData,
     parse: parseUpdateStudentPaymentFormData,
     mutate: ({ adminClient, actor, data }) =>
@@ -79,6 +82,7 @@ export async function deleteStudentPaymentAction(
   formData: FormData
 ): Promise<DeleteStudentPaymentActionState> {
   return runManagerAction({
+    permission: PERMISSIONS.ACCOUNTING_PAYMENTS_DELETE,
     formData,
     parse: parseDeleteStudentPaymentFormData,
     mutate: ({ adminClient, actor, data }) =>

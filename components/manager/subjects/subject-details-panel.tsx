@@ -82,10 +82,24 @@ function DetailLink({ href, label }: { href: string | null; label: string }) {
     return <DetailField label={label} value="—" />;
   }
 
+  // Legacy rows may predate http(s)-only validation.
+  let safeHref: string | null = null;
+  try {
+    const url = new URL(href);
+    if (url.protocol === "http:" || url.protocol === "https:") {
+      safeHref = href;
+    }
+  } catch {
+    safeHref = null;
+  }
+  if (!safeHref) {
+    return <DetailField label={label} value="—" />;
+  }
+
   return (
     <DetailField label={label}>
       <a
-        href={href}
+        href={safeHref}
         target="_blank"
         rel="noopener noreferrer"
         className="inline-flex items-center gap-1.5 font-medium text-primary hover:underline"

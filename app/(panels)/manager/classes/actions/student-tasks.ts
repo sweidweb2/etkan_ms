@@ -1,4 +1,5 @@
 "use server";
+import { PERMISSIONS } from "@/lib/constants/permissions";
 
 import { revalidatePath } from "next/cache";
 import { runManagerAction } from "@/lib/actions/run-manager-action";
@@ -40,6 +41,7 @@ export async function updateAttendeeAction(
   formData: FormData
 ): Promise<UpdateAttendeeActionState> {
   return runManagerAction({
+    permission: PERMISSIONS.ATTENDANCE_UPDATE,
     formData,
     parse: parseUpdateAttendeeFormData,
     mutate: ({ adminClient, actor, data }) =>
@@ -57,6 +59,7 @@ export async function updateStudentTaskAction(
   formData: FormData
 ): Promise<UpdateStudentTaskActionState> {
   return runManagerAction({
+    permission: PERMISSIONS.TASKS_UPDATE_STUDENT,
     formData,
     parse: parseEditStudentTaskFormData,
     mutate: ({ adminClient, actor, data }) =>
@@ -85,6 +88,7 @@ export async function uploadStudentTaskFileAction(
   formData: FormData
 ): Promise<UploadStudentTaskFileActionState> {
   return runManagerAction({
+    permission: PERMISSIONS.TASKS_UPDATE_STUDENT,
     formData,
     parse: parseUploadStudentTaskFileFormData,
     mutate: ({ adminClient, actor, data }) =>
@@ -116,6 +120,7 @@ export async function deleteStudentTaskUploadAction(
   formData: FormData
 ): Promise<DeleteStudentTaskUploadActionState> {
   return runManagerAction({
+    permission: PERMISSIONS.TASKS_UPDATE_STUDENT,
     formData,
     parse: parseDeleteStudentTaskUploadFormData,
     mutate: ({ adminClient, actor, data }) =>
@@ -146,6 +151,7 @@ export async function getStudentTaskUploadSignedUrlAction(
   formData: FormData
 ): Promise<{ success: boolean; signedUrl?: string; error?: string }> {
   return runManagerAction({
+    permission: PERMISSIONS.TASKS_VIEW,
     formData,
     parse: parseStudentTaskUploadSignedUrlFormData,
     mutate: ({ adminClient, actor, data }) =>

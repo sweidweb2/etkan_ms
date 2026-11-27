@@ -49,14 +49,13 @@ const optionalUrlField = optionalTrimmed.refine(
       return true;
     }
     try {
-      // Absolute URL only when provided
-      new URL(value);
-      return true;
+      const url = new URL(value);
+      return url.protocol === "http:" || url.protocol === "https:";
     } catch {
       return false;
     }
   },
-  { message: "CTA URL must be a valid link (https://…)." }
+  { message: "CTA URL must be a valid http(s) link." }
 );
 
 const optionalIsoDateField = optionalTrimmed.refine(

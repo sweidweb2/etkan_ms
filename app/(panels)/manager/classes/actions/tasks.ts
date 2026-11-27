@@ -1,4 +1,5 @@
 "use server";
+import { PERMISSIONS } from "@/lib/constants/permissions";
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
@@ -38,6 +39,7 @@ export async function createClassTaskAction(
   formData: FormData
 ): Promise<CreateClassTaskActionState> {
   return runManagerAction({
+    permission: PERMISSIONS.TASKS_CREATE,
     formData,
     parse: parseCreateClassTaskFormData,
     mutate: ({ adminClient, actor, data }) =>
@@ -61,6 +63,7 @@ export async function updateClassTaskAction(
   formData: FormData
 ): Promise<UpdateClassTaskActionState> {
   return runManagerAction({
+    permission: PERMISSIONS.TASKS_UPDATE,
     formData,
     parse: parseUpdateClassTaskFormData,
     mutate: ({ adminClient, actor, data }) =>
@@ -94,6 +97,7 @@ export async function deleteClassTaskAction(
   }
 
   return runManagerMutation({
+    permission: PERMISSIONS.TASKS_DELETE,
     data: { id, class_id },
     mutate: ({ adminClient, actor, data }) =>
       deleteClassTaskForManager(adminClient, actor.userId, actor, data),
@@ -141,6 +145,7 @@ export async function setClassTaskStartedAction(
   }
 
   return runManagerMutation({
+    permission: PERMISSIONS.TASKS_UPDATE,
     data: { id, class_id, started: startedRaw === "true" },
     mutate: ({ adminClient, actor, data }) =>
       setClassTaskStartedForManager(adminClient, actor.userId, actor, data),
@@ -170,6 +175,7 @@ export async function importSubjectTasksForClassAction(
   }
 
   return runManagerMutation({
+    permission: PERMISSIONS.TASKS_CREATE,
     data: { class_id },
     mutate: ({ adminClient, actor, data }) =>
       importSubjectTasksForClassForManager(

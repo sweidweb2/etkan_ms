@@ -1,4 +1,5 @@
 "use server";
+import { PERMISSIONS } from "@/lib/constants/permissions";
 
 import { revalidatePath } from "next/cache";
 import { runManagerAction } from "@/lib/actions/run-manager-action";
@@ -24,6 +25,7 @@ export async function processDropRefundAction(
   formData: FormData
 ): Promise<ProcessDropRefundActionState> {
   return runManagerAction({
+    permission: PERMISSIONS.ACCOUNTING_DROP_REFUNDS_PROCESS,
     formData,
     parse: parseProcessDropRefundFormData,
     mutate: ({ adminClient, actor, data }) =>
@@ -46,6 +48,7 @@ export async function waiveDropRefundAction(
   formData: FormData
 ): Promise<WaiveDropRefundActionState> {
   return runManagerAction({
+    permission: PERMISSIONS.ACCOUNTING_DROP_REFUNDS_WAIVE,
     formData,
     parse: parseWaiveDropRefundFormData,
     mutate: ({ adminClient, actor, data }) =>
@@ -68,6 +71,7 @@ export async function deleteDropRefundPaymentAction(
   formData: FormData
 ): Promise<DeleteDropRefundPaymentActionState> {
   return runManagerAction({
+    permission: PERMISSIONS.ACCOUNTING_PAYMENTS_DELETE,
     formData,
     parse: parseDeleteDropRefundPaymentFormData,
     mutate: ({ adminClient, actor, data }) =>

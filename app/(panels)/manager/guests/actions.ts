@@ -1,4 +1,5 @@
 "use server";
+import { PERMISSIONS } from "@/lib/constants/permissions";
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
@@ -114,6 +115,7 @@ export async function createGuestAction(
   formData: FormData
 ): Promise<CreateGuestActionState> {
   return runManagerAction({
+    permission: PERMISSIONS.GUESTS_CREATE,
     formData,
     parse: parseCreateGuestFormData,
     mutate: ({ adminClient, actor, data }) =>
@@ -134,6 +136,7 @@ export async function updateGuestAction(
   formData: FormData
 ): Promise<UpdateGuestActionState> {
   return runManagerAction({
+    permission: PERMISSIONS.GUESTS_UPDATE,
     formData,
     parse: parseUpdateGuestFormData,
     mutate: ({ adminClient, actor, data }) =>
@@ -164,6 +167,7 @@ export async function deleteGuestAction(
   }
 
   return runManagerMutation({
+    permission: PERMISSIONS.GUESTS_DELETE,
     data: guestId,
     mutate: ({ adminClient, actor, data }) =>
       deleteGuestForManager(adminClient, actor.userId, actor, data),
@@ -183,6 +187,7 @@ export async function changeGuestStatusAction(
   formData: FormData
 ): Promise<ChangeGuestStatusActionState> {
   return runManagerAction({
+    permission: PERMISSIONS.GUESTS_CHANGE_STATUS,
     formData,
     parse: parseChangeGuestStatusFormData,
     mutate: ({ adminClient, actor, data }) =>
@@ -205,6 +210,7 @@ export async function recordGuestStatusesAction(
   formData: FormData
 ): Promise<RecordGuestStatusesActionState> {
   return runManagerAction({
+    permission: PERMISSIONS.GUESTS_CHANGE_STATUS,
     formData,
     parse: parseRecordGuestStatusesFormData,
     mutate: ({ adminClient, actor, data }) =>
@@ -227,6 +233,7 @@ export async function setGuestProfileStatusAction(
   formData: FormData
 ): Promise<SetGuestProfileStatusActionState> {
   return runManagerAction({
+    permission: PERMISSIONS.GUESTS_CHANGE_STATUS,
     formData,
     parse: parseSetGuestProfileStatusFormData,
     mutate: ({ adminClient, actor, data }) =>
@@ -248,6 +255,7 @@ export async function removeGuestStatusAction(
   formData: FormData
 ): Promise<RemoveGuestStatusActionState> {
   return runManagerAction({
+    permission: PERMISSIONS.GUESTS_CHANGE_STATUS,
     formData,
     parse: parseRemoveGuestStatusFormData,
     mutate: ({ adminClient, actor, data }) =>
@@ -277,6 +285,7 @@ export async function openGuestRegistrationInviteAction(
   }
 
   return runManagerMutation({
+    permission: PERMISSIONS.GUESTS_REGISTRATION_MANAGE,
     data: { guestId, rotate },
     mutate: ({ adminClient, actor, data }) =>
       openGuestRegistrationInviteForManager(
@@ -305,6 +314,7 @@ export async function stopGuestRegistrationInviteAction(
   }
 
   return runManagerMutation({
+    permission: PERMISSIONS.GUESTS_REGISTRATION_MANAGE,
     data: guestId,
     mutate: ({ adminClient, actor, data }) =>
       stopGuestRegistrationInviteForManager(
@@ -326,6 +336,7 @@ export async function submitGuestRegistrationStaffAction(
   formData: FormData
 ): Promise<SubmitGuestRegistrationStaffActionState> {
   return runManagerAction({
+    permission: PERMISSIONS.GUESTS_REGISTRATION_MANAGE,
     formData,
     parse: parseSubmitGuestRegistrationStaffFormData,
     mutate: ({ adminClient, actor, data }) => {
@@ -353,6 +364,7 @@ export async function tempUploadGuestRegistrationDocumentAction(
   formData: FormData
 ): Promise<TempUploadRegistrationDocumentActionState> {
   return runManagerAction({
+    permission: PERMISSIONS.GUESTS_REGISTRATION_MANAGE,
     formData,
     parse: parseTempUploadRegistrationDocumentFormData,
     mutate: ({ adminClient, actor, data }) =>
@@ -373,6 +385,7 @@ export async function removeTempGuestRegistrationDocumentAction(
   formData: FormData
 ): Promise<RemoveTempRegistrationDocumentActionState> {
   return runManagerAction({
+    permission: PERMISSIONS.GUESTS_REGISTRATION_MANAGE,
     formData,
     parse: parseRemoveTempRegistrationDocumentFormData,
     mutate: ({ adminClient, actor, data }) =>
@@ -399,6 +412,7 @@ export async function cancelGuestRegistrationApplicationAction(
   }
 
   return runManagerMutation({
+    permission: PERMISSIONS.GUESTS_REGISTRATION_MANAGE,
     data: guestId,
     mutate: ({ adminClient, actor, data }) =>
       cancelGuestRegistrationApplicationForManager(
@@ -429,6 +443,7 @@ export async function deleteGuestRegistrationApplicationAction(
   }
 
   return runManagerMutation({
+    permission: PERMISSIONS.GUESTS_REGISTRATION_MANAGE,
     data: guestId,
     mutate: ({ adminClient, actor, data }) =>
       deleteGuestRegistrationApplicationForManager(
@@ -453,6 +468,7 @@ export async function connectGuestRegistrationUserAction(
   formData: FormData
 ): Promise<ConnectGuestRegistrationUserActionState> {
   return runManagerAction({
+    permission: PERMISSIONS.GUESTS_REGISTRATION_MANAGE,
     formData,
     parse: parseConnectGuestRegistrationUserFormData,
     mutate: ({ adminClient, actor, data }) =>
@@ -475,6 +491,7 @@ export async function createStudentFromGuestAction(
   formData: FormData
 ): Promise<CreateStudentFromGuestActionState> {
   return runManagerAction({
+    permission: PERMISSIONS.GUESTS_CREATE_STUDENT,
     formData,
     parse: parseCreateStudentFromGuestFormData,
     mutate: ({ adminClient, actor, data }) =>
@@ -503,6 +520,7 @@ export async function createTeamAction(
   formData: FormData
 ): Promise<CreateTeamActionState> {
   return runManagerAction({
+    permission: PERMISSIONS.TEAMS_CREATE,
     formData,
     parse: parseCreateTeamFormData,
     mutate: ({ adminClient, actor, data }) =>
@@ -523,6 +541,7 @@ export async function updateTeamAction(
   formData: FormData
 ): Promise<UpdateTeamActionState> {
   return runManagerAction({
+    permission: PERMISSIONS.TEAMS_UPDATE,
     formData,
     parse: parseUpdateTeamFormData,
     mutate: ({ adminClient, actor, data }) =>
@@ -549,6 +568,7 @@ export async function deleteTeamAction(
   }
 
   return runManagerMutation({
+    permission: PERMISSIONS.TEAMS_DELETE,
     data: teamId,
     mutate: ({ adminClient, actor, data }) =>
       deleteTeamForManager(adminClient, actor.userId, actor, data),
@@ -568,6 +588,7 @@ export async function assignGuestToTeamAction(
   formData: FormData
 ): Promise<AssignGuestToTeamActionState> {
   return runManagerAction({
+    permission: PERMISSIONS.TEAMS_ASSIGN_GUEST,
     formData,
     parse: parseAssignGuestToTeamFormData,
     mutate: ({ adminClient, actor, data }) =>

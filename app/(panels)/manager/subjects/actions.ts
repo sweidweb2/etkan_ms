@@ -1,4 +1,5 @@
 "use server";
+import { PERMISSIONS } from "@/lib/constants/permissions";
 
 import {
   runManagerAction,
@@ -60,6 +61,7 @@ export async function createStageAction(
   formData: FormData
 ): Promise<CreateStageActionState> {
   return runManagerAction({
+    permission: PERMISSIONS.SUBJECTS_STAGES_CREATE,
     formData,
     parse: parseCreateStageFormData,
     mutate: ({ adminClient, actor, data }) =>
@@ -80,6 +82,7 @@ export async function assignSubjectsToStageAction(
   formData: FormData
 ): Promise<AssignSubjectsToStageActionState> {
   return runManagerAction({
+    permission: PERMISSIONS.SUBJECTS_UPDATE,
     formData,
     parse: parseAssignSubjectsToStageFormData,
     mutate: ({ adminClient, actor, data }) =>
@@ -101,6 +104,7 @@ export async function setSubjectStageAction(
   formData: FormData
 ): Promise<SetSubjectStageActionState> {
   return runManagerAction({
+    permission: PERMISSIONS.SUBJECTS_UPDATE,
     formData,
     parse: parseSetSubjectStageFormData,
     mutate: ({ adminClient, actor, data }) =>
@@ -123,6 +127,7 @@ export async function reorderStagesAction(
 ): Promise<ReorderStagesActionState> {
   return runManagerAction({
     formData,
+    permission: PERMISSIONS.SUBJECTS_STAGES_UPDATE,
     parse: parseReorderStagesFormData,
     mutate: ({ adminClient, actor, data }) =>
       reorderStagesForManager(adminClient, actor.userId, actor, data),
@@ -143,6 +148,7 @@ export async function saveSubjectBoardAction(
 ): Promise<SaveSubjectBoardActionState> {
   return runManagerAction({
     formData,
+    permission: PERMISSIONS.SUBJECTS_UPDATE,
     parse: parseSaveSubjectBoardFormData,
     mutate: ({ adminClient, actor, data }) =>
       saveSubjectBoardForManager(adminClient, actor.userId, actor, data),
@@ -161,6 +167,7 @@ export async function createSubjectAction(
   formData: FormData
 ): Promise<CreateSubjectActionState> {
   return runManagerAction({
+    permission: PERMISSIONS.SUBJECTS_CREATE,
     formData,
     parse: parseCreateSubjectFormData,
     mutate: ({ adminClient, actor, data }) =>
@@ -181,6 +188,7 @@ export async function updateSubjectAction(
   formData: FormData
 ): Promise<UpdateSubjectActionState> {
   return runManagerAction({
+    permission: PERMISSIONS.SUBJECTS_UPDATE,
     formData,
     parse: parseUpdateSubjectFormData,
     mutate: ({ adminClient, actor, data }) =>
@@ -214,6 +222,7 @@ export async function deleteSubjectAction(
   }
 
   return runManagerMutation({
+    permission: PERMISSIONS.SUBJECTS_DELETE,
     data: subjectId,
     mutate: ({ adminClient, actor, data }) =>
       deleteSubjectForManager(adminClient, actor.userId, actor, data),
@@ -233,6 +242,7 @@ export async function createSubjectTaskAction(
   formData: FormData
 ): Promise<CreateSubjectTaskActionState> {
   return runManagerAction({
+    permission: PERMISSIONS.SUBJECTS_TASKS_CREATE,
     formData,
     parse: parseCreateSubjectTaskFormData,
     mutate: ({ adminClient, actor, data }) =>
@@ -253,6 +263,7 @@ export async function updateSubjectTaskAction(
   formData: FormData
 ): Promise<UpdateSubjectTaskActionState> {
   return runManagerAction({
+    permission: PERMISSIONS.SUBJECTS_TASKS_UPDATE,
     formData,
     parse: parseUpdateSubjectTaskFormData,
     mutate: ({ adminClient, actor, data }) =>
@@ -283,6 +294,7 @@ export async function deleteSubjectTaskAction(
   }
 
   return runManagerMutation({
+    permission: PERMISSIONS.SUBJECTS_TASKS_DELETE,
     data: { id, subjectId },
     mutate: ({ adminClient, actor, data }) =>
       deleteSubjectTaskForManager(adminClient, actor.userId, actor, data.id),

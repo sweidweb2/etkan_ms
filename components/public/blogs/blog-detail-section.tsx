@@ -7,12 +7,12 @@ import {
   authorInitials,
   formatBlogPublishedDate,
 } from "@/components/public/blogs/blog-card";
-import { sanitizeBlogHtml } from "@/lib/manager/blogs/sanitize-blog-html";
 import { ROUTES } from "@/lib/constants/routes";
 import { usePublicI18n } from "@/lib/i18n/public-i18n-provider";
 import type { PublicBlogCard, PublicBlogDetail } from "@/types/public-blog";
 
 type BlogDetailSectionProps = {
+  /** `body_html` must already be sanitized (see blog detail page). */
   post: PublicBlogDetail;
   suggested: PublicBlogCard[];
 };
@@ -22,7 +22,6 @@ export function BlogDetailSection({
   suggested,
 }: BlogDetailSectionProps) {
   const { t, locale, dir } = usePublicI18n();
-  const safeHtml = sanitizeBlogHtml(post.body_html);
   const reading = t("blogs.readMinutes").replace(
     "{minutes}",
     String(post.reading_time_minutes)
@@ -129,7 +128,7 @@ export function BlogDetailSection({
 
         <div
           className="prose prose-neutral mt-10 max-w-none dark:prose-invert [&_a]:text-primary [&_h2]:mt-8 [&_h2]:mb-3 [&_h2]:text-xl [&_h2]:font-semibold [&_ol]:my-4 [&_ol]:list-decimal [&_ol]:ps-5 [&_p]:my-3 [&_p]:leading-relaxed [&_ul]:my-4 [&_ul]:list-disc [&_ul]:ps-5"
-          dangerouslySetInnerHTML={{ __html: safeHtml }}
+          dangerouslySetInnerHTML={{ __html: post.body_html }}
         />
 
         {post.sources.length > 0 ? (

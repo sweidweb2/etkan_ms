@@ -8,6 +8,7 @@ import {
 } from "@/lib/seo/json-ld";
 import { buildPageMetadata } from "@/lib/seo/metadata";
 import { PAGE_SEO } from "@/lib/seo/page-seo";
+import { sanitizeBlogHtml } from "@/lib/manager/blogs/sanitize-blog-html";
 import {
   getPublishedBlogBySlugForPublic,
   getSuggestedPublishedBlogs,
@@ -67,6 +68,10 @@ export default async function BlogDetailPage({ params }: BlogDetailPageProps) {
   const description =
     post.meta_description?.trim() || post.summary || PAGE_SEO.blogs.description;
   const path = `/blogs/${post.slug}`;
+  const safePost = {
+    ...post,
+    body_html: sanitizeBlogHtml(post.body_html),
+  };
 
   return (
     <>
@@ -88,7 +93,7 @@ export default async function BlogDetailPage({ params }: BlogDetailPageProps) {
           }),
         ]}
       />
-      <BlogDetailSection post={post} suggested={suggested} />
+      <BlogDetailSection post={safePost} suggested={suggested} />
     </>
   );
 }
