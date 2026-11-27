@@ -1,16 +1,21 @@
-import { SEMESTER_DROP_DEFAULT_REQUIRED_PERCENT } from "@/lib/manager/accounting/constants";
+import {
+  SEMESTER_DROP_DEFAULT_REQUIRED_PERCENT,
+  SEMESTER_DROP_RESTRICTION_MODES,
+  type SemesterDropRestrictionMode,
+} from "@/lib/manager/accounting/constants";
 
 /**
  * Drop money formula mirrors.
  *
  * Authoritative implementations run inside Postgres RPCs (atomic create /
  * complete / refund). Keep these in sync with:
- * - `create_semester_drop_request` (required %, deadline = start + 2 months)
- * - `complete_semester_drop_request` (settlement adjustment, refund_owed,
- *   leave all scheduled/in_progress semester classes)
+ * - `create_semester_drop_request` (percent | amount | none)
+ * - `complete_semester_drop_request` (settlement; none → due=total_paid, no refund)
+ * - leave all scheduled/in_progress semester classes
  * Migrations: `20261031150000_semester_drop_requests.sql`,
  * `20261031160000_drop_adjusted_required_and_spp_locks.sql`,
- * `20261127232000_semester_drop_leave_all_active_classes.sql`.
+ * `20261127232000_semester_drop_leave_all_active_classes.sql`,
+ * `20261127235000_semester_drop_restriction_modes.sql`.
  *
  * Use these helpers for previews, docs, and unit tests — not as a second
  * write path.
@@ -33,6 +38,52 @@ export function computeDropRequiredAmount(
   return roundMoney((amount * percent) / 100);
 }
 
+export function resolveDropRestriction(input: {
+  mode: SemesterDropRestrictionMode;
+  requiredPercent?: number | null;
+  requiredAmount?: number | null;
+  finalAmountDue: number;
+}): {
+  mode: SemesterDropRestrictionMode;
+  requiredPercent: number | null;
+  requiredAmount: number;
+} {
+  const finalDue = Math.max(0, Number(input.finalAmountDue) || 0);
+  let mode = input.mode;
+  let percent =
+    input.requiredPercent == null ? null : Number(input.requiredPercent);
+  let amount =
+    input.requiredAmount == null ? null : Number(input.requiredAmount);
+
+  if (mode === SEMESTER_DROP_RESTRICTION_MODES.PERCENT) {
+    if (percent == null || percent === 0) {
+      return { mode: SEMESTER_DROP_RESTRICTION_MODES.NONE, requiredPercent: null, requiredAmount: 0 };
+    }
+    return {
+      mode: SEMESTER_DROP_RESTRICTION_MODES.PERCENT,
+      requiredPercent: percent,
+      requiredAmount: computeDropRequiredAmount(finalDue, percent),
+    };
+  }
+
+  if (mode === SEMESTER_DROP_RESTRICTION_MODES.AMOUNT) {
+    if (amount == null || amount === 0) {
+      return { mode: SEMESTER_DROP_RESTRICTION_MODES.NONE, requiredPercent: null, requiredAmount: 0 };
+    }
+    return {
+      mode: SEMESTER_DROP_RESTRICTION_MODES.AMOUNT,
+      requiredPercent: null,
+      requiredAmount: roundMoney(Math.min(Math.max(0, amount), finalDue)),
+    };
+  }
+
+  return {
+    mode: SEMESTER_DROP_RESTRICTION_MODES.NONE,
+    requiredPercent: null,
+    requiredAmount: 0,
+  };
+}
+
 /** phase.start_date + 2 calendar months (date-only). */
 export function computeDropDeadlineAt(phaseStartDate: string): string {
   const [y, m, d] = phaseStartDate.split("-").map(Number);
@@ -49,19 +100,29 @@ export function computeDropDeadlineAt(phaseStartDate: string): string {
 
 export function computeDropRefundOwed(
   totalPaid: number,
-  requiredAmount: number
+  requiredAmount: number,
+  mode: SemesterDropRestrictionMode = SEMESTER_DROP_RESTRICTION_MODES.PERCENT
 ): number {
+  if (
+    mode === SEMESTER_DROP_RESTRICTION_MODES.NONE ||
+    (Number(requiredAmount) || 0) === 0
+  ) {
+    return 0;
+  }
   return roundMoney(
     Math.max(0, (Number(totalPaid) || 0) - (Number(requiredAmount) || 0))
   );
 }
 
-/** Settlement fixed adjustment so final due becomes required (phase.amount − required). */
+/**
+ * Settlement fixed adjustment so final due becomes the target.
+ * none → target = totalPaid; otherwise target = requiredAmount.
+ */
 export function computeDropSettlementAdjustment(
   phaseAmount: number,
-  requiredAmount: number
+  targetAmount: number
 ): number {
   return roundMoney(
-    Math.max(0, (Number(phaseAmount) || 0) - (Number(requiredAmount) || 0))
+    Math.max(0, (Number(phaseAmount) || 0) - (Number(targetAmount) || 0))
   );
 }

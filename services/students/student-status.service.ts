@@ -12,6 +12,7 @@ import { PERMISSIONS } from "@/lib/constants/permissions";
 import { createNavStepTimer } from "@/lib/debug/nav-timing";
 import { changeStudentStatusSchema } from "@/lib/validators/manager/change-student-status";
 import { zodFieldErrors } from "@/lib/validators/auth/parse-form";
+import * as semesterDropRequestRepository from "@/repositories/semester-drop-request.repository";
 import * as studentClassRepository from "@/repositories/student-class.repository";
 import type { StudentClassWithClassRecord } from "@/repositories/student-class.repository";
 import * as studentPaymentPhaseRepository from "@/repositories/student-payment-phase.repository";
@@ -23,7 +24,9 @@ import {
   type AuditActor,
 } from "@/services/ops/audit-log.service";
 import { getUnauthorizedError } from "@/services/auth/authorization.service";
+import { createImmediateSemesterDropForInactivate } from "@/services/classes/drop-semester.service";
 import type {
+  StudentStatusDroppableSemester,
   StudentStatusEligibleClass,
   StudentStatusOpenSpp,
   StudentStatusSideEffectsPreview,
@@ -88,7 +91,62 @@ function buildOpenSpps(
       payment_phase_name: row.payment_phases?.name ?? "Payment phase",
       spp_status: row.status,
       payment_count: paymentCountBySppId.get(row.id) ?? 0,
+      semester_id: row.payment_phases?.semester_id ?? null,
     }));
+}
+
+function buildDroppableSemesters(
+  openSpps: StudentStatusOpenSpp[],
+  sppRows: StudentPaymentPhaseWithPhaseRecord[],
+  memberships: StudentClassWithClassRecord[]
+): StudentStatusDroppableSemester[] {
+  const sppById = new Map(sppRows.map((row) => [row.id, row]));
+  const membershipBySemester = new Map<
+    string,
+    { class_id: string; class_name: string }
+  >();
+
+  for (const membership of memberships) {
+    const semesterId = membership.classes?.semester_id;
+    if (!semesterId || membershipBySemester.has(semesterId)) {
+      continue;
+    }
+    membershipBySemester.set(semesterId, {
+      class_id: membership.class_id,
+      class_name: membership.classes?.name ?? "Class",
+    });
+  }
+
+  const droppable: StudentStatusDroppableSemester[] = [];
+  const seenSemesters = new Set<string>();
+
+  for (const spp of openSpps) {
+    if (spp.payment_count <= 0) {
+      continue;
+    }
+    const semesterId = spp.semester_id;
+    if (!semesterId || seenSemesters.has(semesterId)) {
+      continue;
+    }
+    const origin = membershipBySemester.get(semesterId);
+    if (!origin) {
+      continue;
+    }
+    const sppRow = sppById.get(spp.spp_id);
+    seenSemesters.add(semesterId);
+    droppable.push({
+      semester_id: semesterId,
+      payment_phase_name: spp.payment_phase_name,
+      spp_id: spp.spp_id,
+      payment_count: spp.payment_count,
+      origin_class_id: origin.class_id,
+      origin_class_name: origin.class_name,
+      total_paid: Number(sppRow?.total_paid ?? 0),
+      final_amount_due: Number(sppRow?.final_amount_due ?? 0),
+    });
+  }
+
+  return droppable;
 }
 
 async function loadPaymentCountsBySppIds(
@@ -119,7 +177,7 @@ async function loadPaymentCountsBySppIds(
 }
 
 async function loadSideEffectData(adminClient: Supabase, userId: string) {
-  const [membershipsResult, sppsResult] = await Promise.all([
+  const [membershipsResult, sppsResult, pendingDropsResult] = await Promise.all([
     studentClassRepository.listStudentClassesWithClassByUserId(
       adminClient,
       userId
@@ -128,6 +186,9 @@ async function loadSideEffectData(adminClient: Supabase, userId: string) {
       adminClient,
       userId
     ),
+    semesterDropRequestRepository.listPendingDropsByStudentIds(adminClient, [
+      userId,
+    ]),
   ]);
 
   if (membershipsResult.error) {
@@ -135,6 +196,9 @@ async function loadSideEffectData(adminClient: Supabase, userId: string) {
   }
   if (sppsResult.error) {
     throw new Error(sppsResult.error.message);
+  }
+  if (pendingDropsResult.error) {
+    throw new Error(pendingDropsResult.error.message);
   }
 
   const memberships = (membershipsResult.data ??
@@ -154,14 +218,28 @@ async function loadSideEffectData(adminClient: Supabase, userId: string) {
   const openSpps = buildOpenSpps(spps, paymentCounts);
   const hasPaymentsOnOpenSpp = openSpps.some((spp) => spp.payment_count > 0);
   const canRemoveOpenSpps = openSpps.length > 0 && !hasPaymentsOnOpenSpp;
+  const hasPendingDrop = (pendingDropsResult.data ?? []).length > 0;
+  const droppableSemesters = buildDroppableSemesters(
+    openSpps,
+    spps,
+    memberships
+  );
+  const needsImmediateDrop = droppableSemesters.length > 0;
 
   return {
     eligibleClasses,
     openSpps,
     canRemoveOpenSpps,
     openSppsBlockedReason: hasPaymentsOnOpenSpp
-      ? "One or more open SPPs have payments. Delete payments from Accounting first."
+      ? "Open SPPs with payments cannot be deleted here — inactivate will drop those semesters instead."
       : null,
+    hasPendingDrop,
+    canInactivate: !hasPendingDrop,
+    inactivateBlockedReason: hasPendingDrop
+      ? "Finish or cancel the pending semester drop before inactivating this student."
+      : null,
+    droppableSemesters,
+    needsImmediateDrop,
   };
 }
 
@@ -270,6 +348,11 @@ export async function getStudentStatusSideEffectsPreview(
     open_spps: sideEffects.openSpps,
     can_remove_open_spps: sideEffects.canRemoveOpenSpps,
     open_spps_blocked_reason: sideEffects.openSppsBlockedReason,
+    can_inactivate: sideEffects.canInactivate,
+    inactivate_blocked_reason: sideEffects.inactivateBlockedReason,
+    has_pending_drop: sideEffects.hasPendingDrop,
+    droppable_semesters: sideEffects.droppableSemesters,
+    needs_immediate_drop: sideEffects.needsImmediateDrop,
   };
 }
 
@@ -319,12 +402,71 @@ export async function changeStudentStatusForManager(
       };
     }
 
+    if (data.target_status === STUDENT_STATUSES.INACTIVE) {
+      const sideEffects = await timer.step("preview", () =>
+        loadSideEffectData(adminClient, data.user_id)
+      );
+
+      if (!sideEffects.canInactivate) {
+        return {
+          success: false,
+          error:
+            sideEffects.inactivateBlockedReason ??
+            "Cannot inactivate while a semester drop is pending.",
+        };
+      }
+
+      if (sideEffects.needsImmediateDrop) {
+        for (const semester of sideEffects.droppableSemesters) {
+          const dropResult = await timer.step(
+            `drop:${semester.semester_id}`,
+            () =>
+              createImmediateSemesterDropForInactivate(
+                adminClient,
+                actorUserId,
+                actor,
+                {
+                  student_id: data.user_id,
+                  class_id: semester.origin_class_id,
+                  restriction_mode: data.drop_restriction_mode,
+                  required_percent: data.drop_required_percent,
+                  required_amount: data.drop_required_amount,
+                  require_immediate: true,
+                  notes: "Drop from student inactivate.",
+                  auditSource: "inactivate",
+                }
+              )
+          );
+          if (!dropResult.success) {
+            return {
+              success: false,
+              error: dropResult.error,
+              fieldErrors: dropResult.fieldErrors,
+            };
+          }
+        }
+      }
+    }
+
+    let removeFromClasses = data.remove_from_classes;
+    let removeOpenSpps = data.remove_open_spps;
+    if (data.target_status === STUDENT_STATUSES.INACTIVE && removeFromClasses) {
+      // Drop may have cleared memberships; avoid RPC error when none remain.
+      const remaining = await loadSideEffectData(adminClient, data.user_id);
+      if (remaining.eligibleClasses.length === 0) {
+        removeFromClasses = false;
+      }
+      if (!remaining.canRemoveOpenSpps) {
+        removeOpenSpps = false;
+      }
+    }
+
     const { data: rpcData, error } = await timer.step("rpc", () =>
       studentProfileRepository.changeStudentStatusWithSideEffects(adminClient, {
         user_id: data.user_id,
         target_status: data.target_status,
-        remove_from_classes: data.remove_from_classes,
-        remove_open_spps: data.remove_open_spps,
+        remove_from_classes: removeFromClasses,
+        remove_open_spps: removeOpenSpps,
       })
     );
 

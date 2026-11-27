@@ -70,8 +70,14 @@ export async function listStudentProfilesPage(
     search?: string | null;
     /** Exclude these auth user ids (e.g. already enrolled in a class). */
     excludeUserIds?: string[];
+    /** Restrict to these auth user ids (e.g. pending drop filter). */
+    includeUserIds?: string[];
   }
 ) {
+  if (options.includeUserIds && options.includeUserIds.length === 0) {
+    return { data: [], error: null, count: 0 };
+  }
+
   let query = client
     .from("student_profiles")
     .select("id, user_id, full_name, birth_date, phone, status, created_at", {
@@ -82,6 +88,10 @@ export async function listStudentProfilesPage(
 
   if (options.status) {
     query = query.eq("status", options.status);
+  }
+
+  if (options.includeUserIds?.length) {
+    query = query.in("user_id", options.includeUserIds);
   }
 
   if (options.excludeUserIds?.length) {

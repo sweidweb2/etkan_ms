@@ -69,10 +69,15 @@ const COLUMN_LIMITS = {
 } as const;
 
 const STATUS_FILTER_ALL = "all";
+const PENDING_DROP_FILTER_ALL = "all";
+const PENDING_DROP_FILTER_ONLY = "pending_drop";
 const DEFAULT_PAGE_SIZE = 10;
 
 const STUDENT_ROW_CLASS =
   "cursor-pointer border-b last:border-b-0 transition-all duration-150 hover:bg-primary/10 hover:shadow-[inset_4px_0_0_0_var(--primary)] active:bg-primary/15 focus-visible:bg-primary/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset";
+
+const STUDENT_PENDING_DROP_ROW_CLASS =
+  "cursor-pointer border-b last:border-b-0 bg-amber-50/80 transition-all duration-150 hover:bg-amber-100/70 hover:shadow-[inset_4px_0_0_0_var(--primary)] active:bg-amber-100/80 focus-visible:bg-amber-100/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset dark:bg-amber-950/30 dark:hover:bg-amber-950/45";
 
 function TruncatedCell({
   value,
@@ -138,11 +143,12 @@ type PageSizeOption = (typeof PAGE_SIZE_OPTIONS)[number];
 
 function listQueryKey(query: {
   status: string;
+  pendingDrop: string;
   search: string;
   page: number;
   pageSize: number;
 }) {
-  return `${query.status}|${query.search}|${query.page}|${query.pageSize}`;
+  return `${query.status}|${query.pendingDrop}|${query.search}|${query.page}|${query.pageSize}`;
 }
 
 function formatBirthDate(value: string | null) {
@@ -230,24 +236,55 @@ function StudentStatusAction({
   onOpen: (student: ManagerStudentRow) => void;
 }) {
   const isActivate = student.status !== STUDENT_STATUSES.ACTIVE;
+  const blockedByPendingDrop = Boolean(student.has_pending_drop);
+
+  if (!blockedByPendingDrop) {
+    return (
+      <Button
+        type="button"
+        variant="ghost"
+        size="icon-sm"
+        className="size-7 text-muted-foreground hover:bg-primary/15 hover:text-primary"
+        aria-label={
+          isActivate
+            ? `Activate ${student.full_name}`
+            : `Inactivate ${student.full_name}`
+        }
+        onClick={(event) => {
+          event.stopPropagation();
+          onOpen(student);
+        }}
+      >
+        <PowerIcon className="size-4" />
+      </Button>
+    );
+  }
+
   return (
-    <Button
-      type="button"
-      variant="ghost"
-      size="icon-sm"
-      className="size-7 text-muted-foreground hover:bg-primary/15 hover:text-primary"
-      aria-label={
-        isActivate
-          ? `Activate ${student.full_name}`
-          : `Inactivate ${student.full_name}`
-      }
-      onClick={(event) => {
-        event.stopPropagation();
-        onOpen(student);
-      }}
-    >
-      <PowerIcon className="size-4" />
-    </Button>
+    <Tooltip>
+      <TooltipTrigger
+        render={
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon-sm"
+            className="size-7 text-muted-foreground hover:bg-primary/15 hover:text-primary"
+            aria-label={
+              isActivate
+                ? `Activate ${student.full_name}`
+                : `Inactivate ${student.full_name}`
+            }
+            disabled
+            onClick={(event) => event.stopPropagation()}
+          />
+        }
+      >
+        <PowerIcon className="size-4" />
+      </TooltipTrigger>
+      <TooltipContent>
+        Finish or cancel the pending semester drop first
+      </TooltipContent>
+    </Tooltip>
   );
 }
 
@@ -271,6 +308,9 @@ export function ManageStudentsPanel({
   const [searchQuery, setSearchQuery] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>(STATUS_FILTER_ALL);
+  const [pendingDropFilter, setPendingDropFilter] = useState<string>(
+    PENDING_DROP_FILTER_ALL
+  );
   const [pageSize, setPageSize] = useState<PageSizeOption>(
     (PAGE_SIZE_OPTIONS as readonly number[]).includes(initialData.pageSize)
       ? (initialData.pageSize as PageSizeOption)
@@ -281,6 +321,7 @@ export function ManageStudentsPanel({
   const loadedKeyRef = useRef(
     listQueryKey({
       status: STATUS_FILTER_ALL,
+      pendingDrop: PENDING_DROP_FILTER_ALL,
       search: "",
       page: initialData.page,
       pageSize: initialData.pageSize,
@@ -298,17 +339,20 @@ export function ManageStudentsPanel({
   const buildListQuery = (
     overrides: Partial<{
       status: string;
+      pendingDrop: string;
       search: string;
       page: number;
       pageSize: number;
     }> = {}
   ): ManagerStudentsListQuery => {
     const status = overrides.status ?? statusFilter;
+    const pendingDrop = overrides.pendingDrop ?? pendingDropFilter;
     return {
       page: overrides.page ?? currentPage,
       pageSize: overrides.pageSize ?? pageSize,
       status: status === STATUS_FILTER_ALL ? null : (status as StudentStatusValue),
       search: overrides.search ?? debouncedSearch,
+      pendingDrop: pendingDrop === PENDING_DROP_FILTER_ONLY,
     };
   };
 
@@ -334,6 +378,9 @@ export function ManageStudentsPanel({
         // Server fell back to the last page; keep the page state in sync.
         loadedKeyRef.current = listQueryKey({
           status: query.status ?? STATUS_FILTER_ALL,
+          pendingDrop: query.pendingDrop
+            ? PENDING_DROP_FILTER_ONLY
+            : PENDING_DROP_FILTER_ALL,
           search: query.search ?? "",
           page: data.page,
           pageSize: data.pageSize,
@@ -357,6 +404,7 @@ export function ManageStudentsPanel({
   useEffect(() => {
     const key = listQueryKey({
       status: statusFilter,
+      pendingDrop: pendingDropFilter,
       search: debouncedSearch,
       page: currentPage,
       pageSize,
@@ -373,9 +421,10 @@ export function ManageStudentsPanel({
           ? null
           : (statusFilter as StudentStatusValue),
       search: debouncedSearch,
+      pendingDrop: pendingDropFilter === PENDING_DROP_FILTER_ONLY,
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [currentPage, debouncedSearch, pageSize, statusFilter]);
+  }, [currentPage, debouncedSearch, pageSize, statusFilter, pendingDropFilter]);
 
   const reloadCurrentPage = () => {
     loadPage(buildListQuery());
@@ -387,6 +436,11 @@ export function ManageStudentsPanel({
 
   const handleStatusFilterChange = (value: string | null) => {
     setStatusFilter(value ?? STATUS_FILTER_ALL);
+    setCurrentPage(1);
+  };
+
+  const handlePendingDropFilterChange = (value: string | null) => {
+    setPendingDropFilter(value ?? PENDING_DROP_FILTER_ALL);
     setCurrentPage(1);
   };
 
@@ -404,14 +458,22 @@ export function ManageStudentsPanel({
     setSearchQuery("");
     setDebouncedSearch("");
     setStatusFilter(STATUS_FILTER_ALL);
+    setPendingDropFilter(PENDING_DROP_FILTER_ALL);
     setCurrentPage(1);
     loadedKeyRef.current = listQueryKey({
       status: STATUS_FILTER_ALL,
+      pendingDrop: PENDING_DROP_FILTER_ALL,
       search: "",
       page: 1,
       pageSize,
     });
-    loadPage({ page: 1, pageSize, status: null, search: "" });
+    loadPage({
+      page: 1,
+      pageSize,
+      status: null,
+      search: "",
+      pendingDrop: false,
+    });
   };
 
   const handleUserUpdated = (user: ManagerUserRow) => {
@@ -542,6 +604,25 @@ export function ManageStudentsPanel({
                   ))}
                 </SelectContent>
               </Select>
+              <Select
+                value={pendingDropFilter}
+                onValueChange={handlePendingDropFilterChange}
+              >
+                <SelectTrigger
+                  className="w-full @lg/panel:w-48"
+                  aria-label="Filter by pending drop"
+                >
+                  <SelectValue placeholder="All drops" />
+                </SelectTrigger>
+                <SelectContent align="end">
+                  <SelectItem value={PENDING_DROP_FILTER_ALL}>
+                    All students
+                  </SelectItem>
+                  <SelectItem value={PENDING_DROP_FILTER_ONLY}>
+                    Pending drops
+                  </SelectItem>
+                </SelectContent>
+              </Select>
               <Can permission={PERMISSIONS.STUDENTS_CREATE}>
                 <Button
                   type="button"
@@ -587,7 +668,11 @@ export function ManageStudentsPanel({
                     {students.map((student, index) => (
                       <tr
                         key={student.student_profile_id}
-                        className={STUDENT_ROW_CLASS}
+                        className={
+                          student.has_pending_drop
+                            ? STUDENT_PENDING_DROP_ROW_CLASS
+                            : STUDENT_ROW_CLASS
+                        }
                         tabIndex={0}
                         role="link"
                         aria-label={`View details for ${student.full_name}`}

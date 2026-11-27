@@ -24,8 +24,11 @@ import * as classTeacherRepository from "@/repositories/class-teacher.repository
 import * as finalExamRepository from "@/repositories/final-exam.repository";
 import type { StudentFinalExamGradeRecord } from "@/repositories/final-exam.repository";
 import * as paymentPhaseRepository from "@/repositories/payment-phase.repository";
+import * as semesterDropRequestRepository from "@/repositories/semester-drop-request.repository";
 import * as sessionRepository from "@/repositories/session.repository";
 import * as studentClassRepository from "@/repositories/student-class.repository";
+import * as studentPaymentPhaseRepository from "@/repositories/student-payment-phase.repository";
+import * as studentPaymentRepository from "@/repositories/student-payment.repository";
 import * as studentProfileRepository from "@/repositories/student-profile.repository";
 import {
   recordManagerAuditLog,
@@ -1071,6 +1074,90 @@ export async function removeStudentFromClassForManager(
       };
     }
 
+    const classResult = await classRepository.findClassById(
+      adminClient,
+      parsed.data.class_id
+    );
+    if (classResult.error) {
+      return { success: false, error: classResult.error.message };
+    }
+    if (!classResult.data) {
+      return { success: false, error: "Class not found." };
+    }
+
+    const { data: existingMembership, error: membershipLookupError } =
+      await studentClassRepository.findStudentClassById(
+        adminClient,
+        parsed.data.id
+      );
+    if (membershipLookupError) {
+      return { success: false, error: membershipLookupError.message };
+    }
+    const studentUserId = existingMembership?.user_id;
+    if (!studentUserId || existingMembership.class_id !== parsed.data.class_id) {
+      return { success: false, error: "Enrollment not found." };
+    }
+
+    const semesterId = classResult.data.semester_id;
+    let sppIdToMaybeDelete: string | null = null;
+
+    if (semesterId) {
+      const phaseResult =
+        await paymentPhaseRepository.findCurrentSyncPhaseBySemesterId(
+          adminClient,
+          semesterId
+        );
+      if (phaseResult.error) {
+        return { success: false, error: phaseResult.error.message };
+      }
+      if (phaseResult.data?.id) {
+        const sppResult =
+          await studentPaymentPhaseRepository.findSppByStudentAndPhase(
+            adminClient,
+            studentUserId,
+            phaseResult.data.id
+          );
+        if (sppResult.error) {
+          return { success: false, error: sppResult.error.message };
+        }
+        if (sppResult.data?.id) {
+          const paymentsResult =
+            await studentPaymentRepository.listPaymentSppIdsBySppIds(
+              adminClient,
+              [sppResult.data.id]
+            );
+          if (paymentsResult.error) {
+            return { success: false, error: paymentsResult.error.message };
+          }
+          if ((paymentsResult.data ?? []).length > 0) {
+            return {
+              success: false,
+              error:
+                "Cannot remove: this student has payments on the semester SPP. Use Drop semester instead.",
+            };
+          }
+          sppIdToMaybeDelete = sppResult.data.id;
+        }
+      }
+
+      const pendingDrop =
+        await semesterDropRequestRepository.findPendingDropByStudentAndSemester(
+          adminClient,
+          studentUserId,
+          semesterId
+        );
+      if (pendingDrop.error) {
+        return { success: false, error: pendingDrop.error.message };
+      }
+      if (pendingDrop.data) {
+        return {
+          success: false,
+          error:
+            "Cannot remove while a semester drop is pending. Finish or cancel the drop first.",
+        };
+      }
+    }
+
     const { data: deleted, error: deleteError } = await timer.step(
       "delete",
       () =>
@@ -1089,25 +1176,6 @@ export async function removeStudentFromClassForManager(
       return { success: false, error: "Enrollment not found." };
     }
 
-    await timer.step("audit", () =>
-      recordManagerAuditLog(adminClient, actor, {
-        action: "delete",
-        severity: "info",
-        table_name: "student_class",
-        record_id: deleted.id,
-        old_data: {
-          class_id: parsed.data.class_id,
-          user_id: deleted.user_id,
-        },
-        new_data: null,
-        metadata: {
-          note: "Student removed from class (binary membership).",
-          class_id: parsed.data.class_id,
-          student_id: deleted.user_id,
-        },
-      })
-    );
-
     const sync = await withPaymentSync(
       adminClient,
       actor,
@@ -1125,10 +1193,70 @@ export async function removeStudentFromClassForManager(
       { timer }
     );
 
+    let deletedSpp = false;
+    if (semesterId && sppIdToMaybeDelete) {
+      const semesterClassesResult =
+        await classRepository.listClassesBySemesterId(adminClient, semesterId);
+      if (semesterClassesResult.error) {
+        return { success: false, error: semesterClassesResult.error.message };
+      }
+      const semesterClassIds = (semesterClassesResult.data ?? []).map(
+        (row) => row.id
+      );
+      const remainingMemberships =
+        semesterClassIds.length === 0
+          ? { data: [], error: null }
+          : await studentClassRepository.listMemberUserIdsByClassIds(
+              adminClient,
+              semesterClassIds
+            );
+      if (remainingMemberships.error) {
+        return { success: false, error: remainingMemberships.error.message };
+      }
+      const stillInSemester = (remainingMemberships.data ?? []).some(
+        (row) => row.user_id === deleted.user_id
+      );
+      if (!stillInSemester) {
+        const sppDelete =
+          await studentPaymentPhaseRepository.deleteStudentPaymentPhaseWithRecalc(
+            adminClient,
+            sppIdToMaybeDelete
+          );
+        if (sppDelete.error) {
+          return { success: false, error: sppDelete.error.message };
+        }
+        deletedSpp = true;
+      }
+    }
+
+    await timer.step("audit", () =>
+      recordManagerAuditLog(adminClient, actor, {
+        action: "delete",
+        severity: "info",
+        table_name: "student_class",
+        record_id: deleted.id,
+        old_data: {
+          class_id: parsed.data.class_id,
+          user_id: deleted.user_id,
+        },
+        new_data: null,
+        metadata: {
+          note: deletedSpp
+            ? "Student removed from class; unpaid semester SPP deleted (last class)."
+            : "Student removed from class (binary membership).",
+          class_id: parsed.data.class_id,
+          student_id: deleted.user_id,
+          deleted_spp: deletedSpp,
+        },
+      })
+    );
+
     return {
       success: true,
       removedStudentId: deleted.id,
-      message: "Student removed from class.",
+      message: deletedSpp
+        ? "Student removed from class and unpaid semester SPP deleted."
+        : "Student removed from class.",
       warning: sync.warning,
     };
   } finally {

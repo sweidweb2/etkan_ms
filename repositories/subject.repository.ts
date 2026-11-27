@@ -1,7 +1,7 @@
 import "server-only";
 
 import type { SupabaseClient } from "@supabase/supabase-js";
-import type { Database } from "@/types/supabase";
+import type { Database, Json } from "@/types/supabase";
 
 type Supabase = SupabaseClient<Database>;
 
@@ -144,20 +144,10 @@ export async function updateSubjectBoardPositions(
     sort_order: number;
   }>
 ) {
-  const results = await Promise.all(
-    placements.map((placement) =>
-      client
-        .from("subjects")
-        .update({
-          stage_id: placement.stage_id,
-          sort_order: placement.sort_order,
-        })
-        .eq("id", placement.id)
-    )
-  );
-
-  const firstError = results.find((result) => result.error)?.error ?? null;
-  return { error: firstError };
+  const { error } = await client.rpc("update_subject_board_positions", {
+    p_placements: placements as Json,
+  });
+  return { error };
 }
 
 export async function getNextSubjectSortOrderForStage(

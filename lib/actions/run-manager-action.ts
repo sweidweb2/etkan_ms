@@ -52,46 +52,53 @@ export async function runManagerAction<
     data: TData
   ) => TState;
 }): Promise<TState | ActionFailure> {
-  const actor = await getSessionAuditActor();
-  const parsed = options.parse(options.formData);
-  if (!parsed.success) {
-    return {
-      success: false,
-      error: parsed.error,
-      fieldErrors: parsed.fieldErrors,
-    };
-  }
+  try {
+    const actor = await getSessionAuditActor();
+    const parsed = options.parse(options.formData);
+    if (!parsed.success) {
+      return {
+        success: false,
+        error: parsed.error,
+        fieldErrors: parsed.fieldErrors,
+      };
+    }
 
-  const adminClient = createSupabaseAdminClient();
-  const result = await options.mutate({
-    adminClient,
-    actor,
-    data: parsed.data,
-  });
-
-  if (!result.success) {
-    const failure = result as MutateFailure<TMutateResult> & {
-      error: string;
-      fieldErrors?: FieldErrors;
-    };
-    return {
-      success: false,
-      error: failure.error,
-      fieldErrors: failure.fieldErrors,
-    };
-  }
-
-  const success = result as MutateSuccess<TMutateResult>;
-  const data = parsed.data;
-  const revalidate = options.revalidate;
-  if (revalidate) {
-    // Keep revalidatePath out of the action response. In production the
-    // bundled RSC refresh often does not commit until the next click.
-    after(() => {
-      void revalidate(success, data);
+    const adminClient = createSupabaseAdminClient();
+    const result = await options.mutate({
+      adminClient,
+      actor,
+      data: parsed.data,
     });
+
+    if (!result.success) {
+      const failure = result as MutateFailure<TMutateResult> & {
+        error: string;
+        fieldErrors?: FieldErrors;
+      };
+      return {
+        success: false,
+        error: failure.error,
+        fieldErrors: failure.fieldErrors,
+      };
+    }
+
+    const success = result as MutateSuccess<TMutateResult>;
+    const data = parsed.data;
+    const revalidate = options.revalidate;
+    if (revalidate) {
+      // Keep revalidatePath out of the action response. In production the
+      // bundled RSC refresh often does not commit until the next click.
+      after(() => {
+        void revalidate(success, data);
+      });
+    }
+    return options.mapSuccess(success, data);
+  } catch {
+    return {
+      success: false,
+      error: "Something went wrong. Please try again.",
+    };
   }
-  return options.mapSuccess(success, data);
 }
 
 /**
@@ -113,33 +120,40 @@ export async function runManagerMutation<
     data: TData
   ) => TState;
 }): Promise<TState | ActionFailure> {
-  const actor = await getSessionAuditActor();
-  const adminClient = createSupabaseAdminClient();
-  const result = await options.mutate({
-    adminClient,
-    actor,
-    data: options.data,
-  });
+  try {
+    const actor = await getSessionAuditActor();
+    const adminClient = createSupabaseAdminClient();
+    const result = await options.mutate({
+      adminClient,
+      actor,
+      data: options.data,
+    });
 
-  if (!result.success) {
-    const failure = result as MutateFailure<TMutateResult> & {
-      error: string;
-      fieldErrors?: FieldErrors;
-    };
+    if (!result.success) {
+      const failure = result as MutateFailure<TMutateResult> & {
+        error: string;
+        fieldErrors?: FieldErrors;
+      };
+      return {
+        success: false,
+        error: failure.error,
+        fieldErrors: failure.fieldErrors,
+      };
+    }
+
+    const success = result as MutateSuccess<TMutateResult>;
+    const data = options.data;
+    const revalidate = options.revalidate;
+    if (revalidate) {
+      after(() => {
+        void revalidate(success, data);
+      });
+    }
+    return options.mapSuccess(success, data);
+  } catch {
     return {
       success: false,
-      error: failure.error,
-      fieldErrors: failure.fieldErrors,
+      error: "Something went wrong. Please try again.",
     };
   }
-
-  const success = result as MutateSuccess<TMutateResult>;
-  const data = options.data;
-  const revalidate = options.revalidate;
-  if (revalidate) {
-    after(() => {
-      void revalidate(success, data);
-    });
-  }
-  return options.mapSuccess(success, data);
 }

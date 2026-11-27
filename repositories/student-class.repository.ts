@@ -90,7 +90,12 @@ export async function listMemberUserIdsAmongUserIds(
 }
 
 export type StudentClassWithClassRecord = StudentClassRecord & {
-  classes: { id: string; name: string; status: string } | null;
+  classes: {
+    id: string;
+    name: string;
+    status: string;
+    semester_id: string | null;
+  } | null;
 };
 
 export async function listStudentClassesWithClassByUserId(
@@ -100,7 +105,7 @@ export async function listStudentClassesWithClassByUserId(
   return client
     .from("student_class")
     .select(
-      "id, user_id, class_id, joined_at, is_team_leader, classes ( id, name, status )"
+      "id, user_id, class_id, joined_at, is_team_leader, classes ( id, name, status, semester_id )"
     )
     .eq("user_id", userId)
     .order("joined_at", { ascending: false });

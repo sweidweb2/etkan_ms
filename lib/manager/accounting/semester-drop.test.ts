@@ -4,9 +4,13 @@ import {
   computeDropRefundOwed,
   computeDropRequiredAmount,
   computeDropSettlementAdjustment,
+  resolveDropRestriction,
 } from "@/lib/manager/accounting/semester-drop";
 import { computeSppFinancials } from "@/lib/manager/accounting/spp-financials";
-import { STUDENT_PAYMENT_TYPES } from "@/lib/manager/accounting/constants";
+import {
+  SEMESTER_DROP_RESTRICTION_MODES,
+  STUDENT_PAYMENT_TYPES,
+} from "@/lib/manager/accounting/constants";
 
 describe("semester drop money helpers", () => {
   it("computes required amount from adjusted final due and percent", () => {
@@ -31,10 +35,37 @@ describe("semester drop money helpers", () => {
   it("computes refund owed above required", () => {
     expect(computeDropRefundOwed(70, 50)).toBe(20);
     expect(computeDropRefundOwed(40, 50)).toBe(0);
+    expect(
+      computeDropRefundOwed(70, 0, SEMESTER_DROP_RESTRICTION_MODES.NONE)
+    ).toBe(0);
   });
 
   it("computes settlement adjustment so due equals required", () => {
     expect(computeDropSettlementAdjustment(100, 50)).toBe(50);
+  });
+
+  it("resolves empty/zero restriction to none", () => {
+    expect(
+      resolveDropRestriction({
+        mode: SEMESTER_DROP_RESTRICTION_MODES.PERCENT,
+        finalAmountDue: 100,
+      })
+    ).toEqual({
+      mode: SEMESTER_DROP_RESTRICTION_MODES.NONE,
+      requiredPercent: null,
+      requiredAmount: 0,
+    });
+    expect(
+      resolveDropRestriction({
+        mode: SEMESTER_DROP_RESTRICTION_MODES.AMOUNT,
+        requiredAmount: 40,
+        finalAmountDue: 100,
+      })
+    ).toEqual({
+      mode: SEMESTER_DROP_RESTRICTION_MODES.AMOUNT,
+      requiredPercent: null,
+      requiredAmount: 40,
+    });
   });
 });
 

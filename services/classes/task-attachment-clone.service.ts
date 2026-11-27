@@ -94,15 +94,25 @@ export function scheduleAttachmentCloneProcessing(adminClient: Supabase): void {
   }
 }
 
+function attachmentCopyKey(fileName: string, fileSize: number) {
+  return `${fileName}\0${fileSize}`;
+}
+
 /**
  * Process pending clone jobs (claim → copy files → complete/fail).
- * Safe to call repeatedly; reclaim stale running jobs first.
+ * Safe to call repeatedly: skips already-copied sources, reclaims stale
+ * running jobs, and periodically requeues failed jobs for idempotent resume.
  */
 export async function processPendingTaskAttachmentCloneJobs(
   adminClient: Supabase
 ): Promise<void> {
   const staleBefore = new Date(Date.now() - STALE_RUNNING_MS).toISOString();
   await cloneJobRepository.resetStaleRunningCloneJobs(adminClient, staleBefore);
+  await cloneJobRepository.requeueStaleFailedCloneJobs(
+    adminClient,
+    staleBefore,
+    20
+  );
 
   const pending = await cloneJobRepository.listPendingCloneJobs(adminClient, 50);
   if (pending.error || !pending.data?.length) {
@@ -147,35 +157,51 @@ async function processOneCloneJob(
       return;
     }
 
-    const existingCountResult =
-      await taskAttachmentRepository.countTaskAttachmentsByEntity(
+    const existingAttachments =
+      await taskAttachmentRepository.listTaskAttachmentsByEntity(
         adminClient,
         TASK_ATTACHMENT_ENTITIES.CLASS_TASK,
         job.class_task_id
       );
 
-    if (existingCountResult.error) {
+    if (existingAttachments.error) {
       await cloneJobRepository.failCloneJob(
         adminClient,
         job.id,
-        existingCountResult.error.message
+        existingAttachments.error.message
       );
       return;
     }
 
-    let remaining =
-      TASK_ATTACHMENT_MAX_FILES - (existingCountResult.count ?? 0);
+    const existingRows = existingAttachments.data ?? [];
+    const existingKeys = new Set(
+      existingRows.map((row) => attachmentCopyKey(row.file_name, row.file_size))
+    );
 
+    let remaining = TASK_ATTACHMENT_MAX_FILES - existingRows.length;
     if (remaining <= 0) {
       await cloneJobRepository.completeCloneJob(adminClient, job.id);
       return;
     }
 
-    const sources = (sourceAttachments.data ?? []).slice(0, remaining);
+    const pendingSources = (sourceAttachments.data ?? []).filter(
+      (source) =>
+        !existingKeys.has(attachmentCopyKey(source.file_name, source.file_size))
+    );
+
+    if (pendingSources.length === 0) {
+      await cloneJobRepository.completeCloneJob(adminClient, job.id);
+      return;
+    }
+
     let copiedCount = 0;
     let lastError: string | null = null;
 
-    for (const source of sources) {
+    for (const source of pendingSources) {
+      if (remaining <= 0) {
+        break;
+      }
+
       const downloaded =
         await taskAttachmentStorageRepository.downloadTaskAttachmentStorageObject(
           adminClient,
@@ -231,15 +257,13 @@ async function processOneCloneJob(
         break;
       }
 
+      existingKeys.add(attachmentCopyKey(source.file_name, source.file_size));
       copiedCount += 1;
       remaining -= 1;
-      if (remaining <= 0) {
-        break;
-      }
     }
 
     if (lastError) {
-      // Keep successful copies; surface failure so the UI can refresh/retry leftovers.
+      // Keep successful copies; stale failed jobs are requeued for idempotent resume.
       await cloneJobRepository.failCloneJob(
         adminClient,
         job.id,

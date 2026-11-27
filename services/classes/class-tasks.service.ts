@@ -30,8 +30,15 @@ import {
   cloneAllSubjectTasksToClass,
   importMissingSubjectTasksToClass,
 } from "@/services/classes/class-task-clone.service";
-import { removeStorageForStudentTaskUploads } from "@/services/classes/student-task-upload.service";
-import { removeStorageAndRowsForTaskAttachments } from "@/services/classes/task-attachments.service";
+import {
+  collectStudentTaskUploadStoragePaths,
+  removeStudentTaskUploadStoragePaths,
+} from "@/services/classes/student-task-upload.service";
+import {
+  collectTaskAttachmentStoragePaths,
+  deleteTaskAttachmentRowsForEntities,
+  removeTaskAttachmentStoragePaths,
+} from "@/services/classes/task-attachments.service";
 import { TASK_ATTACHMENT_ENTITIES } from "@/lib/constants/task-attachments";
 import { assertAssignedTeacherForClassMutation } from "@/services/classes/teacher-class-scope.service";
 import {
@@ -503,30 +510,31 @@ export async function deleteClassTaskForManager(
     (row) => row.id
   );
 
-  const storageCleanup = await removeStorageForStudentTaskUploads(
+  // Collect storage paths → delete DB rows → delete parent → best-effort storage.
+  // Avoids rows pointing at missing objects if a later step fails.
+  const studentUploadPaths = await collectStudentTaskUploadStoragePaths(
     adminClient,
     studentTaskIds
   );
-  if (storageCleanup.error) {
+  if (studentUploadPaths.error) {
     return {
       success: false,
       error:
-        storageCleanup.error.message ||
-        "Unable to delete student task upload files.",
+        studentUploadPaths.error.message ||
+        "Unable to list student task upload files.",
     };
   }
 
-  const attachmentCleanup = await removeStorageAndRowsForTaskAttachments(
+  const attachmentPaths = await collectTaskAttachmentStoragePaths(
     adminClient,
     TASK_ATTACHMENT_ENTITIES.CLASS_TASK,
     [input.id]
   );
-  if (attachmentCleanup.error) {
+  if (attachmentPaths.error) {
     return {
       success: false,
       error:
-        attachmentCleanup.error.message ||
-        "Unable to delete task attachments.",
+        attachmentPaths.error.message || "Unable to list task attachments.",
     };
   }
 
@@ -537,6 +545,19 @@ export async function deleteClassTaskForManager(
     );
   if (studentTasksResult.error) {
     return { success: false, error: studentTasksResult.error.message };
+  }
+
+  const attachmentDelete = await deleteTaskAttachmentRowsForEntities(
+    adminClient,
+    TASK_ATTACHMENT_ENTITIES.CLASS_TASK,
+    [input.id]
+  );
+  if (attachmentDelete.error) {
+    return {
+      success: false,
+      error:
+        attachmentDelete.error.message || "Unable to delete task attachments.",
+    };
   }
 
   const deletedStudentTaskCount = studentTasksResult.data?.length ?? 0;
@@ -550,6 +571,12 @@ export async function deleteClassTaskForManager(
       error: deleteError.message ?? "Unable to delete task.",
     };
   }
+
+  await removeStudentTaskUploadStoragePaths(
+    adminClient,
+    studentUploadPaths.paths
+  );
+  await removeTaskAttachmentStoragePaths(adminClient, attachmentPaths.paths);
 
   await recordManagerAuditLog(adminClient, actor, {
     action: "delete",

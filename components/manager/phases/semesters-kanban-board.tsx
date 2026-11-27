@@ -188,7 +188,12 @@ export function SemestersKanbanBoard({
     (state) => state.success === false
   );
 
-  if (semesters !== prevSemesters || teams !== prevTeams) {
+  // Don't rebuild from parent props while a save is in flight — that can
+  // clobber optimistic columns before success/rollback settles.
+  if (
+    !isPending &&
+    (semesters !== prevSemesters || teams !== prevTeams)
+  ) {
     setPrevSemesters(semesters);
     setPrevTeams(teams);
     setColumns(buildSemesterBoardColumns(semesters, teams));

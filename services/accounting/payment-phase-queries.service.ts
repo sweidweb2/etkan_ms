@@ -543,7 +543,9 @@ async function loadNeedRefundRows(
         payment_phase_id: row.payment_phase_id,
         spp_id: row.spp_id,
         status: row.status,
-        required_percent: Number(row.required_percent),
+        restriction_mode: row.restriction_mode,
+        required_percent:
+          row.required_percent == null ? null : Number(row.required_percent),
         required_amount: Number(row.required_amount),
         phase_amount_snapshot: Number(row.phase_amount_snapshot),
         requested_at: row.requested_at,

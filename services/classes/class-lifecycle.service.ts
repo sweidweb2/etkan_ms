@@ -33,8 +33,15 @@ import {
 import { backfillSppsForClassBecomeInProgress } from "@/services/accounting/accounting-sync.service";
 import { assertClassStructureUnlockedForComputedGrades } from "@/services/classes/class-computed-grade-lock.service";
 import { ensureSessionAttendeesForMembers } from "@/services/classes/session.service";
-import { removeStorageForStudentTaskUploads } from "@/services/classes/student-task-upload.service";
-import { removeStorageAndRowsForTaskAttachments } from "@/services/classes/task-attachments.service";
+import {
+  collectStudentTaskUploadStoragePaths,
+  removeStudentTaskUploadStoragePaths,
+} from "@/services/classes/student-task-upload.service";
+import {
+  collectTaskAttachmentStoragePaths,
+  deleteTaskAttachmentRowsForEntities,
+  removeTaskAttachmentStoragePaths,
+} from "@/services/classes/task-attachments.service";
 import { TASK_ATTACHMENT_ENTITIES } from "@/lib/constants/task-attachments";
 import {
   assertAssignedTeacherForClassMutation,
@@ -508,6 +515,7 @@ export async function updateClassForManager(
     }
 
     const existingTaskIds = (existingTasks.data ?? []).map((task) => task.id);
+    const studentUploadPaths: string[] = [];
 
     for (const task of existingTasks.data ?? []) {
       const studentTasksResult =
@@ -519,34 +527,35 @@ export async function updateClassForManager(
         return { success: false, error: studentTasksResult.error.message };
       }
       const studentTaskIds = (studentTasksResult.data ?? []).map((row) => row.id);
-      const storageCleanup = await removeStorageForStudentTaskUploads(
+      const collected = await collectStudentTaskUploadStoragePaths(
         adminClient,
         studentTaskIds
       );
-      if (storageCleanup.error) {
+      if (collected.error) {
         return {
           success: false,
           error:
-            storageCleanup.error.message ||
-            "Unable to delete student task upload files.",
+            collected.error.message ||
+            "Unable to list student task upload files.",
         };
       }
+      studentUploadPaths.push(...collected.paths);
     }
 
-    const attachmentCleanup = await removeStorageAndRowsForTaskAttachments(
+    const attachmentPaths = await collectTaskAttachmentStoragePaths(
       adminClient,
       TASK_ATTACHMENT_ENTITIES.CLASS_TASK,
       existingTaskIds
     );
-    if (attachmentCleanup.error) {
+    if (attachmentPaths.error) {
       return {
         success: false,
         error:
-          attachmentCleanup.error.message ||
-          "Unable to delete task attachments.",
+          attachmentPaths.error.message || "Unable to list task attachments.",
       };
     }
 
+    // Class task delete cascades student_tasks → student_task_uploads rows.
     const deleteTasks = await classTaskRepository.deleteClassTasksByClassId(
       adminClient,
       input.class_id
@@ -554,6 +563,27 @@ export async function updateClassForManager(
     if (deleteTasks.error) {
       return { success: false, error: deleteTasks.error.message };
     }
+
+    // Attachments are not FK-cascaded; delete rows after parents are gone.
+    const attachmentDelete = await deleteTaskAttachmentRowsForEntities(
+      adminClient,
+      TASK_ATTACHMENT_ENTITIES.CLASS_TASK,
+      existingTaskIds
+    );
+    if (attachmentDelete.error) {
+      return {
+        success: false,
+        error:
+          attachmentDelete.error.message ||
+          "Unable to delete task attachments.",
+      };
+    }
+
+    await removeStudentTaskUploadStoragePaths(adminClient, studentUploadPaths);
+    await removeTaskAttachmentStoragePaths(
+      adminClient,
+      attachmentPaths.paths
+    );
 
     const { cloneSubjectTasksOntoClass } = await import(
       "@/services/classes/class-tasks.service"

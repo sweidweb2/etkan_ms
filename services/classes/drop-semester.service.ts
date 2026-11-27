@@ -2,12 +2,13 @@ import "server-only";
 
 import { PERMISSIONS } from "@/lib/constants/permissions";
 import { STUDENT_SEMESTER_STATUSES } from "@/lib/constants/manager-student-semester-status";
-import { SEMESTER_DROP_DEFAULT_REQUIRED_PERCENT } from "@/lib/manager/accounting/constants";
+import { SEMESTER_DROP_RESTRICTION_MODES } from "@/lib/manager/accounting/constants";
 import { toManagerSemesterDropRow } from "@/lib/manager/accounting/semester-drop-mapper";
 import { isNoSppDropFallbackMessage } from "@/lib/manager/accounting/semester-drop-messages";
 import {
   cancelSemesterDropSchema,
   createSemesterDropSchema,
+  type CreateSemesterDropInput,
 } from "@/lib/validators/manager/create-semester-drop";
 import { createNavStepTimer } from "@/lib/debug/nav-timing";
 import * as classRepository from "@/repositories/class.repository";
@@ -109,16 +110,107 @@ async function leaveClassWithoutSppDrop(
   };
 }
 
+type CreateSemesterDropParams = {
+  student_id: string;
+  class_id: string;
+  membership_id?: string;
+  restriction_mode?: string;
+  required_percent?: number | null;
+  required_amount?: number | null;
+  require_immediate?: boolean;
+  notes?: string | null;
+  auditSource?: string;
+};
+
+async function executeCreateSemesterDrop(
+  adminClient: Supabase,
+  actorUserId: string | null,
+  actor: AuditActor,
+  parsed: CreateSemesterDropInput,
+  options?: { auditSource?: string; notes?: string | null }
+): Promise<CreateSemesterDropResult> {
+  const { data, error } =
+    await semesterDropRequestRepository.createSemesterDropRequest(adminClient, {
+      student_id: parsed.student_id,
+      class_id: parsed.class_id,
+      restriction_mode: parsed.restriction_mode,
+      required_percent: parsed.required_percent,
+      required_amount: parsed.required_amount,
+      requested_by: actorUserId,
+      notes: options?.notes ?? null,
+      require_immediate: parsed.require_immediate,
+    });
+
+  if (error) {
+    const message = error.message ?? "";
+    if (isNoSppDropFallbackMessage(message)) {
+      let membershipId = parsed.membership_id;
+      if (!membershipId) {
+        const membershipResult =
+          await studentClassRepository.findStudentClassByUserAndClass(
+            adminClient,
+            parsed.student_id,
+            parsed.class_id
+          );
+        membershipId = membershipResult.data?.id;
+      }
+      if (!membershipId) {
+        return {
+          success: false,
+          error: "Student is not a member of this class.",
+        };
+      }
+      return leaveClassWithoutSppDrop(
+        adminClient,
+        actor,
+        membershipId,
+        parsed.class_id,
+        parsed.student_id
+      );
+    }
+    return { success: false, error: message || "Unable to create drop request." };
+  }
+
+  if (!data?.request && !data?.completedImmediately) {
+    return { success: false, error: "Unable to create drop request." };
+  }
+
+  const request = data.request ? toManagerSemesterDropRow(data.request) : null;
+
+  await recordManagerAuditLog(adminClient, actor, {
+    action: data.completedImmediately ? "update" : "insert",
+    severity: "info",
+    table_name: "semester_drop_requests",
+    record_id: request?.id ?? null,
+    new_data: request,
+    metadata: {
+      note: data.completedImmediately
+        ? "Semester drop completed immediately."
+        : "Semester drop request created (pending).",
+      completedImmediately: data.completedImmediately,
+      restriction_mode: parsed.restriction_mode,
+      source: options?.auditSource ?? "class_drop",
+    },
+  });
+
+  return {
+    success: true,
+    request,
+    completedImmediately: data.completedImmediately,
+    removedFromClass: data.completedImmediately,
+    message: data.completedImmediately
+      ? parsed.restriction_mode === SEMESTER_DROP_RESTRICTION_MODES.NONE
+        ? "Semester drop completed with no payment restriction. Payments kept; no refund."
+        : "Semester drop completed. Student left all scheduled/in-progress classes in the semester."
+      : "Semester drop pending until the required payment is met.",
+  };
+}
+
 export async function createSemesterDropForManager(
   adminClient: Supabase,
   actorUserId: string | null,
   actor: AuditActor,
-  input: {
-    student_id: string;
-    class_id: string;
-    membership_id?: string;
-    required_percent?: number;
-  }
+  input: CreateSemesterDropParams
 ): Promise<CreateSemesterDropResult> {
   const timer = createNavStepTimer("createSemesterDrop");
   try {
@@ -146,8 +238,11 @@ export async function createSemesterDropForManager(
       student_id: input.student_id,
       class_id: input.class_id,
       membership_id: input.membership_id,
-      required_percent:
-        input.required_percent ?? SEMESTER_DROP_DEFAULT_REQUIRED_PERCENT,
+      restriction_mode:
+        input.restriction_mode ?? SEMESTER_DROP_RESTRICTION_MODES.PERCENT,
+      required_percent: input.required_percent,
+      required_amount: input.required_amount,
+      require_immediate: input.require_immediate ?? false,
     });
 
     if (!parsed.success) {
@@ -158,81 +253,66 @@ export async function createSemesterDropForManager(
       };
     }
 
-    const { data, error } = await timer.step("rpc", () =>
-      semesterDropRequestRepository.createSemesterDropRequest(adminClient, {
-        student_id: parsed.data.student_id,
-        class_id: parsed.data.class_id,
-        required_percent: parsed.data.required_percent,
-        requested_by: actorUserId,
+    return timer.step("rpc", () =>
+      executeCreateSemesterDrop(adminClient, actorUserId, actor, parsed.data, {
+        auditSource: input.auditSource,
+        notes: input.notes,
       })
     );
-
-    if (error) {
-      const message = error.message ?? "";
-      if (isNoSppDropFallbackMessage(message)) {
-        let membershipId = parsed.data.membership_id;
-        if (!membershipId) {
-          const membershipResult =
-            await studentClassRepository.findStudentClassByUserAndClass(
-              adminClient,
-              parsed.data.student_id,
-              parsed.data.class_id
-            );
-          membershipId = membershipResult.data?.id;
-        }
-        if (!membershipId) {
-          return {
-            success: false,
-            error: "Student is not a member of this class.",
-          };
-        }
-        return leaveClassWithoutSppDrop(
-          adminClient,
-          actor,
-          membershipId,
-          parsed.data.class_id,
-          parsed.data.student_id
-        );
-      }
-      return { success: false, error: message || "Unable to create drop request." };
-    }
-
-    if (!data?.request && !data?.completedImmediately) {
-      return { success: false, error: "Unable to create drop request." };
-    }
-
-    const request = data.request
-      ? toManagerSemesterDropRow(data.request)
-      : null;
-
-    await timer.step("audit", () =>
-      recordManagerAuditLog(adminClient, actor, {
-        action: data.completedImmediately ? "update" : "insert",
-        severity: "info",
-        table_name: "semester_drop_requests",
-        record_id: request?.id ?? null,
-        new_data: request,
-        metadata: {
-          note: data.completedImmediately
-            ? "Semester drop completed immediately."
-            : "Semester drop request created (pending).",
-          completedImmediately: data.completedImmediately,
-        },
-      })
-    );
-
-    return {
-      success: true,
-      request,
-      completedImmediately: data.completedImmediately,
-      removedFromClass: data.completedImmediately,
-      message: data.completedImmediately
-        ? "Semester drop completed. Student left all scheduled/in-progress classes in the semester."
-        : "Semester drop pending until the required payment is met.",
-    };
   } finally {
     timer.end();
   }
+}
+
+/**
+ * Internal drop used by inactivate (already authorized via students.change_status).
+ * Always requires immediate completion — never leaves a pending drop.
+ */
+export async function createImmediateSemesterDropForInactivate(
+  adminClient: Supabase,
+  actorUserId: string | null,
+  actor: AuditActor,
+  input: CreateSemesterDropParams
+): Promise<CreateSemesterDropResult> {
+  const parsed = createSemesterDropSchema.safeParse({
+    student_id: input.student_id,
+    class_id: input.class_id,
+    membership_id: input.membership_id,
+    restriction_mode:
+      input.restriction_mode ?? SEMESTER_DROP_RESTRICTION_MODES.NONE,
+    required_percent: input.required_percent,
+    required_amount: input.required_amount,
+    require_immediate: true,
+  });
+
+  if (!parsed.success) {
+    return {
+      success: false,
+      error: "Please fix the errors below.",
+      fieldErrors: parsed.error.flatten().fieldErrors,
+    };
+  }
+
+  const result = await executeCreateSemesterDrop(
+    adminClient,
+    actorUserId,
+    actor,
+    { ...parsed.data, require_immediate: true },
+    {
+      auditSource: "inactivate",
+      notes: input.notes ?? "Drop from student inactivate.",
+    }
+  );
+
+  if (result.success && !result.completedImmediately) {
+    return {
+      success: false,
+      error:
+        "Drop cannot complete immediately. Lower the requirement, choose no restriction, or finish the pending drop first.",
+    };
+  }
+
+  return result;
 }
 
 export async function cancelSemesterDropForManager(

@@ -23,6 +23,7 @@ import { updateStudentSchema } from "@/lib/validators/manager/update-student";
 import * as authRepository from "@/repositories/auth.repository";
 import * as classRepository from "@/repositories/class.repository";
 import * as profileRepository from "@/repositories/profile.repository";
+import * as semesterDropRequestRepository from "@/repositories/semester-drop-request.repository";
 import * as studentClassRepository from "@/repositories/student-class.repository";
 import * as studentProfileRepository from "@/repositories/student-profile.repository";
 import * as studentTaskRepository from "@/repositories/student-task.repository";
@@ -202,6 +203,7 @@ async function mapStudentProfileToManagerStudentRow(
       new Date(0).toISOString(),
     role: mapProfileRole(resolvedProfile.role),
     is_instructor: resolvedProfile.is_instructor ?? false,
+    has_pending_drop: false,
   };
 }
 
@@ -225,9 +227,13 @@ export async function hydrateStudentRows(
   }
 
   const userIds = studentProfiles.map((row) => row.user_id);
-  const [profilesResult, emailsResult] = await Promise.all([
+  const [profilesResult, emailsResult, pendingDropsResult] = await Promise.all([
     profileRepository.listProfilesByIds(adminClient, userIds),
     authRepository.listAuthEmailsByIds(adminClient, userIds),
+    semesterDropRequestRepository.listPendingDropsByStudentIds(
+      adminClient,
+      userIds
+    ),
   ]);
 
   if (profilesResult.error) {
@@ -236,11 +242,17 @@ export async function hydrateStudentRows(
   if (emailsResult.error) {
     throw new Error(emailsResult.error.message);
   }
+  if (pendingDropsResult.error) {
+    throw new Error(pendingDropsResult.error.message);
+  }
 
   const profileById = new Map(
     (profilesResult.data ?? []).map((row) => [row.id, row])
   );
   const emailById = emailsResult.data;
+  const pendingDropStudentIds = new Set(
+    (pendingDropsResult.data ?? []).map((row) => row.student_id)
+  );
 
   const students: ManagerStudentRow[] = [];
 
@@ -264,6 +276,7 @@ export async function hydrateStudentRows(
         new Date(0).toISOString(),
       role: mapProfileRole(profile.role),
       is_instructor: profile.is_instructor ?? false,
+      has_pending_drop: pendingDropStudentIds.has(studentProfile.user_id),
     });
   }
 
@@ -335,6 +348,19 @@ export async function listStudentsPageForManager(
   const requestedPage = Math.max(1, Math.floor(query.page ?? 1));
   const status = query.status ?? null;
   const search = query.search?.trim() ?? "";
+  const pendingDrop = query.pendingDrop === true;
+
+  let pendingDropUserIds: string[] | undefined;
+  if (pendingDrop) {
+    const pendingIdsResult =
+      await semesterDropRequestRepository.listPendingDropStudentIds(
+        adminClient
+      );
+    if (pendingIdsResult.error) {
+      throw new Error(pendingIdsResult.error.message);
+    }
+    pendingDropUserIds = pendingIdsResult.data;
+  }
 
   const fetchPage = (page: number) =>
     studentProfileRepository.listStudentProfilesPage(adminClient, {
@@ -342,6 +368,7 @@ export async function listStudentsPageForManager(
       limit: pageSize,
       status,
       search,
+      includeUserIds: pendingDropUserIds,
     });
 
   const [initialPageResult, countsResult] = await Promise.all([

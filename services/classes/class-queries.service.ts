@@ -26,8 +26,11 @@ import * as profileRepository from "@/repositories/profile.repository";
 import * as semesterRepository from "@/repositories/semester.repository";
 import * as sessionRepository from "@/repositories/session.repository";
 import type { SessionRecord } from "@/repositories/session.repository";
+import * as paymentPhaseRepository from "@/repositories/payment-phase.repository";
 import * as semesterDropRequestRepository from "@/repositories/semester-drop-request.repository";
 import * as studentClassRepository from "@/repositories/student-class.repository";
+import * as studentPaymentPhaseRepository from "@/repositories/student-payment-phase.repository";
+import * as studentPaymentRepository from "@/repositories/student-payment.repository";
 import * as studentProfileRepository from "@/repositories/student-profile.repository";
 import * as studentTaskRepository from "@/repositories/student-task.repository";
 import * as subjectRepository from "@/repositories/subject.repository";
@@ -574,40 +577,100 @@ export async function loadClassStudentRows(
     );
     const emailById = emailResult.data;
 
-    const pendingDropsResult =
-      await semesterDropRequestRepository.listPendingDropsByClassId(
-        adminClient,
-        classId
-      );
+    const classResult = await classRepository.findClassById(
+      adminClient,
+      classId
+    );
+    if (classResult.error) {
+      throw new Error(classResult.error.message);
+    }
+    const semesterId = classResult.data?.semester_id ?? null;
+
+    const pendingDropsResult = semesterId
+      ? await semesterDropRequestRepository.listPendingDropsBySemesterId(
+          adminClient,
+          semesterId
+        )
+      : await semesterDropRequestRepository.listPendingDropsByStudentIds(
+          adminClient,
+          userIds
+        );
     if (pendingDropsResult.error) {
       throw new Error(pendingDropsResult.error.message);
     }
     const pendingDropByStudentId = new Map(
-      (pendingDropsResult.data ?? []).map((row) => [row.student_id, row.id])
+      (pendingDropsResult.data ?? [])
+        .filter((row) => userIds.includes(row.student_id))
+        .map((row) => [row.student_id, row.id])
     );
+
+    const studentsWithSppPayments = new Set<string>();
+    if (semesterId) {
+      const phaseResult =
+        await paymentPhaseRepository.findCurrentSyncPhaseBySemesterId(
+          adminClient,
+          semesterId
+        );
+      if (phaseResult.error) {
+        throw new Error(phaseResult.error.message);
+      }
+      if (phaseResult.data?.id) {
+        const sppsResult =
+          await studentPaymentPhaseRepository.listSppsByPaymentPhaseId(
+            adminClient,
+            phaseResult.data.id
+          );
+        if (sppsResult.error) {
+          throw new Error(sppsResult.error.message);
+        }
+        const sppsForRoster = (sppsResult.data ?? []).filter((row) =>
+          userIds.includes(row.student_id)
+        );
+        const sppIds = sppsForRoster.map((row) => row.id);
+        const paymentsResult =
+          await studentPaymentRepository.listPaymentSppIdsBySppIds(
+            adminClient,
+            sppIds
+          );
+        if (paymentsResult.error) {
+          throw new Error(paymentsResult.error.message);
+        }
+        const paidSppIds = new Set(
+          (paymentsResult.data ?? []).map(
+            (row) => row.student_payment_phase_id
+          )
+        );
+        for (const spp of sppsForRoster) {
+          if (paidSppIds.has(spp.id)) {
+            studentsWithSppPayments.add(spp.student_id);
+          }
+        }
+      }
+    }
 
     const rows: ManagerClassStudentRow[] = [];
 
     for (const enrollment of enrollments) {
       const studentProfile = studentProfileByUserId.get(enrollment.user_id);
-
-      if (!studentProfile) {
-        continue;
-      }
-
       const pendingDropId =
         pendingDropByStudentId.get(enrollment.user_id) ?? null;
+      const hasSppPayments = studentsWithSppPayments.has(enrollment.user_id);
+      const hasPendingDrop = Boolean(pendingDropId);
 
+      // Keep orphan enrollments (no student_profiles row) visible so roster
+      // length matches DB enrollment count and managers can see the gap.
       rows.push({
         id: enrollment.id,
-        student_profile_id: studentProfile.id,
+        student_profile_id: studentProfile?.id ?? "",
         user_id: enrollment.user_id,
-        full_name: studentProfile.full_name,
+        full_name: studentProfile?.full_name ?? "Unknown student",
         email: emailById.get(enrollment.user_id) ?? "",
-        phone: studentProfile.phone,
+        phone: studentProfile?.phone ?? null,
         joined_at: enrollment.joined_at ?? "",
         pending_drop_request_id: pendingDropId,
-        has_pending_drop: Boolean(pendingDropId),
+        has_pending_drop: hasPendingDrop,
+        has_semester_spp_payments: hasSppPayments,
+        can_remove_student: !hasSppPayments && !hasPendingDrop,
         is_team_leader: enrollment.is_team_leader,
       });
     }

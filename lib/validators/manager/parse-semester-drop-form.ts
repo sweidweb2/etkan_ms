@@ -4,13 +4,25 @@ import {
   createSemesterDropSchema,
   processDropRefundSchema,
 } from "@/lib/validators/manager/create-semester-drop";
+import { SEMESTER_DROP_RESTRICTION_MODES } from "@/lib/manager/accounting/constants";
 
 export function parseCreateSemesterDropFormData(formData: FormData) {
+  const rawMode = String(formData.get("restriction_mode") ?? "").trim();
+  const mode =
+    rawMode === SEMESTER_DROP_RESTRICTION_MODES.AMOUNT ||
+    rawMode === SEMESTER_DROP_RESTRICTION_MODES.NONE ||
+    rawMode === SEMESTER_DROP_RESTRICTION_MODES.PERCENT
+      ? rawMode
+      : SEMESTER_DROP_RESTRICTION_MODES.PERCENT;
+
   return safeParseFormData(createSemesterDropSchema, {
     student_id: formData.get("student_id"),
     class_id: formData.get("class_id"),
     membership_id: formData.get("membership_id") || undefined,
-    required_percent: formData.get("required_percent") || 50,
+    restriction_mode: mode,
+    required_percent: formData.get("required_percent") || undefined,
+    required_amount: formData.get("required_amount") || undefined,
+    require_immediate: formData.get("require_immediate") === "true",
   });
 }
 

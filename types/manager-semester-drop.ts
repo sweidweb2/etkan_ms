@@ -6,7 +6,8 @@ export type ManagerSemesterDropRequestRow = {
   payment_phase_id: string | null;
   spp_id: string | null;
   status: string;
-  required_percent: number;
+  restriction_mode: string;
+  required_percent: number | null;
   required_amount: number;
   phase_amount_snapshot: number;
   requested_at: string;

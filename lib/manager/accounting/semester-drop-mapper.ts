@@ -12,7 +12,8 @@ export type SemesterDropRequestLike = {
   payment_phase_id: string | null;
   spp_id: string | null;
   status: string;
-  required_percent: number;
+  restriction_mode: string;
+  required_percent: number | null;
   required_amount: number;
   phase_amount_snapshot: number;
   requested_at: string;
@@ -43,6 +44,7 @@ export function toManagerSemesterDropRow(
     payment_phase_id: row.payment_phase_id,
     spp_id: row.spp_id,
     status: row.status,
+    restriction_mode: row.restriction_mode,
     required_percent: row.required_percent,
     required_amount: row.required_amount,
     phase_amount_snapshot: row.phase_amount_snapshot,

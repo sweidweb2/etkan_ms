@@ -467,6 +467,22 @@ export async function assignSemestersToTeamForManager(
     }
   }
 
+  const listed = await semesterRepository.listSemesters(adminClient);
+  if (listed.error) {
+    return {
+      success: false,
+      error: "Unable to assign semesters. Please try again.",
+    };
+  }
+
+  const byId = new Map((listed.data ?? []).map((row) => [row.id, row]));
+  if (uniqueSemesterIds.some((id) => !byId.has(id))) {
+    return {
+      success: false,
+      error: "One or more semesters were not found.",
+    };
+  }
+
   const nextSort = await semesterRepository.getNextSemesterSortOrderForTeam(
     adminClient,
     teamId
@@ -501,17 +517,19 @@ export async function assignSemestersToTeamForManager(
     };
   }
 
-  const listed = await semesterRepository.listSemesters(adminClient);
-  if (listed.error) {
+  const refreshed = await semesterRepository.listSemesters(adminClient);
+  if (refreshed.error) {
     return {
       success: false,
       error: "Unable to assign semesters. Please try again.",
     };
   }
 
-  const byId = new Map((listed.data ?? []).map((row) => [row.id, row]));
+  const refreshedById = new Map(
+    (refreshed.data ?? []).map((row) => [row.id, row])
+  );
   const semesters = uniqueSemesterIds.flatMap((id) => {
-    const row = byId.get(id);
+    const row = refreshedById.get(id);
     return row ? [mapSemesterPlacementRow(row)] : [];
   });
 

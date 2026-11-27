@@ -78,17 +78,10 @@ describe("listSubjectsForManager", () => {
       statusText: "OK",
     });
 
-    vi.mocked(classRepository.listClassSubjectIds).mockResolvedValue({
-      data: [
-        { subject_id: subjectId },
-        { subject_id: subjectId },
-        { subject_id: null },
-      ],
+    vi.mocked(classRepository.countClassesBySubject).mockResolvedValue({
+      data: [{ subject_id: subjectId, class_count: 2 }],
       error: null,
-      count: null,
-      status: 200,
-      statusText: "OK",
-    });
+    } as never);
 
     const subjects = await listSubjectsForManager(adminClient, actor.userId);
 
@@ -117,13 +110,10 @@ describe("listSubjectsForManager", () => {
       statusText: "OK",
     });
 
-    vi.mocked(classRepository.listClassSubjectIds).mockResolvedValue({
+    vi.mocked(classRepository.countClassesBySubject).mockResolvedValue({
       data: [],
       error: null,
-      count: null,
-      status: 200,
-      statusText: "OK",
-    });
+    } as never);
 
     const subjects = await listSubjectsForManager(adminClient, actor.userId);
 

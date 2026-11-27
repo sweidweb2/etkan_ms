@@ -117,6 +117,7 @@ export async function claimCloneJob(
       status: TASK_ATTACHMENT_CLONE_JOB_STATUSES.RUNNING,
       updated_at: now,
       error_message: null,
+      completed_at: null,
     })
     .eq("id", jobId)
     .eq("status", TASK_ATTACHMENT_CLONE_JOB_STATUSES.PENDING)
@@ -168,8 +169,40 @@ export async function resetStaleRunningCloneJobs(
       status: TASK_ATTACHMENT_CLONE_JOB_STATUSES.PENDING,
       updated_at: new Date().toISOString(),
       error_message: null,
+      completed_at: null,
     })
     .eq("status", TASK_ATTACHMENT_CLONE_JOB_STATUSES.RUNNING)
     .lt("updated_at", olderThanIso)
+    .select(CLONE_JOB_COLUMNS);
+}
+
+/** Requeue failed jobs older than `olderThanIso` so idempotent resume can finish leftovers. */
+export async function requeueStaleFailedCloneJobs(
+  client: Supabase,
+  olderThanIso: string,
+  limit = 20
+) {
+  const listed = await client
+    .from("task_attachment_clone_jobs")
+    .select("id")
+    .eq("status", TASK_ATTACHMENT_CLONE_JOB_STATUSES.FAILED)
+    .lt("updated_at", olderThanIso)
+    .order("updated_at", { ascending: true })
+    .limit(limit);
+
+  if (listed.error || !listed.data?.length) {
+    return { data: [] as TaskAttachmentCloneJobRecord[], error: listed.error };
+  }
+
+  const ids = listed.data.map((row) => row.id);
+  return client
+    .from("task_attachment_clone_jobs")
+    .update({
+      status: TASK_ATTACHMENT_CLONE_JOB_STATUSES.PENDING,
+      updated_at: new Date().toISOString(),
+      completed_at: null,
+    })
+    .in("id", ids)
+    .eq("status", TASK_ATTACHMENT_CLONE_JOB_STATUSES.FAILED)
     .select(CLONE_JOB_COLUMNS);
 }

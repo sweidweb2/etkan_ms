@@ -1,7 +1,7 @@
 import "server-only";
 
 import type { SupabaseClient } from "@supabase/supabase-js";
-import type { Database } from "@/types/supabase";
+import type { Database, Json } from "@/types/supabase";
 
 type Supabase = SupabaseClient<Database>;
 
@@ -110,22 +110,10 @@ export async function updateSemesterBoardPositions(
     sort_order: number;
   }>
 ) {
-  // N+1 updates: no batch RPC sibling exists (same pattern as stages /
-  // semester_teams). Partial failure can leave earlier rows committed.
-  const results = await Promise.all(
-    placements.map((placement) =>
-      client
-        .from("semesters")
-        .update({
-          team_id: placement.team_id,
-          sort_order: placement.sort_order,
-        })
-        .eq("id", placement.id)
-    )
-  );
-
-  const firstError = results.find((result) => result.error)?.error ?? null;
-  return { error: firstError };
+  const { error } = await client.rpc("update_semester_board_positions", {
+    p_placements: placements as Json,
+  });
+  return { error };
 }
 
 export async function getNextSemesterSortOrderForTeam(

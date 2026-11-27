@@ -188,7 +188,12 @@ export function SubjectsKanbanBoard({
     (state) => state.success === false
   );
 
-  if (subjects !== prevSubjects || stages !== prevStages) {
+  // Don't rebuild from parent props while a save is in flight — that can
+  // clobber optimistic columns before success/rollback settles.
+  if (
+    !isPending &&
+    (subjects !== prevSubjects || stages !== prevStages)
+  ) {
     setPrevSubjects(subjects);
     setPrevStages(stages);
     setColumns(buildSubjectBoardColumns(subjects, stages));

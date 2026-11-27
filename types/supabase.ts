@@ -1802,7 +1802,8 @@ export type Database = {
           payment_phase_id: string | null
           spp_id: string | null
           status: string
-          required_percent: number
+          restriction_mode: string
+          required_percent: number | null
           required_amount: number
           phase_amount_snapshot: number
           requested_at: string
@@ -1824,7 +1825,8 @@ export type Database = {
           payment_phase_id?: string | null
           spp_id?: string | null
           status?: string
-          required_percent: number
+          restriction_mode?: string
+          required_percent?: number | null
           required_amount: number
           phase_amount_snapshot: number
           requested_at?: string
@@ -1846,7 +1848,8 @@ export type Database = {
           payment_phase_id?: string | null
           spp_id?: string | null
           status?: string
-          required_percent?: number
+          restriction_mode?: string
+          required_percent?: number | null
           required_amount?: number
           phase_amount_snapshot?: number
           requested_at?: string
@@ -3383,9 +3386,12 @@ export type Database = {
         Args: {
           p_student_id: string
           p_class_id: string
-          p_required_percent: number
+          p_restriction_mode?: string
+          p_required_percent?: number | null
+          p_required_amount?: number | null
           p_requested_by?: string | null
           p_notes?: string | null
+          p_require_immediate?: boolean
         }
         Returns: Json
       }
@@ -3428,6 +3434,22 @@ export type Database = {
       count_classes_by_subject: {
         Args: never
         Returns: { subject_id: string; class_count: number }[]
+      }
+      update_semester_board_positions: {
+        Args: { p_placements: Json }
+        Returns: undefined
+      }
+      update_semester_team_sort_orders: {
+        Args: { p_ordered_ids: string[] }
+        Returns: undefined
+      }
+      update_subject_board_positions: {
+        Args: { p_placements: Json }
+        Returns: undefined
+      }
+      update_stage_sort_orders: {
+        Args: { p_ordered_ids: string[] }
+        Returns: undefined
       }
       sum_student_payment_amounts: { Args: never; Returns: number }
       sum_student_payment_amounts_between: {

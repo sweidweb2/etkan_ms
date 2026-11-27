@@ -85,12 +85,8 @@ export async function updateStageSortOrders(
   client: Supabase,
   orderedIds: string[]
 ) {
-  const results = await Promise.all(
-    orderedIds.map((id, index) =>
-      client.from("stages").update({ sort_order: index }).eq("id", id)
-    )
-  );
-
-  const firstError = results.find((result) => result.error)?.error ?? null;
-  return { error: firstError };
+  const { error } = await client.rpc("update_stage_sort_orders", {
+    p_ordered_ids: orderedIds,
+  });
+  return { error };
 }

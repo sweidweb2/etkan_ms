@@ -497,12 +497,13 @@ export async function getStudentTaskUploadSignedUrlForManager(
  * Best-effort storage cleanup for uploads belonging to student_task ids
  * that are about to be deleted with a class task.
  */
-export async function removeStorageForStudentTaskUploads(
+/** Collect storage paths for later best-effort cleanup (after DB rows are gone). */
+export async function collectStudentTaskUploadStoragePaths(
   adminClient: Supabase,
   studentTaskIds: string[]
-): Promise<{ error: { message: string } | null }> {
+): Promise<{ paths: string[]; error: { message: string } | null }> {
   if (studentTaskIds.length === 0) {
-    return { error: null };
+    return { paths: [], error: null };
   }
 
   const uploadsResult =
@@ -512,10 +513,43 @@ export async function removeStorageForStudentTaskUploads(
     );
 
   if (uploadsResult.error) {
-    return { error: { message: uploadsResult.error.message } };
+    return { paths: [], error: { message: uploadsResult.error.message } };
   }
 
-  const paths = (uploadsResult.data ?? []).map((row) => row.storage_path);
+  return {
+    paths: (uploadsResult.data ?? []).map((row) => row.storage_path),
+    error: null,
+  };
+}
+
+/** Best-effort storage delete. Prefer calling after DB rows are removed. */
+export async function removeStorageForStudentTaskUploads(
+  adminClient: Supabase,
+  studentTaskIds: string[]
+): Promise<{ error: { message: string } | null }> {
+  const collected = await collectStudentTaskUploadStoragePaths(
+    adminClient,
+    studentTaskIds
+  );
+  if (collected.error) {
+    return { error: collected.error };
+  }
+  if (collected.paths.length === 0) {
+    return { error: null };
+  }
+  return studentTaskStorageRepository.removeStudentTaskStorageObjects(
+    adminClient,
+    collected.paths
+  );
+}
+
+export async function removeStudentTaskUploadStoragePaths(
+  adminClient: Supabase,
+  paths: string[]
+): Promise<{ error: { message: string } | null }> {
+  if (paths.length === 0) {
+    return { error: null };
+  }
   return studentTaskStorageRepository.removeStudentTaskStorageObjects(
     adminClient,
     paths

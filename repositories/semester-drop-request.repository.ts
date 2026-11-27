@@ -7,7 +7,7 @@ import type { Database } from "@/types/supabase";
 type Supabase = SupabaseClient<Database>;
 
 const DROP_COLUMNS =
-  "id, student_id, semester_id, class_id, payment_phase_id, spp_id, status, required_percent, required_amount, phase_amount_snapshot, requested_at, deadline_at, completed_at, refund_owed, refund_status, refunded_amount, requested_by, notes, created_at, updated_at";
+  "id, student_id, semester_id, class_id, payment_phase_id, spp_id, status, restriction_mode, required_percent, required_amount, phase_amount_snapshot, requested_at, deadline_at, completed_at, refund_owed, refund_status, refunded_amount, requested_by, notes, created_at, updated_at";
 
 export type SemesterDropRequestRecord = {
   id: string;
@@ -17,7 +17,8 @@ export type SemesterDropRequestRecord = {
   payment_phase_id: string | null;
   spp_id: string | null;
   status: string;
-  required_percent: number;
+  restriction_mode: string;
+  required_percent: number | null;
   required_amount: number;
   phase_amount_snapshot: number;
   requested_at: string;
@@ -55,7 +56,12 @@ export function mapSemesterDropRequestRecord(
       typeof row.payment_phase_id === "string" ? row.payment_phase_id : null,
     spp_id: typeof row.spp_id === "string" ? row.spp_id : null,
     status: typeof row.status === "string" ? row.status : "pending",
-    required_percent: asNumber(row.required_percent),
+    restriction_mode:
+      typeof row.restriction_mode === "string"
+        ? row.restriction_mode
+        : "percent",
+    required_percent:
+      row.required_percent == null ? null : asNumber(row.required_percent),
     required_amount: asNumber(row.required_amount),
     phase_amount_snapshot: asNumber(row.phase_amount_snapshot),
     requested_at: typeof row.requested_at === "string" ? row.requested_at : "",
@@ -97,6 +103,34 @@ export async function listPendingDropsByStudentIds(
     .select(DROP_COLUMNS)
     .in("student_id", studentIds)
     .eq("status", "pending");
+}
+
+export async function listPendingDropsBySemesterId(
+  client: Supabase,
+  semesterId: string
+) {
+  return client
+    .from("semester_drop_requests")
+    .select(DROP_COLUMNS)
+    .eq("semester_id", semesterId)
+    .eq("status", "pending");
+}
+
+/** Distinct student user ids with any pending semester drop. */
+export async function listPendingDropStudentIds(client: Supabase) {
+  const { data, error } = await client
+    .from("semester_drop_requests")
+    .select("student_id")
+    .eq("status", "pending");
+
+  if (error) {
+    return { data: [] as string[], error };
+  }
+
+  return {
+    data: [...new Set((data ?? []).map((row) => row.student_id))],
+    error: null,
+  };
 }
 
 export async function findPendingDropByStudentAndSemester(
@@ -161,17 +195,23 @@ export async function createSemesterDropRequest(
   input: {
     student_id: string;
     class_id: string;
-    required_percent: number;
+    restriction_mode: string;
+    required_percent?: number | null;
+    required_amount?: number | null;
     requested_by: string | null;
     notes?: string | null;
+    require_immediate?: boolean;
   }
 ) {
   const { data, error } = await client.rpc("create_semester_drop_request", {
     p_student_id: input.student_id,
     p_class_id: input.class_id,
-    p_required_percent: input.required_percent,
+    p_restriction_mode: input.restriction_mode,
+    p_required_percent: input.required_percent ?? null,
+    p_required_amount: input.required_amount ?? null,
     p_requested_by: input.requested_by,
     p_notes: input.notes ?? null,
+    p_require_immediate: input.require_immediate ?? false,
   });
 
   if (error) {

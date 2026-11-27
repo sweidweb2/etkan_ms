@@ -280,8 +280,9 @@ export function StudentJoinedClassesSection({
             <DialogTitle>Remove from class</DialogTitle>
             <DialogDescription>
               Remove this student from {removingClass?.name ?? "this class"}?
-              Membership ends; billing and payment phase records are kept if
-              any exist. Academic history (tasks, attendance, grades) remains.
+              If they have no other class in the semester and an unpaid SPP
+              exists, that SPP is deleted. Students with payments must use Drop
+              semester instead. Academic history remains.
             </DialogDescription>
           </DialogHeader>
           <DialogFooter className="sm:justify-end">

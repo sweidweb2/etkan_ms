@@ -74,17 +74,24 @@ export function collectCachedAuthEmails(
   return emails;
 }
 
+/**
+ * Cache resolved emails. Only ids present in `emails` are written — callers
+ * must omit failed lookups so they are retried on the next request.
+ */
 export function setCachedAuthEmails(
   userIds: string[],
   emails: Map<string, string>,
   ttlMs = AUTH_EMAILS_TTL_MS
 ): void {
-  if (userIds.length === 0) {
+  if (userIds.length === 0 || emails.size === 0) {
     return;
   }
 
   const expiresAt = Date.now() + ttlMs;
   for (const id of userIds) {
+    if (!emails.has(id)) {
+      continue;
+    }
     cache.set(id, {
       email: emails.get(id) ?? "",
       expiresAt,

@@ -697,16 +697,14 @@ export async function getTaskAttachmentSignedUrlForStudent(
   };
 }
 
-/**
- * Best-effort storage + row cleanup for task-definition attachments.
- */
-export async function removeStorageAndRowsForTaskAttachments(
+/** List attachment storage paths without deleting rows. */
+export async function collectTaskAttachmentStoragePaths(
   adminClient: Supabase,
   entity: TaskAttachmentEntity,
   entityIds: string[]
-): Promise<{ error: { message: string } | null }> {
+): Promise<{ paths: string[]; error: { message: string } | null }> {
   if (entityIds.length === 0) {
-    return { error: null };
+    return { paths: [], error: null };
   }
 
   const listed =
@@ -716,11 +714,21 @@ export async function removeStorageAndRowsForTaskAttachments(
       entityIds
     );
   if (listed.error) {
-    return { error: { message: listed.error.message } };
+    return { paths: [], error: { message: listed.error.message } };
   }
 
-  const paths = (listed.data ?? []).map((row) => row.storage_path);
+  return {
+    paths: (listed.data ?? []).map((row) => row.storage_path),
+    error: null,
+  };
+}
 
+/** Delete attachment rows only (caller cleans storage afterward). */
+export async function deleteTaskAttachmentRowsForEntities(
+  adminClient: Supabase,
+  entity: TaskAttachmentEntity,
+  entityIds: string[]
+): Promise<{ error: { message: string } | null }> {
   for (const entityId of entityIds) {
     const deleted = await taskAttachmentRepository.deleteTaskAttachmentsByEntity(
       adminClient,
@@ -731,12 +739,72 @@ export async function removeStorageAndRowsForTaskAttachments(
       return { error: { message: deleted.error.message } };
     }
   }
+  return { error: null };
+}
 
-  // Prefer orphaned storage over dangling DB rows after a cascade delete.
+/**
+ * Delete attachment rows and return their storage paths for a later
+ * best-effort storage cleanup (after the parent entity delete succeeds).
+ */
+export async function deleteTaskAttachmentRowsCollectingPaths(
+  adminClient: Supabase,
+  entity: TaskAttachmentEntity,
+  entityIds: string[]
+): Promise<{ paths: string[]; error: { message: string } | null }> {
+  const collected = await collectTaskAttachmentStoragePaths(
+    adminClient,
+    entity,
+    entityIds
+  );
+  if (collected.error) {
+    return collected;
+  }
+
+  const deleted = await deleteTaskAttachmentRowsForEntities(
+    adminClient,
+    entity,
+    entityIds
+  );
+  if (deleted.error) {
+    return { paths: [], error: deleted.error };
+  }
+
+  return { paths: collected.paths, error: null };
+}
+
+export async function removeTaskAttachmentStoragePaths(
+  adminClient: Supabase,
+  paths: string[]
+): Promise<void> {
+  if (paths.length === 0) {
+    return;
+  }
   await taskAttachmentStorageRepository.removeTaskAttachmentStorageObjects(
     adminClient,
     paths
   );
+}
 
+/**
+ * Best-effort storage + row cleanup for task-definition attachments.
+ * Prefer {@link deleteTaskAttachmentRowsCollectingPaths} + parent delete +
+ * {@link removeTaskAttachmentStoragePaths} when cascading with other deletes.
+ */
+export async function removeStorageAndRowsForTaskAttachments(
+  adminClient: Supabase,
+  entity: TaskAttachmentEntity,
+  entityIds: string[]
+): Promise<{ error: { message: string } | null }> {
+  const deleted = await deleteTaskAttachmentRowsCollectingPaths(
+    adminClient,
+    entity,
+    entityIds
+  );
+  if (deleted.error) {
+    return { error: deleted.error };
+  }
+
+  // Prefer orphaned storage over dangling DB rows after a cascade delete.
+  await removeTaskAttachmentStoragePaths(adminClient, deleted.paths);
   return { error: null };
 }

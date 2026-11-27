@@ -421,8 +421,9 @@ export function ClassStudentsSection({
             <DialogTitle>Remove student</DialogTitle>
             <DialogDescription>
               Remove {removingStudent?.full_name ?? "this student"} from{" "}
-              {className}? They will leave the class roster. Billing and payment
-              phase records are kept if any exist.
+              {className}? They leave this class. If they have no other class in
+              this semester and an unpaid SPP exists, that SPP is deleted.
+              Students with payments must use Drop semester instead.
             </DialogDescription>
           </DialogHeader>
           <DialogFooter className="sm:justify-end">
@@ -532,7 +533,11 @@ export function ClassStudentsSection({
                   {paginatedStudents.map((student, index) => (
                     <tr
                       key={student.id}
-                      className="border-b last:border-b-0 hover:bg-muted/30"
+                      className={
+                        student.has_pending_drop
+                          ? "border-b last:border-b-0 bg-amber-50/80 hover:bg-amber-100/70 dark:bg-amber-950/30 dark:hover:bg-amber-950/45"
+                          : "border-b last:border-b-0 hover:bg-muted/30"
+                      }
                     >
                       <td className="px-4 py-3 text-muted-foreground tabular-nums">
                         {rangeStart + index}
@@ -581,47 +586,49 @@ export function ClassStudentsSection({
                       ) : null}
                       <td className="px-4 py-3 text-right">
                         <div className="inline-flex items-center justify-end gap-1">
-                          <Can permission={PERMISSIONS.CLASSES_DROP_SEMESTER}>
-                            {student.has_pending_drop ? (
-                              <Tooltip>
-                                <TooltipTrigger
-                                  render={
-                                    <Button
-                                      type="button"
-                                      variant="ghost"
-                                      size="icon-sm"
-                                      aria-label={`Stop drop for ${student.full_name}`}
-                                      onClick={() =>
-                                        setStoppingDropStudent(student)
-                                      }
-                                    />
-                                  }
-                                >
-                                  <XIcon />
-                                </TooltipTrigger>
-                                <TooltipContent>Stop drop</TooltipContent>
-                              </Tooltip>
-                            ) : (
-                              <Tooltip>
-                                <TooltipTrigger
-                                  render={
-                                    <Button
-                                      type="button"
-                                      variant="ghost"
-                                      size="icon-sm"
-                                      aria-label={`Drop semester for ${student.full_name}`}
-                                      onClick={() =>
-                                        setDroppingStudent(student)
-                                      }
-                                    />
-                                  }
-                                >
-                                  <LogOutIcon />
-                                </TooltipTrigger>
-                                <TooltipContent>Drop semester</TooltipContent>
-                              </Tooltip>
-                            )}
-                          </Can>
+                          {student.student_profile_id ? (
+                            <Can permission={PERMISSIONS.CLASSES_DROP_SEMESTER}>
+                              {student.has_pending_drop ? (
+                                <Tooltip>
+                                  <TooltipTrigger
+                                    render={
+                                      <Button
+                                        type="button"
+                                        variant="ghost"
+                                        size="icon-sm"
+                                        aria-label={`Stop drop for ${student.full_name}`}
+                                        onClick={() =>
+                                          setStoppingDropStudent(student)
+                                        }
+                                      />
+                                    }
+                                  >
+                                    <XIcon />
+                                  </TooltipTrigger>
+                                  <TooltipContent>Stop drop</TooltipContent>
+                                </Tooltip>
+                              ) : (
+                                <Tooltip>
+                                  <TooltipTrigger
+                                    render={
+                                      <Button
+                                        type="button"
+                                        variant="ghost"
+                                        size="icon-sm"
+                                        aria-label={`Drop semester for ${student.full_name}`}
+                                        onClick={() =>
+                                          setDroppingStudent(student)
+                                        }
+                                      />
+                                    }
+                                  >
+                                    <LogOutIcon />
+                                  </TooltipTrigger>
+                                  <TooltipContent>Drop semester</TooltipContent>
+                                </Tooltip>
+                              )}
+                            </Can>
+                          ) : null}
                           <Can permission={PERMISSIONS.CLASSES_REMOVE_STUDENT}>
                             <Tooltip>
                               <TooltipTrigger
@@ -631,47 +638,64 @@ export function ClassStudentsSection({
                                     variant="ghost"
                                     size="icon-sm"
                                     aria-label={`Remove ${student.full_name}`}
+                                    disabled={
+                                      student.can_remove_student === false ||
+                                      Boolean(student.has_pending_drop) ||
+                                      Boolean(student.has_semester_spp_payments)
+                                    }
                                     onClick={() => setRemovingStudent(student)}
                                   />
                                 }
                               >
                                 <Trash2Icon />
                               </TooltipTrigger>
-                              <TooltipContent>Remove</TooltipContent>
-                            </Tooltip>
-                            <Tooltip>
-                              <TooltipTrigger
-                                render={
-                                  <Button
-                                    type="button"
-                                    variant="ghost"
-                                    size="icon-sm"
-                                    aria-label={`Transfer ${student.full_name}`}
-                                    disabled={Boolean(student.has_pending_drop)}
-                                    onClick={() =>
-                                      setTransferringStudent(student)
-                                    }
-                                  />
-                                }
-                              >
-                                <ArrowRightLeftIcon />
-                              </TooltipTrigger>
                               <TooltipContent>
                                 {student.has_pending_drop
-                                  ? "Transfer is blocked while a semester drop is pending"
-                                  : "Transfer"}
+                                  ? "Remove is blocked while a semester drop is pending"
+                                  : student.has_semester_spp_payments
+                                    ? "Remove is blocked when the semester SPP has payments — use Drop semester"
+                                    : "Remove"}
                               </TooltipContent>
                             </Tooltip>
+                            {student.student_profile_id ? (
+                              <Tooltip>
+                                <TooltipTrigger
+                                  render={
+                                    <Button
+                                      type="button"
+                                      variant="ghost"
+                                      size="icon-sm"
+                                      aria-label={`Transfer ${student.full_name}`}
+                                      disabled={Boolean(
+                                        student.has_pending_drop
+                                      )}
+                                      onClick={() =>
+                                        setTransferringStudent(student)
+                                      }
+                                    />
+                                  }
+                                >
+                                  <ArrowRightLeftIcon />
+                                </TooltipTrigger>
+                                <TooltipContent>
+                                  {student.has_pending_drop
+                                    ? "Transfer is blocked while a semester drop is pending"
+                                    : "Transfer"}
+                                </TooltipContent>
+                              </Tooltip>
+                            ) : null}
                           </Can>
-                          <Link
-                            href={getManagerStudentDetailRoute(
-                              student.student_profile_id
-                            )}
-                            aria-label={`View ${student.full_name}`}
-                            className="inline-flex size-7 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-                          >
-                            <EyeIcon className="size-4" />
-                          </Link>
+                          {student.student_profile_id ? (
+                            <Link
+                              href={getManagerStudentDetailRoute(
+                                student.student_profile_id
+                              )}
+                              aria-label={`View ${student.full_name}`}
+                              className="inline-flex size-7 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                            >
+                              <EyeIcon className="size-4" />
+                            </Link>
+                          ) : null}
                         </div>
                       </td>
                     </tr>

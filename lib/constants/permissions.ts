@@ -385,7 +385,7 @@ export const PERMISSION_DEFINITIONS: readonly PermissionDefinition[] = [
   {
     key: PERMISSIONS.STUDENTS_CHANGE_STATUS,
     feature: "students",
-    label: "Activate / inactivate student",
+    label: "Activate / inactivate student (incl. immediate drop on paid SPPs)",
     access: PERMISSION_ACCESS.WRITE,
   },
 

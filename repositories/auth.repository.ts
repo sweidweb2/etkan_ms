@@ -213,17 +213,17 @@ export async function listAuthEmailsByIds(
 
     for (const row of results) {
       if (row.error) {
-        fetched.set(row.id, "");
+        // Do not cache failures — leave the id missing so the next call retries.
+        emailById.set(row.id, "");
         continue;
       }
-      fetched.set(row.id, row.data.user?.email ?? "");
+      const email = row.data.user?.email ?? "";
+      fetched.set(row.id, email);
+      emailById.set(row.id, email);
     }
   }
 
-  setCachedAuthEmails(missingIds, fetched);
-  for (const [id, email] of fetched) {
-    emailById.set(id, email);
-  }
+  setCachedAuthEmails([...fetched.keys()], fetched);
 
   return { data: emailById, error: null };
 }

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createSemesterDropAction } from "@/app/manager/classes/actions";
 import { InlineSpinner } from "@/components/loaders/inline-spinner";
@@ -15,8 +15,18 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { useMutationDialogForm } from "@/hooks/use-mutation-dialog-form";
-import { SEMESTER_DROP_DEFAULT_REQUIRED_PERCENT } from "@/lib/manager/accounting/constants";
+import {
+  SEMESTER_DROP_RESTRICTION_MODES,
+  type SemesterDropRestrictionMode,
+} from "@/lib/manager/accounting/constants";
 import type { ManagerClassStudentRow } from "@/types/manager-class-student";
 
 type DropSemesterActionState = {
@@ -54,8 +64,12 @@ export function DropSemesterDialog({
   onCompleted,
 }: DropSemesterDialogProps) {
   const router = useRouter();
-  const percentInputRef = useRef<HTMLInputElement>(null);
+  const valueInputRef = useRef<HTMLInputElement>(null);
   const submittedMembershipIdRef = useRef<string | null>(null);
+  const [restrictionMode, setRestrictionMode] =
+    useState<SemesterDropRestrictionMode>(
+      SEMESTER_DROP_RESTRICTION_MODES.PERCENT
+    );
 
   const { formAction, isPending, handleOpenChange, state } =
     useMutationDialogForm({
@@ -82,10 +96,12 @@ export function DropSemesterDialog({
     });
 
   useEffect(() => {
-    if (open && percentInputRef.current) {
-      percentInputRef.current.value = String(
-        SEMESTER_DROP_DEFAULT_REQUIRED_PERCENT
-      );
+    if (!open) {
+      return;
+    }
+    setRestrictionMode(SEMESTER_DROP_RESTRICTION_MODES.PERCENT);
+    if (valueInputRef.current) {
+      valueInputRef.current.value = "";
     }
   }, [open, student?.id]);
 
@@ -94,17 +110,28 @@ export function DropSemesterDialog({
       return;
     }
     submittedMembershipIdRef.current = student.id;
+    const rawValue = valueInputRef.current?.value?.trim() ?? "";
     const formData = new FormData();
     formData.set("student_id", student.user_id);
     formData.set("class_id", classId);
     formData.set("membership_id", student.id);
-    formData.set(
-      "required_percent",
-      percentInputRef.current?.value?.trim() ||
-        String(SEMESTER_DROP_DEFAULT_REQUIRED_PERCENT)
-    );
+    formData.set("restriction_mode", restrictionMode);
+    if (restrictionMode === SEMESTER_DROP_RESTRICTION_MODES.PERCENT) {
+      formData.set("required_percent", rawValue);
+    } else if (restrictionMode === SEMESTER_DROP_RESTRICTION_MODES.AMOUNT) {
+      formData.set("required_amount", rawValue);
+    }
     formAction(formData);
   }
+
+  const valueLabel =
+    restrictionMode === SEMESTER_DROP_RESTRICTION_MODES.AMOUNT
+      ? "Required amount"
+      : "Required percent";
+  const valueError =
+    restrictionMode === SEMESTER_DROP_RESTRICTION_MODES.AMOUNT
+      ? state.fieldErrors?.required_amount?.[0]
+      : state.fieldErrors?.required_percent?.[0];
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
@@ -114,31 +141,72 @@ export function DropSemesterDialog({
           <DialogDescription>
             Mark {student?.full_name ?? "this student"} as dropping this
             semester (from {className}). When the drop completes, they leave
-            every scheduled or in-progress class in the semester. Until then
-            they stay on the roster as pending until the required share of the
-            phase amount is paid (default 50%).
+            every scheduled or in-progress class in the semester. Leave the
+            value empty or 0 for no restriction (drop now, keep payments, no
+            refund). Otherwise they stay pending until the required percent or
+            amount is paid.
           </DialogDescription>
         </DialogHeader>
 
         <div className="flex flex-col gap-4">
           <div className="flex flex-col gap-2">
-            <Label htmlFor="required_percent">Required percent</Label>
-            <Input
-              ref={percentInputRef}
-              id="required_percent"
-              name="required_percent"
-              type="number"
-              min={1}
-              max={100}
-              step={1}
-              defaultValue={SEMESTER_DROP_DEFAULT_REQUIRED_PERCENT}
+            <Label htmlFor="restriction_mode">Restriction type</Label>
+            <Select
+              value={restrictionMode}
+              onValueChange={(value) => {
+                if (
+                  value === SEMESTER_DROP_RESTRICTION_MODES.PERCENT ||
+                  value === SEMESTER_DROP_RESTRICTION_MODES.AMOUNT
+                ) {
+                  setRestrictionMode(value);
+                  if (valueInputRef.current) {
+                    valueInputRef.current.value = "";
+                  }
+                }
+              }}
               disabled={isPending}
-              required
+            >
+              <SelectTrigger id="restriction_mode">
+                <SelectValue placeholder="Choose type" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value={SEMESTER_DROP_RESTRICTION_MODES.PERCENT}>
+                  Percent
+                </SelectItem>
+                <SelectItem value={SEMESTER_DROP_RESTRICTION_MODES.AMOUNT}>
+                  Amount
+                </SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="flex flex-col gap-2">
+            <Label htmlFor="drop_restriction_value">{valueLabel}</Label>
+            <Input
+              ref={valueInputRef}
+              id="drop_restriction_value"
+              name="drop_restriction_value"
+              type="number"
+              min={0}
+              max={
+                restrictionMode === SEMESTER_DROP_RESTRICTION_MODES.PERCENT
+                  ? 100
+                  : undefined
+              }
+              step={
+                restrictionMode === SEMESTER_DROP_RESTRICTION_MODES.PERCENT
+                  ? 1
+                  : 0.01
+              }
+              placeholder="Empty or 0 = no restriction"
+              disabled={isPending}
             />
-            {state.fieldErrors?.required_percent?.[0] ? (
-              <p className="text-sm text-destructive">
-                {state.fieldErrors.required_percent[0]}
-              </p>
+            <p className="text-xs text-muted-foreground">
+              Empty or 0 drops immediately and keeps existing payments with no
+              refund.
+            </p>
+            {valueError ? (
+              <p className="text-sm text-destructive">{valueError}</p>
             ) : null}
           </div>
 

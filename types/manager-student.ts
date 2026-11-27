@@ -17,6 +17,8 @@ export interface ManagerStudentRow {
   is_instructor?: boolean;
   /** Public avatar URL; loaded on detail/profile reads only. */
   avatar_url?: string | null;
+  /** True when the student has any pending semester drop. */
+  has_pending_drop?: boolean;
 }
 
 export type ManagerStudentsListQuery = {
@@ -24,6 +26,8 @@ export type ManagerStudentsListQuery = {
   pageSize?: number;
   status?: StudentStatusValue | null;
   search?: string;
+  /** When true, only students with a pending semester drop. */
+  pendingDrop?: boolean;
 };
 
 export type ManagerStudentsListStats = {
@@ -112,6 +116,18 @@ export type StudentStatusOpenSpp = {
   payment_phase_name: string;
   spp_status: string;
   payment_count: number;
+  semester_id?: string | null;
+};
+
+export type StudentStatusDroppableSemester = {
+  semester_id: string;
+  payment_phase_name: string;
+  spp_id: string;
+  payment_count: number;
+  origin_class_id: string;
+  origin_class_name: string;
+  total_paid: number;
+  final_amount_due: number;
 };
 
 export type StudentStatusSideEffectsPreview = {
@@ -123,4 +139,9 @@ export type StudentStatusSideEffectsPreview = {
   open_spps: StudentStatusOpenSpp[];
   can_remove_open_spps: boolean;
   open_spps_blocked_reason: string | null;
+  can_inactivate: boolean;
+  inactivate_blocked_reason: string | null;
+  has_pending_drop: boolean;
+  droppable_semesters: StudentStatusDroppableSemester[];
+  needs_immediate_drop: boolean;
 };

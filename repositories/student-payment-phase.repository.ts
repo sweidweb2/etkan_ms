@@ -394,7 +394,12 @@ export async function updateStudentPaymentPhasePaymentPhaseId(
 }
 
 export type StudentPaymentPhaseWithPhaseRecord = StudentPaymentPhaseRecord & {
-  payment_phases: { id: string; name: string; status: string } | null;
+  payment_phases: {
+    id: string;
+    name: string;
+    status: string;
+    semester_id: string | null;
+  } | null;
 };
 
 export async function listSppsWithPhaseByStudentId(
@@ -404,7 +409,7 @@ export async function listSppsWithPhaseByStudentId(
   return client
     .from("student_payment_phases")
     .select(
-      `${SPP_COLUMNS}, payment_phases ( id, name, status )`
+      `${SPP_COLUMNS}, payment_phases ( id, name, status, semester_id )`
     )
     .eq("student_id", studentId)
     .order("created_at", { ascending: false });

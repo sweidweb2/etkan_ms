@@ -25,7 +25,25 @@ vi.mock("@/repositories/student-course-grade.repository");
 vi.mock("@/repositories/student-profile.repository");
 vi.mock("@/repositories/student-task.repository");
 vi.mock("@/services/classes/student-task-upload.service", () => ({
+  collectStudentTaskUploadStoragePaths: vi
+    .fn()
+    .mockResolvedValue({ paths: [], error: null }),
+  removeStudentTaskUploadStoragePaths: vi
+    .fn()
+    .mockResolvedValue({ error: null }),
   removeStorageForStudentTaskUploads: vi.fn().mockResolvedValue({ error: null }),
+}));
+vi.mock("@/services/classes/task-attachments.service", () => ({
+  collectTaskAttachmentStoragePaths: vi
+    .fn()
+    .mockResolvedValue({ paths: [], error: null }),
+  deleteTaskAttachmentRowsForEntities: vi
+    .fn()
+    .mockResolvedValue({ error: null }),
+  removeTaskAttachmentStoragePaths: vi.fn().mockResolvedValue(undefined),
+  removeStorageAndRowsForTaskAttachments: vi
+    .fn()
+    .mockResolvedValue({ error: null }),
 }));
 vi.mock("@/services/ops/audit-log.service", () => ({
   recordManagerAuditLog: vi.fn().mockResolvedValue(null),

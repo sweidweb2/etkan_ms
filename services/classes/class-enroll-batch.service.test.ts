@@ -5,8 +5,12 @@ import * as authRepository from "@/repositories/auth.repository";
 import * as classRepository from "@/repositories/class.repository";
 import * as classTeacherRepository from "@/repositories/class-teacher.repository";
 import * as finalExamRepository from "@/repositories/final-exam.repository";
+import * as paymentPhaseRepository from "@/repositories/payment-phase.repository";
+import * as semesterDropRequestRepository from "@/repositories/semester-drop-request.repository";
 import * as sessionRepository from "@/repositories/session.repository";
 import * as studentClassRepository from "@/repositories/student-class.repository";
+import * as studentPaymentPhaseRepository from "@/repositories/student-payment-phase.repository";
+import * as studentPaymentRepository from "@/repositories/student-payment.repository";
 import * as studentProfileRepository from "@/repositories/student-profile.repository";
 import * as studentTaskRepository from "@/repositories/student-task.repository";
 import * as accountingSync from "@/services/accounting/accounting-sync.service";
@@ -23,9 +27,13 @@ vi.mock("@/repositories/auth.repository");
 vi.mock("@/repositories/class.repository");
 vi.mock("@/repositories/class-teacher.repository");
 vi.mock("@/repositories/final-exam.repository");
+vi.mock("@/repositories/payment-phase.repository");
 vi.mock("@/repositories/profile.repository");
+vi.mock("@/repositories/semester-drop-request.repository");
 vi.mock("@/repositories/session.repository");
 vi.mock("@/repositories/student-class.repository");
+vi.mock("@/repositories/student-payment-phase.repository");
+vi.mock("@/repositories/student-payment.repository");
 vi.mock("@/repositories/student-profile.repository");
 vi.mock("@/repositories/student-task.repository");
 vi.mock("@/services/accounting/accounting-sync.service");
@@ -272,6 +280,31 @@ describe("removeStudentFromClassForManager", () => {
       spp: null,
       retained: true,
     } as never);
+    vi.mocked(classRepository.findClassById).mockResolvedValue({
+      data: classDetailRecord,
+      error: null,
+    } as never);
+    vi.mocked(studentClassRepository.findStudentClassById).mockResolvedValue({
+      data: {
+        id: enrollmentId,
+        user_id: aliceUserId,
+        class_id: classId,
+        joined_at: "2026-01-01T00:00:00.000Z",
+      },
+      error: null,
+    } as never);
+    vi.mocked(
+      paymentPhaseRepository.findCurrentSyncPhaseBySemesterId
+    ).mockResolvedValue({
+      data: null,
+      error: null,
+    } as never);
+    vi.mocked(
+      semesterDropRequestRepository.findPendingDropByStudentAndSemester
+    ).mockResolvedValue({
+      data: null,
+      error: null,
+    } as never);
   });
 
   it("deletes membership in one RPC then runs leave payment sync", async () => {
@@ -303,7 +336,7 @@ describe("removeStudentFromClassForManager", () => {
     expect(
       studentClassRepository.deleteStudentClassMembership
     ).toHaveBeenCalledWith(adminClient, enrollmentId, classId);
-    expect(studentClassRepository.findStudentClassById).not.toHaveBeenCalled();
+    expect(studentClassRepository.findStudentClassById).toHaveBeenCalled();
     expect(studentClassRepository.deleteStudentClassById).not.toHaveBeenCalled();
     expect(accountingSync.onStudentLeftClass).toHaveBeenCalledWith(
       adminClient,
@@ -312,10 +345,8 @@ describe("removeStudentFromClassForManager", () => {
     );
   });
 
-  it("returns enrollment not found when the delete RPC matches no row", async () => {
-    vi.mocked(
-      studentClassRepository.deleteStudentClassMembership
-    ).mockResolvedValue({
+  it("returns enrollment not found when membership lookup misses", async () => {
+    vi.mocked(studentClassRepository.findStudentClassById).mockResolvedValue({
       data: null,
       error: null,
     } as never);
@@ -332,5 +363,41 @@ describe("removeStudentFromClassForManager", () => {
       error: "Enrollment not found.",
     });
     expect(accountingSync.onStudentLeftClass).not.toHaveBeenCalled();
+  });
+
+  it("rejects remove when the semester SPP has payments", async () => {
+    vi.mocked(
+      paymentPhaseRepository.findCurrentSyncPhaseBySemesterId
+    ).mockResolvedValue({
+      data: { id: "phase-1", semester_id: "semester-1" },
+      error: null,
+    } as never);
+    vi.mocked(
+      studentPaymentPhaseRepository.findSppByStudentAndPhase
+    ).mockResolvedValue({
+      data: { id: "spp-1", student_id: aliceUserId },
+      error: null,
+    } as never);
+    vi.mocked(
+      studentPaymentRepository.listPaymentSppIdsBySppIds
+    ).mockResolvedValue({
+      data: [{ student_payment_phase_id: "spp-1" }],
+      error: null,
+    } as never);
+
+    const result = await removeStudentFromClassForManager(
+      adminClient,
+      actor.userId,
+      actor,
+      { id: enrollmentId, class_id: classId }
+    );
+
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(result.error).toMatch(/Drop semester/i);
+    }
+    expect(
+      studentClassRepository.deleteStudentClassMembership
+    ).not.toHaveBeenCalled();
   });
 });

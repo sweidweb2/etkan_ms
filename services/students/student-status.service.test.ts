@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { CLASS_STATUSES } from "@/lib/constants/manager-class-status";
 import { STUDENT_STATUSES } from "@/lib/constants/manager-student-status";
 import { PAYMENT_PHASE_STATUSES } from "@/lib/manager/accounting/constants";
+import * as semesterDropRequestRepository from "@/repositories/semester-drop-request.repository";
 import * as studentClassRepository from "@/repositories/student-class.repository";
 import * as studentPaymentPhaseRepository from "@/repositories/student-payment-phase.repository";
 import * as studentPaymentRepository from "@/repositories/student-payment.repository";
@@ -13,10 +14,12 @@ import {
   getStudentStatusSideEffectsPreview,
 } from "@/services/students/student-status.service";
 
+vi.mock("@/repositories/semester-drop-request.repository");
 vi.mock("@/repositories/student-class.repository");
 vi.mock("@/repositories/student-payment-phase.repository");
 vi.mock("@/repositories/student-payment.repository");
 vi.mock("@/repositories/student-profile.repository");
+vi.mock("@/services/classes/drop-semester.service");
 vi.mock("@/services/ops/audit-log.service", () => ({
   recordManagerAuditLog: vi.fn().mockResolvedValue(null),
 }));
@@ -41,6 +44,7 @@ const studentClassId = "44444444-4444-4444-8444-444444444444";
 const classId = "55555555-5555-4555-8555-555555555555";
 const sppId = "66666666-6666-4666-8666-666666666666";
 const phaseId = "77777777-7777-4777-8777-777777777777";
+const semesterId = "88888888-8888-4888-8888-888888888888";
 
 const activeProfile = {
   id: studentProfileId,
@@ -81,6 +85,7 @@ describe("getStudentStatusSideEffectsPreview", () => {
             id: classId,
             name: "Math A",
             status: CLASS_STATUSES.IN_PROGRESS,
+            semester_id: semesterId,
           },
         },
       ],
@@ -110,6 +115,7 @@ describe("getStudentStatusSideEffectsPreview", () => {
             id: phaseId,
             name: "Phase 1",
             status: PAYMENT_PHASE_STATUSES.OPENED,
+            semester_id: semesterId,
           },
         },
       ],
@@ -127,6 +133,12 @@ describe("getStudentStatusSideEffectsPreview", () => {
       status: 200,
       statusText: "OK",
     } as never);
+    vi.mocked(
+      semesterDropRequestRepository.listPendingDropsByStudentIds
+    ).mockResolvedValue({
+      data: [],
+      error: null,
+    } as never);
 
     const preview = await getStudentStatusSideEffectsPreview(
       adminClient,
@@ -137,14 +149,105 @@ describe("getStudentStatusSideEffectsPreview", () => {
     expect(preview.eligible_classes).toHaveLength(1);
     expect(preview.open_spps[0]?.payment_count).toBe(1);
     expect(preview.can_remove_open_spps).toBe(false);
-    expect(preview.open_spps_blocked_reason).toMatch(/payments/i);
+    expect(preview.open_spps_blocked_reason).toMatch(/drop/i);
+    expect(preview.needs_immediate_drop).toBe(true);
+    expect(preview.droppable_semesters).toHaveLength(1);
+    expect(preview.can_inactivate).toBe(true);
+  });
+
+  it("blocks inactivate preview when a pending drop exists", async () => {
+    vi.mocked(
+      studentProfileRepository.findStudentProfileByUserId
+    ).mockResolvedValue({
+      data: activeProfile,
+      error: null,
+      count: null,
+      status: 200,
+      statusText: "OK",
+    });
+    vi.mocked(
+      studentClassRepository.listStudentClassesWithClassByUserId
+    ).mockResolvedValue({
+      data: [],
+      error: null,
+      count: null,
+      status: 200,
+      statusText: "OK",
+    } as never);
+    vi.mocked(
+      studentPaymentPhaseRepository.listSppsWithPhaseByStudentId
+    ).mockResolvedValue({
+      data: [],
+      error: null,
+      count: null,
+      status: 200,
+      statusText: "OK",
+    } as never);
+    vi.mocked(studentPaymentRepository.listPaymentSppIdsBySppIds).mockResolvedValue({
+      data: [],
+      error: null,
+      count: null,
+      status: 200,
+      statusText: "OK",
+    } as never);
+    vi.mocked(
+      semesterDropRequestRepository.listPendingDropsByStudentIds
+    ).mockResolvedValue({
+      data: [{ id: "drop-1", student_id: studentUserId, status: "pending" }],
+      error: null,
+    } as never);
+
+    const preview = await getStudentStatusSideEffectsPreview(
+      adminClient,
+      actor.userId,
+      studentUserId
+    );
+
+    expect(preview.can_inactivate).toBe(false);
+    expect(preview.has_pending_drop).toBe(true);
+    expect(preview.inactivate_blocked_reason).toMatch(/pending/i);
   });
 });
+
+function mockEmptyInactivateSideEffects() {
+  vi.mocked(
+    studentClassRepository.listStudentClassesWithClassByUserId
+  ).mockResolvedValue({
+    data: [],
+    error: null,
+    count: null,
+    status: 200,
+    statusText: "OK",
+  } as never);
+  vi.mocked(
+    studentPaymentPhaseRepository.listSppsWithPhaseByStudentId
+  ).mockResolvedValue({
+    data: [],
+    error: null,
+    count: null,
+    status: 200,
+    statusText: "OK",
+  } as never);
+  vi.mocked(
+    semesterDropRequestRepository.listPendingDropsByStudentIds
+  ).mockResolvedValue({
+    data: [],
+    error: null,
+  } as never);
+  vi.mocked(studentPaymentRepository.listPaymentSppIdsBySppIds).mockResolvedValue({
+    data: [],
+    error: null,
+    count: null,
+    status: 200,
+    statusText: "OK",
+  } as never);
+}
 
 describe("changeStudentStatusForManager", () => {
   beforeEach(() => {
     vi.resetAllMocks();
     vi.mocked(auditLogService.recordManagerAuditLog).mockResolvedValue(null);
+    mockEmptyInactivateSideEffects();
   });
 
   it("activates without side effects", async () => {
@@ -214,6 +317,28 @@ describe("changeStudentStatusForManager", () => {
   });
 
   it("inactivates and removes eligible class membership", async () => {
+    vi.mocked(
+      studentClassRepository.listStudentClassesWithClassByUserId
+    ).mockResolvedValue({
+      data: [
+        {
+          id: studentClassId,
+          user_id: studentUserId,
+          class_id: classId,
+          joined_at: "2026-01-02T00:00:00.000Z",
+          classes: {
+            id: classId,
+            name: "Math A",
+            status: CLASS_STATUSES.IN_PROGRESS,
+            semester_id: semesterId,
+          },
+        },
+      ],
+      error: null,
+      count: null,
+      status: 200,
+      statusText: "OK",
+    } as never);
     vi.mocked(
       studentProfileRepository.changeStudentStatusWithSideEffects
     ).mockResolvedValue({
