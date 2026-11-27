@@ -6,7 +6,7 @@ import { GraduationCapIcon, SearchIcon } from "lucide-react";
 import {
   TeamLeaderToggle,
   type SetTeamLeaderAction,
-} from "@/components/manager/classes/team-leader-toggle";
+} from "@/components/classes/team-leader-toggle";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Input } from "@/components/ui/input";
 import { CLASS_STUDENT_TABLE_LIMITS } from "@/lib/constants/manager-class-student-display";

@@ -12,6 +12,7 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { useActionStateSuccess } from "@/hooks/use-action-state-success";
 import { useActionStateToast } from "@/hooks/use-action-state-toast";
 import { useSimulatedProgressPercent } from "@/hooks/use-simulated-progress-percent";
+import { useTaskFileSignedUrl } from "@/hooks/use-task-file-signed-url";
 import { useTaskFileUploadSelection } from "@/hooks/use-task-file-upload-selection";
 import { formatUploadFileSize } from "@/lib/classes/student-task-upload-format";
 import {
@@ -21,7 +22,6 @@ import {
   TASK_ATTACHMENT_MAX_FILES,
   type TaskAttachmentEntity,
 } from "@/lib/constants/task-attachments";
-import { showErrorToast } from "@/lib/toast";
 import { cn } from "@/lib/utils";
 import type {
   DeleteTaskAttachmentActionState,
@@ -105,7 +105,9 @@ export function TaskAttachmentsSection({
   const [attachments, setAttachments] = useState(initialAttachments);
   const [prevAttachments, setPrevAttachments] = useState(initialAttachments);
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
-  const [openingId, setOpeningId] = useState<string | null>(null);
+  const { busy: openingBusy, runSignedUrlAction } = useTaskFileSignedUrl();
+  const openingId =
+    openingBusy?.mode === "open" ? openingBusy.id : null;
 
   const [uploadState, uploadFormAction, isUploadPending] = useActionState(
     uploadAction ?? (async () => initialUploadState),
@@ -205,30 +207,18 @@ export function TaskAttachmentsSection({
     deleteFormAction(formData);
   }
 
-  async function openAttachment(attachment: TaskAttachmentRow) {
-    setOpeningId(attachment.id);
-    try {
-      let result: TaskAttachmentSignedUrlActionState;
+  function openAttachment(attachment: TaskAttachmentRow) {
+    void runSignedUrlAction(attachment.id, "open", async () => {
       if (getSignedUrlById) {
-        result = await getSignedUrlById(attachment.id);
-      } else if (getSignedUrlAction) {
+        return getSignedUrlById(attachment.id);
+      }
+      if (getSignedUrlAction) {
         const formData = new FormData();
         formData.set("id", attachment.id);
-        result = await getSignedUrlAction(formData);
-      } else {
-        showErrorToast("Unable to open file.");
-        return;
+        return getSignedUrlAction(formData);
       }
-      if (!result.success || !result.signedUrl) {
-        showErrorToast(result.error ?? "Unable to open file.");
-        return;
-      }
-      window.open(result.signedUrl, "_blank", "noopener,noreferrer");
-    } catch {
-      showErrorToast("Unable to open file.");
-    } finally {
-      setOpeningId(null);
-    }
+      return { success: false, error: "Unable to open file." };
+    });
   }
 
   const statusBadge = isCloning ? (

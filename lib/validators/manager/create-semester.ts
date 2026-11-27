@@ -10,8 +10,8 @@ export const semesterCodeSchema = z
   .trim()
   .regex(SEMESTER_CODE_PATTERN, { message: SEMESTER_CODE_MESSAGE });
 
-/** Shared fields for create and update semester (phase). */
-export const phaseFieldsSchema = z.object({
+/** Shared fields for create and update semester. */
+export const semesterFieldsSchema = z.object({
   name: z
     .string()
     .trim()
@@ -20,7 +20,7 @@ export const phaseFieldsSchema = z.object({
 });
 
 /** Blank `semester_code` means "generate one automatically". */
-export const createPhaseSchema = phaseFieldsSchema.extend({
+export const createSemesterSchema = semesterFieldsSchema.extend({
   semester_code: z
     .string()
     .trim()
@@ -30,10 +30,10 @@ export const createPhaseSchema = phaseFieldsSchema.extend({
     .optional(),
 });
 
-export type CreatePhaseInput = z.infer<typeof createPhaseSchema>;
+export type CreateSemesterInput = z.infer<typeof createSemesterSchema>;
 
-export function parseCreatePhaseFormData(formData: FormData) {
-  return safeParseFormData(createPhaseSchema, {
+export function parseCreateSemesterFormData(formData: FormData) {
+  return safeParseFormData(createSemesterSchema, {
     name: formData.get("name"),
     semester_code: formData.get("semester_code") ?? "",
   });

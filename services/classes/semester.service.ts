@@ -9,8 +9,8 @@ import {
   CLASS_STATUSES,
   type ClassStatusValue,
 } from "@/lib/constants/manager-class-status";
-import { createPhaseSchema } from "@/lib/validators/manager/create-phase";
-import { updatePhaseSchema } from "@/lib/validators/manager/update-phase";
+import { createSemesterSchema } from "@/lib/validators/manager/create-semester";
+import { updateSemesterSchema } from "@/lib/validators/manager/update-semester";
 import { generateSemesterCode } from "@/lib/manager/generate-semester-code";
 import * as classRepository from "@/repositories/class.repository";
 import type { ClassWithSubjectRecord } from "@/repositories/class.repository";
@@ -25,7 +25,7 @@ import {
   type AuditActor,
 } from "@/services/ops/audit-log.service";
 import type { FieldErrors } from "@/types/auth";
-import type { ManagerSemesterRow } from "@/types/manager-phase";
+import type { ManagerSemesterRow } from "@/types/manager-semester";
 import type { ManagerSemesterClassRow } from "@/types/manager-semester-class";
 import type { ManagerSemesterPaymentPhaseRow } from "@/types/manager-semester-payment-phase";
 import type { SupabaseClient } from "@supabase/supabase-js";
@@ -308,7 +308,7 @@ export async function createSemesterForManager(
     return { success: false, error: unauthorized };
   }
 
-  const parsed = createPhaseSchema.safeParse(input);
+  const parsed = createSemesterSchema.safeParse(input);
 
   if (!parsed.success) {
     return {
@@ -404,7 +404,7 @@ export async function updateSemesterForManager(
     return { success: false, error: unauthorized };
   }
 
-  const parsed = updatePhaseSchema.safeParse(input);
+  const parsed = updateSemesterSchema.safeParse(input);
 
   if (!parsed.success) {
     return {

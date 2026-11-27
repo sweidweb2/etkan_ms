@@ -1,6 +1,6 @@
 import { describe, expect, it, vi, beforeEach } from "vitest";
 import { ROLES } from "@/lib/constants/roles";
-import { clearInstructorWorkshopRelatedData } from "@/lib/manager/instructors/clear-instructor-related";
+import { clearInstructorWorkshopRelatedData } from "@/services/instructors/clear-instructor-related.service";
 import * as profileRepository from "@/repositories/profile.repository";
 import {
   addInstructorsForManager,
@@ -9,7 +9,7 @@ import {
 
 vi.mock("@/repositories/auth.repository");
 vi.mock("@/repositories/profile.repository");
-vi.mock("@/lib/manager/instructors/clear-instructor-related", () => ({
+vi.mock("@/services/instructors/clear-instructor-related.service", () => ({
   clearInstructorWorkshopRelatedData: vi.fn(),
 }));
 vi.mock("next/cache", () => ({

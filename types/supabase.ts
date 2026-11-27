@@ -3415,6 +3415,14 @@ export type Database = {
         Args: { p_spp_id: string }
         Returns: Json
       }
+      waive_semester_drop_refund: {
+        Args: { p_request_id: string }
+        Returns: Json
+      }
+      sync_drop_refund_after_debit_delete: {
+        Args: { p_drop_request_id: string; p_amount: number }
+        Returns: Json
+      }
       create_student_payment_debit_for_drop_refund: {
         Args: {
           p_drop_request_id: string
@@ -3437,6 +3445,10 @@ export type Database = {
       }
       update_semester_board_positions: {
         Args: { p_placements: Json }
+        Returns: undefined
+      }
+      assign_semesters_to_team: {
+        Args: { p_team_id: string | null; p_semester_ids: string[] }
         Returns: undefined
       }
       update_semester_team_sort_orders: {

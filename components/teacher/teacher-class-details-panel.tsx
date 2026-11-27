@@ -34,11 +34,11 @@ import {
   TabsTrigger as TabsTriggerPrimitive,
 } from "@/components/animate-ui/primitives/animate/tabs";
 import { Can } from "@/components/auth/can";
-import { ChangeClassStatusDialog } from "@/components/manager/classes/change-class-status-dialog";
-import { ClassSessionsSection } from "@/components/manager/classes/class-sessions-section";
-import { ClassTasksSection } from "@/components/manager/classes/class-tasks-section";
+import { ChangeClassStatusDialog } from "@/components/classes/change-class-status-dialog";
+import { ClassSessionsSection } from "@/components/classes/class-sessions-section";
+import { ClassTasksSection } from "@/components/classes/class-tasks-section";
 import { InlineSpinner } from "@/components/loaders/inline-spinner";
-import { ClassSessionDetailsPanel } from "@/components/manager/classes/class-session-details-panel";
+import { ClassSessionDetailsPanel } from "@/components/classes/class-session-details-panel";
 import { TeacherClassStudentsSection } from "@/components/teacher/teacher-class-students-section";
 import {
   Breadcrumb,

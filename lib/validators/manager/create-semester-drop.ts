@@ -122,3 +122,17 @@ export const processDropRefundSchema = z.object({
 });
 
 export type ProcessDropRefundInput = z.infer<typeof processDropRefundSchema>;
+
+export const waiveDropRefundSchema = z.object({
+  request_id: z.string().uuid("Invalid drop request."),
+});
+
+export type WaiveDropRefundInput = z.infer<typeof waiveDropRefundSchema>;
+
+export const deleteDropRefundPaymentSchema = z.object({
+  payment_id: z.string().uuid("Invalid payment."),
+});
+
+export type DeleteDropRefundPaymentInput = z.infer<
+  typeof deleteDropRefundPaymentSchema
+>;

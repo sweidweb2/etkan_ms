@@ -1,6 +1,5 @@
 import { MissingPriorAdjustmentClient } from "@/components/manager/accounting/missing-prior-adjustment-client";
-import { getRequestAdminClient } from "@/lib/supabase/admin";
-import { listOpenSppsMissingPriorAdjustmentForManager } from "@/services/accounting/student-financial-adjustment.service";
+import { loadOpenSppsMissingPriorAdjustmentDeferredForManager } from "@/services/accounting/student-financial-adjustment.service";
 import type { ManagerPaymentPhaseRow } from "@/types/manager-payment-phase";
 
 type MissingPriorAdjustmentSectionProps = {
@@ -12,9 +11,7 @@ export async function MissingPriorAdjustmentSection({
   actorUserId,
   phases,
 }: MissingPriorAdjustmentSectionProps) {
-  const adminClient = getRequestAdminClient();
-  const rows = await listOpenSppsMissingPriorAdjustmentForManager(
-    adminClient,
+  const rows = await loadOpenSppsMissingPriorAdjustmentDeferredForManager(
     actorUserId,
     phases
   );

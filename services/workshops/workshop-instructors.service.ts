@@ -4,7 +4,7 @@ import { PERMISSIONS } from "@/lib/constants/permissions";
 import {
   deleteMirrorsForWorkshopInstructor,
   mirrorWorkshopSlotsToInstructor,
-} from "@/lib/manager/workshops/mirror-instructor-schedule";
+} from "@/services/workshops/mirror-instructor-schedule.service";
 import { zodFieldErrors } from "@/lib/validators/auth/parse-form";
 import {
   createWorkshopInstructorSchema,

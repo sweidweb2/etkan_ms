@@ -13,11 +13,11 @@ import {
 } from "@/app/manager/classes/actions";
 import { Can } from "@/components/auth/can";
 import { usePermissions } from "@/components/auth/permissions-provider";
-import { EditClassTaskDialog } from "@/components/manager/classes/edit-class-task-dialog";
+import { EditClassTaskDialog } from "@/components/classes/edit-class-task-dialog";
 import { hasPermissionInSet } from "@/lib/auth/permission-checks";
-import { SessionTaskStudentTasksSection } from "@/components/manager/classes/session-task-student-tasks-section";
-import { SessionTaskUploadsSection } from "@/components/manager/classes/session-task-uploads-section";
-import { SessionTaskAnalyticsSection } from "@/components/manager/classes/session-task-analytics-section";
+import { SessionTaskStudentTasksSection } from "@/components/classes/session-task-student-tasks-section";
+import { SessionTaskUploadsSection } from "@/components/classes/session-task-uploads-section";
+import { SessionTaskAnalyticsSection } from "@/components/classes/session-task-analytics-section";
 import { TaskAttachmentsSection } from "@/components/tasks/task-attachments-section";
 import { InlineSpinner } from "@/components/loaders/inline-spinner";
 import { Button } from "@/components/ui/button";

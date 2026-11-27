@@ -28,7 +28,6 @@ import {
 } from "@/types/manager-session-group-grade";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/types/supabase";
-import { z } from "zod";
 
 export type Supabase = SupabaseClient<Database>;
 
@@ -46,9 +45,7 @@ export type ClassMutationAuthorizer = (
   classId: string
 ) => Promise<{ ok: true } | { ok: false; error: string }>;
 
-export function isUuid(value: string): boolean {
-  return z.string().uuid().safeParse(value).success;
-}
+export { isUuid } from "@/lib/shared/is-uuid";
 
 export function normalizeOptionalString(value?: string | null): string | null {
   const trimmed = value?.trim();

@@ -28,4 +28,10 @@ describe("auth-emails-cache", () => {
     expect(getMissingAuthEmailIds(["user-empty"])).toEqual([]);
     expect(collectCachedAuthEmails(["user-empty"]).get("user-empty")).toBe("");
   });
+
+  it("does not write when the email map is empty (failed batch)", () => {
+    setCachedAuthEmails(["user-a"], new Map());
+
+    expect(getMissingAuthEmailIds(["user-a"])).toEqual(["user-a"]);
+  });
 });

@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useMemo, useState } from "react";
 import { ClipboardListIcon } from "lucide-react";
 import { EditStudentFinalExamGradeSheet } from "@/components/manager/classes/edit-student-finalexam-grade-sheet";
-import { EditStudentTaskSheet } from "@/components/manager/classes/edit-student-task-sheet";
+import { EditStudentTaskSheet } from "@/components/classes/edit-student-task-sheet";
 import { Button, buttonVariants } from "@/components/ui/button";
 import {
   Dialog,

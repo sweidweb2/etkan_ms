@@ -17,8 +17,12 @@ import {
   recordManagerAuditLog,
   type AuditActor,
 } from "@/services/ops/audit-log.service";
+import {
+  reorderKanbanColumnsForManager,
+  saveKanbanBoardForManager,
+} from "@/services/shared/kanban-board-mutations";
 import type { FieldErrors } from "@/types/auth";
-import type { ManagerSemesterRow } from "@/types/manager-phase";
+import type { ManagerSemesterRow } from "@/types/manager-semester";
 import type { ManagerSemesterTeamRow } from "@/types/manager-semester-team";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/types/supabase";
@@ -234,77 +238,35 @@ export async function reorderSemesterTeamsForManager(
   actor: AuditActor,
   input: { ordered_ids: string[] }
 ): Promise<ReorderSemesterTeamsResult> {
-  const unauthorized = await getUnauthorizedError(
+  const result = await reorderKanbanColumnsForManager({
     adminClient,
     actorUserId,
-    PERMISSIONS.SEMESTERS_TEAMS_UPDATE
-  );
-  if (unauthorized) {
-    return { success: false, error: unauthorized };
-  }
-
-  const parsed = reorderSemesterTeamsSchema.safeParse(input);
-  if (!parsed.success) {
-    return {
-      success: false,
-      error: "Please fix the errors below.",
-      fieldErrors: parsed.error.flatten().fieldErrors,
-    };
-  }
-
-  const orderedIds = [...new Set(parsed.data.ordered_ids)];
-  const existing = await semesterTeamRepository.listSemesterTeams(adminClient);
-  if (existing.error) {
-    return {
-      success: false,
-      error: "Unable to reorder teams. Please try again.",
-    };
-  }
-
-  const existingIds = new Set((existing.data ?? []).map((row) => row.id));
-  if (
-    orderedIds.length !== existingIds.size ||
-    orderedIds.some((id) => !existingIds.has(id))
-  ) {
-    return {
-      success: false,
-      error: "Team list is out of date. Refresh and try again.",
-    };
-  }
-
-  const { error } = await semesterTeamRepository.updateSemesterTeamSortOrders(
-    adminClient,
-    orderedIds
-  );
-  if (error) {
-    return {
-      success: false,
-      error: "Unable to reorder teams. Please try again.",
-    };
-  }
-
-  const refreshed =
-    await semesterTeamRepository.listSemesterTeams(adminClient);
-  if (refreshed.error || !refreshed.data) {
-    return {
-      success: false,
-      error: "Unable to reorder teams. Please try again.",
-    };
-  }
-
-  await recordManagerAuditLog(adminClient, actor, {
-    action: "update",
-    severity: "info",
-    table_name: "semester_teams",
-    record_id: orderedIds[0] ?? null,
-    new_data: { ordered_ids: orderedIds },
-    metadata: { note: "Semester teams reordered." },
+    actor,
+    permission: PERMISSIONS.SEMESTERS_TEAMS_UPDATE,
+    schema: reorderSemesterTeamsSchema,
+    input,
+    listRows: () => semesterTeamRepository.listSemesterTeams(adminClient),
+    updateSortOrders: (orderedIds) =>
+      semesterTeamRepository.updateSemesterTeamSortOrders(
+        adminClient,
+        orderedIds
+      ),
+    mapRow: mapTeamRecordToRow,
+    tableName: "semester_teams",
+    outOfDateMessage: "Team list is out of date. Refresh and try again.",
+    failMessage: "Unable to reorder teams. Please try again.",
+    successMessage: "Team order saved.",
+    auditNote: "Semester teams reordered.",
   });
+
+  if (!result.success) {
+    return result;
+  }
 
   return {
     success: true,
-    teams: refreshed.data.map(mapTeamRecordToRow),
-    message: "Team order saved.",
+    teams: result.rows,
+    message: result.message,
   };
 }
 
@@ -314,109 +276,69 @@ export async function saveSemesterBoardForManager(
   actor: AuditActor,
   input: { columns: Record<string, string[]> }
 ): Promise<SaveSemesterBoardResult> {
-  const unauthorized = await getUnauthorizedError(
+  return saveKanbanBoardForManager({
     adminClient,
     actorUserId,
-    PERMISSIONS.SEMESTERS_UPDATE
-  );
-  if (unauthorized) {
-    return { success: false, error: unauthorized };
-  }
+    actor,
+    permission: PERMISSIONS.SEMESTERS_UPDATE,
+    schema: saveSemesterBoardSchema,
+    input,
+    unassignedId: UNASSIGNED_TEAM_ID,
+    listColumnEntities: () =>
+      semesterTeamRepository.listSemesterTeams(adminClient),
+    columnEntityNotFoundMessage: "One or more teams were not found.",
+    buildPlacements: (columns) => {
+      const placements: Array<{
+        id: string;
+        team_id: string | null;
+        sort_order: number;
+      }> = [];
+      const seen = new Set<string>();
 
-  const parsed = saveSemesterBoardSchema.safeParse(input);
-  if (!parsed.success) {
-    return {
-      success: false,
-      error: "Please fix the errors below.",
-      fieldErrors: parsed.error.flatten().fieldErrors,
-    };
-  }
-
-  const columns = parsed.data.columns;
-  const teamIds = Object.keys(columns).filter(
-    (key) => key !== UNASSIGNED_TEAM_ID
-  );
-
-  if (teamIds.length > 0) {
-    const teamsResult =
-      await semesterTeamRepository.listSemesterTeams(adminClient);
-    if (teamsResult.error) {
-      return {
-        success: false,
-        error: "Unable to save board. Please try again.",
-      };
-    }
-    const known = new Set((teamsResult.data ?? []).map((row) => row.id));
-    if (teamIds.some((id) => !known.has(id))) {
-      return { success: false, error: "One or more teams were not found." };
-    }
-  }
-
-  const placements: Array<{
-    id: string;
-    team_id: string | null;
-    sort_order: number;
-  }> = [];
-  const seen = new Set<string>();
-
-  for (const [columnId, semesterIds] of Object.entries(columns)) {
-    const teamId = columnId === UNASSIGNED_TEAM_ID ? null : columnId;
-    semesterIds.forEach((semesterId, index) => {
-      if (seen.has(semesterId)) {
-        return;
+      for (const [columnId, semesterIds] of Object.entries(columns)) {
+        const teamId = columnId === UNASSIGNED_TEAM_ID ? null : columnId;
+        semesterIds.forEach((semesterId, index) => {
+          if (seen.has(semesterId)) {
+            return;
+          }
+          seen.add(semesterId);
+          placements.push({
+            id: semesterId,
+            team_id: teamId,
+            sort_order: index,
+          });
+        });
       }
-      seen.add(semesterId);
-      placements.push({
-        id: semesterId,
-        team_id: teamId,
-        sort_order: index,
-      });
-    });
-  }
 
-  if (placements.length === 0) {
-    return { success: true, message: "Board unchanged." };
-  }
-
-  const listed = await semesterRepository.listSemesters(adminClient);
-  if (listed.error) {
-    return {
-      success: false,
-      error: "Unable to save board. Please try again.",
-    };
-  }
-  const knownSemesterIds = new Set((listed.data ?? []).map((row) => row.id));
-  if (placements.some((placement) => !knownSemesterIds.has(placement.id))) {
-    return {
-      success: false,
-      error: "One or more semesters were not found.",
-    };
-  }
-
-  const { error } = await semesterRepository.updateSemesterBoardPositions(
-    adminClient,
-    placements
-  );
-  if (error) {
-    return {
-      success: false,
-      error: "Unable to save board. Please try again.",
-    };
-  }
-
-  await recordManagerAuditLog(adminClient, actor, {
-    action: "update",
-    severity: "info",
-    table_name: "semesters",
-    record_id: placements[0]?.id ?? null,
-    new_data: { columns },
-    metadata: { note: "Semester board positions saved." },
+      return placements;
+    },
+    validatePlacements: async (placements) => {
+      const listed = await semesterRepository.listSemesters(adminClient);
+      if (listed.error) {
+        return {
+          success: false,
+          error: "Unable to save board. Please try again.",
+        };
+      }
+      const knownSemesterIds = new Set(
+        (listed.data ?? []).map((row) => row.id)
+      );
+      if (placements.some((placement) => !knownSemesterIds.has(placement.id))) {
+        return {
+          success: false,
+          error: "One or more semesters were not found.",
+        };
+      }
+      return null;
+    },
+    updatePositions: (placements) =>
+      semesterRepository.updateSemesterBoardPositions(adminClient, placements),
+    getPlacementRecordId: (placement) => placement.id,
+    tableName: "semesters",
+    failMessage: "Unable to save board. Please try again.",
+    successMessage: "Board saved.",
+    auditNote: "Semester board positions saved.",
   });
-
-  return {
-    success: true,
-    message: "Board saved.",
-  };
 }
 
 export async function assignSemestersToTeamForManager(
@@ -483,31 +405,10 @@ export async function assignSemestersToTeamForManager(
     };
   }
 
-  const nextSort = await semesterRepository.getNextSemesterSortOrderForTeam(
+  const { error } = await semesterRepository.assignSemestersToTeam(
     adminClient,
-    teamId
-  );
-  if (nextSort.error) {
-    return {
-      success: false,
-      error: "Unable to assign semesters. Please try again.",
-    };
-  }
-
-  let sortCursor = nextSort.data ?? 0;
-  const placements = uniqueSemesterIds.map((id) => {
-    const placement = {
-      id,
-      team_id: teamId,
-      sort_order: sortCursor,
-    };
-    sortCursor += 1;
-    return placement;
-  });
-
-  const { error } = await semesterRepository.updateSemesterBoardPositions(
-    adminClient,
-    placements
+    teamId,
+    uniqueSemesterIds
   );
 
   if (error) {

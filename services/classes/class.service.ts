@@ -20,6 +20,7 @@ export {
   listActiveStudentDiffFromClass,
   getClassFinalExamForManager,
   getClassAnalyticsForManager,
+  loadClassAnalyticsDeferredForManager,
   type ManagerClassCreateDialogData,
   type ClassCopySourceOption,
 } from "@/services/classes/class-queries.service";

@@ -2,6 +2,7 @@ import "server-only";
 
 import { PAYMENT_PHASE_STATUSES } from "@/lib/manager/accounting/constants";
 import { PERMISSIONS } from "@/lib/constants/permissions";
+import { getRequestAdminClient } from "@/lib/supabase/admin";
 import type { AdjustmentWithSourceSppRecord, FinancialAdjustmentRecord } from "@/repositories/student-financial-adjustment.repository";
 import * as adjustmentRepository from "@/repositories/student-financial-adjustment.repository";
 import type { FinancialFormInviteRecord } from "@/repositories/student-financial-form-invite.repository";
@@ -191,6 +192,25 @@ export async function listOpenSppsMissingPriorAdjustmentForManager(
     (a, b) =>
       a.student_label.localeCompare(b.student_label) ||
       a.payment_phase_name.localeCompare(b.payment_phase_name)
+  );
+}
+
+/**
+ * Owns the request-scoped admin client for Suspense deferred missing-prior
+ * adjustment sections (shares client with sibling accounting streams).
+ */
+export async function loadOpenSppsMissingPriorAdjustmentDeferredForManager(
+  actorUserId: string | null,
+  phases: Pick<
+    ManagerPaymentPhaseRow,
+    "id" | "name" | "semester_id" | "semester_name" | "status"
+  >[]
+): Promise<GetMissingPriorAdjustmentResult> {
+  const adminClient = getRequestAdminClient();
+  return listOpenSppsMissingPriorAdjustmentForManager(
+    adminClient,
+    actorUserId,
+    phases
   );
 }
 

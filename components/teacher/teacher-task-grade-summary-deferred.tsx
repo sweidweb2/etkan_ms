@@ -2,8 +2,7 @@ import { Suspense } from "react";
 import { ClipboardListIcon } from "lucide-react";
 import { EmptyState } from "@/components/ui/empty-state";
 import { SemiCircularGaugeCard } from "@/components/ui/semi-circular-gauge-card";
-import { createSupabaseAdminClient } from "@/lib/supabase/admin";
-import { getTeachingClassTaskGradeSummaryForSelf } from "@/services/classes/teacher-class-self.service";
+import { loadTeachingClassTaskGradeSummaryDeferredForSelf } from "@/services/classes/teacher-class-self.service";
 
 type TeacherTaskGradeSummaryDeferredProps = {
   classId: string;
@@ -29,9 +28,7 @@ async function TeacherTaskGradeSummarySection({
   tasks,
   showEmptyState = false,
 }: TeacherTaskGradeSummaryDeferredProps) {
-  const adminClient = createSupabaseAdminClient();
-  const summary = await getTeachingClassTaskGradeSummaryForSelf(
-    adminClient,
+  const summary = await loadTeachingClassTaskGradeSummaryDeferredForSelf(
     actorUserId,
     classId,
     tasks

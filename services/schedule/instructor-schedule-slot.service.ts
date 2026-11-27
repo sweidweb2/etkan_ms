@@ -19,7 +19,7 @@ import {
   deleteMirrorsForWorkshopSlot,
   mirrorWorkshopSlotToAllInstructors,
   updateMirrorsForWorkshopSlot,
-} from "@/lib/manager/workshops/mirror-instructor-schedule";
+} from "@/services/workshops/mirror-instructor-schedule.service";
 import {
   findOverlappingScheduleSlot,
   SCHEDULE_SLOT_OVERLAP_MESSAGE,

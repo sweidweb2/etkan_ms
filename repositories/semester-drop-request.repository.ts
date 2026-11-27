@@ -190,6 +190,13 @@ export async function findDropRequestById(client: Supabase, id: string) {
     .maybeSingle();
 }
 
+export async function listDropRequestsByIds(client: Supabase, ids: string[]) {
+  if (ids.length === 0) {
+    return { data: [], error: null };
+  }
+  return client.from("semester_drop_requests").select(DROP_COLUMNS).in("id", ids);
+}
+
 export async function createSemesterDropRequest(
   client: Supabase,
   input: {
@@ -238,6 +245,57 @@ export async function cancelSemesterDropRequest(
   requestId: string
 ) {
   const { data, error } = await client.rpc("cancel_semester_drop_request", {
+    p_request_id: requestId,
+  });
+
+  if (error) {
+    return { data: null, error };
+  }
+
+  if (!data || typeof data !== "object") {
+    return { data: null, error: null };
+  }
+
+  const row = data as Record<string, unknown>;
+  return {
+    data: { request: mapSemesterDropRequestRecord(row.request) },
+    error: null,
+  };
+}
+
+export async function syncDropRefundAfterDebitDelete(
+  client: Supabase,
+  dropRequestId: string,
+  amount: number
+) {
+  const { data, error } = await client.rpc(
+    "sync_drop_refund_after_debit_delete",
+    {
+      p_drop_request_id: dropRequestId,
+      p_amount: amount,
+    }
+  );
+
+  if (error) {
+    return { data: null, error };
+  }
+
+  if (!data || typeof data !== "object") {
+    return { data: null, error: null };
+  }
+
+  const row = data as Record<string, unknown>;
+  return {
+    data: { request: mapSemesterDropRequestRecord(row.request) },
+    error: null,
+  };
+}
+
+export async function waiveSemesterDropRefund(
+  client: Supabase,
+  requestId: string
+) {
+  const { data, error } = await client.rpc("waive_semester_drop_refund", {
     p_request_id: requestId,
   });
 

@@ -23,7 +23,7 @@ import {
 } from "@/app/manager/classes/actions";
 import { Can } from "@/components/auth/can";
 import { usePermissions } from "@/components/auth/permissions-provider";
-import { TeamLeaderToggle } from "@/components/manager/classes/team-leader-toggle";
+import { TeamLeaderToggle } from "@/components/classes/team-leader-toggle";
 import { hasPermissionInSet } from "@/lib/auth/permission-checks";
 import { AddStudentToClassDialog } from "@/components/manager/classes/add-student-to-class-dialog";
 import { CancelSemesterDropDialog } from "@/components/manager/classes/cancel-semester-drop-dialog";

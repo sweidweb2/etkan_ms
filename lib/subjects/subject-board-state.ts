@@ -5,7 +5,6 @@ import {
   buildBoardColumns,
   commitCardMove,
   commitColumnMove,
-  moveBoardItem,
   type BoardColumns,
 } from "@/lib/kanban/board-state";
 import type { ManagerStageRow } from "@/types/manager-stage";
@@ -44,47 +43,8 @@ export function applyStageOrder(
   return applyColumnOrder(stages, orderedIds);
 }
 
-/** Move a card across / within board columns. */
-export function moveSubjectBoardItem(
-  columns: SubjectBoardColumns,
-  input: {
-    initialGroup: string | number | undefined | null;
-    group: string | number | undefined | null;
-    initialIndex: number;
-    index: number;
-  }
-): SubjectBoardColumns {
-  return moveBoardItem(columns, input);
-}
+/** @deprecated Prefer `commitCardMove` from `@/lib/kanban/board-state`. */
+export const commitSubjectCardMove = commitCardMove;
 
-/**
- * Commit a drop. `insertIndex` is measured against cards excluding the dragged
- * card (post-removal coordinates), so same-column drops use it directly.
- * Returns null when the position is unchanged.
- */
-export function commitSubjectCardMove(
-  columns: SubjectBoardColumns,
-  input: {
-    sourceColumnId: string;
-    sourceIndex: number;
-    targetColumnId: string;
-    insertIndex: number;
-  }
-): SubjectBoardColumns | null {
-  return commitCardMove(columns, input);
-}
-
-/**
- * Commit a stage-column reorder. `insertIndex` is measured against columns
- * excluding the dragged one (post-removal coordinates).
- * Returns null when the position is unchanged.
- */
-export function commitStageColumnMove(
-  orderedIds: readonly string[],
-  input: {
-    sourceIndex: number;
-    insertIndex: number;
-  }
-): string[] | null {
-  return commitColumnMove(orderedIds, input);
-}
+/** @deprecated Prefer `commitColumnMove` from `@/lib/kanban/board-state`. */
+export const commitStageColumnMove = commitColumnMove;

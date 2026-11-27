@@ -2,6 +2,7 @@ import "server-only";
 
 import { cache } from "react";
 import { PERMISSIONS } from "@/lib/constants/permissions";
+import { getRequestAdminClient } from "@/lib/supabase/admin";
 import { financialAdjustmentAmountInDollars } from "@/lib/manager/accounting/adjustment-amount";
 import {
   FINANCIAL_ADJUSTMENT_TYPES,
@@ -965,3 +966,27 @@ export async function getIncomeStatementAnalyticsForManager(
   );
   return { ...summary, ...tables };
 }
+
+/**
+ * Owns the request-scoped admin client for Suspense deferred next-month
+ * forecast (shares unpaid-SPP cache with analytics tables).
+ */
+export async function loadNextMonthIncomeForecastDeferredForManager(
+  actorUserId: string
+): Promise<ManagerNextMonthIncomeForecast> {
+  const adminClient = getRequestAdminClient();
+  return getNextMonthIncomeForecastForManager(adminClient, actorUserId);
+}
+
+/**
+ * Request-deduped tables fetch for Etkan / Academy Suspense sections.
+ * Owns getRequestAdminClient so sibling tabs share one load.
+ */
+export const loadIncomeStatementAnalyticsTablesDeferredForManager = cache(
+  (actorUserId: string, year: number, month: number | null) =>
+    getIncomeStatementAnalyticsTablesForManager(
+      getRequestAdminClient(),
+      actorUserId,
+      { year, month }
+    )
+);

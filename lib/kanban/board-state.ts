@@ -1,10 +1,5 @@
 export type BoardColumns = Record<string, string[]>;
 
-export type BoardDropTarget = {
-  group: string;
-  index: number;
-};
-
 type BoardItemBase = {
   id: string;
   name: string;
@@ -15,57 +10,6 @@ type BoardColumnBase = {
   id: string;
   sort_order: number;
 };
-
-/** Resolve drop column/index from a drag target without relying on OptimisticSortingPlugin. */
-export function resolveBoardDropTarget(
-  columns: BoardColumns,
-  input: {
-    sourceId: string;
-    targetId: string | null;
-    sourceGroup?: string | number | null;
-    sourceIndex?: number;
-  }
-): BoardDropTarget | null {
-  const { sourceId, targetId } = input;
-
-  if (targetId) {
-    const columnFromDropId = targetId.startsWith("drop-")
-      ? targetId.slice("drop-".length)
-      : null;
-    const columnId =
-      columnFromDropId && columnFromDropId in columns
-        ? columnFromDropId
-        : targetId in columns
-          ? targetId
-          : null;
-
-    // Dropped on a column shell (empty area / column droppable / column sortable).
-    if (columnId) {
-      return {
-        group: columnId,
-        index: columns[columnId].length,
-      };
-    }
-
-    // Dropped on another card — insert at that card's index.
-    for (const [groupId, ids] of Object.entries(columns)) {
-      const index = ids.indexOf(targetId);
-      if (index === -1 || targetId === sourceId) {
-        continue;
-      }
-      return { group: groupId, index };
-    }
-  }
-
-  if (input.sourceGroup == null) {
-    return null;
-  }
-
-  return {
-    group: String(input.sourceGroup),
-    index: input.sourceIndex ?? 0,
-  };
-}
 
 export function buildBoardColumns<TItem extends BoardItemBase>(
   items: readonly TItem[],

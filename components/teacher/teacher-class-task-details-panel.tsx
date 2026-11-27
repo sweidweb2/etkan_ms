@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
-import { ClassTaskDetailsPanel } from "@/components/manager/classes/class-task-details-panel";
+import { ClassTaskDetailsPanel } from "@/components/classes/class-task-details-panel";
 import { useTeacherTaskDetailAnalytics } from "@/hooks/use-teacher-task-detail-analytics";
 import {
   TEACHER_CLASS_DETAIL_TABS,

@@ -1,15 +1,6 @@
 "use client";
 
-import {
-  useCallback,
-  useEffect,
-  useMemo,
-  useOptimistic,
-  useRef,
-  useState,
-  useTransition,
-  type PointerEvent as ReactPointerEvent,
-} from "react";
+import { useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { GripVerticalIcon, LayersIcon, PlusIcon } from "lucide-react";
 import {
@@ -21,12 +12,9 @@ import { KanbanBoardScroll } from "@/components/manager/kanban/kanban-board-scro
 import { KanbanColumnDropIndicator } from "@/components/manager/kanban/kanban-drop-indicators";
 import { KanbanDragOverlay } from "@/components/manager/kanban/kanban-drag-overlay";
 import { PointerKanbanColumn } from "@/components/manager/kanban/pointer-kanban-column";
-import { PhaseCard } from "@/components/manager/phases/phase-card";
+import { SemesterCard } from "@/components/manager/semesters/semester-card";
 import { EmptyState } from "@/components/ui/empty-state";
-import { useFormActionState } from "@/hooks/use-form-action-state";
-import { useActionStateSuccess } from "@/hooks/use-action-state-success";
-import { useActionStateToast } from "@/hooks/use-action-state-toast";
-import { usePointerKanbanBoard } from "@/hooks/use-pointer-kanban-board";
+import { useOptimisticKanbanBoard } from "@/hooks/use-optimistic-kanban-board";
 import { PERMISSIONS } from "@/lib/constants/permissions";
 import { getManagerSemesterDetailRoute } from "@/lib/constants/routes";
 import { UNASSIGNED_TEAM_ID } from "@/lib/constants/semester-team";
@@ -35,7 +23,6 @@ import {
   applyTeamOrder,
   applySemesterBoardColumns,
   buildSemesterBoardColumns,
-  type SemesterBoardColumns,
 } from "@/lib/semesters/semester-board-state";
 import { cn } from "@/lib/utils";
 import type {
@@ -43,7 +30,7 @@ import type {
   ReorderSemesterTeamsActionState,
   SaveSemesterBoardActionState,
 } from "@/types/manager-semester-team";
-import type { ManagerSemesterRow } from "@/types/manager-phase";
+import type { ManagerSemesterRow } from "@/types/manager-semester";
 
 type SemestersKanbanBoardProps = {
   semesters: ManagerSemesterRow[];
@@ -67,198 +54,6 @@ export function SemestersKanbanBoard({
   onRequestCreateTeam,
 }: SemestersKanbanBoardProps) {
   const router = useRouter();
-  const [columns, setColumns] = useState<SemesterBoardColumns>(() =>
-    buildSemesterBoardColumns(semesters, teams)
-  );
-  const [columnOrder, setColumnOrder] = useState(() =>
-    [...teams]
-      .sort((left, right) => left.sort_order - right.sort_order)
-      .map((team) => team.id)
-  );
-  const [prevSemesters, setPrevSemesters] = useState(semesters);
-  const [prevTeams, setPrevTeams] = useState(teams);
-
-  const [optimisticColumns, applyOptimisticColumns] = useOptimistic(
-    columns,
-    (_current: SemesterBoardColumns, next: SemesterBoardColumns) => next
-  );
-  const [optimisticColumnOrder, applyOptimisticColumnOrder] = useOptimistic(
-    columnOrder,
-    (_current: string[], next: string[]) => next
-  );
-
-  const columnsRef = useRef(columns);
-  const columnOrderRef = useRef(columnOrder);
-  const boardRollbackRef = useRef<{
-    columns: SemesterBoardColumns;
-    semesters: ManagerSemesterRow[];
-  } | null>(null);
-  const teamsRollbackRef = useRef<{
-    order: string[];
-    teams: ManagerSemesterTeamRow[];
-  } | null>(null);
-
-  const semestersById = useMemo(() => {
-    const map = new Map<string, ManagerSemesterRow>();
-    for (const semester of semesters) {
-      map.set(semester.id, semester);
-    }
-    return map;
-  }, [semesters]);
-
-  useEffect(() => {
-    columnsRef.current = columns;
-  }, [columns]);
-
-  useEffect(() => {
-    columnOrderRef.current = columnOrder;
-  }, [columnOrder]);
-
-  const [isBoardPending, startBoardTransition] = useTransition();
-  const [isTeamsPending, startTeamsTransition] = useTransition();
-  const [boardState, boardAction, isBoardActionPending] = useFormActionState(
-    saveSemesterBoardAction,
-    {} as SaveSemesterBoardActionState
-  );
-  const [teamsState, teamsAction, isTeamsActionPending] = useFormActionState(
-    reorderSemesterTeamsAction,
-    {} as ReorderSemesterTeamsActionState
-  );
-
-  const isPending =
-    isBoardPending ||
-    isTeamsPending ||
-    isBoardActionPending ||
-    isTeamsActionPending;
-
-  useActionStateToast(boardState, isBoardPending || isBoardActionPending);
-  useActionStateToast(teamsState, isTeamsPending || isTeamsActionPending);
-
-  useActionStateSuccess(
-    boardState,
-    isBoardPending || isBoardActionPending,
-    () => {
-      boardRollbackRef.current = null;
-    }
-  );
-  useActionStateSuccess(
-    boardState,
-    isBoardPending || isBoardActionPending,
-    () => {
-      const rollback = boardRollbackRef.current;
-      boardRollbackRef.current = null;
-      if (!rollback) {
-        return;
-      }
-      setColumns(rollback.columns);
-      columnsRef.current = rollback.columns;
-      onSemestersChange(rollback.semesters);
-    },
-    (state) => state.success === false
-  );
-
-  useActionStateSuccess(
-    teamsState,
-    isTeamsPending || isTeamsActionPending,
-    (state) => {
-      teamsRollbackRef.current = null;
-      if (state.teams) {
-        onTeamsChange(state.teams);
-        setColumnOrder(
-          [...state.teams]
-            .sort((left, right) => left.sort_order - right.sort_order)
-            .map((team) => team.id)
-        );
-      }
-    }
-  );
-  useActionStateSuccess(
-    teamsState,
-    isTeamsPending || isTeamsActionPending,
-    () => {
-      const rollback = teamsRollbackRef.current;
-      teamsRollbackRef.current = null;
-      if (!rollback) {
-        return;
-      }
-      setColumnOrder(rollback.order);
-      columnOrderRef.current = rollback.order;
-      onTeamsChange(rollback.teams);
-    },
-    (state) => state.success === false
-  );
-
-  // Don't rebuild from parent props while a save is in flight — that can
-  // clobber optimistic columns before success/rollback settles.
-  if (
-    !isPending &&
-    (semesters !== prevSemesters || teams !== prevTeams)
-  ) {
-    setPrevSemesters(semesters);
-    setPrevTeams(teams);
-    setColumns(buildSemesterBoardColumns(semesters, teams));
-    setColumnOrder(
-      [...teams]
-        .sort((left, right) => left.sort_order - right.sort_order)
-        .map((team) => team.id)
-    );
-  }
-
-  const persistColumns = useCallback(
-    (nextColumns: SemesterBoardColumns) => {
-      const nextSemesters = applySemesterBoardColumns(semesters, nextColumns);
-      boardRollbackRef.current = {
-        columns: columnsRef.current,
-        semesters,
-      };
-
-      const formData = new FormData();
-      formData.set("columns", JSON.stringify(nextColumns));
-
-      startBoardTransition(() => {
-        applyOptimisticColumns(nextColumns);
-        setColumns(nextColumns);
-        columnsRef.current = nextColumns;
-        onSemestersChange(nextSemesters);
-        boardAction(formData);
-      });
-    },
-    [
-      semesters,
-      onSemestersChange,
-      boardAction,
-      startBoardTransition,
-      applyOptimisticColumns,
-    ]
-  );
-
-  const persistTeamOrder = useCallback(
-    (orderedIds: string[]) => {
-      const nextTeams = applyTeamOrder(teams, orderedIds);
-      teamsRollbackRef.current = {
-        order: columnOrderRef.current,
-        teams,
-      };
-
-      const formData = new FormData();
-      formData.set("ordered_ids", JSON.stringify(orderedIds));
-
-      startTeamsTransition(() => {
-        applyOptimisticColumnOrder(orderedIds);
-        setColumnOrder(orderedIds);
-        columnOrderRef.current = orderedIds;
-        onTeamsChange(nextTeams);
-        teamsAction(formData);
-      });
-    },
-    [
-      teams,
-      onTeamsChange,
-      teamsAction,
-      startTeamsTransition,
-      applyOptimisticColumnOrder,
-    ]
-  );
 
   const onCardActivate = useCallback(
     (cardId: string) => {
@@ -268,7 +63,10 @@ export function SemestersKanbanBoard({
   );
 
   const {
+    isPending,
     mounted,
+    itemsById: semestersById,
+    orderedGroups: orderedTeams,
     cardDrag,
     columnDrag,
     columnIndicatorDisplayIndex,
@@ -277,44 +75,32 @@ export function SemestersKanbanBoard({
     canPan,
     isPanning,
     scrollProps,
-    refreshOverflow,
     setColumnNode,
     setListNode,
-    handleCardPointerDown,
     handleColumnHeaderPointerDown,
-  } = usePointerKanbanBoard({
-    columns,
-    columnOrder,
+    handleColumnCardPointerDown,
+    getColumnItems,
+  } = useOptimisticKanbanBoard<
+    ManagerSemesterRow,
+    ManagerSemesterTeamRow,
+    SaveSemesterBoardActionState,
+    ReorderSemesterTeamsActionState
+  >({
+    items: semesters,
+    groups: teams,
     canDragCards,
     canReorderColumns: canReorderTeams,
     sortingEnabled,
-    isPending,
-    onPersistColumns: persistColumns,
-    onPersistColumnOrder: persistTeamOrder,
+    onItemsChange: onSemestersChange,
+    onGroupsChange: onTeamsChange,
+    buildColumns: buildSemesterBoardColumns,
+    applyItemColumns: applySemesterBoardColumns,
+    applyGroupOrder: applyTeamOrder,
+    saveBoardAction: saveSemesterBoardAction,
+    reorderGroupsAction: reorderSemesterTeamsAction,
+    getGroupsFromReorderState: (state) => state.teams,
     onCardActivate,
   });
-
-  useEffect(() => {
-    refreshOverflow();
-  }, [
-    optimisticColumns,
-    optimisticColumnOrder,
-    teams.length,
-    semesters.length,
-    refreshOverflow,
-  ]);
-
-  const handleColumnCardPointerDown = useCallback(
-    (
-      event: ReactPointerEvent<HTMLDivElement>,
-      semester: ManagerSemesterRow,
-      columnId: string,
-      index: number
-    ) => {
-      handleCardPointerDown(event, semester.id, columnId, index);
-    },
-    [handleCardPointerDown]
-  );
 
   if (semesters.length === 0 && teams.length === 0) {
     return (
@@ -326,22 +112,18 @@ export function SemestersKanbanBoard({
     );
   }
 
-  const orderedTeams = optimisticColumnOrder
-    .map((id) => teams.find((team) => team.id === id))
-    .filter((team): team is ManagerSemesterTeamRow => Boolean(team));
-
   const draggingSemester = cardDrag
-    ? semestersById.get(cardDrag.draggingCardId)
+    ? (semestersById.get(cardDrag.draggingCardId) ?? null)
     : null;
 
   const draggingTeam = columnDrag
     ? teams.find((team) => team.id === columnDrag.draggingColumnId)
     : null;
   const draggingTeamSemesters = columnDrag
-    ? (optimisticColumns[columnDrag.draggingColumnId] ?? [])
-        .map((id) => semestersById.get(id))
-        .filter((row): row is ManagerSemesterRow => Boolean(row))
-        .slice(0, COLUMN_OVERLAY_PREVIEW_CARDS)
+    ? getColumnItems(columnDrag.draggingColumnId).slice(
+        0,
+        COLUMN_OVERLAY_PREVIEW_CARDS
+      )
     : [];
 
   return (
@@ -358,9 +140,7 @@ export function SemestersKanbanBoard({
           title="Unassigned"
           description="Semesters without a team"
           emptyLabel="Drop semesters here"
-          items={(optimisticColumns[UNASSIGNED_TEAM_ID] ?? [])
-            .map((id) => semestersById.get(id))
-            .filter((row): row is ManagerSemesterRow => Boolean(row))}
+          items={getColumnItems(UNASSIGNED_TEAM_ID)}
           canDragCards={canDragCards && sortingEnabled && mounted}
           dragDisabled={isPending || !sortingEnabled || columnDrag !== null}
           columnDraggable={false}
@@ -370,8 +150,8 @@ export function SemestersKanbanBoard({
           listRef={(element) => setListNode(UNASSIGNED_TEAM_ID, element)}
           onCardPointerDown={handleColumnCardPointerDown}
           renderCard={(semester, options) => (
-            <PhaseCard
-              phase={semester}
+            <SemesterCard
+              semester={semester}
               linkToDetail={options.linkToDetail}
               className={options.className}
             />
@@ -388,9 +168,7 @@ export function SemestersKanbanBoard({
               title={team.name}
               description="Organizer team"
               emptyLabel="Drop semesters here"
-              items={(optimisticColumns[team.id] ?? [])
-                .map((id) => semestersById.get(id))
-                .filter((row): row is ManagerSemesterRow => Boolean(row))}
+              items={getColumnItems(team.id)}
               canDragCards={canDragCards && sortingEnabled && mounted}
               dragDisabled={
                 isPending || !sortingEnabled || columnDrag !== null
@@ -404,8 +182,8 @@ export function SemestersKanbanBoard({
               onCardPointerDown={handleColumnCardPointerDown}
               onColumnHeaderPointerDown={handleColumnHeaderPointerDown}
               renderCard={(semester, options) => (
-                <PhaseCard
-                  phase={semester}
+                <SemesterCard
+                  semester={semester}
                   linkToDetail={options.linkToDetail}
                   className={options.className}
                 />
@@ -449,8 +227,8 @@ export function SemestersKanbanBoard({
         className="rotate-[2deg] opacity-95 shadow-2xl"
       >
         {draggingSemester ? (
-          <PhaseCard
-            phase={draggingSemester}
+          <SemesterCard
+            semester={draggingSemester}
             linkToDetail={false}
             className="border-primary/40 bg-card"
           />
@@ -488,9 +266,9 @@ export function SemestersKanbanBoard({
             </div>
             <div className="flex flex-col gap-2 p-3">
               {draggingTeamSemesters.map((semester) => (
-                <PhaseCard
+                <SemesterCard
                   key={semester.id}
-                  phase={semester}
+                  semester={semester}
                   linkToDetail={false}
                   className="pointer-events-none"
                 />

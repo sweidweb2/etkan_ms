@@ -1,15 +1,6 @@
 "use client";
 
-import {
-  useCallback,
-  useEffect,
-  useMemo,
-  useOptimistic,
-  useRef,
-  useState,
-  useTransition,
-  type PointerEvent as ReactPointerEvent,
-} from "react";
+import { useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { GripVerticalIcon, LayersIcon, PlusIcon } from "lucide-react";
 import {
@@ -23,10 +14,7 @@ import { KanbanDragOverlay } from "@/components/manager/kanban/kanban-drag-overl
 import { PointerKanbanColumn } from "@/components/manager/kanban/pointer-kanban-column";
 import { SubjectCard } from "@/components/manager/subjects/subject-card";
 import { EmptyState } from "@/components/ui/empty-state";
-import { useFormActionState } from "@/hooks/use-form-action-state";
-import { useActionStateSuccess } from "@/hooks/use-action-state-success";
-import { useActionStateToast } from "@/hooks/use-action-state-toast";
-import { usePointerKanbanBoard } from "@/hooks/use-pointer-kanban-board";
+import { useOptimisticKanbanBoard } from "@/hooks/use-optimistic-kanban-board";
 import { PERMISSIONS } from "@/lib/constants/permissions";
 import { getManagerSubjectDetailRoute } from "@/lib/constants/routes";
 import { UNASSIGNED_STAGE_ID } from "@/lib/constants/subject-stage";
@@ -35,7 +23,6 @@ import {
   applyStageOrder,
   applySubjectBoardColumns,
   buildSubjectBoardColumns,
-  type SubjectBoardColumns,
 } from "@/lib/subjects/subject-board-state";
 import { cn } from "@/lib/utils";
 import type {
@@ -67,198 +54,6 @@ export function SubjectsKanbanBoard({
   onRequestCreateStage,
 }: SubjectsKanbanBoardProps) {
   const router = useRouter();
-  const [columns, setColumns] = useState<SubjectBoardColumns>(() =>
-    buildSubjectBoardColumns(subjects, stages)
-  );
-  const [columnOrder, setColumnOrder] = useState(() =>
-    [...stages]
-      .sort((left, right) => left.sort_order - right.sort_order)
-      .map((stage) => stage.id)
-  );
-  const [prevSubjects, setPrevSubjects] = useState(subjects);
-  const [prevStages, setPrevStages] = useState(stages);
-
-  const [optimisticColumns, applyOptimisticColumns] = useOptimistic(
-    columns,
-    (_current: SubjectBoardColumns, next: SubjectBoardColumns) => next
-  );
-  const [optimisticColumnOrder, applyOptimisticColumnOrder] = useOptimistic(
-    columnOrder,
-    (_current: string[], next: string[]) => next
-  );
-
-  const columnsRef = useRef(columns);
-  const columnOrderRef = useRef(columnOrder);
-  const boardRollbackRef = useRef<{
-    columns: SubjectBoardColumns;
-    subjects: ManagerSubjectRow[];
-  } | null>(null);
-  const stagesRollbackRef = useRef<{
-    order: string[];
-    stages: ManagerStageRow[];
-  } | null>(null);
-
-  const subjectsById = useMemo(() => {
-    const map = new Map<string, ManagerSubjectRow>();
-    for (const subject of subjects) {
-      map.set(subject.id, subject);
-    }
-    return map;
-  }, [subjects]);
-
-  useEffect(() => {
-    columnsRef.current = columns;
-  }, [columns]);
-
-  useEffect(() => {
-    columnOrderRef.current = columnOrder;
-  }, [columnOrder]);
-
-  const [isBoardPending, startBoardTransition] = useTransition();
-  const [isStagesPending, startStagesTransition] = useTransition();
-  const [boardState, boardAction, isBoardActionPending] = useFormActionState(
-    saveSubjectBoardAction,
-    {} as SaveSubjectBoardActionState
-  );
-  const [stagesState, stagesAction, isStagesActionPending] = useFormActionState(
-    reorderStagesAction,
-    {} as ReorderStagesActionState
-  );
-
-  const isPending =
-    isBoardPending ||
-    isStagesPending ||
-    isBoardActionPending ||
-    isStagesActionPending;
-
-  useActionStateToast(boardState, isBoardPending || isBoardActionPending);
-  useActionStateToast(stagesState, isStagesPending || isStagesActionPending);
-
-  useActionStateSuccess(
-    boardState,
-    isBoardPending || isBoardActionPending,
-    () => {
-      boardRollbackRef.current = null;
-    }
-  );
-  useActionStateSuccess(
-    boardState,
-    isBoardPending || isBoardActionPending,
-    () => {
-      const rollback = boardRollbackRef.current;
-      boardRollbackRef.current = null;
-      if (!rollback) {
-        return;
-      }
-      setColumns(rollback.columns);
-      columnsRef.current = rollback.columns;
-      onSubjectsChange(rollback.subjects);
-    },
-    (state) => state.success === false
-  );
-
-  useActionStateSuccess(
-    stagesState,
-    isStagesPending || isStagesActionPending,
-    (state) => {
-      stagesRollbackRef.current = null;
-      if (state.stages) {
-        onStagesChange(state.stages);
-        setColumnOrder(
-          [...state.stages]
-            .sort((left, right) => left.sort_order - right.sort_order)
-            .map((stage) => stage.id)
-        );
-      }
-    }
-  );
-  useActionStateSuccess(
-    stagesState,
-    isStagesPending || isStagesActionPending,
-    () => {
-      const rollback = stagesRollbackRef.current;
-      stagesRollbackRef.current = null;
-      if (!rollback) {
-        return;
-      }
-      setColumnOrder(rollback.order);
-      columnOrderRef.current = rollback.order;
-      onStagesChange(rollback.stages);
-    },
-    (state) => state.success === false
-  );
-
-  // Don't rebuild from parent props while a save is in flight — that can
-  // clobber optimistic columns before success/rollback settles.
-  if (
-    !isPending &&
-    (subjects !== prevSubjects || stages !== prevStages)
-  ) {
-    setPrevSubjects(subjects);
-    setPrevStages(stages);
-    setColumns(buildSubjectBoardColumns(subjects, stages));
-    setColumnOrder(
-      [...stages]
-        .sort((left, right) => left.sort_order - right.sort_order)
-        .map((stage) => stage.id)
-    );
-  }
-
-  const persistColumns = useCallback(
-    (nextColumns: SubjectBoardColumns) => {
-      const nextSubjects = applySubjectBoardColumns(subjects, nextColumns);
-      boardRollbackRef.current = {
-        columns: columnsRef.current,
-        subjects,
-      };
-
-      const formData = new FormData();
-      formData.set("columns", JSON.stringify(nextColumns));
-
-      startBoardTransition(() => {
-        applyOptimisticColumns(nextColumns);
-        setColumns(nextColumns);
-        columnsRef.current = nextColumns;
-        onSubjectsChange(nextSubjects);
-        boardAction(formData);
-      });
-    },
-    [
-      subjects,
-      onSubjectsChange,
-      boardAction,
-      startBoardTransition,
-      applyOptimisticColumns,
-    ]
-  );
-
-  const persistStageOrder = useCallback(
-    (orderedIds: string[]) => {
-      const nextStages = applyStageOrder(stages, orderedIds);
-      stagesRollbackRef.current = {
-        order: columnOrderRef.current,
-        stages,
-      };
-
-      const formData = new FormData();
-      formData.set("ordered_ids", JSON.stringify(orderedIds));
-
-      startStagesTransition(() => {
-        applyOptimisticColumnOrder(orderedIds);
-        setColumnOrder(orderedIds);
-        columnOrderRef.current = orderedIds;
-        onStagesChange(nextStages);
-        stagesAction(formData);
-      });
-    },
-    [
-      stages,
-      onStagesChange,
-      stagesAction,
-      startStagesTransition,
-      applyOptimisticColumnOrder,
-    ]
-  );
 
   const onCardActivate = useCallback(
     (cardId: string) => {
@@ -268,7 +63,10 @@ export function SubjectsKanbanBoard({
   );
 
   const {
+    isPending,
     mounted,
+    itemsById: subjectsById,
+    orderedGroups: orderedStages,
     cardDrag,
     columnDrag,
     columnIndicatorDisplayIndex,
@@ -277,44 +75,32 @@ export function SubjectsKanbanBoard({
     canPan,
     isPanning,
     scrollProps,
-    refreshOverflow,
     setColumnNode,
     setListNode,
-    handleCardPointerDown,
     handleColumnHeaderPointerDown,
-  } = usePointerKanbanBoard({
-    columns,
-    columnOrder,
+    handleColumnCardPointerDown,
+    getColumnItems,
+  } = useOptimisticKanbanBoard<
+    ManagerSubjectRow,
+    ManagerStageRow,
+    SaveSubjectBoardActionState,
+    ReorderStagesActionState
+  >({
+    items: subjects,
+    groups: stages,
     canDragCards,
     canReorderColumns,
     sortingEnabled,
-    isPending,
-    onPersistColumns: persistColumns,
-    onPersistColumnOrder: persistStageOrder,
+    onItemsChange: onSubjectsChange,
+    onGroupsChange: onStagesChange,
+    buildColumns: buildSubjectBoardColumns,
+    applyItemColumns: applySubjectBoardColumns,
+    applyGroupOrder: applyStageOrder,
+    saveBoardAction: saveSubjectBoardAction,
+    reorderGroupsAction: reorderStagesAction,
+    getGroupsFromReorderState: (state) => state.stages,
     onCardActivate,
   });
-
-  useEffect(() => {
-    refreshOverflow();
-  }, [
-    optimisticColumns,
-    optimisticColumnOrder,
-    stages.length,
-    subjects.length,
-    refreshOverflow,
-  ]);
-
-  const handleColumnCardPointerDown = useCallback(
-    (
-      event: ReactPointerEvent<HTMLDivElement>,
-      subject: ManagerSubjectRow,
-      columnId: string,
-      index: number
-    ) => {
-      handleCardPointerDown(event, subject.id, columnId, index);
-    },
-    [handleCardPointerDown]
-  );
 
   if (subjects.length === 0 && stages.length === 0) {
     return (
@@ -326,22 +112,18 @@ export function SubjectsKanbanBoard({
     );
   }
 
-  const orderedStages = optimisticColumnOrder
-    .map((id) => stages.find((stage) => stage.id === id))
-    .filter((stage): stage is ManagerStageRow => Boolean(stage));
-
   const draggingSubject = cardDrag
-    ? subjectsById.get(cardDrag.draggingCardId)
+    ? (subjectsById.get(cardDrag.draggingCardId) ?? null)
     : null;
 
   const draggingStage = columnDrag
     ? stages.find((stage) => stage.id === columnDrag.draggingColumnId)
     : null;
   const draggingStageSubjects = columnDrag
-    ? (optimisticColumns[columnDrag.draggingColumnId] ?? [])
-        .map((id) => subjectsById.get(id))
-        .filter((row): row is ManagerSubjectRow => Boolean(row))
-        .slice(0, COLUMN_OVERLAY_PREVIEW_CARDS)
+    ? getColumnItems(columnDrag.draggingColumnId).slice(
+        0,
+        COLUMN_OVERLAY_PREVIEW_CARDS
+      )
     : [];
 
   return (
@@ -358,9 +140,7 @@ export function SubjectsKanbanBoard({
           title="Unassigned"
           description="Subjects without a stage"
           emptyLabel="Drop subjects here"
-          items={(optimisticColumns[UNASSIGNED_STAGE_ID] ?? [])
-            .map((id) => subjectsById.get(id))
-            .filter((row): row is ManagerSubjectRow => Boolean(row))}
+          items={getColumnItems(UNASSIGNED_STAGE_ID)}
           canDragCards={canDragCards && sortingEnabled && mounted}
           dragDisabled={isPending || !sortingEnabled || columnDrag !== null}
           columnDraggable={false}
@@ -388,9 +168,7 @@ export function SubjectsKanbanBoard({
               title={stage.name}
               description={`Level ${stage.level} · Period ${stage.period}`}
               emptyLabel="Drop subjects here"
-              items={(optimisticColumns[stage.id] ?? [])
-                .map((id) => subjectsById.get(id))
-                .filter((row): row is ManagerSubjectRow => Boolean(row))}
+              items={getColumnItems(stage.id)}
               canDragCards={canDragCards && sortingEnabled && mounted}
               dragDisabled={
                 isPending || !sortingEnabled || columnDrag !== null

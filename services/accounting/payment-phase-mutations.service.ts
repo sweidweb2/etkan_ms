@@ -3,7 +3,7 @@ import "server-only";
 import {
   PAYMENT_PHASE_STATUSES,
 } from "@/lib/manager/accounting/constants";
-import { resolveInProgressClassForSemester } from "@/lib/manager/accounting/resolve-in-progress-class";
+import { resolveInProgressClassForSemester } from "@/services/accounting/resolve-in-progress-class.service";
 import { PERMISSIONS } from "@/lib/constants/permissions";
 import { createNavStepTimer } from "@/lib/debug/nav-timing";
 import { cancelPaymentPhaseSchema } from "@/lib/validators/manager/cancel-payment-phase";

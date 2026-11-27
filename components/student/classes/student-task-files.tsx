@@ -26,6 +26,7 @@ import { useActionStateToast } from "@/hooks/use-action-state-toast";
 import { useFormActionState } from "@/hooks/use-form-action-state";
 import { usePendingAwareOpenChange } from "@/hooks/use-pending-aware-open-change";
 import { useSimulatedProgressPercent } from "@/hooks/use-simulated-progress-percent";
+import { useTaskFileSignedUrl } from "@/hooks/use-task-file-signed-url";
 import { useTaskFileUploadSelection } from "@/hooks/use-task-file-upload-selection";
 import { formatUploadFileSize } from "@/lib/classes/student-task-upload-format";
 import {
@@ -33,7 +34,6 @@ import {
   STUDENT_TASK_UPLOAD_MAX_BYTES,
   STUDENT_TASK_UPLOAD_MAX_FILES,
 } from "@/lib/constants/manager-student-task-uploads";
-import { showErrorToast } from "@/lib/toast";
 import { cn } from "@/lib/utils";
 import type {
   DeleteStudentTaskUploadActionState,
@@ -71,7 +71,9 @@ export function StudentTaskFiles({
   const [pendingDelete, setPendingDelete] =
     useState<StudentTaskUploadForSelf | null>(null);
   const [deleteComplete, setDeleteComplete] = useState(false);
-  const [openingId, setOpeningId] = useState<string | null>(null);
+  const { busy: openingBusy, runSignedUrlAction } = useTaskFileSignedUrl();
+  const openingId =
+    openingBusy?.mode === "open" ? openingBusy.id : null;
 
   if (initialUploads !== prevUploads) {
     setPrevUploads(initialUploads);
@@ -139,20 +141,10 @@ export function StudentTaskFiles({
     };
   }, [deleteComplete, deleteState.uploadId]);
 
-  async function openFile(uploadId: string) {
-    setOpeningId(uploadId);
-    try {
-      const result = await getStudentTaskUploadSignedUrlForSelfAction(uploadId);
-      if (!result.success) {
-        showErrorToast(result.error);
-        return;
-      }
-      window.open(result.signedUrl, "_blank", "noopener,noreferrer");
-    } catch {
-      showErrorToast("Unable to open file.");
-    } finally {
-      setOpeningId(null);
-    }
+  function openFile(uploadId: string) {
+    void runSignedUrlAction(uploadId, "open", () =>
+      getStudentTaskUploadSignedUrlForSelfAction(uploadId)
+    );
   }
 
   function handleFile(file: File) {

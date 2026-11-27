@@ -2,8 +2,13 @@
 
 import Link from "next/link";
 import { useState } from "react";
-import { BanknoteIcon, EyeIcon, UsersIcon } from "lucide-react";
+import { BanknoteIcon, EyeIcon, Trash2Icon, UsersIcon } from "lucide-react";
 import { Can } from "@/components/auth/can";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import {
   Tabs as TabsPrimitive,
   TabsContent as TabsContentPrimitive,
@@ -49,6 +54,7 @@ type AccountingExceptionTabsProps = {
   needRefund: ManagerNeedRefundRow[];
   onAssignMissing: (row: ManagerMissingSppRow) => void;
   onProcessRefund: (row: ManagerNeedRefundRow) => void;
+  onWaiveRefund: (row: ManagerNeedRefundRow) => void;
 };
 
 function TruncatedCell({
@@ -96,6 +102,7 @@ export function AccountingExceptionTabs({
   needRefund,
   onAssignMissing,
   onProcessRefund,
+  onWaiveRefund,
 }: AccountingExceptionTabsProps) {
   const hasMounted = useHasMounted();
   const [activeTab, setActiveTab] = useState<ManagerAccountingExceptionTab>(
@@ -606,7 +613,7 @@ export function AccountingExceptionTabs({
                           {formatPaymentPhaseMoney(row.refunded_amount)}
                         </td>
                         <td className="px-4 py-3">
-                          <div className="flex justify-end">
+                          <div className="flex items-center justify-end gap-1">
                             <Can
                               permission={
                                 PERMISSIONS.ACCOUNTING_DROP_REFUNDS_PROCESS
@@ -620,6 +627,28 @@ export function AccountingExceptionTabs({
                               >
                                 Mark refunded
                               </Button>
+                            </Can>
+                            <Can
+                              permission={
+                                PERMISSIONS.ACCOUNTING_DROP_REFUNDS_WAIVE
+                              }
+                            >
+                              <Tooltip>
+                                <TooltipTrigger
+                                  render={
+                                    <Button
+                                      type="button"
+                                      size="icon-sm"
+                                      variant="ghost"
+                                      aria-label={`Waive refund for ${row.student_label}`}
+                                      onClick={() => onWaiveRefund(row)}
+                                    />
+                                  }
+                                >
+                                  <Trash2Icon />
+                                </TooltipTrigger>
+                                <TooltipContent>Waive refund</TooltipContent>
+                              </Tooltip>
                             </Can>
                           </div>
                         </td>

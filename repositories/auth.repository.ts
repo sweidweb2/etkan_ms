@@ -175,10 +175,46 @@ export async function getAuthUserById(client: Supabase, id: string) {
 
 /** Parallel `getUserById` chunk size — never scan the full Auth directory. */
 const AUTH_EMAIL_GET_BY_ID_CHUNK = 40;
+/** Cap Auth Admin hangs so roster/list pages soft-fail instead of stalling. */
+const AUTH_EMAIL_LOOKUP_TIMEOUT_MS = 8_000;
+
+type AuthEmailLookupResult = {
+  id: string;
+  email: string;
+  ok: boolean;
+};
+
+async function lookupAuthEmailById(
+  client: Supabase,
+  id: string
+): Promise<AuthEmailLookupResult> {
+  try {
+    const result = await Promise.race([
+      client.auth.admin.getUserById(id),
+      new Promise<never>((_, reject) => {
+        setTimeout(() => {
+          reject(new Error("Auth email lookup timed out."));
+        }, AUTH_EMAIL_LOOKUP_TIMEOUT_MS);
+      }),
+    ]);
+
+    if (result.error) {
+      return { id, email: "", ok: false };
+    }
+
+    return { id, email: result.data.user?.email ?? "", ok: true };
+  } catch {
+    // Network throw / timeout — soft-fail this id; leave uncached for retry.
+    return { id, email: "", ok: false };
+  }
+}
 
 /**
  * Resolve emails for many auth user IDs via targeted `getUserById` chunks.
  * Never falls back to paginated `listUsers` (O(directory) and cold-cache costly).
+ *
+ * Per-id Auth failures and timeouts soft-fail to `""` and are not cached.
+ * This helper always returns `error: null` so list pages stay up during Auth blips.
  */
 export async function listAuthEmailsByIds(
   client: Supabase,
@@ -205,21 +241,16 @@ export async function listAuthEmailsByIds(
   ) {
     const chunk = missingIds.slice(index, index + AUTH_EMAIL_GET_BY_ID_CHUNK);
     const results = await Promise.all(
-      chunk.map(async (id) => {
-        const { data, error } = await client.auth.admin.getUserById(id);
-        return { id, data, error };
-      })
+      chunk.map((id) => lookupAuthEmailById(client, id))
     );
 
     for (const row of results) {
-      if (row.error) {
-        // Do not cache failures — leave the id missing so the next call retries.
+      if (!row.ok) {
         emailById.set(row.id, "");
         continue;
       }
-      const email = row.data.user?.email ?? "";
-      fetched.set(row.id, email);
-      emailById.set(row.id, email);
+      fetched.set(row.id, row.email);
+      emailById.set(row.id, row.email);
     }
   }
 

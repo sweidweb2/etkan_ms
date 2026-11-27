@@ -3,16 +3,16 @@
 import { useMemo, useState } from "react";
 import { CalendarIcon, CalendarOffIcon, PlusIcon } from "lucide-react";
 import { Can } from "@/components/auth/can";
-import { AddClassSessionDialog } from "@/components/manager/classes/add-class-session-dialog";
-import { ClassSessionCard } from "@/components/manager/classes/class-session-card";
+import { AddClassSessionDialog } from "@/components/classes/add-class-session-dialog";
+import { ClassSessionCard } from "@/components/classes/class-session-card";
 import {
   ClassUpcomingWeeks,
   formatClassWeekDate,
-} from "@/components/manager/classes/class-upcoming-weeks";
+} from "@/components/classes/class-upcoming-weeks";
 import {
   SkipClassWeekDialog,
   type SkipClassWeekTarget,
-} from "@/components/manager/classes/skip-class-week-dialog";
+} from "@/components/classes/skip-class-week-dialog";
 import { ClassTabCollapsibleSection } from "@/components/manager/students/class-tab-collapsible-section";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";

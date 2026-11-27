@@ -1,21 +1,16 @@
 "use server";
 
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
-import { createSupabaseServerActionClient } from "@/lib/supabase/server";
 import { getSessionUser } from "@/lib/auth/session";
-import { PERMISSIONS } from "@/lib/constants/permissions";
-import { changePasswordSchema } from "@/lib/validators/auth/auth";
-import { emailField } from "@/lib/validators/auth/fields";
-import { zodFieldErrors } from "@/lib/validators/auth/parse-form";
-import * as appSettingsRepository from "@/repositories/app-settings.repository";
-import * as authRepository from "@/repositories/auth.repository";
-import { getUnauthorizedError } from "@/services/auth/authorization.service";
 import {
   resetPasswordsByRoleForManager,
   resetUserPasswordForManager,
 } from "@/services/auth/password-reset.service";
+import {
+  setMaintenanceModeForManager,
+  updateSelfCredentialsForManager,
+} from "@/services/settings/app-settings.service";
 import type { FieldErrors } from "@/types/auth";
-import type { PasswordResetExportRow } from "@/types/password-reset";
 
 export type UpdateMaintenanceModeActionState = {
   success?: boolean;
@@ -35,7 +30,9 @@ export type ResetPasswordsByRoleActionState = {
   error?: string;
   message?: string;
   fieldErrors?: FieldErrors;
-  rows?: PasswordResetExportRow[];
+  /** One-shot XLSX payload; plaintext passwords are not kept as structured rows. */
+  downloadBase64?: string;
+  downloadFilename?: string;
   role?: string;
 };
 
@@ -46,55 +43,15 @@ export type ResetUserPasswordActionState = {
   fieldErrors?: FieldErrors;
 };
 
-function mapUpdateUserError(message: string): string {
-  const normalized = message.toLowerCase();
-
-  if (
-    normalized.includes("reauth") ||
-    normalized.includes("re-auth") ||
-    normalized.includes("re-authentication")
-  ) {
-    return "Please sign in again before updating your credentials.";
-  }
-
-  if (normalized.includes("email") && normalized.includes("already")) {
-    return "That email is already in use.";
-  }
-
-  return "Unable to update your credentials. Please try again.";
-}
-
 export async function updateMaintenanceModeAction(
   _prevState: UpdateMaintenanceModeActionState,
   formData: FormData
 ): Promise<UpdateMaintenanceModeActionState> {
   const user = await getSessionUser();
-  const adminClient = createSupabaseAdminClient();
-  const unauthorized = await getUnauthorizedError(
-    adminClient,
-    user?.id ?? null,
-    PERMISSIONS.SETTINGS_MAINTENANCE
-  );
-  if (unauthorized) {
-    return { success: false, error: unauthorized };
-  }
-
   const raw = formData.get("maintenanceMode");
   const enabled = raw === "true" || raw === "1";
 
-  try {
-    await appSettingsRepository.setMaintenanceMode(adminClient, enabled);
-
-    return {
-      success: true,
-      message: enabled
-        ? "Maintenance mode enabled."
-        : "Maintenance mode disabled.",
-    };
-  } catch (err) {
-    const message = err instanceof Error ? err.message : "Update failed.";
-    return { success: false, error: message };
-  }
+  return setMaintenanceModeForManager(user?.id ?? null, enabled);
 }
 
 export async function updateSelfCredentialsAction(
@@ -102,18 +59,9 @@ export async function updateSelfCredentialsAction(
   formData: FormData
 ): Promise<ChangeSelfCredentialsActionState> {
   const user = await getSessionUser();
-  const adminClient = createSupabaseAdminClient();
-  const unauthorized = await getUnauthorizedError(
-    adminClient,
-    user?.id ?? null,
-    PERMISSIONS.SETTINGS_UPDATE_CREDENTIALS
-  );
-  if (unauthorized) {
-    return { success: false, error: unauthorized };
-  }
 
   const rawNewEmail = formData.get("newEmail");
-  const newEmail = typeof rawNewEmail === "string" ? rawNewEmail.trim() : "";
+  const newEmail = typeof rawNewEmail === "string" ? rawNewEmail : "";
 
   const rawNewPassword = formData.get("newPassword");
   const newPassword =
@@ -123,65 +71,11 @@ export async function updateSelfCredentialsAction(
   const confirmPassword =
     typeof rawConfirmPassword === "string" ? rawConfirmPassword : "";
 
-  const wantsEmail = Boolean(newEmail);
-  const wantsPassword = Boolean(newPassword || confirmPassword);
-
-  if (!wantsEmail && !wantsPassword) {
-    return { success: false, error: "Enter either a new email or a new password." };
-  }
-
-  const fieldErrors: FieldErrors = {};
-
-  if (wantsEmail) {
-    const parsedEmail = emailField.safeParse(newEmail.toLowerCase());
-    if (!parsedEmail.success) {
-      fieldErrors.newEmail = [
-        parsedEmail.error.issues[0]?.message ?? "Invalid email.",
-      ];
-    }
-  }
-
-  if (wantsPassword) {
-    const parsedPassword = changePasswordSchema.safeParse({
-      newPassword,
-      confirmPassword,
-    });
-
-    if (!parsedPassword.success) {
-      const passwordFieldErrors = zodFieldErrors(
-        parsedPassword.error.flatten().fieldErrors
-      );
-      Object.assign(fieldErrors, passwordFieldErrors);
-    }
-  }
-
-  if (Object.keys(fieldErrors).length > 0) {
-    return { fieldErrors };
-  }
-
-  const updateInput: { email?: string; password?: string } = {};
-  if (wantsEmail) updateInput.email = newEmail.toLowerCase();
-  if (wantsPassword) updateInput.password = newPassword;
-
-  const client = await createSupabaseServerActionClient();
-  const { error } = await authRepository.updateAuthUserEmailAndPassword(
-    client,
-    updateInput
-  );
-
-  if (error) {
-    const message = (error as { message?: string }).message ?? "Update failed.";
-    return { success: false, error: mapUpdateUserError(message) };
-  }
-
-  const message =
-    wantsEmail && wantsPassword
-      ? "Email and password updated."
-      : wantsEmail
-        ? "Email updated."
-        : "Password updated.";
-
-  return { success: true, message };
+  return updateSelfCredentialsForManager(user?.id ?? null, {
+    newEmail,
+    newPassword,
+    confirmPassword,
+  });
 }
 
 export async function resetPasswordsByRoleAction(
@@ -208,10 +102,16 @@ export async function resetPasswordsByRoleAction(
     };
   }
 
+  const { buildPasswordResetXlsxBlob, passwordResetXlsxFilename } =
+    await import("@/lib/export/password-reset-xlsx");
+  const blob = await buildPasswordResetXlsxBlob(result.rows);
+  const buffer = Buffer.from(await blob.arrayBuffer());
+
   return {
     success: true,
     message: result.message,
-    rows: result.rows,
+    downloadBase64: buffer.toString("base64"),
+    downloadFilename: passwordResetXlsxFilename(role || "users"),
     role,
   };
 }

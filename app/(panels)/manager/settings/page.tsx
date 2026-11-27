@@ -13,18 +13,15 @@ import {
   navPageTimingBeacon,
   startNavPageTimer,
 } from "@/lib/debug/start-nav-page-timer";
-import { createSupabaseServerComponentClient } from "@/lib/supabase/server";
-import { getMaintenanceMode } from "@/repositories/app-settings.repository";
+import { getMaintenanceModeForManager } from "@/services/settings/app-settings.service";
 
 export default async function ManagerSettingsPage() {
   const pageTimer = await startNavPageTimer("manager/settings");
 
-  const [client, sessionUser] = await Promise.all([
-    createSupabaseServerComponentClient(),
-    getSessionUser(),
-  ]);
-
-  const maintenanceMode = await getMaintenanceMode(client);
+  const sessionUser = await getSessionUser();
+  const maintenanceMode = await getMaintenanceModeForManager(
+    sessionUser?.id ?? null
+  );
 
   pageTimer.end();
 

@@ -433,6 +433,7 @@ export type AccountingExceptionsSnapshot = {
   billedWithoutClass: ManagerBilledWithoutClassRow[];
   sppSemesterMismatches: ManagerSppSemesterMismatchRow[];
   needRefund: import("@/types/manager-semester-drop").ManagerNeedRefundRow[];
+  processedRefundPayments: import("@/types/manager-semester-drop").ManagerDropRefundPaymentRow[];
 };
 
 export function mapStudentStatusValue(status: string | null): StudentStatusValue {

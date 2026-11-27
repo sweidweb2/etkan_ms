@@ -5,11 +5,10 @@ import {
   buildBoardColumns,
   commitCardMove,
   commitColumnMove,
-  moveBoardItem,
   type BoardColumns,
 } from "@/lib/kanban/board-state";
 import type { ManagerSemesterTeamRow } from "@/types/manager-semester-team";
-import type { ManagerSemesterRow } from "@/types/manager-phase";
+import type { ManagerSemesterRow } from "@/types/manager-semester";
 
 export type SemesterBoardColumns = BoardColumns;
 
@@ -44,47 +43,8 @@ export function applyTeamOrder(
   return applyColumnOrder(teams, orderedIds);
 }
 
-/** Move a card across / within board columns. */
-export function moveSemesterBoardItem(
-  columns: SemesterBoardColumns,
-  input: {
-    initialGroup: string | number | undefined | null;
-    group: string | number | undefined | null;
-    initialIndex: number;
-    index: number;
-  }
-): SemesterBoardColumns {
-  return moveBoardItem(columns, input);
-}
+/** @deprecated Prefer `commitCardMove` from `@/lib/kanban/board-state`. */
+export const commitSemesterCardMove = commitCardMove;
 
-/**
- * Commit a drop. `insertIndex` is measured against cards excluding the dragged
- * card (post-removal coordinates), so same-column drops use it directly.
- * Returns null when the position is unchanged.
- */
-export function commitSemesterCardMove(
-  columns: SemesterBoardColumns,
-  input: {
-    sourceColumnId: string;
-    sourceIndex: number;
-    targetColumnId: string;
-    insertIndex: number;
-  }
-): SemesterBoardColumns | null {
-  return commitCardMove(columns, input);
-}
-
-/**
- * Commit a team-column reorder. `insertIndex` is measured against columns
- * excluding the dragged one (post-removal coordinates).
- * Returns null when the position is unchanged.
- */
-export function commitTeamColumnMove(
-  orderedIds: readonly string[],
-  input: {
-    sourceIndex: number;
-    insertIndex: number;
-  }
-): string[] | null {
-  return commitColumnMove(orderedIds, input);
-}
+/** @deprecated Prefer `commitColumnMove` from `@/lib/kanban/board-state`. */
+export const commitTeamColumnMove = commitColumnMove;

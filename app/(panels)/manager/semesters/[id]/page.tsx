@@ -1,5 +1,5 @@
 import { notFound } from "next/navigation";
-import { SemesterDetailsPanel } from "@/components/manager/phases/semester-details-panel";
+import { SemesterDetailsPanel } from "@/components/manager/semesters/semester-details-panel";
 import { getSessionUser } from "@/lib/auth/session";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import {

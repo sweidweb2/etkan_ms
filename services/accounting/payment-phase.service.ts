@@ -29,6 +29,7 @@ export {
   listSppSemesterMismatchForManager,
   listStudentsBilledWithoutActiveClassForManager,
   getAccountingExceptionsSnapshotForManager,
+  loadAccountingExceptionsSnapshotDeferredForManager,
   listPaymentPhaseSemesterOptionsForManager,
   getPaymentPhaseForManager,
   listSppsForPhaseForManager,

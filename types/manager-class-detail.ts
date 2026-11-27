@@ -7,7 +7,7 @@ import type {
 import type { ManagerClassRow } from "@/types/manager-class-list";
 import type { ManagerClassSessionRow } from "@/types/manager-class-session";
 import type { ManagerClassStudentRow } from "@/types/manager-class-student";
-import type { ManagerSemesterRow } from "@/types/manager-phase";
+import type { ManagerSemesterRow } from "@/types/manager-semester";
 import type { ManagerSubjectRow } from "@/types/manager-subject";
 
 export type ManagerClassSubjectOption = Pick<

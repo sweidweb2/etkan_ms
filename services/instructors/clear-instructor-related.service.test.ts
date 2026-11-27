@@ -1,5 +1,5 @@
 import { describe, expect, it, vi, beforeEach } from "vitest";
-import { clearInstructorWorkshopRelatedData } from "@/lib/manager/instructors/clear-instructor-related";
+import { clearInstructorWorkshopRelatedData } from "@/services/instructors/clear-instructor-related.service";
 import * as clearInstructorRelatedRepository from "@/repositories/clear-instructor-related.repository";
 
 vi.mock("@/repositories/clear-instructor-related.repository");

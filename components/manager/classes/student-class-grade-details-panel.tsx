@@ -756,20 +756,22 @@ export function StudentClassGradeDetailsPanel({
         </BreadcrumbList>
       </Breadcrumb>
 
-      <div className="flex flex-wrap items-center justify-end gap-2 empty:hidden">
-        <Button
-          render={
-            <Link
-              href={getManagerStudentDetailRoute(student.student_profile_id)}
-            />
-          }
-          nativeButton={false}
-          variant="outline"
-        >
-          <ExternalLinkIcon data-icon="inline-start" />
-          View student profile
-        </Button>
-      </div>
+      {student.student_profile_id ? (
+        <div className="flex flex-wrap items-center justify-end gap-2 empty:hidden">
+          <Button
+            render={
+              <Link
+                href={getManagerStudentDetailRoute(student.student_profile_id)}
+              />
+            }
+            nativeButton={false}
+            variant="outline"
+          >
+            <ExternalLinkIcon data-icon="inline-start" />
+            View student profile
+          </Button>
+        </div>
+      ) : null}
 
       <Card className="gap-0 py-0">
         <CardHeader className="border-b bg-muted/50 py-3">
@@ -818,7 +820,7 @@ export function StudentClassGradeDetailsPanel({
             />
             <DetailField
               label="Student profile ID"
-              value={student.student_profile_id}
+              value={student.student_profile_id || "—"}
               className="font-mono text-xs"
             />
             <DetailField

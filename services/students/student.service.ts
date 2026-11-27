@@ -14,7 +14,7 @@ import {
 } from "@/services/auth/authorization.service";
 import { MANAGER_CACHE_TAGS } from "@/lib/cache/manager-list-cache";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
-import { isUuid } from "@/services/classes/class-shared";
+import { isUuid } from "@/lib/shared/is-uuid";
 import {
   createStudentSchema,
   resolveCreateStudentInput,

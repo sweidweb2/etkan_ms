@@ -6,7 +6,7 @@ import type { RoleValue } from "@/lib/constants/roles";
 import { clearCachedSessionShell } from "@/lib/auth/session-shell-cache";
 import { MANAGER_CACHE_TAGS } from "@/lib/cache/manager-list-cache";
 import * as authRepository from "@/repositories/auth.repository";
-import { clearInstructorWorkshopRelatedData } from "@/lib/manager/instructors/clear-instructor-related";
+import { clearInstructorWorkshopRelatedData } from "@/services/instructors/clear-instructor-related.service";
 import * as profileRepository from "@/repositories/profile.repository";
 import {
   assertPermission,

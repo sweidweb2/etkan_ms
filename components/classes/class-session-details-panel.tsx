@@ -4,8 +4,8 @@ import { useActionState, useEffect, useState, useTransition } from "react";
 import { PencilIcon, Trash2Icon, XIcon } from "lucide-react";
 import { deleteClassSessionAction } from "@/app/manager/classes/actions";
 import { Can } from "@/components/auth/can";
-import { EditClassSessionDialog } from "@/components/manager/classes/edit-class-session-dialog";
-import { SessionDetailsActions } from "@/components/manager/classes/session-details-actions";
+import { EditClassSessionDialog } from "@/components/classes/edit-class-session-dialog";
+import { SessionDetailsActions } from "@/components/classes/session-details-actions";
 import { InlineSpinner } from "@/components/loaders/inline-spinner";
 import { PendingFlowChecklist } from "@/components/loaders/pending-flow-checklist";
 import {

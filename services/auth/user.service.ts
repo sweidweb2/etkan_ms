@@ -22,7 +22,7 @@ import {
 } from "@/lib/validators/manager/create-user";
 import { updateManagerUserSchema } from "@/lib/validators/manager/update-user";
 import * as authRepository from "@/repositories/auth.repository";
-import { clearInstructorWorkshopRelatedData } from "@/lib/manager/instructors/clear-instructor-related";
+import { clearInstructorWorkshopRelatedData } from "@/services/instructors/clear-instructor-related.service";
 import * as profileRepository from "@/repositories/profile.repository";
 import * as studentProfileRepository from "@/repositories/student-profile.repository";
 import {

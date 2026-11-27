@@ -14,12 +14,12 @@ import {
 import { Can } from "@/components/auth/can";
 import { DetailField } from "@/components/manager/shared/detail-field";
 import { AssignClassTeachersDropdown } from "@/components/manager/classes/assign-class-teachers-dropdown";
-import { ChangeClassStatusDialog } from "@/components/manager/classes/change-class-status-dialog";
+import { ChangeClassStatusDialog } from "@/components/classes/change-class-status-dialog";
 import { EditClassDialog } from "@/components/manager/classes/edit-class-dialog";
 import { ClassFinalExamSection } from "@/components/manager/classes/class-final-exam-section";
 import { ClassSessionProgressTrack } from "@/components/manager/classes/class-session-progress-track";
-import { ClassSessionsSection } from "@/components/manager/classes/class-sessions-section";
-import { ClassTasksSection } from "@/components/manager/classes/class-tasks-section";
+import { ClassSessionsSection } from "@/components/classes/class-sessions-section";
+import { ClassTasksSection } from "@/components/classes/class-tasks-section";
 import { ClassStudentsSection } from "@/components/manager/classes/class-students-section";
 import type { ClassTransferOption } from "@/components/manager/classes/transfer-student-between-classes-dialog";
 import { ClassTabCollapsibleSection } from "@/components/manager/students/class-tab-collapsible-section";

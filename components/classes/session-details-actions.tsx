@@ -10,7 +10,7 @@ import { updateSessionSettingsAction } from "@/app/manager/classes/actions";
 import { Can } from "@/components/auth/can";
 import { usePermissions } from "@/components/auth/permissions-provider";
 import { FieldLabel } from "@/components/auth/field-label";
-import { SessionAttendanceBoard } from "@/components/manager/classes/session-attendance-board";
+import { SessionAttendanceBoard } from "@/components/classes/session-attendance-board";
 import { InlineSpinner } from "@/components/loaders/inline-spinner";
 import { Button } from "@/components/ui/button";
 import {

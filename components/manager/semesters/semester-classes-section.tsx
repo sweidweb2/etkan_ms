@@ -7,7 +7,7 @@ import {
   ChevronRightIcon,
   SearchIcon,
 } from "lucide-react";
-import { SemesterClassCard } from "@/components/manager/phases/semester-class-card";
+import { SemesterClassCard } from "@/components/manager/semesters/semester-class-card";
 import { UserStatCard } from "@/components/manager/users/user-stat-card";
 import { Button } from "@/components/ui/button";
 import {

@@ -9,7 +9,7 @@ import {
   type PaymentPhaseStatus,
   type StudentPaymentPhaseStatus,
 } from "@/lib/manager/accounting/constants";
-import { resolveInProgressClassForSemester } from "@/lib/manager/accounting/resolve-in-progress-class";
+import { resolveInProgressClassForSemester } from "@/services/accounting/resolve-in-progress-class.service";
 import { SPP_PAYMENT_LOCK_MESSAGES } from "@/lib/manager/accounting/semester-drop-messages";
 import { deriveSppLocks } from "@/lib/manager/accounting/semester-drop-status";
 import { isPhaseUpfrontWindowActive } from "@/lib/manager/accounting/upfront-window";

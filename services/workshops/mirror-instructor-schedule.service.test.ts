@@ -8,7 +8,7 @@ import {
   mirrorWorkshopSlotsToInstructor,
   recopyAllMirrorsForWorkshop,
   updateMirrorsForWorkshopSlot,
-} from "@/lib/manager/workshops/mirror-instructor-schedule";
+} from "@/services/workshops/mirror-instructor-schedule.service";
 import * as instructorScheduleSlotRepository from "@/repositories/instructor-schedule-slot.repository";
 import * as workshopInstructorRepository from "@/repositories/workshop-instructor.repository";
 

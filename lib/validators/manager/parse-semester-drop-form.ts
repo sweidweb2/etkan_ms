@@ -2,7 +2,9 @@ import { safeParseFormData } from "@/lib/validators/safe-parse-form-data";
 import {
   cancelSemesterDropSchema,
   createSemesterDropSchema,
+  deleteDropRefundPaymentSchema,
   processDropRefundSchema,
+  waiveDropRefundSchema,
 } from "@/lib/validators/manager/create-semester-drop";
 import { SEMESTER_DROP_RESTRICTION_MODES } from "@/lib/manager/accounting/constants";
 
@@ -42,5 +44,17 @@ export function parseProcessDropRefundFormData(formData: FormData) {
     received_by: formData.get("received_by"),
     received_by_management: formData.get("received_by_management") === "on",
     notes: formData.get("notes") || null,
+  });
+}
+
+export function parseWaiveDropRefundFormData(formData: FormData) {
+  return safeParseFormData(waiveDropRefundSchema, {
+    request_id: formData.get("request_id"),
+  });
+}
+
+export function parseDeleteDropRefundPaymentFormData(formData: FormData) {
+  return safeParseFormData(deleteDropRefundPaymentSchema, {
+    payment_id: formData.get("payment_id"),
   });
 }

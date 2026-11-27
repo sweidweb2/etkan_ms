@@ -1,6 +1,7 @@
 import "server-only";
 
 import { PERMISSIONS } from "@/lib/constants/permissions";
+import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import {
   assertPermission,
 } from "@/services/auth/authorization.service";
@@ -1129,4 +1130,22 @@ export async function getClassAnalyticsForManager(
     overallAverageTaskGrade,
     overallAttendanceRate,
   };
+}
+
+/** Owns the admin client for Suspense deferred class analytics sections. */
+export async function loadClassAnalyticsDeferredForManager(
+  actorUserId: string | null,
+  classId: string,
+  options?: {
+    sessions?: Array<{
+      id: string;
+      nb_order: number;
+      starts_at: string;
+      group_grade_level: string | null;
+    }>;
+    enrolledCount?: number;
+  }
+): Promise<ManagerClassAnalyticsPreview> {
+  const adminClient = createSupabaseAdminClient();
+  return getClassAnalyticsForManager(adminClient, actorUserId, classId, options);
 }

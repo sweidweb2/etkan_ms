@@ -2,7 +2,7 @@ import { describe, expect, it, vi, beforeEach } from "vitest";
 import type { User } from "@supabase/supabase-js";
 import { DEFAULT_CREATED_STUDENT_PASSWORD } from "@/lib/constants/auth-limits";
 import { ROLES } from "@/lib/constants/roles";
-import { clearInstructorWorkshopRelatedData } from "@/lib/manager/instructors/clear-instructor-related";
+import { clearInstructorWorkshopRelatedData } from "@/services/instructors/clear-instructor-related.service";
 import * as authRepository from "@/repositories/auth.repository";
 import * as profileRepository from "@/repositories/profile.repository";
 import * as studentProfileRepository from "@/repositories/student-profile.repository";
@@ -20,7 +20,7 @@ import {
 vi.mock("@/repositories/auth.repository");
 vi.mock("@/repositories/profile.repository");
 vi.mock("@/repositories/student-profile.repository");
-vi.mock("@/lib/manager/instructors/clear-instructor-related", () => ({
+vi.mock("@/services/instructors/clear-instructor-related.service", () => ({
   clearInstructorWorkshopRelatedData: vi.fn(),
 }));
 vi.mock("@/services/ops/audit-log.service", () => ({

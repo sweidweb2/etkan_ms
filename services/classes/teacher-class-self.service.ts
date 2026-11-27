@@ -220,6 +220,21 @@ export async function getTeachingClassTaskGradeSummaryForSelf(
   return buildTaskGradeSummaryForTasks(adminClient, taskRows);
 }
 
+/** Owns the admin client for Suspense deferred teacher grade summary sections. */
+export async function loadTeachingClassTaskGradeSummaryDeferredForSelf(
+  actorUserId: string | null,
+  classId: string,
+  tasks?: Array<{ id: string; max_grade: number | null }>
+): Promise<ClassTaskGradeSummary | null> {
+  const adminClient = createSupabaseAdminClient();
+  return getTeachingClassTaskGradeSummaryForSelf(
+    adminClient,
+    actorUserId,
+    classId,
+    tasks
+  );
+}
+
 /**
  * One assignment check + one parallel wave for the teacher class detail page.
  */

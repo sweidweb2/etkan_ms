@@ -41,7 +41,7 @@ import {
   recordManagerAuditLog,
   type AuditActor,
 } from "@/services/ops/audit-log.service";
-import { releaseGuestFromTeamIfBecameClosed } from "@/services/teams/team.service";
+import { releaseGuestFromTeamIfBecameClosed } from "@/services/teams/release-guest-from-team.service";
 import { attachGuestRegistrationEmails } from "@/services/guests/attach-guest-registration-emails";
 import { getGuestRegistrationInviteBundleForManager } from "@/services/guests/guest-registration.service";
 import type { FieldErrors } from "@/types/auth";

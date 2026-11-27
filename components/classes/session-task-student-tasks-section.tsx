@@ -5,7 +5,7 @@ import { useMemo, useState } from "react";
 import { format } from "date-fns";
 import { ClipboardListIcon, EyeIcon, PencilIcon } from "lucide-react";
 import { Can } from "@/components/auth/can";
-import { EditStudentTaskSheet } from "@/components/manager/classes/edit-student-task-sheet";
+import { EditStudentTaskSheet } from "@/components/classes/edit-student-task-sheet";
 import { StudentTaskStatusBadge } from "@/components/manager/students/student-task-status-badge";
 import { Button } from "@/components/ui/button";
 import {

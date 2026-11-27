@@ -6,7 +6,7 @@ import {
   deleteAllMirrorsForWorkshop,
   deleteAllWorkshopEntitySlots,
   recopyAllMirrorsForWorkshop,
-} from "@/lib/manager/workshops/mirror-instructor-schedule";
+} from "@/services/workshops/mirror-instructor-schedule.service";
 import { zodFieldErrors } from "@/lib/validators/auth/parse-form";
 import { changeWorkshopStatusSchema } from "@/lib/validators/manager/change-workshop-status";
 import { createWorkshopSchema } from "@/lib/validators/manager/create-workshop";

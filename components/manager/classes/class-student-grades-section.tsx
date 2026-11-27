@@ -107,12 +107,43 @@ function StudentGradeNameLink({
   studentProfileId: string;
   fullName: string;
 }) {
+  if (!studentProfileId) {
+    return <span className="font-medium text-foreground">{fullName}</span>;
+  }
+
   return (
     <Link
       href={getManagerClassStudentGradesDetailRoute(classId, studentProfileId)}
       className="font-medium text-foreground underline-offset-4 hover:underline"
     >
       {fullName}
+    </Link>
+  );
+}
+
+function StudentGradeDetailsLink({
+  classId,
+  studentProfileId,
+  label = "Details",
+}: {
+  classId: string;
+  studentProfileId: string;
+  label?: string;
+}) {
+  if (!studentProfileId) {
+    return null;
+  }
+
+  return (
+    <Link
+      href={getManagerClassStudentGradesDetailRoute(classId, studentProfileId)}
+      className={buttonVariants({
+        variant: "outline",
+        size: "sm",
+      })}
+    >
+      <EyeIcon data-icon="inline-start" />
+      {label}
     </Link>
   );
 }
@@ -733,7 +764,7 @@ export function ClassStudentGradesSection({
                 <tbody>
                   {pendingRows.map((row) => (
                     <tr
-                      key={row.student_profile_id}
+                      key={row.user_id}
                       className="border-b last:border-b-0 hover:bg-muted/20"
                     >
                       <td className="px-4 py-3">
@@ -765,29 +796,22 @@ export function ClassStudentGradesSection({
                       </td>
                       <td className="px-4 py-3">
                         <div className="flex justify-center gap-2">
-                          <Can permission={PERMISSIONS.GRADES_COMPUTE}>
-                            <Button
-                              type="button"
-                              size="sm"
-                              className="bg-orange-500 text-white hover:bg-orange-500/90"
-                              onClick={() => openComputeDialog(row)}
-                            >
-                              Compute
-                            </Button>
-                          </Can>
-                          <Link
-                            href={getManagerClassStudentGradesDetailRoute(
-                              classId,
-                              row.student_profile_id
-                            )}
-                            className={buttonVariants({
-                              variant: "outline",
-                              size: "sm",
-                            })}
-                          >
-                            <EyeIcon data-icon="inline-start" />
-                            Details
-                          </Link>
+                          {row.student_profile_id ? (
+                            <Can permission={PERMISSIONS.GRADES_COMPUTE}>
+                              <Button
+                                type="button"
+                                size="sm"
+                                className="bg-orange-500 text-white hover:bg-orange-500/90"
+                                onClick={() => openComputeDialog(row)}
+                              >
+                                Compute
+                              </Button>
+                            </Can>
+                          ) : null}
+                          <StudentGradeDetailsLink
+                            classId={classId}
+                            studentProfileId={row.student_profile_id}
+                          />
                         </div>
                       </td>
                     </tr>
@@ -901,7 +925,7 @@ export function ClassStudentGradesSection({
                       <tbody>
                         {batchRows.map((row) => (
                           <tr
-                            key={`computed-${batch.id}-${row.student_profile_id}`}
+                            key={`computed-${batch.id}-${row.user_id}`}
                             className="border-b last:border-b-0 hover:bg-muted/20"
                           >
                             <td className="px-4 py-3">
@@ -930,29 +954,22 @@ export function ClassStudentGradesSection({
                             </td>
                             <td className="px-4 py-3">
                               <div className="flex justify-center gap-2">
-                                <Link
-                                  href={getManagerClassStudentGradesDetailRoute(
-                                    classId,
-                                    row.student_profile_id
-                                  )}
-                                  className={buttonVariants({
-                                    variant: "outline",
-                                    size: "sm",
-                                  })}
-                                >
-                                  <EyeIcon data-icon="inline-start" />
-                                  Details
-                                </Link>
-                                <Can permission={PERMISSIONS.GRADES_DELETE}>
-                                  <Button
-                                    type="button"
-                                    size="sm"
-                                    variant="destructive"
-                                    onClick={() => openDeleteGradeDialog(row)}
-                                  >
-                                    Delete grade
-                                  </Button>
-                                </Can>
+                                <StudentGradeDetailsLink
+                                  classId={classId}
+                                  studentProfileId={row.student_profile_id}
+                                />
+                                {row.student_profile_id ? (
+                                  <Can permission={PERMISSIONS.GRADES_DELETE}>
+                                    <Button
+                                      type="button"
+                                      size="sm"
+                                      variant="destructive"
+                                      onClick={() => openDeleteGradeDialog(row)}
+                                    >
+                                      Delete grade
+                                    </Button>
+                                  </Can>
+                                ) : null}
                               </div>
                             </td>
                           </tr>
@@ -996,7 +1013,7 @@ export function ClassStudentGradesSection({
                 <tbody>
                   {unreadyRows.map((row) => (
                     <tr
-                      key={`unready-${row.student_profile_id}`}
+                      key={`unready-${row.user_id}`}
                       className="border-b last:border-b-0 hover:bg-muted/20"
                     >
                       <td className="px-4 py-3">
@@ -1040,19 +1057,11 @@ export function ClassStudentGradesSection({
                       </td>
                       <td className="px-4 py-3">
                         <div className="flex justify-center">
-                          <Link
-                            href={getManagerClassStudentGradesDetailRoute(
-                              classId,
-                              row.student_profile_id
-                            )}
-                            className={buttonVariants({
-                              variant: "outline",
-                              size: "sm",
-                            })}
-                          >
-                            <EyeIcon data-icon="inline-start" />
-                            View
-                          </Link>
+                          <StudentGradeDetailsLink
+                            classId={classId}
+                            studentProfileId={row.student_profile_id}
+                            label="View"
+                          />
                         </div>
                       </td>
                     </tr>

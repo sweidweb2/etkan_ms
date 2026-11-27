@@ -26,6 +26,29 @@ export type ManagerNeedRefundRow = ManagerSemesterDropRequestRow & {
   phase_name: string | null;
 };
 
+/** Processed drop-refund debit payment shown in exceptions sidebar. */
+export type ManagerDropRefundPaymentRow = {
+  id: string;
+  student_payment_phase_id: string;
+  semester_drop_request_id: string;
+  student_id: string;
+  student_label: string;
+  phase_name: string | null;
+  payment_date: string;
+  amount: number;
+  payment_method: string;
+  received_by: string;
+  created_at: string;
+};
+
+export type DeleteDropRefundPaymentActionState = {
+  success?: boolean;
+  error?: string;
+  message?: string;
+  fieldErrors?: Record<string, string[] | undefined>;
+  deletedPaymentId?: string;
+};
+
 export type ManagerSppDropOverlay = {
   pending: boolean;
   dropped: boolean;
@@ -35,6 +58,14 @@ export type ManagerSppDropOverlay = {
 };
 
 export type ProcessDropRefundActionState = {
+  success?: boolean;
+  error?: string;
+  message?: string;
+  fieldErrors?: Record<string, string[] | undefined>;
+  request?: ManagerSemesterDropRequestRow;
+};
+
+export type WaiveDropRefundActionState = {
   success?: boolean;
   error?: string;
   message?: string;

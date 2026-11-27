@@ -116,29 +116,15 @@ export async function updateSemesterBoardPositions(
   return { error };
 }
 
-export async function getNextSemesterSortOrderForTeam(
+/** Atomically assign semesters onto a team with locked next sort_order. */
+export async function assignSemestersToTeam(
   client: Supabase,
-  teamId: string | null
+  teamId: string | null,
+  semesterIds: string[]
 ) {
-  let query = client
-    .from("semesters")
-    .select("sort_order")
-    .order("sort_order", { ascending: false })
-    .limit(1);
-
-  query =
-    teamId === null
-      ? query.is("team_id", null)
-      : query.eq("team_id", teamId);
-
-  const { data, error } = await query.maybeSingle();
-
-  if (error) {
-    return { data: null as number | null, error };
-  }
-
-  return {
-    data: (data?.sort_order ?? -1) + 1,
-    error: null,
-  };
+  const { error } = await client.rpc("assign_semesters_to_team", {
+    p_team_id: teamId,
+    p_semester_ids: semesterIds,
+  });
+  return { error };
 }

@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect } from "react";
-import { createSemesterAction } from "@/app/manager/semesters/actions";
+import { useEffect, useTransition } from "react";
+import { useFormActionState as useActionState } from "@/hooks/use-form-action-state";
+import { updateSemesterAction } from "@/app/manager/semesters/actions";
 import { FieldLabel } from "@/components/auth/field-label";
 import { InlineSpinner } from "@/components/loaders/inline-spinner";
 import { Button } from "@/components/ui/button";
@@ -14,43 +15,44 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
-import { useMutationDialogForm } from "@/hooks/use-mutation-dialog-form";
+import { useActionStateSuccess } from "@/hooks/use-action-state-success";
+import { useActionStateToast } from "@/hooks/use-action-state-toast";
+import { usePendingAwareOpenChange } from "@/hooks/use-pending-aware-open-change";
 import { useZodForm } from "@/hooks/use-zod-form";
 import {
-  createPhaseSchema,
-  type CreatePhaseInput,
-} from "@/lib/validators/manager/create-phase";
+  updateSemesterSchema,
+  type UpdateSemesterInput,
+} from "@/lib/validators/manager/update-semester";
 import type {
-  CreateSemesterActionState,
   ManagerSemesterRow,
-} from "@/types/manager-phase";
+  UpdateSemesterActionState,
+} from "@/types/manager-semester";
 
-const initialState: CreateSemesterActionState = {};
+const initialState: UpdateSemesterActionState = {};
 
-type AddPhaseDialogProps = {
+type EditSemesterDialogProps = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onSemesterCreated: (semester: ManagerSemesterRow) => void;
+  semester: ManagerSemesterRow;
+  onSemesterUpdated: (semester: ManagerSemesterRow) => void;
 };
 
-export function AddPhaseDialog({
+export function EditSemesterDialog({
   open,
   onOpenChange,
-  onSemesterCreated,
-}: AddPhaseDialogProps) {
-  const { state, formAction, isPending, handleOpenChange } =
-    useMutationDialogForm({
-      action: createSemesterAction,
-      initialState,
-      open,
-      onOpenChange,
-      onSuccess: (nextState) => {
-        onOpenChange(false);
-        if (nextState.semester) {
-          onSemesterCreated(nextState.semester);
-        }
-      },
-    });
+  semester,
+  onSemesterUpdated,
+}: EditSemesterDialogProps) {
+  const [isTransitionPending, startTransition] = useTransition();
+  const [state, formAction, isActionPending] = useActionState(
+    updateSemesterAction,
+    initialState
+  );
+  const isPending = isActionPending || isTransitionPending;
+
+  const handleOpenChange = usePendingAwareOpenChange(isPending, onOpenChange);
+
+  useActionStateToast(state, isPending);
 
   const {
     register,
@@ -58,25 +60,48 @@ export function AddPhaseDialog({
     reset,
     formState: { errors },
   } = useZodForm({
-    schema: createPhaseSchema,
+    schema: updateSemesterSchema,
     mode: "onBlur",
     defaultValues: {
-      name: "",
-      semester_code: "",
+      id: semester.id,
+      name: semester.name,
+      semester_code: semester.semester_code,
     },
   });
 
   useEffect(() => {
-    if (!open) {
-      reset({ name: "", semester_code: "" });
+    if (open) {
+      reset({
+        id: semester.id,
+        name: semester.name,
+        semester_code: semester.semester_code,
+      });
     }
-  }, [open, reset]);
+  }, [open, reset, semester]);
 
-  function onSubmit(values: CreatePhaseInput) {
+  useActionStateSuccess(
+    state,
+    isPending,
+    (nextState) => {
+      if (!nextState.semester) {
+        return;
+      }
+
+      onOpenChange(false);
+      onSemesterUpdated(nextState.semester);
+    },
+    (nextState) => Boolean(nextState.success && nextState.semester)
+  );
+
+  function onSubmit(values: UpdateSemesterInput) {
     const formData = new FormData();
+    formData.set("id", values.id);
     formData.set("name", values.name.trim());
-    formData.set("semester_code", values.semester_code?.trim() ?? "");
-    formAction(formData);
+    formData.set("semester_code", values.semester_code.trim());
+
+    startTransition(() => {
+      formAction(formData);
+    });
   }
 
   const nameError = errors.name?.message ?? state.fieldErrors?.name?.[0];
@@ -87,23 +112,29 @@ export function AddPhaseDialog({
     <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent className="sm:max-w-lg" showCloseButton={!isPending}>
         <DialogHeader>
-          <DialogTitle>Add semester</DialogTitle>
+          <DialogTitle>Edit semester</DialogTitle>
           <DialogDescription>
-            Create a semester with a name and a unique 4-digit code. Leave the
-            code blank to generate one automatically.
+            Update the semester name or its unique 4-digit code. Linked
+            payment plans pick up a new code automatically.
           </DialogDescription>
         </DialogHeader>
 
         <form
-          id="add-semester-form"
+          id="edit-semester-form"
           onSubmit={handleSubmit(onSubmit)}
           className="flex flex-col gap-4"
           noValidate
         >
+          <input type="hidden" {...register("id")} />
+
           <div className="flex flex-col gap-2">
-            <FieldLabel htmlFor="add-semester-name" label="Name" hint="Required" />
+            <FieldLabel
+              htmlFor="edit-semester-name"
+              label="Name"
+              hint="Required"
+            />
             <Input
-              id="add-semester-name"
+              id="edit-semester-name"
               aria-invalid={!!nameError}
               disabled={isPending}
               {...register("name")}
@@ -115,16 +146,15 @@ export function AddPhaseDialog({
 
           <div className="flex flex-col gap-2">
             <FieldLabel
-              htmlFor="add-semester-code"
+              htmlFor="edit-semester-code"
               label="Semester code"
-              hint="Optional"
+              hint="Required"
             />
             <Input
-              id="add-semester-code"
+              id="edit-semester-code"
               inputMode="numeric"
               autoComplete="off"
               maxLength={4}
-              placeholder="Auto-generate"
               aria-invalid={!!codeError}
               disabled={isPending}
               className="font-mono tracking-wider"
@@ -145,14 +175,14 @@ export function AddPhaseDialog({
           >
             Cancel
           </Button>
-          <Button type="submit" form="add-semester-form" disabled={isPending}>
+          <Button type="submit" form="edit-semester-form" disabled={isPending}>
             {isPending ? (
               <>
                 <InlineSpinner className="mr-2" />
-                Creating…
+                Saving…
               </>
             ) : (
-              "Create semester"
+              "Save changes"
             )}
           </Button>
         </DialogFooter>

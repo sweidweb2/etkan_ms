@@ -3,6 +3,7 @@ import "server-only";
 import { isPasswordResetByRoleValue } from "@/lib/constants/password-reset-roles";
 import { PERMISSIONS } from "@/lib/constants/permissions";
 import type { RoleValue } from "@/lib/constants/roles";
+import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { generateStrongPassword } from "@/lib/utils/generate-strong-password";
 import {
   resetPasswordsByRoleSchema,
@@ -87,6 +88,27 @@ export async function listPasswordResetUserOptions(
     .sort((a, b) =>
       a.full_name.localeCompare(b.full_name, undefined, { sensitivity: "base" })
     );
+}
+
+/**
+ * Owns the admin client for Suspense deferred settings sections.
+ * Soft-fails to an empty list when the actor lacks reset permission.
+ */
+export async function loadPasswordResetUsersDeferredForManager(
+  actorUserId: string | null
+): Promise<PasswordResetUserOption[]> {
+  const adminClient = createSupabaseAdminClient();
+
+  const resetUnauthorized = await getUnauthorizedError(
+    adminClient,
+    actorUserId,
+    PERMISSIONS.SETTINGS_RESET_PASSWORDS
+  );
+  if (resetUnauthorized) {
+    return [];
+  }
+
+  return listPasswordResetUserOptions(adminClient, actorUserId);
 }
 
 export async function resetPasswordsByRoleForManager(

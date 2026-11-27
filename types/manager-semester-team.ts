@@ -1,5 +1,5 @@
 import type { FieldErrors } from "@/types/auth";
-import type { ManagerSemesterRow } from "@/types/manager-phase";
+import type { ManagerSemesterRow } from "@/types/manager-semester";
 
 export interface ManagerSemesterTeamRow {
   id: string;

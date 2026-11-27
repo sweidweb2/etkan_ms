@@ -4,17 +4,17 @@ import { useMemo, useState } from "react";
 import { FolderPlusIcon, LayersIcon, PlusIcon, SearchIcon } from "lucide-react";
 import { Can } from "@/components/auth/can";
 import { usePermissions } from "@/components/auth/permissions-provider";
-import { AddPhaseDialog } from "@/components/manager/phases/add-phase-dialog";
-import { AssignSemestersToTeamDialog } from "@/components/manager/phases/assign-semesters-to-team-dialog";
-import { CreateSemesterTeamDialog } from "@/components/manager/phases/create-semester-team-dialog";
-import { SemestersKanbanBoard } from "@/components/manager/phases/semesters-kanban-board";
+import { AddSemesterDialog } from "@/components/manager/semesters/add-semester-dialog";
+import { AssignSemestersToTeamDialog } from "@/components/manager/semesters/assign-semesters-to-team-dialog";
+import { CreateSemesterTeamDialog } from "@/components/manager/semesters/create-semester-team-dialog";
+import { SemestersKanbanBoard } from "@/components/manager/semesters/semesters-kanban-board";
 import { PanelPageHeader } from "@/components/panels/panel-page-header";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { hasPermissionInSet } from "@/lib/auth/permission-checks";
 import { PERMISSIONS } from "@/lib/constants/permissions";
 import { prependUniqueById } from "@/lib/utils/prepend-unique-by-id";
-import type { ManagerSemesterRow } from "@/types/manager-phase";
+import type { ManagerSemesterRow } from "@/types/manager-semester";
 import type { ManagerSemesterTeamRow } from "@/types/manager-semester-team";
 
 function matchesSearch(semester: ManagerSemesterRow, query: string) {
@@ -40,15 +40,15 @@ function compareTeams(
   return left.name.localeCompare(right.name);
 }
 
-type ManagePhasesPanelProps = {
+type ManageSemestersPanelProps = {
   initialSemesters: ManagerSemesterRow[];
   initialTeams: ManagerSemesterTeamRow[];
 };
 
-export function ManagePhasesPanel({
+export function ManageSemestersPanel({
   initialSemesters,
   initialTeams,
-}: ManagePhasesPanelProps) {
+}: ManageSemestersPanelProps) {
   const [semesters, setSemesters] = useState(initialSemesters);
   const [prevSemesters, setPrevSemesters] = useState(initialSemesters);
   const [teams, setTeams] = useState(() =>
@@ -150,7 +150,7 @@ export function ManagePhasesPanel({
         </Can>
       </div>
 
-      <AddPhaseDialog
+      <AddSemesterDialog
         open={isAddOpen}
         onOpenChange={setIsAddOpen}
         onSemesterCreated={handleSemesterCreated}

@@ -94,8 +94,23 @@ export function scheduleAttachmentCloneProcessing(adminClient: Supabase): void {
   }
 }
 
-function attachmentCopyKey(fileName: string, fileSize: number) {
-  return `${fileName}\0${fileSize}`;
+/** Prefer source attachment id embedded in dest path; fall back for legacy copies. */
+function isSourceAlreadyCopied(
+  source: { id: string; file_name: string; file_size: number },
+  existing: ReadonlyArray<{
+    storage_path: string;
+    file_name: string;
+    file_size: number;
+  }>
+) {
+  const idToken = `/${source.id}-`;
+  if (existing.some((row) => row.storage_path.includes(idToken))) {
+    return true;
+  }
+  return existing.some(
+    (row) =>
+      row.file_name === source.file_name && row.file_size === source.file_size
+  );
 }
 
 /**
@@ -174,9 +189,6 @@ async function processOneCloneJob(
     }
 
     const existingRows = existingAttachments.data ?? [];
-    const existingKeys = new Set(
-      existingRows.map((row) => attachmentCopyKey(row.file_name, row.file_size))
-    );
 
     let remaining = TASK_ATTACHMENT_MAX_FILES - existingRows.length;
     if (remaining <= 0) {
@@ -185,8 +197,7 @@ async function processOneCloneJob(
     }
 
     const pendingSources = (sourceAttachments.data ?? []).filter(
-      (source) =>
-        !existingKeys.has(attachmentCopyKey(source.file_name, source.file_size))
+      (source) => !isSourceAlreadyCopied(source, existingRows)
     );
 
     if (pendingSources.length === 0) {
@@ -215,10 +226,12 @@ async function processOneCloneJob(
       }
 
       const bytes = Buffer.from(await downloaded.data.arrayBuffer());
+      // Deterministic object id = source attachment id (idempotent re-runs).
       const destPath = buildTaskAttachmentStoragePath(
         TASK_ATTACHMENT_ENTITIES.CLASS_TASK,
         job.class_task_id,
-        source.file_name
+        source.file_name,
+        source.id
       );
 
       const uploaded =
@@ -257,7 +270,6 @@ async function processOneCloneJob(
         break;
       }
 
-      existingKeys.add(attachmentCopyKey(source.file_name, source.file_size));
       copiedCount += 1;
       remaining -= 1;
     }

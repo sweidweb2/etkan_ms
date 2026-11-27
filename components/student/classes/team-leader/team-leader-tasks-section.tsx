@@ -13,8 +13,8 @@ import {
 } from "@/app/(panels)/student/classes/team-leader-actions";
 import { Can } from "@/components/auth/can";
 import { InlineSpinner } from "@/components/loaders/inline-spinner";
-import { AddClassTaskDialog } from "@/components/manager/classes/add-class-task-dialog";
-import { EditClassTaskDialog } from "@/components/manager/classes/edit-class-task-dialog";
+import { AddClassTaskDialog } from "@/components/classes/add-class-task-dialog";
+import { EditClassTaskDialog } from "@/components/classes/edit-class-task-dialog";
 import { TaskAttachmentsSection } from "@/components/tasks/task-attachments-section";
 import { Button } from "@/components/ui/button";
 import { TASK_ATTACHMENT_ENTITIES } from "@/lib/constants/task-attachments";

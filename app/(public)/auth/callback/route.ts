@@ -3,9 +3,11 @@ import { getPostLoginRedirect } from "@/lib/auth/redirect";
 import { ROUTES } from "@/lib/constants/routes";
 import { appendQueryParam } from "@/lib/url/append-query-param";
 import { createSupabaseServerActionClient } from "@/lib/supabase/server";
-import { rejectIfMaintenanceBlocksRole } from "@/services/auth/auth.service";
+import {
+  logout,
+  rejectIfMaintenanceBlocksRole,
+} from "@/services/auth/auth.service";
 import { resolveUserRole } from "@/services/auth/role.service";
-import * as authRepository from "@/repositories/auth.repository";
 
 export async function GET(request: Request) {
   const { searchParams, origin } = new URL(request.url);
@@ -23,7 +25,7 @@ export async function GET(request: Request) {
         role
       );
       if (maintenanceError) {
-        await authRepository.signOut(supabase);
+        await logout(supabase);
         return NextResponse.redirect(
           `${origin}${appendQueryParam(ROUTES.LOGIN, "error", "maintenance")}`
         );

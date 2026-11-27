@@ -1,10 +1,10 @@
-import { ManagePhasesPanel } from "@/components/manager/phases/manage-phases-panel";
+import { ManageSemestersPanel } from "@/components/manager/semesters/manage-semesters-panel";
 import { getSessionUser } from "@/lib/auth/session";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { listSemestersForManager } from "@/services/classes/semester.service";
 import { listSemesterTeamsForManager } from "@/services/classes/semester-team.service";
 
-export default async function ManagerPhasesPage() {
+export default async function ManagerSemestersPage() {
   const adminClient = createSupabaseAdminClient();
   const user = await getSessionUser();
   const actorUserId = user?.id ?? null;
@@ -14,6 +14,6 @@ export default async function ManagerPhasesPage() {
   ]);
 
   return (
-    <ManagePhasesPanel initialSemesters={semesters} initialTeams={teams} />
+    <ManageSemestersPanel initialSemesters={semesters} initialTeams={teams} />
   );
 }

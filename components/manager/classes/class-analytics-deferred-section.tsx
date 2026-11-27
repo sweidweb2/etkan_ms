@@ -1,7 +1,6 @@
 import { Suspense } from "react";
 import { ClassAnalyticsSection } from "@/components/manager/classes/class-analytics-section";
-import { createSupabaseAdminClient } from "@/lib/supabase/admin";
-import { getClassAnalyticsForManager } from "@/services/classes/class.service";
+import { loadClassAnalyticsDeferredForManager } from "@/services/classes/class.service";
 
 type AnalyticsSessionInput = {
   id: string;
@@ -25,9 +24,7 @@ export async function ClassAnalyticsDeferredSection({
   sessions,
   enrolledCount,
 }: ClassAnalyticsDeferredSectionProps) {
-  const adminClient = createSupabaseAdminClient();
-  const analytics = await getClassAnalyticsForManager(
-    adminClient,
+  const analytics = await loadClassAnalyticsDeferredForManager(
     actorUserId,
     classId,
     {

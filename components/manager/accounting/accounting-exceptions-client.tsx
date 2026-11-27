@@ -3,7 +3,10 @@
 import { useState } from "react";
 import { AccountingExceptionTabs } from "@/components/manager/accounting/accounting-exception-tabs";
 import { AssignMissingSppDialog } from "@/components/manager/accounting/assign-missing-spp-dialog";
+import { DeleteDropRefundPaymentDialog } from "@/components/manager/accounting/delete-drop-refund-payment-dialog";
 import { ProcessDropRefundDialog } from "@/components/manager/accounting/process-drop-refund-dialog";
+import { ProcessedDropRefundsSidebar } from "@/components/manager/accounting/processed-drop-refunds-sidebar";
+import { WaiveDropRefundDialog } from "@/components/manager/accounting/waive-drop-refund-dialog";
 import type {
   ManagerBilledWithoutClassRow,
   ManagerMissingSppRow,
@@ -11,7 +14,10 @@ import type {
   ManagerSppSemesterMismatchRow,
 } from "@/types/manager-payment-phase";
 import { SEMESTER_DROP_REFUND_STATUSES } from "@/lib/manager/accounting/constants";
-import type { ManagerNeedRefundRow } from "@/types/manager-semester-drop";
+import type {
+  ManagerDropRefundPaymentRow,
+  ManagerNeedRefundRow,
+} from "@/types/manager-semester-drop";
 import type { ManagerStudentWithoutActiveClassRow } from "@/types/manager-student";
 
 type AccountingExceptionsClientProps = {
@@ -21,6 +27,7 @@ type AccountingExceptionsClientProps = {
   billedWithoutClass: ManagerBilledWithoutClassRow[];
   sppSemesterMismatches: ManagerSppSemesterMismatchRow[];
   needRefund: ManagerNeedRefundRow[];
+  processedRefundPayments: ManagerDropRefundPaymentRow[];
 };
 
 export function AccountingExceptionsClient({
@@ -30,13 +37,22 @@ export function AccountingExceptionsClient({
   billedWithoutClass,
   sppSemesterMismatches,
   needRefund: initialNeedRefund,
+  processedRefundPayments: initialProcessedRefundPayments,
 }: AccountingExceptionsClientProps) {
   const [assignRow, setAssignRow] = useState<ManagerMissingSppRow | null>(null);
   const [refundRow, setRefundRow] = useState<ManagerNeedRefundRow | null>(null);
+  const [waiveRow, setWaiveRow] = useState<ManagerNeedRefundRow | null>(null);
+  const [deletePaymentRow, setDeletePaymentRow] =
+    useState<ManagerDropRefundPaymentRow | null>(null);
   const [missing, setMissing] = useState(initialMissing);
   const [prevMissing, setPrevMissing] = useState(initialMissing);
   const [needRefund, setNeedRefund] = useState(initialNeedRefund);
   const [prevNeedRefund, setPrevNeedRefund] = useState(initialNeedRefund);
+  const [processedRefundPayments, setProcessedRefundPayments] = useState(
+    initialProcessedRefundPayments
+  );
+  const [prevProcessedRefundPayments, setPrevProcessedRefundPayments] =
+    useState(initialProcessedRefundPayments);
 
   if (initialMissing !== prevMissing) {
     setPrevMissing(initialMissing);
@@ -45,6 +61,10 @@ export function AccountingExceptionsClient({
   if (initialNeedRefund !== prevNeedRefund) {
     setPrevNeedRefund(initialNeedRefund);
     setNeedRefund(initialNeedRefund);
+  }
+  if (initialProcessedRefundPayments !== prevProcessedRefundPayments) {
+    setPrevProcessedRefundPayments(initialProcessedRefundPayments);
+    setProcessedRefundPayments(initialProcessedRefundPayments);
   }
 
   return (
@@ -96,15 +116,48 @@ export function AccountingExceptionsClient({
           setRefundRow(null);
         }}
       />
-      <AccountingExceptionTabs
-        billedWithoutClass={billedWithoutClass}
-        withoutClassOrPhase={withoutClassOrPhase}
-        semesterMismatches={sppSemesterMismatches}
-        missingSpp={missing}
-        needRefund={needRefund}
-        onAssignMissing={setAssignRow}
-        onProcessRefund={setRefundRow}
+      <WaiveDropRefundDialog
+        open={waiveRow !== null}
+        onOpenChange={(open) => {
+          if (!open) setWaiveRow(null);
+        }}
+        row={waiveRow}
+        onWaived={(request) => {
+          setNeedRefund((current) =>
+            current.filter((row) => row.id !== request.id)
+          );
+          setWaiveRow(null);
+        }}
       />
+      <DeleteDropRefundPaymentDialog
+        open={deletePaymentRow !== null}
+        onOpenChange={(open) => {
+          if (!open) setDeletePaymentRow(null);
+        }}
+        row={deletePaymentRow}
+        onDeleted={(paymentId) => {
+          setProcessedRefundPayments((current) =>
+            current.filter((row) => row.id !== paymentId)
+          );
+          setDeletePaymentRow(null);
+        }}
+      />
+      <div className="grid gap-4 @4xl/panel:grid-cols-[minmax(0,1fr)_minmax(16rem,20rem)]">
+        <AccountingExceptionTabs
+          billedWithoutClass={billedWithoutClass}
+          withoutClassOrPhase={withoutClassOrPhase}
+          semesterMismatches={sppSemesterMismatches}
+          missingSpp={missing}
+          needRefund={needRefund}
+          onAssignMissing={setAssignRow}
+          onProcessRefund={setRefundRow}
+          onWaiveRefund={setWaiveRow}
+        />
+        <ProcessedDropRefundsSidebar
+          payments={processedRefundPayments}
+          onDeletePayment={setDeletePaymentRow}
+        />
+      </div>
     </>
   );
 }

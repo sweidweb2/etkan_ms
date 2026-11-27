@@ -48,6 +48,14 @@ export {
   deleteFinancialFormAction,
 } from "./actions/forms";
 
-export { processDropRefundAction } from "./actions/drop-refund";
+export {
+  deleteDropRefundPaymentAction,
+  processDropRefundAction,
+  waiveDropRefundAction,
+} from "./actions/drop-refund";
 
-export type { ProcessDropRefundActionState } from "@/types/manager-semester-drop";
+export type {
+  DeleteDropRefundPaymentActionState,
+  ProcessDropRefundActionState,
+  WaiveDropRefundActionState,
+} from "@/types/manager-semester-drop";

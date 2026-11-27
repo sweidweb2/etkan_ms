@@ -4,6 +4,7 @@ import { BACKUP_EXPORT_FORMATS } from "@/lib/constants/backup-formats";
 import { DATABASE_BACKUPS_STORAGE_BUCKET } from "@/lib/constants/database-backups-storage";
 import { SITE } from "@/lib/config/site";
 import { serializeBackupExport } from "@/lib/export/backup-serialize";
+import * as backupStorageRepository from "@/repositories/backup-storage.repository";
 import { uploadObject } from "@/repositories/object-storage.repository";
 import {
   exportAuthUsersBackup,
@@ -118,12 +119,12 @@ export async function listRecentDatabaseBackupObjects(
   client: AdminClient,
   folderPath: string
 ): Promise<{ name: string; id: string | null; updatedAt: string | null }[]> {
-  const { data, error } = await client.storage
-    .from(DATABASE_BACKUPS_STORAGE_BUCKET)
-    .list(folderPath, {
-      limit: 50,
-      sortBy: { column: "name", order: "desc" },
-    });
+  const { data, error } = await backupStorageRepository.listStorageObjects(
+    client,
+    DATABASE_BACKUPS_STORAGE_BUCKET,
+    folderPath,
+    { limit: 50, offset: 0 }
+  );
 
   if (error) {
     throw new Error(`Unable to list database backups: ${error.message}`);
@@ -134,6 +135,6 @@ export async function listRecentDatabaseBackupObjects(
     .map((entry) => ({
       name: entry.name,
       id: entry.id ?? null,
-      updatedAt: entry.updated_at ?? null,
+      updatedAt: entry.updatedAt,
     }));
 }

@@ -61,17 +61,21 @@ export function ResetPasswordsByRoleSection() {
 
   useActionStateToast(state, isPending);
 
-  useActionStateSuccess(state, isPending, async (next) => {
-    if (!next.rows?.length) {
+  useActionStateSuccess(state, isPending, (next) => {
+    if (!next.downloadBase64 || !next.downloadFilename) {
       return;
     }
 
-    const { buildPasswordResetXlsxBlob, passwordResetXlsxFilename } =
-      await import("@/lib/export/password-reset-xlsx");
-    const blob = await buildPasswordResetXlsxBlob(next.rows);
+    const binary = atob(next.downloadBase64);
+    const bytes = new Uint8Array(binary.length);
+    for (let i = 0; i < binary.length; i += 1) {
+      bytes[i] = binary.charCodeAt(i);
+    }
     downloadBlob({
-      blob,
-      filename: passwordResetXlsxFilename(next.role ?? "users"),
+      blob: new Blob([bytes], {
+        type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+      }),
+      filename: next.downloadFilename,
     });
     setConfirmOpen(false);
     setRole("");

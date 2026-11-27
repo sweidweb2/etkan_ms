@@ -19,7 +19,7 @@ import {
   updateGuestForManager,
 } from "@/services/guests/guest.service";
 import { getGuestRegistrationInviteBundleForManager } from "@/services/guests/guest-registration.service";
-import { releaseGuestFromTeamIfBecameClosed } from "@/services/teams/team.service";
+import { releaseGuestFromTeamIfBecameClosed } from "@/services/teams/release-guest-from-team.service";
 
 vi.mock("@/repositories/guest.repository");
 vi.mock("@/repositories/guest-status-event.repository");
@@ -33,7 +33,7 @@ vi.mock("@/services/ops/audit-log.service", () => ({
 vi.mock("@/services/guests/guest-registration.service", () => ({
   getGuestRegistrationInviteBundleForManager: vi.fn(),
 }));
-vi.mock("@/services/teams/team.service", () => ({
+vi.mock("@/services/teams/release-guest-from-team.service", () => ({
   releaseGuestFromTeamIfBecameClosed: vi.fn().mockResolvedValue(undefined),
 }));
 

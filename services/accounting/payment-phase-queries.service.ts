@@ -1,7 +1,8 @@
 import "server-only";
 
 import { PERMISSIONS } from "@/lib/constants/permissions";
-import { resolveInProgressClassForSemester } from "@/lib/manager/accounting/resolve-in-progress-class";
+import { getRequestAdminClient } from "@/lib/supabase/admin";
+import { resolveInProgressClassForSemester } from "@/services/accounting/resolve-in-progress-class.service";
 import {
   PAYMENT_PHASE_STATUSES,
   STUDENT_PAYMENT_PHASE_STATUSES,
@@ -39,8 +40,12 @@ import type {
 } from "@/types/manager-payment-phase";
 import * as semesterDropRequestRepository from "@/repositories/semester-drop-request.repository";
 import * as semesterRepository from "@/repositories/semester.repository";
+import * as studentPaymentRepository from "@/repositories/student-payment.repository";
 import * as studentProfileRepository from "@/repositories/student-profile.repository";
-import type { ManagerNeedRefundRow } from "@/types/manager-semester-drop";
+import type {
+  ManagerDropRefundPaymentRow,
+  ManagerNeedRefundRow,
+} from "@/types/manager-semester-drop";
 import { toManagerNeedRefundRow } from "@/lib/manager/accounting/semester-drop-mapper";
 import {
   applyDropOverlayToSppFlags,
@@ -176,6 +181,7 @@ export async function getAccountingExceptionsSnapshotForManager(
     billedWithoutClass: [],
     sppSemesterMismatches: [],
     needRefund: [],
+    processedRefundPayments: [],
   };
 
   const nonCancelledPhases = phases.filter(
@@ -494,12 +500,16 @@ export async function getAccountingExceptionsSnapshotForManager(
     (row) => !billedStudentIds.has(row.user_id)
   );
 
-  const needRefund = await loadNeedRefundRows(adminClient, phaseById);
+  const [needRefund, processedRefundPayments] = await Promise.all([
+    loadNeedRefundRows(adminClient, phaseById),
+    loadProcessedDropRefundPayments(adminClient, phaseById),
+  ]);
 
   if (
     nonCancelledPhases.length === 0 &&
     studentsWithoutActiveClass.length === 0 &&
-    needRefund.length === 0
+    needRefund.length === 0 &&
+    processedRefundPayments.length === 0
   ) {
     return empty;
   }
@@ -510,7 +520,92 @@ export async function getAccountingExceptionsSnapshotForManager(
     billedWithoutClass,
     sppSemesterMismatches,
     needRefund,
+    processedRefundPayments,
   };
+}
+
+/**
+ * Owns the request-scoped admin client for Suspense deferred accounting
+ * exceptions sections (shares client with sibling accounting streams).
+ */
+export async function loadAccountingExceptionsSnapshotDeferredForManager(
+  actorUserId: string | null,
+  phases: ManagerPaymentPhaseRow[]
+): Promise<AccountingExceptionsSnapshot> {
+  const adminClient = getRequestAdminClient();
+  return getAccountingExceptionsSnapshotForManager(
+    adminClient,
+    actorUserId,
+    phases
+  );
+}
+
+async function loadProcessedDropRefundPayments(
+  adminClient: Supabase,
+  phaseById: Map<string, ManagerPaymentPhaseRow>
+): Promise<ManagerDropRefundPaymentRow[]> {
+  const { data, error } =
+    await studentPaymentRepository.listDropRefundDebitPayments(adminClient);
+  if (error) {
+    throw new Error(error.message);
+  }
+  const payments = data ?? [];
+  if (payments.length === 0) {
+    return [];
+  }
+
+  const dropIds = [
+    ...new Set(
+      payments
+        .map((row) => row.semester_drop_request_id)
+        .filter((id): id is string => Boolean(id))
+    ),
+  ];
+  const dropsResult =
+    await semesterDropRequestRepository.listDropRequestsByIds(
+      adminClient,
+      dropIds
+    );
+  if (dropsResult.error) {
+    throw new Error(dropsResult.error.message);
+  }
+  const dropById = new Map(
+    (dropsResult.data ?? []).map((row) => [row.id, row])
+  );
+  const studentIds = [
+    ...new Set(
+      (dropsResult.data ?? []).map((row) => row.student_id).filter(Boolean)
+    ),
+  ];
+  const meta = await buildStudentMetaByUserId(adminClient, studentIds);
+
+  return payments.flatMap((payment) => {
+    const dropId = payment.semester_drop_request_id;
+    if (!dropId) {
+      return [];
+    }
+    const drop = dropById.get(dropId);
+    if (!drop) {
+      return [];
+    }
+    const phase = drop.payment_phase_id
+      ? phaseById.get(drop.payment_phase_id)
+      : undefined;
+    const row: ManagerDropRefundPaymentRow = {
+      id: payment.id,
+      student_payment_phase_id: payment.student_payment_phase_id,
+      semester_drop_request_id: dropId,
+      student_id: drop.student_id,
+      student_label: meta.get(drop.student_id)?.label ?? drop.student_id,
+      phase_name: phase?.name ?? null,
+      payment_date: payment.payment_date,
+      amount: Number(payment.amount) || 0,
+      payment_method: payment.payment_method,
+      received_by: payment.received_by,
+      created_at: payment.created_at,
+    };
+    return [row];
+  });
 }
 
 async function loadNeedRefundRows(

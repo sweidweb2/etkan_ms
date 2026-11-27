@@ -11,6 +11,7 @@ export type StorageListedObject = {
   id: string | null;
   size: number | null;
   contentType: string | null;
+  updatedAt: string | null;
 };
 
 function asContentType(metadata: Record<string, unknown> | null): string | null {
@@ -55,6 +56,7 @@ export async function listStorageObjects(
       id: item.id ?? null,
       size: asSize(metadata),
       contentType: asContentType(metadata),
+      updatedAt: item.updated_at ?? null,
     };
   });
 

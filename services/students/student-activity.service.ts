@@ -1,6 +1,7 @@
 import "server-only";
 
 import { PERMISSIONS } from "@/lib/constants/permissions";
+import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { getAuditLogChangeSummary } from "@/lib/manager/get-audit-log-change-summary";
 import * as attendeeRepository from "@/repositories/attendee.repository";
 import * as auditLogRepository from "@/repositories/audit-log.repository";
@@ -229,6 +230,15 @@ export async function listStudentActivityForManager(
 ): Promise<ManagerStudentActivityRow[]> {
   await assertPermission(adminClient, actorUserId, PERMISSIONS.STUDENTS_VIEW);
   return listStudentActivityRows(adminClient, studentUserId);
+}
+
+/** Owns the admin client for Suspense deferred student activity sections. */
+export async function loadStudentActivityDeferredForManager(
+  actorUserId: string | null,
+  studentUserId: string
+): Promise<ManagerStudentActivityRow[]> {
+  const adminClient = createSupabaseAdminClient();
+  return listStudentActivityForManager(adminClient, actorUserId, studentUserId);
 }
 
 export async function listStudentActivityForSelf(

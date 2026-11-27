@@ -1,7 +1,6 @@
 import { Suspense } from "react";
 import { StudentActivitySection } from "@/components/manager/students/student-activity-section";
-import { createSupabaseAdminClient } from "@/lib/supabase/admin";
-import { listStudentActivityForManager } from "@/services/students/student-activity.service";
+import { loadStudentActivityDeferredForManager } from "@/services/students/student-activity.service";
 
 type StudentActivityDeferredSectionProps = {
   actorUserId: string | null;
@@ -12,9 +11,7 @@ async function StudentActivityDeferredSection({
   actorUserId,
   studentUserId,
 }: StudentActivityDeferredSectionProps) {
-  const adminClient = createSupabaseAdminClient();
-  const rows = await listStudentActivityForManager(
-    adminClient,
+  const rows = await loadStudentActivityDeferredForManager(
     actorUserId,
     studentUserId
   );

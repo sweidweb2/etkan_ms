@@ -1,6 +1,5 @@
 import { AccountingExceptionsClient } from "@/components/manager/accounting/accounting-exceptions-client";
-import { getRequestAdminClient } from "@/lib/supabase/admin";
-import { getAccountingExceptionsSnapshotForManager } from "@/services/accounting/payment-phase.service";
+import { loadAccountingExceptionsSnapshotDeferredForManager } from "@/services/accounting/payment-phase.service";
 import type { ManagerPaymentPhaseRow } from "@/types/manager-payment-phase";
 
 type AccountingExceptionsSectionProps = {
@@ -12,9 +11,7 @@ export async function AccountingExceptionsSection({
   actorUserId,
   phases,
 }: AccountingExceptionsSectionProps) {
-  const adminClient = getRequestAdminClient();
-  const snapshot = await getAccountingExceptionsSnapshotForManager(
-    adminClient,
+  const snapshot = await loadAccountingExceptionsSnapshotDeferredForManager(
     actorUserId,
     phases
   );
@@ -27,6 +24,7 @@ export async function AccountingExceptionsSection({
       billedWithoutClass={snapshot.billedWithoutClass}
       sppSemesterMismatches={snapshot.sppSemesterMismatches}
       needRefund={snapshot.needRefund}
+      processedRefundPayments={snapshot.processedRefundPayments}
     />
   );
 }

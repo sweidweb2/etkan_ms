@@ -1,20 +1,8 @@
-import { cache } from "react";
 import {
   IncomeStatementAnalyticsEtkanTab,
   IncomeStatementAnalyticsStudentsTab,
 } from "@/components/manager/accounting/income-statement-analytics-tables";
-import { getRequestAdminClient } from "@/lib/supabase/admin";
-import { getIncomeStatementAnalyticsTablesForManager } from "@/services/accounting/income-statement-analytics.service";
-
-/** Etkan and Academy tabs render separate sections; share one fetch per request. */
-const loadAnalyticsTables = cache(
-  (actorUserId: string, year: number, month: number | null) =>
-    getIncomeStatementAnalyticsTablesForManager(
-      getRequestAdminClient(),
-      actorUserId,
-      { year, month }
-    )
-);
+import { loadIncomeStatementAnalyticsTablesDeferredForManager } from "@/services/accounting/income-statement-analytics.service";
 
 type IncomeStatementAnalyticsTablesSectionProps = {
   actorUserId: string;
@@ -29,7 +17,11 @@ export async function IncomeStatementAnalyticsTablesSection({
   month,
   view,
 }: IncomeStatementAnalyticsTablesSectionProps) {
-  const tables = await loadAnalyticsTables(actorUserId, year, month);
+  const tables = await loadIncomeStatementAnalyticsTablesDeferredForManager(
+    actorUserId,
+    year,
+    month
+  );
 
   if (view === "etkan") {
     return (

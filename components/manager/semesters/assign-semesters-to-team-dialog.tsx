@@ -22,7 +22,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useMutationDialogForm } from "@/hooks/use-mutation-dialog-form";
-import type { ManagerSemesterRow } from "@/types/manager-phase";
+import type { ManagerSemesterRow } from "@/types/manager-semester";
 import type {
   AssignSemestersToTeamActionState,
   ManagerSemesterTeamRow,

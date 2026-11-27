@@ -30,8 +30,6 @@ import type {
 import type { ManagerClassRow } from "@/types/manager-class-list";
 import type { ManagerClassSessionRow } from "@/types/manager-class-session";
 import type { SessionGroupGradeLevelValue } from "@/types/manager-session-group-grade";
-import { z } from "zod";
-
 export type {
   MutationFailure,
   Supabase,
@@ -360,14 +358,7 @@ export async function buildFullNameByUserId(
   return map;
 }
 
-export function isUuid(value: string): boolean {
-  return z.string().uuid().safeParse(value).success;
-}
-
-export function isInvalidUuidError(message: string): boolean {
-  const normalized = message.toLowerCase();
-  return (
-    normalized.includes("invalid input syntax for type uuid") ||
-    normalized.includes("22p02")
-  );
-}
+export {
+  isInvalidUuidError,
+  isUuid,
+} from "@/lib/shared/is-uuid";

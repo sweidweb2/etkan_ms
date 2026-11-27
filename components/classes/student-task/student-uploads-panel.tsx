@@ -27,6 +27,7 @@ import { useFormActionState } from "@/hooks/use-form-action-state";
 import { usePendingAwareOpenChange } from "@/hooks/use-pending-aware-open-change";
 import { usePermissions } from "@/components/auth/permissions-provider";
 import { useSimulatedProgressPercent } from "@/hooks/use-simulated-progress-percent";
+import { useTaskFileSignedUrl } from "@/hooks/use-task-file-signed-url";
 import { useTaskFileUploadSelection } from "@/hooks/use-task-file-upload-selection";
 import { hasPermissionInSet } from "@/lib/auth/permission-checks";
 import { formatUploadFileSize } from "@/lib/classes/student-task-upload-format";
@@ -36,7 +37,6 @@ import {
   STUDENT_TASK_UPLOAD_MAX_FILES,
 } from "@/lib/constants/manager-student-task-uploads";
 import { PERMISSIONS } from "@/lib/constants/permissions";
-import { showErrorToast } from "@/lib/toast";
 import type {
   DeleteStudentTaskUploadActionState,
   ManagerStudentTaskUploadRow,
@@ -76,10 +76,7 @@ export function StudentUploadsPanel({
     beginFile,
   } = useTaskFileUploadSelection(STUDENT_TASK_UPLOAD_MAX_BYTES);
   const DROPZONE_HINT = `PDF, DOCX, XLSX, PNG, JPG · up to ${maxMb} MB each`;
-  const [busyUpload, setBusyUpload] = useState<{
-    id: string;
-    mode: "open" | "download";
-  } | null>(null);
+  const { busy: busyUpload, runSignedUrlAction } = useTaskFileSignedUrl();
   const [deletingUpload, setDeletingUpload] =
     useState<ManagerStudentTaskUploadRow | null>(null);
 
@@ -152,56 +149,25 @@ export function StudentUploadsPanel({
     deleteAction(formData);
   }
 
-  async function resolveUploadSignedUrl(uploadId: string) {
+  function resolveUploadSignedUrl(uploadId: string) {
     const formData = new FormData();
     formData.set("id", uploadId);
     return getStudentTaskUploadSignedUrlAction(formData);
   }
 
-  async function handleOpenUpload(upload: ManagerStudentTaskUploadRow) {
-    setBusyUpload({ id: upload.id, mode: "open" });
-    try {
-      const result = await resolveUploadSignedUrl(upload.id);
-      if (!result.success || !result.signedUrl) {
-        showErrorToast(result.error ?? "Unable to open file.");
-        return;
-      }
-      window.open(result.signedUrl, "_blank", "noopener,noreferrer");
-    } finally {
-      setBusyUpload(null);
-    }
+  function handleOpenUpload(upload: ManagerStudentTaskUploadRow) {
+    void runSignedUrlAction(upload.id, "open", () =>
+      resolveUploadSignedUrl(upload.id)
+    );
   }
 
-  async function handleDownloadUpload(upload: ManagerStudentTaskUploadRow) {
-    setBusyUpload({ id: upload.id, mode: "download" });
-    try {
-      const result = await resolveUploadSignedUrl(upload.id);
-      if (!result.success || !result.signedUrl) {
-        showErrorToast(result.error ?? "Unable to download file.");
-        return;
-      }
-
-      const response = await fetch(result.signedUrl);
-      if (!response.ok) {
-        showErrorToast("Unable to download file.");
-        return;
-      }
-
-      const blob = await response.blob();
-      const objectUrl = URL.createObjectURL(blob);
-      const anchor = document.createElement("a");
-      anchor.href = objectUrl;
-      anchor.download = upload.file_name || "download";
-      anchor.rel = "noopener";
-      document.body.appendChild(anchor);
-      anchor.click();
-      anchor.remove();
-      URL.revokeObjectURL(objectUrl);
-    } catch {
-      showErrorToast("Unable to download file.");
-    } finally {
-      setBusyUpload(null);
-    }
+  function handleDownloadUpload(upload: ManagerStudentTaskUploadRow) {
+    void runSignedUrlAction(
+      upload.id,
+      "download",
+      () => resolveUploadSignedUrl(upload.id),
+      upload.file_name
+    );
   }
 
   const fieldError = uploadState.fieldErrors?.file?.[0] ?? null;

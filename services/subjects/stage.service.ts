@@ -18,6 +18,10 @@ import {
   recordManagerAuditLog,
   type AuditActor,
 } from "@/services/ops/audit-log.service";
+import {
+  reorderKanbanColumnsForManager,
+  saveKanbanBoardForManager,
+} from "@/services/shared/kanban-board-mutations";
 import type { FieldErrors } from "@/types/auth";
 import type { ManagerStageRow } from "@/types/manager-stage";
 import type { ManagerSubjectRow } from "@/types/manager-subject";
@@ -267,64 +271,32 @@ export async function reorderStagesForManager(
   actor: AuditActor,
   input: { ordered_ids: string[] }
 ): Promise<ReorderStagesResult> {
-  const unauthorized = await getUnauthorizedError(
+  const result = await reorderKanbanColumnsForManager({
     adminClient,
     actorUserId,
-    PERMISSIONS.SUBJECTS_STAGES_UPDATE
-  );
-  if (unauthorized) {
-    return { success: false, error: unauthorized };
-  }
-
-  const parsed = reorderStagesSchema.safeParse(input);
-  if (!parsed.success) {
-    return {
-      success: false,
-      error: "Please fix the errors below.",
-      fieldErrors: parsed.error.flatten().fieldErrors,
-    };
-  }
-
-  const orderedIds = [...new Set(parsed.data.ordered_ids)];
-  const existing = await stageRepository.listStages(adminClient);
-  if (existing.error) {
-    return { success: false, error: "Unable to reorder stages. Please try again." };
-  }
-
-  const existingIds = new Set((existing.data ?? []).map((row) => row.id));
-  if (
-    orderedIds.length !== existingIds.size ||
-    orderedIds.some((id) => !existingIds.has(id))
-  ) {
-    return { success: false, error: "Stage list is out of date. Refresh and try again." };
-  }
-
-  const { error } = await stageRepository.updateStageSortOrders(
-    adminClient,
-    orderedIds
-  );
-  if (error) {
-    return { success: false, error: "Unable to reorder stages. Please try again." };
-  }
-
-  const refreshed = await stageRepository.listStages(adminClient);
-  if (refreshed.error || !refreshed.data) {
-    return { success: false, error: "Unable to reorder stages. Please try again." };
-  }
-
-  await recordManagerAuditLog(adminClient, actor, {
-    action: "update",
-    severity: "info",
-    table_name: "stages",
-    record_id: orderedIds[0] ?? null,
-    new_data: { ordered_ids: orderedIds },
-    metadata: { note: "Stages reordered." },
+    actor,
+    permission: PERMISSIONS.SUBJECTS_STAGES_UPDATE,
+    schema: reorderStagesSchema,
+    input,
+    listRows: () => stageRepository.listStages(adminClient),
+    updateSortOrders: (orderedIds) =>
+      stageRepository.updateStageSortOrders(adminClient, orderedIds),
+    mapRow: mapStageRecordToRow,
+    tableName: "stages",
+    outOfDateMessage: "Stage list is out of date. Refresh and try again.",
+    failMessage: "Unable to reorder stages. Please try again.",
+    successMessage: "Stage order saved.",
+    auditNote: "Stages reordered.",
   });
+
+  if (!result.success) {
+    return result;
+  }
 
   return {
     success: true,
-    stages: refreshed.data.map(mapStageRecordToRow),
-    message: "Stage order saved.",
+    stages: result.rows,
+    message: result.message,
   };
 }
 
@@ -334,93 +306,49 @@ export async function saveSubjectBoardForManager(
   actor: AuditActor,
   input: { columns: Record<string, string[]> }
 ): Promise<SaveSubjectBoardResult> {
-  const unauthorized = await getUnauthorizedError(
+  return saveKanbanBoardForManager({
     adminClient,
     actorUserId,
-    PERMISSIONS.SUBJECTS_UPDATE
-  );
-  if (unauthorized) {
-    return { success: false, error: unauthorized };
-  }
+    actor,
+    permission: PERMISSIONS.SUBJECTS_UPDATE,
+    schema: saveSubjectBoardSchema,
+    input,
+    unassignedId: UNASSIGNED_STAGE_ID,
+    listColumnEntities: () => stageRepository.listStages(adminClient),
+    columnEntityNotFoundMessage: "One or more stages were not found.",
+    buildPlacements: (columns) => {
+      const placements: Array<{
+        id: string;
+        stage_id: string | null;
+        sort_order: number;
+      }> = [];
+      const seen = new Set<string>();
 
-  const parsed = saveSubjectBoardSchema.safeParse(input);
-  if (!parsed.success) {
-    return {
-      success: false,
-      error: "Please fix the errors below.",
-      fieldErrors: parsed.error.flatten().fieldErrors,
-    };
-  }
-
-  const columns = parsed.data.columns;
-  const stageIds = Object.keys(columns).filter(
-    (key) => key !== UNASSIGNED_STAGE_ID
-  );
-
-  if (stageIds.length > 0) {
-    const stagesResult = await stageRepository.listStages(adminClient);
-    if (stagesResult.error) {
-      return {
-        success: false,
-        error: "Unable to save board. Please try again.",
-      };
-    }
-    const known = new Set((stagesResult.data ?? []).map((row) => row.id));
-    if (stageIds.some((id) => !known.has(id))) {
-      return { success: false, error: "One or more stages were not found." };
-    }
-  }
-
-  const placements: Array<{
-    id: string;
-    stage_id: string | null;
-    sort_order: number;
-  }> = [];
-  const seen = new Set<string>();
-
-  for (const [columnId, subjectIds] of Object.entries(columns)) {
-    const stageId = columnId === UNASSIGNED_STAGE_ID ? null : columnId;
-    subjectIds.forEach((subjectId, index) => {
-      if (seen.has(subjectId)) {
-        return;
+      for (const [columnId, subjectIds] of Object.entries(columns)) {
+        const stageId = columnId === UNASSIGNED_STAGE_ID ? null : columnId;
+        subjectIds.forEach((subjectId, index) => {
+          if (seen.has(subjectId)) {
+            return;
+          }
+          seen.add(subjectId);
+          placements.push({
+            id: subjectId,
+            stage_id: stageId,
+            sort_order: index,
+          });
+        });
       }
-      seen.add(subjectId);
-      placements.push({
-        id: subjectId,
-        stage_id: stageId,
-        sort_order: index,
-      });
-    });
-  }
 
-  if (placements.length === 0) {
-    return { success: true, message: "Board unchanged." };
-  }
-
-  const { error } = await subjectRepository.updateSubjectBoardPositions(
-    adminClient,
-    placements
-  );
-  if (error) {
-    return {
-      success: false,
-      error: "Unable to save board. Please try again.",
-    };
-  }
-
-  await recordManagerAuditLog(adminClient, actor, {
-    action: "update",
-    severity: "info",
-    table_name: "subjects",
-    record_id: placements[0]?.id ?? null,
-    new_data: { columns },
-    metadata: { note: "Subject board positions saved." },
+      return placements;
+    },
+    updatePositions: (placements) =>
+      subjectRepository.updateSubjectBoardPositions(adminClient, placements),
+    getPlacementRecordId: (placement) => placement.id,
+    tableName: "subjects",
+    failMessage: "Unable to save board. Please try again.",
+    successMessage: "Board saved.",
+    auditNote: "Subject board positions saved.",
   });
-
-  return {
-    success: true,
-    message: "Board saved.",
-  };
 }
 
 export async function setSubjectStageForManager(

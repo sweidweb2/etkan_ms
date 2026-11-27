@@ -1,14 +1,14 @@
 import { describe, expect, it } from "vitest";
 import {
+  commitCardMove,
+  commitColumnMove,
+} from "@/lib/kanban/board-state";
+import {
   findColumnInsertIndex,
   findInsertIndex,
   findTargetColumnId,
   type ColumnHitRange,
 } from "@/lib/kanban/pointer-hit-test";
-import {
-  commitStageColumnMove,
-  commitSubjectCardMove,
-} from "@/lib/subjects/subject-board-state";
 
 const columns: ColumnHitRange[] = [
   { id: "a", left: 0, right: 100, center: 50 },
@@ -54,7 +54,7 @@ describe("findInsertIndex", () => {
   });
 });
 
-describe("commitSubjectCardMove", () => {
+describe("commitCardMove", () => {
   const board = {
     unassigned: ["a", "b", "c"],
     stage1: ["d"],
@@ -62,7 +62,7 @@ describe("commitSubjectCardMove", () => {
 
   it("moves across columns at the measured insert index", () => {
     expect(
-      commitSubjectCardMove(board, {
+      commitCardMove(board, {
         sourceColumnId: "unassigned",
         sourceIndex: 1,
         targetColumnId: "stage1",
@@ -75,9 +75,8 @@ describe("commitSubjectCardMove", () => {
   });
 
   it("uses post-removal insert index for same-column moves", () => {
-    // Drag a (index 0) past the remaining cards → insertIndex 2
     expect(
-      commitSubjectCardMove(board, {
+      commitCardMove(board, {
         sourceColumnId: "unassigned",
         sourceIndex: 0,
         targetColumnId: "unassigned",
@@ -91,7 +90,7 @@ describe("commitSubjectCardMove", () => {
 
   it("returns null when the card would not move", () => {
     expect(
-      commitSubjectCardMove(board, {
+      commitCardMove(board, {
         sourceColumnId: "unassigned",
         sourceIndex: 1,
         targetColumnId: "unassigned",
@@ -121,24 +120,24 @@ describe("findColumnInsertIndex", () => {
   });
 });
 
-describe("commitStageColumnMove", () => {
+describe("commitColumnMove", () => {
   const order = ["a", "b", "c", "d"];
 
   it("moves a column with post-removal insert index", () => {
     expect(
-      commitStageColumnMove(order, { sourceIndex: 0, insertIndex: 3 })
+      commitColumnMove(order, { sourceIndex: 0, insertIndex: 3 })
     ).toEqual(["b", "c", "d", "a"]);
     expect(
-      commitStageColumnMove(order, { sourceIndex: 3, insertIndex: 0 })
+      commitColumnMove(order, { sourceIndex: 3, insertIndex: 0 })
     ).toEqual(["d", "a", "b", "c"]);
     expect(
-      commitStageColumnMove(order, { sourceIndex: 1, insertIndex: 2 })
+      commitColumnMove(order, { sourceIndex: 1, insertIndex: 2 })
     ).toEqual(["a", "c", "b", "d"]);
   });
 
   it("returns null when the column would not move", () => {
     expect(
-      commitStageColumnMove(order, { sourceIndex: 1, insertIndex: 1 })
+      commitColumnMove(order, { sourceIndex: 1, insertIndex: 1 })
     ).toBeNull();
   });
 });

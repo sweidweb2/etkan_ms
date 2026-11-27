@@ -13,14 +13,14 @@ import {
   BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb";
 import { Can } from "@/components/auth/can";
-import { EditPhaseDialog } from "@/components/manager/phases/edit-phase-dialog";
-import { SemesterClassesSection } from "@/components/manager/phases/semester-classes-section";
-import { SemesterPaymentPhasesSection } from "@/components/manager/phases/semester-payment-phases-section";
+import { EditSemesterDialog } from "@/components/manager/semesters/edit-semester-dialog";
+import { SemesterClassesSection } from "@/components/manager/semesters/semester-classes-section";
+import { SemesterPaymentPhasesSection } from "@/components/manager/semesters/semester-payment-phases-section";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { PERMISSIONS } from "@/lib/constants/permissions";
 import { ROUTES } from "@/lib/constants/routes";
-import type { ManagerSemesterRow } from "@/types/manager-phase";
+import type { ManagerSemesterRow } from "@/types/manager-semester";
 import type { ManagerSemesterClassRow } from "@/types/manager-semester-class";
 import type { ManagerSemesterPaymentPhaseRow } from "@/types/manager-semester-payment-phase";
 
@@ -101,7 +101,7 @@ export function SemesterDetailsPanel({
         initialPhases={initialPaymentPhases}
       />
 
-      <EditPhaseDialog
+      <EditSemesterDialog
         open={editOpen}
         onOpenChange={setEditOpen}
         semester={semester}

@@ -1,5 +1,5 @@
 import { notFound } from "next/navigation";
-import { ClassTaskDetailsPanel } from "@/components/manager/classes/class-task-details-panel";
+import { ClassTaskDetailsPanel } from "@/components/classes/class-task-details-panel";
 import { getSessionUser } from "@/lib/auth/session";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { getClassComputedGradeLockStateForManager } from "@/services/classes/class-computed-grade-lock.service";

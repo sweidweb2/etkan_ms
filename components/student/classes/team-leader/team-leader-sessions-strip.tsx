@@ -1,7 +1,7 @@
 "use client";
 
 import { CalendarIcon } from "lucide-react";
-import { ClassSessionCard } from "@/components/manager/classes/class-session-card";
+import { ClassSessionCard } from "@/components/classes/class-session-card";
 import { EmptyState } from "@/components/ui/empty-state";
 import { HorizontalScrollCarousel } from "@/components/ui/horizontal-scroll-carousel";
 import type { ManagerClassSessionRow } from "@/types/manager-class-session";

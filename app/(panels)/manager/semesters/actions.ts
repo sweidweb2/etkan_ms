@@ -8,11 +8,11 @@ import { ROUTES } from "@/lib/constants/routes";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { revalidatePath } from "next/cache";
 import { parseAssignSemestersToTeamFormData } from "@/lib/validators/manager/assign-semesters-to-team";
-import { parseCreatePhaseFormData } from "@/lib/validators/manager/create-phase";
+import { parseCreateSemesterFormData } from "@/lib/validators/manager/create-semester";
 import { parseCreateSemesterTeamFormData } from "@/lib/validators/manager/create-semester-team";
 import { parseReorderSemesterTeamsFormData } from "@/lib/validators/manager/reorder-semester-teams";
 import { parseSaveSemesterBoardFormData } from "@/lib/validators/manager/save-semester-board";
-import { parseUpdatePhaseFormData } from "@/lib/validators/manager/update-phase";
+import { parseUpdateSemesterFormData } from "@/lib/validators/manager/update-semester";
 import {
   createSemesterForManager,
   updateSemesterForManager,
@@ -26,7 +26,7 @@ import {
 import type {
   CreateSemesterActionState,
   UpdateSemesterActionState,
-} from "@/types/manager-phase";
+} from "@/types/manager-semester";
 import type {
   AssignSemestersToTeamActionState,
   CreateSemesterTeamActionState,
@@ -40,7 +40,7 @@ export async function createSemesterAction(
 ): Promise<CreateSemesterActionState> {
   const actor = await getSessionAuditActor();
 
-  const parsed = parseCreatePhaseFormData(formData);
+  const parsed = parseCreateSemesterFormData(formData);
 
   if (!parsed.success) {
     return {
@@ -81,7 +81,7 @@ export async function updateSemesterAction(
 ): Promise<UpdateSemesterActionState> {
   const actor = await getSessionAuditActor();
 
-  const parsed = parseUpdatePhaseFormData(formData);
+  const parsed = parseUpdateSemesterFormData(formData);
 
   if (!parsed.success) {
     return {

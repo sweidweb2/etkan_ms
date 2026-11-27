@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { HashIcon, PencilIcon } from "lucide-react";
 import { Can } from "@/components/auth/can";
-import { EditPhaseDialog } from "@/components/manager/phases/edit-phase-dialog";
+import { EditSemesterDialog } from "@/components/manager/semesters/edit-semester-dialog";
 import {
   GRID_CARD_ACTION_BUTTON_CLASS_NAME,
   GridCardBody,
@@ -15,54 +15,56 @@ import { FrostedGlassCard } from "@/components/ui/frosted-glass-card";
 import { PERMISSIONS } from "@/lib/constants/permissions";
 import { getManagerSemesterDetailRoute } from "@/lib/constants/routes";
 import { cn } from "@/lib/utils";
-import type { ManagerSemesterRow } from "@/types/manager-phase";
+import type { ManagerSemesterRow } from "@/types/manager-semester";
 
-type PhaseCardProps = {
-  phase: ManagerSemesterRow;
+type SemesterCardProps = {
+  semester: ManagerSemesterRow;
   /** When false, the card body is not a link (kanban drag surface). */
   linkToDetail?: boolean;
   className?: string;
 };
 
-export function PhaseCard({
-  phase: initialPhase,
+export function SemesterCard({
+  semester: initialSemester,
   linkToDetail = true,
   className,
-}: PhaseCardProps) {
-  const [phase, setPhase] = useState(initialPhase);
-  const [prevPhase, setPrevPhase] = useState(initialPhase);
+}: SemesterCardProps) {
+  const [semester, setSemester] = useState(initialSemester);
+  const [prevSemester, setPrevSemester] = useState(initialSemester);
   const [isEditOpen, setIsEditOpen] = useState(false);
 
-  if (initialPhase !== prevPhase) {
-    setPrevPhase(initialPhase);
-    setPhase(initialPhase);
+  if (initialSemester !== prevSemester) {
+    setPrevSemester(initialSemester);
+    setSemester(initialSemester);
   }
 
-  const href = getManagerSemesterDetailRoute(phase.id);
+  const href = getManagerSemesterDetailRoute(semester.id);
 
   return (
     <>
       {isEditOpen ? (
-        <EditPhaseDialog
+        <EditSemesterDialog
           open={isEditOpen}
           onOpenChange={setIsEditOpen}
-          semester={phase}
-          onSemesterUpdated={setPhase}
+          semester={semester}
+          onSemesterUpdated={setSemester}
         />
       ) : null}
       <FrostedGlassCard
         href={linkToDetail ? href : undefined}
-        hrefAriaLabel={linkToDetail ? `View semester ${phase.name}` : undefined}
+        hrefAriaLabel={
+          linkToDetail ? `View semester ${semester.name}` : undefined
+        }
         className={cn(className)}
       >
-        <GridCardBody title={phase.name} />
+        <GridCardBody title={semester.name} />
         <GridCardFooter
           meta={
             <>
               <HashIcon className="size-3.5 shrink-0" aria-hidden />
               <span className="sr-only">Semester code</span>
               <span className="truncate font-mono font-medium tracking-wider text-foreground tabular-nums">
-                {phase.semester_code}
+                {semester.semester_code}
               </span>
             </>
           }
@@ -74,7 +76,7 @@ export function PhaseCard({
                   variant="outline"
                   size="icon-sm"
                   className={GRID_CARD_ACTION_BUTTON_CLASS_NAME}
-                  aria-label={`Edit semester ${phase.name}`}
+                  aria-label={`Edit semester ${semester.name}`}
                   onPointerDown={(event) => {
                     event.stopPropagation();
                   }}
@@ -95,7 +97,7 @@ export function PhaseCard({
               >
                 <GridCardViewButton
                   href={href}
-                  label={`View semester ${phase.name}`}
+                  label={`View semester ${semester.name}`}
                 />
               </span>
             </>

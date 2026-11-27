@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { parseConnectSemesterClassFormData } from "@/lib/validators/manager/connect-semester-class";
-import { parseCreatePhaseFormData } from "@/lib/validators/manager/create-phase";
+import { parseCreateSemesterFormData } from "@/lib/validators/manager/create-semester";
 import { parseCreateSessionTaskFormData } from "@/lib/validators/manager/create-session-task";
 import { parseUpdateSessionTaskFormData } from "@/lib/validators/manager/update-session-task";
 import { parseCreateSubjectFormData } from "@/lib/validators/manager/create-subject";
@@ -72,12 +72,12 @@ describe("parseCreateSubjectFormData", () => {
   });
 });
 
-describe("parseCreatePhaseFormData", () => {
+describe("parseCreateSemesterFormData", () => {
   it("parses valid semester form data", () => {
     const formData = new FormData();
     formData.set("name", "Fall 2026 Core Semester");
 
-    const result = parseCreatePhaseFormData(formData);
+    const result = parseCreateSemesterFormData(formData);
 
     expect(result).toEqual({
       success: true,
@@ -92,7 +92,7 @@ describe("parseCreatePhaseFormData", () => {
     const valid = new FormData();
     valid.set("name", "Fall 2026 Core Semester");
     valid.set("semester_code", "0427");
-    expect(parseCreatePhaseFormData(valid)).toEqual({
+    expect(parseCreateSemesterFormData(valid)).toEqual({
       success: true,
       data: { name: "Fall 2026 Core Semester", semester_code: "0427" },
     });
@@ -100,7 +100,7 @@ describe("parseCreatePhaseFormData", () => {
     const invalid = new FormData();
     invalid.set("name", "Fall 2026 Core Semester");
     invalid.set("semester_code", "42a");
-    const result = parseCreatePhaseFormData(invalid);
+    const result = parseCreateSemesterFormData(invalid);
     expect(result.success).toBe(false);
     if (!result.success) {
       expect(result.fieldErrors?.semester_code).toBeDefined();
@@ -111,7 +111,7 @@ describe("parseCreatePhaseFormData", () => {
     const formData = new FormData();
     formData.set("name", "");
 
-    const result = parseCreatePhaseFormData(formData);
+    const result = parseCreateSemesterFormData(formData);
 
     expect(result.success).toBe(false);
     if (!result.success) {

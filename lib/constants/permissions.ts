@@ -249,6 +249,7 @@ export const PERMISSIONS = {
   ACCOUNTING_PAYMENTS_UPDATE: "accounting.payments.update",
   ACCOUNTING_PAYMENTS_DELETE: "accounting.payments.delete",
   ACCOUNTING_DROP_REFUNDS_PROCESS: "accounting.drop_refunds.process",
+  ACCOUNTING_DROP_REFUNDS_WAIVE: "accounting.drop_refunds.waive",
   ACCOUNTING_ADJUSTMENTS_CREATE: "accounting.adjustments.create",
   ACCOUNTING_ADJUSTMENTS_UPDATE: "accounting.adjustments.update",
   ACCOUNTING_ADJUSTMENTS_DELETE: "accounting.adjustments.delete",
@@ -1189,6 +1190,12 @@ export const PERMISSION_DEFINITIONS: readonly PermissionDefinition[] = [
     key: PERMISSIONS.ACCOUNTING_DROP_REFUNDS_PROCESS,
     feature: "accounting",
     label: "Process drop semester refund",
+    access: PERMISSION_ACCESS.WRITE,
+  },
+  {
+    key: PERMISSIONS.ACCOUNTING_DROP_REFUNDS_WAIVE,
+    feature: "accounting",
+    label: "Waive / dismiss drop semester refund",
     access: PERMISSION_ACCESS.WRITE,
   },
   {

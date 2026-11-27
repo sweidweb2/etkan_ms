@@ -544,6 +544,17 @@ export async function updateStudentPaymentWithRecalc(
   };
 }
 
+/** Debit payments linked to a semester drop refund. */
+export async function listDropRefundDebitPayments(client: Supabase) {
+  return client
+    .from("student_payments")
+    .select(PAYMENT_COLUMNS)
+    .eq("type", "debit")
+    .not("semester_drop_request_id", "is", null)
+    .order("payment_date", { ascending: false })
+    .order("created_at", { ascending: false });
+}
+
 export async function deleteStudentPaymentWithRecalc(
   client: Supabase,
   id: string,
