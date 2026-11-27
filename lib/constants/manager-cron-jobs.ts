@@ -113,6 +113,29 @@ export const MANAGER_CRON_JOBS: ManagerCronJobRow[] = [
     manual_run:
       "select public.run_weekly_database_sql_backup(); — or npm run backup:database",
   },
+  {
+    id: "task-attachment-clone-drain",
+    job_name: "task-attachment-clone-drain",
+    schedule: "*/15 * * * *",
+    schedule_label: "Every 15 minutes (HTTP safety net)",
+    frequency: CRON_JOB_FREQUENCIES.OTHER,
+    status: CRON_JOB_STATUSES.ACTIVE,
+    summary:
+      "Drain pending class-task attachment clone jobs if request-scoped processing stalled.",
+    description:
+      "Safety net: POST /api/cron/task-attachment-clone with Bearer CRON_SECRET. Requeues stale running/failed jobs and copies remaining subject-task files onto class tasks. Primary processing runs after class-task clone via scheduleAfterResponse (+ 2s backup kick). pg_cron calls public.run_task_attachment_clone_drain() every 5 minutes (URL derived from vault database_backup_cron_url).",
+    function_name: "public.run_task_attachment_clone_drain",
+    tables: [
+      "task_attachment_clone_jobs",
+      "task_attachments",
+      "storage.buckets/task-attachments",
+    ],
+    migration: "20261128030000_cron_task_attachment_clone_drain.sql",
+    verify_hint:
+      "curl -X POST \"$APP_URL/api/cron/task-attachment-clone\" -H \"Authorization: Bearer $CRON_SECRET\"; select status, count(*) from task_attachment_clone_jobs group by status;",
+    manual_run:
+      "select public.run_task_attachment_clone_drain(); or POST /api/cron/task-attachment-clone with Authorization: Bearer $CRON_SECRET",
+  },
 ];
 
 export function getManagerCronJobsCatalog(): ManagerCronJobRow[] {

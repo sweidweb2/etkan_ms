@@ -59,6 +59,11 @@ vi.mock("@/lib/rate-limit/public-financial-form-rate-limit");
 vi.mock("@/lib/utils/local-iso-date", () => ({
   getLocalIsoDate: () => "2026-09-02",
 }));
+vi.mock("@/lib/ops/logger", () => ({
+  logOpsInfo: vi.fn(),
+  logOpsWarn: vi.fn(),
+  logOpsError: vi.fn(),
+}));
 vi.mock("@/services/ops/audit-log.service", () => ({
   recordManagerAuditLog: vi.fn().mockResolvedValue(null),
 }));

@@ -1,4 +1,5 @@
 import { AUTH_RATE_LIMITS } from "@/lib/constants/auth-limits";
+import { logOpsWarn } from "@/lib/ops/logger";
 import {
   consumeRateLimit,
   formatRetryAfter,
@@ -32,6 +33,12 @@ export async function checkAuthRateLimit(
   if (result.allowed) {
     return { allowed: true };
   }
+
+  logOpsWarn("auth-rate-limit", `Blocked ${kind} attempts`, {
+    kind,
+    ip,
+    retryAfterMs: result.retryAfterMs,
+  });
 
   return {
     allowed: false,

@@ -9,6 +9,7 @@ import * as sessionRepository from "@/repositories/session.repository";
 import * as studentCourseGradeRepository from "@/repositories/student-course-grade.repository";
 import * as studentTaskRepository from "@/repositories/student-task.repository";
 import * as classTaskRepository from "@/repositories/class-task.repository";
+import * as studentProfileRepository from "@/repositories/student-profile.repository";
 import * as classService from "@/services/classes/class.service";
 import {
   getStudentClassGradeDetailForManager,
@@ -21,9 +22,11 @@ vi.mock("@/repositories/session.repository");
 vi.mock("@/repositories/student-course-grade.repository");
 vi.mock("@/repositories/student-task.repository");
 vi.mock("@/repositories/class-task.repository");
+vi.mock("@/repositories/student-profile.repository");
 vi.mock("@/services/classes/class.service", () => ({
   assertClassGradesUnlockedForManager: vi.fn(),
   listClassStudentsForManager: vi.fn(),
+  fetchClassStudentRowForManager: vi.fn(),
 }));
 
 
@@ -202,6 +205,23 @@ describe("getStudentClassGradeDetailForManager", () => {
       classRow,
     });
 
+    vi.mocked(studentProfileRepository.findStudentProfileById).mockResolvedValue({
+      data: {
+        id: studentProfileId,
+        user_id: studentUserId,
+        full_name: "Sara Ahmed",
+        birth_date: null,
+        phone: null,
+        status: "active",
+        created_at: "2026-01-01T00:00:00.000Z",
+      },
+      error: null,
+    } as never);
+
+    vi.mocked(classService.fetchClassStudentRowForManager).mockResolvedValue(
+      enrolledStudent
+    );
+
     vi.mocked(classService.listClassStudentsForManager).mockResolvedValue([
       enrolledStudent,
     ]);
@@ -209,6 +229,26 @@ describe("getStudentClassGradeDetailForManager", () => {
 
   it("returns null when the student is not enrolled", async () => {
     mockGradeContext();
+    vi.mocked(classService.fetchClassStudentRowForManager).mockResolvedValue(
+      null
+    );
+
+    const result = await getStudentClassGradeDetailForManager(
+      adminClient,
+      actorUserId,
+      classId,
+      studentProfileId
+    );
+
+    expect(result).toBeNull();
+  });
+
+  it("returns null when the student profile is missing", async () => {
+    mockGradeContext();
+    vi.mocked(studentProfileRepository.findStudentProfileById).mockResolvedValue({
+      data: null,
+      error: null,
+    } as never);
 
     const result = await getStudentClassGradeDetailForManager(
       adminClient,
@@ -467,6 +507,12 @@ describe("listComputedStudentGradeSheetBundlesForManager", () => {
       classId
     );
 
+    expect(classService.listClassStudentsForManager).toHaveBeenCalledWith(
+      adminClient,
+      actorUserId,
+      classId,
+      { includeRemoveEligibility: false }
+    );
     expect(result.bundles).toHaveLength(1);
     expect(result.bundles[0]?.student.full_name).toBe("Sara Ahmed");
     expect(result.bundles[0]?.gradeRow.is_computed).toBe(true);

@@ -43,6 +43,11 @@ vi.mock("@/services/students/student.service", () => ({
 vi.mock("@/services/ops/audit-log.service", () => ({
   recordManagerAuditLog: vi.fn().mockResolvedValue(null),
 }));
+vi.mock("@/lib/ops/logger", () => ({
+  logOpsWarn: vi.fn(),
+  logOpsError: vi.fn(),
+  logOpsInfo: vi.fn(),
+}));
 vi.mock("@/services/auth/authorization.service", () => ({
   UNAUTHORIZED_MESSAGE: "Unauthorized.",
   assertPermission: vi.fn(async (_c, userId) => {

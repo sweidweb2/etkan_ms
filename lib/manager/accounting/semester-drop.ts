@@ -15,7 +15,7 @@ import {
  * Migrations: `20261031150000_semester_drop_requests.sql`,
  * `20261031160000_drop_adjusted_required_and_spp_locks.sql`,
  * `20261127232000_semester_drop_leave_all_active_classes.sql`,
- * `20261127235000_semester_drop_restriction_modes.sql`.
+ * `20261127235100_semester_drop_restriction_modes.sql`.
  *
  * Use these helpers for previews, docs, and unit tests — not as a second
  * write path.

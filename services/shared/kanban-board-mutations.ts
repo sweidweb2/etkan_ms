@@ -163,15 +163,18 @@ export async function saveKanbanBoardForManager<TPlacement>(options: {
   }
 
   const placements = options.buildPlacements(columns);
-  if (placements.length === 0) {
-    return { success: true, message: "Board unchanged." };
-  }
 
+  // Validate before the empty short-circuit so a partial/empty payload cannot
+  // skip a required full-board partition check.
   if (options.validatePlacements) {
     const validationError = await options.validatePlacements(placements);
     if (validationError) {
       return validationError;
     }
+  }
+
+  if (placements.length === 0) {
+    return { success: true, message: "Board unchanged." };
   }
 
   const { error } = await options.updatePositions(placements);

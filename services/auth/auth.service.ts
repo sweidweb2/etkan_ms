@@ -14,6 +14,7 @@ import * as authRepository from "@/repositories/auth.repository";
 import * as profileRepository from "@/repositories/profile.repository";
 import { ROLES, type RoleValue } from "@/lib/constants/roles";
 import { isNavTimingEnabled, navTimingServerLog } from "@/lib/debug/nav-timing";
+import { logOpsError, logOpsWarn } from "@/lib/ops/logger";
 import { ensureStudentRegistration } from "@/services/auth/profile.service";
 import { getEffectivePermissionsForUserCached } from "@/services/auth/authorization.service";
 import {
@@ -30,6 +31,19 @@ type Supabase = SupabaseClient<Database>;
 
 const MAINTENANCE_LOGIN_ERROR =
   "The app is under maintenance. Please try again later.";
+
+/** Truncate local-part for ops logs — never log full email or passwords. */
+function redactEmailForOps(email: string): string {
+  const trimmed = email.trim().toLowerCase();
+  const at = trimmed.indexOf("@");
+  if (at <= 0) {
+    return trimmed.slice(0, 2) + "***";
+  }
+  const local = trimmed.slice(0, at);
+  const domain = trimmed.slice(at + 1);
+  const visible = local.slice(0, Math.min(2, local.length));
+  return `${visible}***@${domain}`;
+}
 
 /**
  * Block every role except manager at session-create time only (login,
@@ -112,9 +126,13 @@ export async function login(
   const signInMs = debugOn ? performance.now() - signInStart : 0;
 
   if (error || !data.user) {
+    const mapped = mapAuthError(error?.message ?? "Sign in failed.");
+    logOpsWarn("auth.login", mapped, {
+      email: redactEmailForOps(parsed.data.email),
+    });
     return {
       success: false,
-      error: mapAuthError(error?.message ?? "Sign in failed."),
+      error: mapped,
     };
   }
 
@@ -143,6 +161,10 @@ export async function login(
   const maintenanceError = await rejectIfMaintenanceBlocksRole(client, role);
   if (maintenanceError) {
     await authRepository.signOut(client);
+    logOpsWarn("auth.login", maintenanceError, {
+      email: redactEmailForOps(parsed.data.email),
+      role,
+    });
     return {
       success: false,
       error: maintenanceError,
@@ -282,9 +304,13 @@ export async function register(
   );
 
   if (signUpError || !authData.user) {
+    const mapped = mapSignupError(signUpError?.message ?? "Sign up failed.");
+    logOpsWarn("auth.register", mapped, {
+      email: redactEmailForOps(email),
+    });
     return {
       success: false,
-      error: mapSignupError(signUpError?.message ?? "Sign up failed."),
+      error: mapped,
     };
   }
 
@@ -300,8 +326,28 @@ export async function register(
     });
     await syncAuthUserRole(adminClient, authUserId, ROLES.STUDENT);
   } catch (err) {
-    await authRepository.deleteAuthUser(adminClient, authUserId);
     const message = err instanceof Error ? err.message : "Registration failed.";
+    const { error: deleteError } = await authRepository.deleteAuthUser(
+      adminClient,
+      authUserId
+    );
+    if (deleteError) {
+      logOpsError("auth.register.rollbackAuth", deleteError, {
+        userId: authUserId,
+        note: "Auth account may be orphaned after failed registration.",
+      });
+      const cleanupMessage = `${message} Cleanup of the auth account also failed; contact an admin.`;
+      logOpsWarn("auth.register", cleanupMessage, {
+        email: redactEmailForOps(email),
+      });
+      return {
+        success: false,
+        error: cleanupMessage,
+      };
+    }
+    logOpsWarn("auth.register", message, {
+      email: redactEmailForOps(email),
+    });
     return {
       success: false,
       error: message,
@@ -325,6 +371,10 @@ export async function register(
   );
   if (maintenanceError) {
     await authRepository.signOut(authClient);
+    logOpsWarn("auth.register", maintenanceError, {
+      email: redactEmailForOps(email),
+      role: ROLES.STUDENT,
+    });
     return {
       success: false,
       error: maintenanceError,

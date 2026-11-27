@@ -1,3 +1,4 @@
+import { logOpsWarn } from "@/lib/ops/logger";
 import {
   consumeRateLimit,
   formatRetryAfter,
@@ -24,6 +25,11 @@ export async function checkPublicFinancialFormSubmitRateLimit(
   if (result.allowed) {
     return { allowed: true };
   }
+
+  logOpsWarn("public-financial-form-rate-limit", "Blocked submit attempts", {
+    ip,
+    retryAfterMs: result.retryAfterMs,
+  });
 
   return {
     allowed: false,

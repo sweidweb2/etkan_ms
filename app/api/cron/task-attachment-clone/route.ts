@@ -1,30 +1,19 @@
 import { NextResponse } from "next/server";
+import { isCronRequestAuthorized } from "@/lib/ops/cron-auth";
+import { logOpsError, logOpsWarn } from "@/lib/ops/logger";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { processPendingTaskAttachmentCloneJobs } from "@/services/classes/task-attachment-clone.service";
 
 export const runtime = "nodejs";
 export const maxDuration = 300;
 
-function isAuthorized(request: Request): boolean {
-  const secret = process.env.CRON_SECRET?.trim();
-  if (!secret) {
-    return false;
-  }
-
-  const header = request.headers.get("authorization");
-  if (!header?.startsWith("Bearer ")) {
-    return false;
-  }
-
-  return header.slice("Bearer ".length) === secret;
-}
-
 /**
  * Drain pending task-attachment clone jobs (safety net for request-scoped
  * after-response processing). Secured with `Authorization: Bearer $CRON_SECRET`.
  */
 export async function POST(request: Request) {
-  if (!isAuthorized(request)) {
+  if (!isCronRequestAuthorized(request)) {
+    logOpsWarn("cron/task-attachment-clone", "Unauthorized cron request");
     return NextResponse.json({ message: "Unauthorized." }, { status: 401 });
   }
 
@@ -33,10 +22,10 @@ export async function POST(request: Request) {
     await processPendingTaskAttachmentCloneJobs(adminClient);
     return NextResponse.json({ ok: true });
   } catch (error) {
-    const message =
-      error instanceof Error
-        ? error.message
-        : "Task attachment clone processing failed.";
-    return NextResponse.json({ message }, { status: 500 });
+    logOpsError("cron/task-attachment-clone", error);
+    return NextResponse.json(
+      { message: "Task attachment clone processing failed." },
+      { status: 500 }
+    );
   }
 }

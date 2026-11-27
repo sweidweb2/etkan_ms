@@ -23,18 +23,18 @@ type ActionState = {
   success?: boolean;
 };
 
-type GroupBase = {
+export type OptimisticKanbanGroupBase = {
   id: string;
   sort_order: number;
 };
 
-type ItemBase = {
+export type OptimisticKanbanItemBase = {
   id: string;
 };
 
 export type UseOptimisticKanbanBoardOptions<
-  TItem extends ItemBase,
-  TGroup extends GroupBase,
+  TItem extends OptimisticKanbanItemBase,
+  TGroup extends OptimisticKanbanGroupBase,
   TBoardState extends ActionState,
   TReorderState extends ActionState,
 > = {
@@ -61,8 +61,8 @@ export type UseOptimisticKanbanBoardOptions<
 };
 
 export type UseOptimisticKanbanBoardResult<
-  TItem extends ItemBase,
-  TGroup extends GroupBase,
+  TItem extends OptimisticKanbanItemBase,
+  TGroup extends OptimisticKanbanGroupBase,
 > = {
   isPending: boolean;
   mounted: boolean;
@@ -90,15 +90,17 @@ export type UseOptimisticKanbanBoardResult<
   getColumnItems: (columnId: string) => TItem[];
 };
 
-function sortedGroupIds<TGroup extends GroupBase>(groups: readonly TGroup[]) {
+function sortedGroupIds<TGroup extends OptimisticKanbanGroupBase>(
+  groups: readonly TGroup[]
+) {
   return [...groups]
     .sort((left, right) => left.sort_order - right.sort_order)
     .map((group) => group.id);
 }
 
 export function useOptimisticKanbanBoard<
-  TItem extends ItemBase,
-  TGroup extends GroupBase,
+  TItem extends OptimisticKanbanItemBase,
+  TGroup extends OptimisticKanbanGroupBase,
   TBoardState extends ActionState,
   TReorderState extends ActionState,
 >({
@@ -247,6 +249,11 @@ export function useOptimisticKanbanBoard<
 
   const persistColumns = useCallback(
     (nextColumns: BoardColumns) => {
+      // Defense in depth: search/filter mode must never persist a partial board.
+      if (!sortingEnabled) {
+        return;
+      }
+
       const nextItems = applyItemColumns(items, nextColumns);
       boardRollbackRef.current = {
         columns: columnsRef.current,
@@ -265,6 +272,7 @@ export function useOptimisticKanbanBoard<
       });
     },
     [
+      sortingEnabled,
       items,
       onItemsChange,
       applyItemColumns,
@@ -276,6 +284,10 @@ export function useOptimisticKanbanBoard<
 
   const persistGroupOrder = useCallback(
     (orderedIds: string[]) => {
+      if (!sortingEnabled) {
+        return;
+      }
+
       const nextGroups = applyGroupOrder(groups, orderedIds);
       groupsRollbackRef.current = {
         order: columnOrderRef.current,
@@ -294,6 +306,7 @@ export function useOptimisticKanbanBoard<
       });
     },
     [
+      sortingEnabled,
       groups,
       onGroupsChange,
       applyGroupOrder,

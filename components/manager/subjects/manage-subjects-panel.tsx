@@ -18,7 +18,10 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { hasPermissionInSet } from "@/lib/auth/permission-checks";
 import { PERMISSIONS } from "@/lib/constants/permissions";
-import { prependUniqueById } from "@/lib/utils/prepend-unique-by-id";
+import {
+  mergeItemsById,
+  prependUniqueById,
+} from "@/lib/utils/prepend-unique-by-id";
 import type { ManagerStageRow } from "@/types/manager-stage";
 import type { ManagerSubjectRow } from "@/types/manager-subject";
 
@@ -212,7 +215,9 @@ export function ManageSubjectsPanel({
           canDragCards={canUpdateSubjects}
           canReorderColumns={canReorderColumns}
           sortingEnabled={sortingEnabled}
-          onSubjectsChange={setSubjects}
+          onSubjectsChange={(next) => {
+            setSubjects((current) => mergeItemsById(current, next));
+          }}
           onStagesChange={setStages}
           onRequestCreateStage={() => setIsCreateStageOpen(true)}
         />

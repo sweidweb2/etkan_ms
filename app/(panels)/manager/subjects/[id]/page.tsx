@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 import { SubjectDetailsPanel } from "@/components/manager/subjects/subject-details-panel";
 import { getSessionPack } from "@/lib/auth/session";
 import { PERMISSIONS } from "@/lib/constants/permissions";
+import { logOpsWarn } from "@/lib/ops/logger";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { hasPermissionInSet } from "@/services/auth/authorization.service";
 import { listCategoriesForManager } from "@/services/classes/category.service";
@@ -31,14 +32,26 @@ export default async function ManagerSubjectDetailPage({
     PERMISSIONS.SUBJECTS_TASKS_VIEW
   );
 
+  const softEmpty = (scope: string) => (error: unknown) => {
+    logOpsWarn("manager/subjects/[id]", scope, {
+      subjectId: id,
+      error: error instanceof Error ? error.message : String(error),
+    });
+    return [];
+  };
+
   const [detail, categories, exercises, links, tasks] = await Promise.all([
     getSubjectDetailForManager(adminClient, actorUserId, id),
-    listCategoriesForManager(adminClient, actorUserId).catch(() => []),
-    listExercisesForManager(adminClient, actorUserId).catch(() => []),
+    listCategoriesForManager(adminClient, actorUserId).catch(
+      softEmpty("Categories list failed")
+    ),
+    listExercisesForManager(adminClient, actorUserId).catch(
+      softEmpty("Exercises list failed")
+    ),
     listSubjectCatalogLinksForManager(adminClient, actorUserId, id),
     canViewTasks
       ? listSubjectTasksForManager(adminClient, actorUserId, id).catch(
-          () => []
+          softEmpty("Subject tasks list failed")
         )
       : Promise.resolve([]),
   ]);

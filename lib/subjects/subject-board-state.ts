@@ -3,8 +3,6 @@ import {
   applyBoardColumns,
   applyColumnOrder,
   buildBoardColumns,
-  commitCardMove,
-  commitColumnMove,
   type BoardColumns,
 } from "@/lib/kanban/board-state";
 import type { ManagerStageRow } from "@/types/manager-stage";
@@ -42,9 +40,3 @@ export function applyStageOrder(
 ): ManagerStageRow[] {
   return applyColumnOrder(stages, orderedIds);
 }
-
-/** @deprecated Prefer `commitCardMove` from `@/lib/kanban/board-state`. */
-export const commitSubjectCardMove = commitCardMove;
-
-/** @deprecated Prefer `commitColumnMove` from `@/lib/kanban/board-state`. */
-export const commitStageColumnMove = commitColumnMove;

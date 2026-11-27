@@ -2,6 +2,7 @@ import "server-only";
 
 import { PERMISSIONS } from "@/lib/constants/permissions";
 import { UNASSIGNED_TEAM_ID } from "@/lib/constants/semester-team";
+import { assertCompleteIdPartition } from "@/lib/kanban/board-partition";
 import { assignSemestersToTeamSchema } from "@/lib/validators/manager/assign-semesters-to-team";
 import { createSemesterTeamSchema } from "@/lib/validators/manager/create-semester-team";
 import { reorderSemesterTeamsSchema } from "@/lib/validators/manager/reorder-semester-teams";
@@ -323,11 +324,16 @@ export async function saveSemesterBoardForManager(
       const knownSemesterIds = new Set(
         (listed.data ?? []).map((row) => row.id)
       );
-      if (placements.some((placement) => !knownSemesterIds.has(placement.id))) {
-        return {
-          success: false,
-          error: "One or more semesters were not found.",
-        };
+      const partition = assertCompleteIdPartition(
+        knownSemesterIds,
+        placements.map((placement) => placement.id),
+        {
+          outOfDate: "Board is out of date. Refresh and try again.",
+          notFound: "One or more semesters were not found.",
+        }
+      );
+      if (!partition.ok) {
+        return { success: false, error: partition.error };
       }
       return null;
     },

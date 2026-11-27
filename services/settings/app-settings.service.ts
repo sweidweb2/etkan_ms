@@ -12,6 +12,10 @@ import {
   assertPermission,
   getUnauthorizedError,
 } from "@/services/auth/authorization.service";
+import {
+  recordManagerAuditLog,
+  type AuditActor,
+} from "@/services/ops/audit-log.service";
 import type { FieldErrors } from "@/types/auth";
 
 export type UpdateSelfCredentialsResult =
@@ -54,6 +58,7 @@ export async function getMaintenanceModeForManager(
 
 export async function setMaintenanceModeForManager(
   actorUserId: string | null,
+  actor: AuditActor,
   enabled: boolean
 ): Promise<SetMaintenanceModeResult> {
   const adminClient = createSupabaseAdminClient();
@@ -68,6 +73,19 @@ export async function setMaintenanceModeForManager(
 
   try {
     await appSettingsRepository.setMaintenanceMode(adminClient, enabled);
+
+    await recordManagerAuditLog(adminClient, actor, {
+      action: "update",
+      severity: "critical",
+      table_name: "app_settings",
+      metadata: {
+        note: enabled
+          ? "Maintenance mode enabled."
+          : "Maintenance mode disabled.",
+        maintenance_mode: enabled,
+      },
+    });
+
     return {
       success: true,
       message: enabled
@@ -82,6 +100,7 @@ export async function setMaintenanceModeForManager(
 
 export async function updateSelfCredentialsForManager(
   actorUserId: string | null,
+  actor: AuditActor,
   input: {
     newEmail: string;
     newPassword: string;
@@ -161,6 +180,18 @@ export async function updateSelfCredentialsForManager(
       : wantsEmail
         ? "Email updated."
         : "Password updated.";
+
+  await recordManagerAuditLog(adminClient, actor, {
+    action: "update",
+    severity: "critical",
+    table_name: "auth.users",
+    record_id: actorUserId,
+    metadata: {
+      note: message,
+      email_changed: wantsEmail,
+      password_changed: wantsPassword,
+    },
+  });
 
   return { success: true, message };
 }

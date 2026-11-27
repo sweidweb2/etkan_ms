@@ -1,7 +1,7 @@
 "use server";
 
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
-import { getSessionUser } from "@/lib/auth/session";
+import { getSessionAuditActor } from "@/lib/auth/session";
 import {
   resetPasswordsByRoleForManager,
   resetUserPasswordForManager,
@@ -47,18 +47,18 @@ export async function updateMaintenanceModeAction(
   _prevState: UpdateMaintenanceModeActionState,
   formData: FormData
 ): Promise<UpdateMaintenanceModeActionState> {
-  const user = await getSessionUser();
+  const actor = await getSessionAuditActor();
   const raw = formData.get("maintenanceMode");
   const enabled = raw === "true" || raw === "1";
 
-  return setMaintenanceModeForManager(user?.id ?? null, enabled);
+  return setMaintenanceModeForManager(actor.userId, actor, enabled);
 }
 
 export async function updateSelfCredentialsAction(
   _prevState: ChangeSelfCredentialsActionState,
   formData: FormData
 ): Promise<ChangeSelfCredentialsActionState> {
-  const user = await getSessionUser();
+  const actor = await getSessionAuditActor();
 
   const rawNewEmail = formData.get("newEmail");
   const newEmail = typeof rawNewEmail === "string" ? rawNewEmail : "";
@@ -71,7 +71,7 @@ export async function updateSelfCredentialsAction(
   const confirmPassword =
     typeof rawConfirmPassword === "string" ? rawConfirmPassword : "";
 
-  return updateSelfCredentialsForManager(user?.id ?? null, {
+  return updateSelfCredentialsForManager(actor.userId, actor, {
     newEmail,
     newPassword,
     confirmPassword,
@@ -82,7 +82,7 @@ export async function resetPasswordsByRoleAction(
   _prevState: ResetPasswordsByRoleActionState,
   formData: FormData
 ): Promise<ResetPasswordsByRoleActionState> {
-  const user = await getSessionUser();
+  const actor = await getSessionAuditActor();
   const adminClient = createSupabaseAdminClient();
 
   const rawRole = formData.get("role");
@@ -90,7 +90,8 @@ export async function resetPasswordsByRoleAction(
 
   const result = await resetPasswordsByRoleForManager(
     adminClient,
-    user?.id ?? null,
+    actor.userId,
+    actor,
     { role }
   );
 
@@ -120,7 +121,7 @@ export async function resetUserPasswordAction(
   _prevState: ResetUserPasswordActionState,
   formData: FormData
 ): Promise<ResetUserPasswordActionState> {
-  const user = await getSessionUser();
+  const actor = await getSessionAuditActor();
   const adminClient = createSupabaseAdminClient();
 
   const rawUserId = formData.get("userId");
@@ -131,7 +132,8 @@ export async function resetUserPasswordAction(
 
   const result = await resetUserPasswordForManager(
     adminClient,
-    user?.id ?? null,
+    actor.userId,
+    actor,
     { userId, password }
   );
 

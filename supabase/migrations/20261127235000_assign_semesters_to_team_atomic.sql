@@ -25,7 +25,14 @@ begin
     raise exception 'team not found';
   end if;
 
-  -- Serialize assigns into the same column (null = unassigned).
+  -- Serialize assigns into the same column even when the column is empty
+  -- (row locks alone would lock zero rows and race on sort_order).
+  if p_team_id is not null then
+    perform 1 from public.semester_teams where id = p_team_id for update;
+  else
+    perform pg_advisory_xact_lock(hashtext('semesters:unassigned'));
+  end if;
+
   perform 1
   from public.semesters
   where team_id is not distinct from p_team_id
@@ -36,9 +43,13 @@ begin
   from public.semesters
   where team_id is not distinct from p_team_id;
 
-  with ordered as (
-    select id, (ordinality - 1)::integer as offset
-    from unnest(p_semester_ids) with ordinality as t(id, ordinality)
+  with unique_ids as (
+    select distinct id
+    from unnest(p_semester_ids) as t(id)
+  ),
+  ordered as (
+    select id, (row_number() over () - 1)::integer as offset
+    from unique_ids
   ),
   updated as (
     update public.semesters s
@@ -51,11 +62,11 @@ begin
   )
   select count(*)::integer into v_updated_count from updated;
 
-  if v_updated_count <> v_input_count then
+  if v_updated_count <> (select count(*)::integer from unique_ids) then
     raise exception
       'semester assign count mismatch: updated % of %',
       v_updated_count,
-      v_input_count;
+      (select count(*) from unique_ids);
   end if;
 end;
 $$;

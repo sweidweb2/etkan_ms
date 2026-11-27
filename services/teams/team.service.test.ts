@@ -18,6 +18,11 @@ vi.mock("@/repositories/team.repository");
 vi.mock("@/services/ops/audit-log.service", () => ({
   recordManagerAuditLog: vi.fn().mockResolvedValue(null),
 }));
+vi.mock("@/lib/ops/logger", () => ({
+  logOpsWarn: vi.fn(),
+  logOpsError: vi.fn(),
+  logOpsInfo: vi.fn(),
+}));
 
 vi.mock("@/services/auth/authorization.service", () => ({
   UNAUTHORIZED_MESSAGE: "Unauthorized.",
@@ -168,13 +173,18 @@ describe("releaseGuestFromTeamIfBecameClosed", () => {
         ...okResult,
       });
 
-      await releaseGuestFromTeamIfBecameClosed(adminClient, actor, {
-        guestId,
-        previousStatus,
-        nextStatus,
-        guestName: "Ada Lovelace",
-      });
+      const result = await releaseGuestFromTeamIfBecameClosed(
+        adminClient,
+        actor,
+        {
+          guestId,
+          previousStatus,
+          nextStatus,
+          guestName: "Ada Lovelace",
+        }
+      );
 
+      expect(result).toEqual({ released: true, error: null });
       expect(teamRepository.removeGuestFromTeam).toHaveBeenCalledWith(
         adminClient,
         guestId
@@ -192,25 +202,27 @@ describe("releaseGuestFromTeamIfBecameClosed", () => {
   );
 
   it("does not remove when the guest was already closed", async () => {
-    await releaseGuestFromTeamIfBecameClosed(adminClient, actor, {
+    const result = await releaseGuestFromTeamIfBecameClosed(adminClient, actor, {
       guestId,
       previousStatus: "finished",
       nextStatus: "cancelled",
       guestName: "Ada Lovelace",
     });
 
+    expect(result).toEqual({ released: false, error: null });
     expect(teamRepository.findTeamGuestByGuestId).not.toHaveBeenCalled();
     expect(teamRepository.removeGuestFromTeam).not.toHaveBeenCalled();
   });
 
   it("does not remove on open → open transitions", async () => {
-    await releaseGuestFromTeamIfBecameClosed(adminClient, actor, {
+    const result = await releaseGuestFromTeamIfBecameClosed(adminClient, actor, {
       guestId,
       previousStatus: "scheduled",
       nextStatus: "pending",
       guestName: "Ada Lovelace",
     });
 
+    expect(result).toEqual({ released: false, error: null });
     expect(teamRepository.findTeamGuestByGuestId).not.toHaveBeenCalled();
     expect(teamRepository.removeGuestFromTeam).not.toHaveBeenCalled();
   });
@@ -221,25 +233,79 @@ describe("releaseGuestFromTeamIfBecameClosed", () => {
       ...okResult,
     });
 
-    await releaseGuestFromTeamIfBecameClosed(adminClient, actor, {
+    const result = await releaseGuestFromTeamIfBecameClosed(adminClient, actor, {
       guestId,
       previousStatus: "pending",
       nextStatus: "cancelled",
       guestName: "Ada Lovelace",
     });
 
+    expect(result).toEqual({ released: false, error: null });
     expect(teamRepository.removeGuestFromTeam).not.toHaveBeenCalled();
     expect(recordManagerAuditLog).not.toHaveBeenCalled();
   });
 
+  it("returns an error when membership lookup fails", async () => {
+    vi.mocked(teamRepository.findTeamGuestByGuestId).mockResolvedValue({
+      data: null,
+      error: { message: "membership lookup failed" } as never,
+      count: null,
+      status: 500,
+      statusText: "Error",
+    });
+
+    const result = await releaseGuestFromTeamIfBecameClosed(adminClient, actor, {
+      guestId,
+      previousStatus: "pending",
+      nextStatus: "cancelled",
+      guestName: "Ada Lovelace",
+    });
+
+    expect(result).toEqual({
+      released: false,
+      error: "membership lookup failed",
+    });
+    expect(teamRepository.removeGuestFromTeam).not.toHaveBeenCalled();
+  });
+
+  it("returns an error when remove from team fails", async () => {
+    vi.mocked(teamRepository.findTeamGuestByGuestId).mockResolvedValue({
+      data: {
+        id: "membership-1",
+        team_id: teamId,
+        guest_id: guestId,
+        created_at: "2026-01-02T00:00:00.000Z",
+      },
+      ...okResult,
+    });
+    vi.mocked(teamRepository.removeGuestFromTeam).mockResolvedValue({
+      data: null,
+      error: { message: "remove failed" } as never,
+      count: null,
+      status: 500,
+      statusText: "Error",
+    });
+
+    const result = await releaseGuestFromTeamIfBecameClosed(adminClient, actor, {
+      guestId,
+      previousStatus: "pending",
+      nextStatus: "cancelled",
+      guestName: "Ada Lovelace",
+    });
+
+    expect(result).toEqual({ released: false, error: "remove failed" });
+    expect(recordManagerAuditLog).not.toHaveBeenCalled();
+  });
+
   it("does not auto-rejoin on closed → open", async () => {
-    await releaseGuestFromTeamIfBecameClosed(adminClient, actor, {
+    const result = await releaseGuestFromTeamIfBecameClosed(adminClient, actor, {
       guestId,
       previousStatus: "finished",
       nextStatus: "pending",
       guestName: "Ada Lovelace",
     });
 
+    expect(result).toEqual({ released: false, error: null });
     expect(teamRepository.findTeamGuestByGuestId).not.toHaveBeenCalled();
     expect(teamRepository.assignGuestToTeam).not.toHaveBeenCalled();
   });

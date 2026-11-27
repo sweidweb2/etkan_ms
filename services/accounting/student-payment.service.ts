@@ -15,6 +15,7 @@ import { deriveSppLocks } from "@/lib/manager/accounting/semester-drop-status";
 import { isPhaseUpfrontWindowActive } from "@/lib/manager/accounting/upfront-window";
 import { PERMISSIONS } from "@/lib/constants/permissions";
 import { createNavStepTimer } from "@/lib/debug/nav-timing";
+import { logOpsWarn } from "@/lib/ops/logger";
 import { dateRangeForYearMonth } from "@/lib/utils/iso-date-range";
 import { createStudentPaymentSchema } from "@/lib/validators/manager/create-student-payment";
 import { deleteStudentPaymentSchema } from "@/lib/validators/manager/delete-student-payment";
@@ -51,12 +52,16 @@ import type { Database } from "@/types/supabase";
 
 type Supabase = SupabaseClient<Database>;
 
+const SPP_SNAPSHOT_LOAD_WARNING =
+  "Payment saved, but the updated balance snapshot could not be loaded.";
+
 export type CreateStudentPaymentSuccess = {
   success: true;
   payment: ManagerStudentPaymentRow;
-  spp: ManagerSppFinancialSnapshot;
+  spp?: ManagerSppFinancialSnapshot;
   message: string;
   payment_phase_id: string;
+  warning?: string;
 };
 
 export type CreateStudentPaymentFailure = {
@@ -72,9 +77,10 @@ export type CreateStudentPaymentResult =
 export type UpdateStudentPaymentSuccess = {
   success: true;
   payment: ManagerStudentPaymentRow;
-  spp: ManagerSppFinancialSnapshot;
+  spp?: ManagerSppFinancialSnapshot;
   message: string;
   payment_phase_id: string;
+  warning?: string;
 };
 
 export type UpdateStudentPaymentFailure = {
@@ -92,7 +98,8 @@ export type DeleteStudentPaymentSuccess = {
   message: string;
   student_payment_phase_id: string;
   payment_phase_id: string;
-  spp: ManagerSppFinancialSnapshot;
+  spp?: ManagerSppFinancialSnapshot;
+  warning?: string;
 };
 
 export type DeleteStudentPaymentFailure = {
@@ -482,10 +489,18 @@ export async function createStudentPaymentForManager(
       )
     );
 
+    let spp: ManagerSppFinancialSnapshot | undefined;
+    let warning: string | undefined;
     if ("error" in sppAfterWrite) {
-      return { success: false, error: sppAfterWrite.error };
+      logOpsWarn(
+        "createStudentPayment.resolveSpp",
+        sppAfterWrite.error,
+        { studentPaymentPhaseId: created.student_payment_phase_id }
+      );
+      warning = SPP_SNAPSHOT_LOAD_WARNING;
+    } else {
+      spp = mapSppRecordToFinancialSnapshot(sppAfterWrite.record);
     }
-    const sppRecord = sppAfterWrite.record;
 
     await timer.step("audit", () =>
       recordManagerAuditLog(adminClient, actor, {
@@ -507,11 +522,10 @@ export async function createStudentPaymentForManager(
     return {
       success: true,
       payment: mapPaymentRecordToRow(created),
-      spp: mapSppRecordToFinancialSnapshot(
-        sppRecord as StudentPaymentPhaseRecord
-      ),
+      spp,
       message: "Payment recorded.",
       payment_phase_id: data.paymentPhaseId,
+      warning,
     };
   } finally {
     timer.end();
@@ -587,10 +601,18 @@ export async function updateStudentPaymentForManager(
     data.spp
   );
 
+  let spp: ManagerSppFinancialSnapshot | undefined;
+  let warning: string | undefined;
   if ("error" in sppAfterWrite) {
-    return { success: false, error: sppAfterWrite.error };
+    logOpsWarn(
+      "updateStudentPayment.resolveSpp",
+      sppAfterWrite.error,
+      { studentPaymentPhaseId: updated.student_payment_phase_id }
+    );
+    warning = SPP_SNAPSHOT_LOAD_WARNING;
+  } else {
+    spp = mapSppRecordToFinancialSnapshot(sppAfterWrite.record);
   }
-  const sppRecord = sppAfterWrite.record;
 
   await recordManagerAuditLog(adminClient, actor, {
     action: "update",
@@ -617,11 +639,10 @@ export async function updateStudentPaymentForManager(
   return {
     success: true,
     payment: mapPaymentRecordToRow(updated),
-    spp: mapSppRecordToFinancialSnapshot(
-      sppRecord as StudentPaymentPhaseRecord
-    ),
+    spp,
     message: "Payment updated.",
     payment_phase_id: data.paymentPhaseId,
+    warning,
   };
 }
 
@@ -708,19 +729,26 @@ export async function deleteStudentPaymentForManager(
     data.spp
   );
 
+  let spp: ManagerSppFinancialSnapshot | undefined;
+  let warning: string | undefined;
   if ("error" in sppAfterWrite) {
-    return { success: false, error: sppAfterWrite.error };
+    logOpsWarn(
+      "deleteStudentPayment.resolveSpp",
+      sppAfterWrite.error,
+      { studentPaymentPhaseId: data.studentPaymentPhaseId }
+    );
+    warning = SPP_SNAPSHOT_LOAD_WARNING;
+  } else {
+    spp = mapSppRecordToFinancialSnapshot(sppAfterWrite.record);
   }
-  const sppRecord = sppAfterWrite.record;
 
   return {
     success: true,
     message: "Payment deleted.",
     student_payment_phase_id: data.studentPaymentPhaseId,
     payment_phase_id: data.paymentPhaseId,
-    spp: mapSppRecordToFinancialSnapshot(
-      sppRecord as StudentPaymentPhaseRecord
-    ),
+    spp,
+    warning,
   };
 }
 

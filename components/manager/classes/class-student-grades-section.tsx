@@ -39,6 +39,10 @@ import {
 } from "@/lib/compute/custom-compute-form-utils";
 import { DEFAULT_CLASS_GRADE_FACTOR_WEIGHTS } from "@/lib/constants/manager-class-grade-defaults";
 import { getManagerClassStudentGradesDetailRoute } from "@/lib/constants/routes";
+import {
+  classStudentRowKey,
+  hasLinkedStudentProfile,
+} from "@/lib/manager/class-student-row-access";
 import { showErrorToast, showSuccessToast } from "@/lib/toast";
 import type { ManagerClassRow } from "@/types/manager-class-list";
 import type {
@@ -107,7 +111,7 @@ function StudentGradeNameLink({
   studentProfileId: string;
   fullName: string;
 }) {
-  if (!studentProfileId) {
+  if (!hasLinkedStudentProfile(studentProfileId)) {
     return <span className="font-medium text-foreground">{fullName}</span>;
   }
 
@@ -130,7 +134,7 @@ function StudentGradeDetailsLink({
   studentProfileId: string;
   label?: string;
 }) {
-  if (!studentProfileId) {
+  if (!hasLinkedStudentProfile(studentProfileId)) {
     return null;
   }
 
@@ -764,7 +768,7 @@ export function ClassStudentGradesSection({
                 <tbody>
                   {pendingRows.map((row) => (
                     <tr
-                      key={row.user_id}
+                      key={classStudentRowKey(row)}
                       className="border-b last:border-b-0 hover:bg-muted/20"
                     >
                       <td className="px-4 py-3">
@@ -796,7 +800,7 @@ export function ClassStudentGradesSection({
                       </td>
                       <td className="px-4 py-3">
                         <div className="flex justify-center gap-2">
-                          {row.student_profile_id ? (
+                          {hasLinkedStudentProfile(row.student_profile_id) ? (
                             <Can permission={PERMISSIONS.GRADES_COMPUTE}>
                               <Button
                                 type="button"
@@ -925,7 +929,7 @@ export function ClassStudentGradesSection({
                       <tbody>
                         {batchRows.map((row) => (
                           <tr
-                            key={`computed-${batch.id}-${row.user_id}`}
+                            key={`computed-${batch.id}-${classStudentRowKey(row)}`}
                             className="border-b last:border-b-0 hover:bg-muted/20"
                           >
                             <td className="px-4 py-3">
@@ -958,7 +962,9 @@ export function ClassStudentGradesSection({
                                   classId={classId}
                                   studentProfileId={row.student_profile_id}
                                 />
-                                {row.student_profile_id ? (
+                                {hasLinkedStudentProfile(
+                                  row.student_profile_id
+                                ) ? (
                                   <Can permission={PERMISSIONS.GRADES_DELETE}>
                                     <Button
                                       type="button"
@@ -1013,7 +1019,7 @@ export function ClassStudentGradesSection({
                 <tbody>
                   {unreadyRows.map((row) => (
                     <tr
-                      key={`unready-${row.user_id}`}
+                      key={`unready-${classStudentRowKey(row)}`}
                       className="border-b last:border-b-0 hover:bg-muted/20"
                     >
                       <td className="px-4 py-3">

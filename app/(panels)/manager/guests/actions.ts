@@ -193,6 +193,7 @@ export async function changeGuestStatusAction(
     mapSuccess: (result) => ({
       success: true,
       message: result.message,
+      warning: result.warning,
       guest: result.guest,
       statusEvents: result.statusEvents,
     }),
@@ -214,6 +215,7 @@ export async function recordGuestStatusesAction(
     mapSuccess: (result) => ({
       success: true,
       message: result.message,
+      warning: result.warning,
       guest: result.guest,
       statusEvents: result.statusEvents,
     }),
@@ -235,6 +237,7 @@ export async function setGuestProfileStatusAction(
     mapSuccess: (result) => ({
       success: true,
       message: result.message,
+      warning: result.warning,
       guest: result.guest,
     }),
   });

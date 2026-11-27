@@ -612,15 +612,6 @@ export async function submitGuestRegistrationForManager(
     return finalized;
   }
 
-  await recordManagerAuditLog(adminClient, actor, {
-    action: "insert",
-    severity: "info",
-    table_name: "student_registration_applications",
-    record_id: submitResult.id,
-    new_data: { guest_id: guestId },
-    metadata: { note: "Guest registration submitted by staff." },
-  });
-
   return {
     success: true,
     message: "Guest registration submitted.",

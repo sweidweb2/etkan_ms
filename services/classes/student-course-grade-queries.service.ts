@@ -65,14 +65,27 @@ export async function getStudentClassGradeDetailForManager(
     throw new Error(guard.error);
   }
 
-  const [students, context] = await Promise.all([
-    listClassStudentsForManager(adminClient, actorUserId, classId),
+  const profileResult = await studentProfileRepository.findStudentProfileById(
+    adminClient,
+    studentProfileId
+  );
+
+  if (profileResult.error) {
+    throw new Error(profileResult.error.message);
+  }
+
+  if (!profileResult.data) {
+    return null;
+  }
+
+  const [student, context] = await Promise.all([
+    fetchClassStudentRowForManager(
+      adminClient,
+      classId,
+      profileResult.data.user_id
+    ),
     loadClassGradeContext(adminClient, classId),
   ]);
-
-  const student = students.find(
-    (row) => row.student_profile_id === studentProfileId
-  );
 
   if (!student) {
     return null;
@@ -217,7 +230,9 @@ export async function listComputedStudentGradeSheetBundlesForManager(
   }
 
   const [students, context] = await Promise.all([
-    listClassStudentsForManager(adminClient, actorUserId, classId),
+    listClassStudentsForManager(adminClient, actorUserId, classId, {
+      includeRemoveEligibility: false,
+    }),
     loadClassGradeContext(adminClient, classId),
   ]);
 
@@ -272,7 +287,9 @@ export async function listClassStudentGradesForManager(
   await assertPermission(adminClient, actorUserId, PERMISSIONS.GRADES_VIEW);
 
   const [students, context] = await Promise.all([
-    listClassStudentsForManager(adminClient, actorUserId, classId),
+    listClassStudentsForManager(adminClient, actorUserId, classId, {
+      includeRemoveEligibility: false,
+    }),
     loadClassGradeContext(adminClient, classId),
   ]);
 
@@ -315,7 +332,9 @@ export async function loadClassGradesPageData(
   }
 
   const [students, context] = await Promise.all([
-    listClassStudentsForManager(adminClient, actorUserId, classId),
+    listClassStudentsForManager(adminClient, actorUserId, classId, {
+      includeRemoveEligibility: false,
+    }),
     loadClassGradeContext(adminClient, classId),
   ]);
 

@@ -1,6 +1,7 @@
 import "server-only";
 
 import { GUEST_CURRENT_STATUSES } from "@/lib/constants/guest";
+import { logOpsError } from "@/lib/ops/logger";
 import * as teamRepository from "@/repositories/team.repository";
 import {
   recordManagerAuditLog,
@@ -41,22 +42,32 @@ export async function releaseGuestFromTeamIfBecameClosed(
     nextStatus: string;
     guestName?: string;
   }
-): Promise<void> {
+): Promise<{ released: boolean; error: string | null }> {
   const { guestId, previousStatus, nextStatus, guestName } = input;
 
   if (
     isClosedGuestStatus(previousStatus) ||
     !isClosedGuestStatus(nextStatus)
   ) {
-    return;
+    return { released: false, error: null };
   }
 
   const membership = await teamRepository.findTeamGuestByGuestId(
     adminClient,
     guestId
   );
-  if (membership.error || !membership.data) {
-    return;
+  if (membership.error) {
+    const message =
+      membership.error.message || "Unable to look up guest team membership.";
+    logOpsError("releaseGuestFromTeam.membership", membership.error, {
+      guestId,
+      previousStatus,
+      nextStatus,
+    });
+    return { released: false, error: message };
+  }
+  if (!membership.data) {
+    return { released: false, error: null };
   }
 
   const { error } = await teamRepository.removeGuestFromTeam(
@@ -64,7 +75,14 @@ export async function releaseGuestFromTeamIfBecameClosed(
     guestId
   );
   if (error) {
-    return;
+    const message = error.message || "Unable to release guest from team.";
+    logOpsError("releaseGuestFromTeam.remove", error, {
+      guestId,
+      teamId: membership.data.team_id,
+      previousStatus,
+      nextStatus,
+    });
+    return { released: false, error: message };
   }
 
   const label = guestName?.trim() || "Guest";
@@ -81,4 +99,6 @@ export async function releaseGuestFromTeamIfBecameClosed(
       note: `${label} released from team after profile became ${nextStatus}.`,
     },
   });
+
+  return { released: true, error: null };
 }

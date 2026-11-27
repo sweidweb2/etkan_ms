@@ -48,6 +48,7 @@ import {
   formatGroupGradeLevelTick,
   GROUP_GRADE_LEVEL_Y_TICKS,
 } from "@/lib/manager/class-group-grade-analytics";
+import { hasLinkedStudentProfile } from "@/lib/manager/class-student-row-access";
 import { buildStudentClassGradeSheetModel } from "@/lib/manager/student-class-grade-sheet";
 import { DEFAULT_CLASS_GRADE_FACTOR_WEIGHTS } from "@/lib/constants/manager-class-grade-defaults";
 import {
@@ -756,7 +757,7 @@ export function StudentClassGradeDetailsPanel({
         </BreadcrumbList>
       </Breadcrumb>
 
-      {student.student_profile_id ? (
+      {hasLinkedStudentProfile(student.student_profile_id) ? (
         <div className="flex flex-wrap items-center justify-end gap-2 empty:hidden">
           <Button
             render={

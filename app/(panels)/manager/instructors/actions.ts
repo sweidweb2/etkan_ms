@@ -116,6 +116,7 @@ export async function removeInstructorAction(
   const result = await removeInstructorForManager(
     adminClient,
     actor.userId,
+    actor,
     userId
   );
 
@@ -149,6 +150,7 @@ export async function addInstructorsAction(
   const result = await addInstructorsForManager(
     adminClient,
     actor.userId,
+    actor,
     parsed.data
   );
 

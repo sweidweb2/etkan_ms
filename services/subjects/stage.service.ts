@@ -2,6 +2,7 @@ import "server-only";
 
 import { PERMISSIONS } from "@/lib/constants/permissions";
 import { UNASSIGNED_STAGE_ID } from "@/lib/constants/subject-stage";
+import { assertCompleteIdPartition } from "@/lib/kanban/board-partition";
 import { createStageSchema } from "@/lib/validators/manager/create-stage";
 import { assignSubjectsToStageSchema } from "@/lib/validators/manager/assign-subjects-to-stage";
 import { reorderStagesSchema } from "@/lib/validators/manager/reorder-stages";
@@ -340,6 +341,30 @@ export async function saveSubjectBoardForManager(
       }
 
       return placements;
+    },
+    validatePlacements: async (placements) => {
+      const listed = await subjectRepository.listSubjects(adminClient);
+      if (listed.error) {
+        return {
+          success: false,
+          error: "Unable to save board. Please try again.",
+        };
+      }
+      const knownSubjectIds = new Set(
+        (listed.data ?? []).map((row) => row.id)
+      );
+      const partition = assertCompleteIdPartition(
+        knownSubjectIds,
+        placements.map((placement) => placement.id),
+        {
+          outOfDate: "Board is out of date. Refresh and try again.",
+          notFound: "One or more subjects were not found.",
+        }
+      );
+      if (!partition.ok) {
+        return { success: false, error: partition.error };
+      }
+      return null;
     },
     updatePositions: (placements) =>
       subjectRepository.updateSubjectBoardPositions(adminClient, placements),

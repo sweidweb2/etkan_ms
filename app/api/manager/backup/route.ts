@@ -5,6 +5,7 @@ import {
   createBackupFilename,
   serializeBackupExport,
 } from "@/lib/export/backup-serialize";
+import { logOpsError } from "@/lib/ops/logger";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { createSupabaseServerActionClient } from "@/lib/supabase/server";
 import { parseBackupExportFormat } from "@/lib/validators/manager/backup-export";
@@ -143,6 +144,10 @@ export async function GET(request: Request) {
 
     return createBackupFileResponse(file.body, file.contentType, fileName);
   } catch (error) {
+    logOpsError("api/manager/backup", error, {
+      userId: user.id,
+      tableName,
+    });
     const message =
       error instanceof Error ? error.message : "Unable to export backup.";
 

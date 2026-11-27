@@ -3,6 +3,7 @@ import * as authRepository from "@/repositories/auth.repository";
 import * as emailSentRepository from "@/repositories/email-sent.repository";
 import * as emailUsersRepository from "@/repositories/email-users.repository";
 import * as profileRepository from "@/repositories/profile.repository";
+import * as auditLogService from "@/services/ops/audit-log.service";
 import type { AuditActor } from "@/services/ops/audit-log.service";
 import {
   resendSentEmailForManager,
@@ -20,6 +21,9 @@ vi.mock("@/repositories/auth.repository");
 vi.mock("@/repositories/profile.repository");
 vi.mock("@/repositories/email-sent.repository");
 vi.mock("@/repositories/email-users.repository");
+vi.mock("@/services/ops/audit-log.service", () => ({
+  recordManagerAuditLog: vi.fn().mockResolvedValue(null),
+}));
 
 vi.mock("@/services/auth/authorization.service", () => ({
   getUnauthorizedError: vi.fn(async (_c, userId) =>
@@ -108,6 +112,19 @@ describe("sendEmailsForManager", () => {
     const rows = vi.mocked(emailUsersRepository.insertEmailUsers).mock.calls[0][1];
     expect(rows).toHaveLength(2);
     expect(rows.every((row) => row.emailSentId === "sent-1")).toBe(true);
+    expect(auditLogService.recordManagerAuditLog).toHaveBeenCalledWith(
+      adminClient,
+      actor,
+      expect.objectContaining({
+        action: "other",
+        table_name: "email_sent",
+        record_id: "sent-1",
+        metadata: expect.objectContaining({
+          recipient_count: 2,
+          subject: "Hello",
+        }),
+      })
+    );
   });
 });
 
@@ -144,11 +161,16 @@ describe("resendSentEmailForManager", () => {
   });
 
   it("persists all resend delivery rows in one batch", async () => {
-    const result = await resendSentEmailForManager(adminClient, actor.userId, {
-      emailSentId: "sent-1",
-      userIds,
-      toEmails: [],
-    });
+    const result = await resendSentEmailForManager(
+      adminClient,
+      actor.userId,
+      actor,
+      {
+        emailSentId: "sent-1",
+        userIds,
+        toEmails: [],
+      }
+    );
 
     expect(result.success).toBe(true);
     expect(mailtrapSend).toHaveBeenCalledTimes(2);
@@ -156,5 +178,18 @@ describe("resendSentEmailForManager", () => {
 
     const rows = vi.mocked(emailUsersRepository.insertEmailUsers).mock.calls[0][1];
     expect(rows).toHaveLength(2);
+    expect(auditLogService.recordManagerAuditLog).toHaveBeenCalledWith(
+      adminClient,
+      actor,
+      expect.objectContaining({
+        action: "other",
+        table_name: "email_sent",
+        metadata: expect.objectContaining({
+          recipient_count: 2,
+          subject: "Hello",
+          resent: true,
+        }),
+      })
+    );
   });
 });

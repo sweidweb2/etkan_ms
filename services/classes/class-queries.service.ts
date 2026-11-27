@@ -507,19 +507,26 @@ export async function listClassSessionsForManager(
 export async function listClassStudentsForManager(
   adminClient: Supabase,
   actorUserId: string | null,
-  classId: string
+  classId: string,
+  options?: LoadClassStudentRowsOptions
 ): Promise<ManagerClassStudentRow[]> {
   await assertPermission(adminClient, actorUserId, PERMISSIONS.CLASSES_VIEW);
-  return loadClassStudentRows(adminClient, classId);
+  return loadClassStudentRows(adminClient, classId, options);
 }
 
 export type LoadClassStudentRowsOptions = {
   /**
-   * Resolve Auth Admin emails (N `getUserById` for ≤50 students).
+   * Resolve Auth emails (DB batch RPC, Auth Admin fallback for misses).
    * Teacher roster skips this — the student name is enough for search/display.
    * @default true
    */
   includeAuthEmails?: boolean;
+  /**
+   * Load pending-drop + semester SPP payment flags used for remove eligibility.
+   * Grades / teacher paths can skip these extra queries.
+   * @default true
+   */
+  includeRemoveEligibility?: boolean;
 };
 
 /**
@@ -533,6 +540,7 @@ export async function loadClassStudentRows(
   options?: LoadClassStudentRowsOptions
 ): Promise<ManagerClassStudentRow[]> {
   const includeAuthEmails = options?.includeAuthEmails !== false;
+  const includeRemoveEligibility = options?.includeRemoveEligibility !== false;
   const timer = createNavStepTimer("class_students");
   try {
     const { data: enrollments, error } = await timer.step("enrollments", () =>
@@ -549,7 +557,9 @@ export async function loadClassStudentRows(
 
     const userIds = enrollments.map((row) => row.user_id);
 
-    const [studentProfilesResult, emailResult] =
+    // Profiles/emails do not depend on class/semester; run them in parallel
+    // with the class lookup when remove-eligibility flags are needed.
+    const [studentProfilesResult, emailResult, classResult] =
       await timer.step("profiles", () =>
         Promise.all([
           studentProfileRepository.listStudentProfileDetailsByUserIds(
@@ -562,6 +572,9 @@ export async function loadClassStudentRows(
                 data: new Map<string, string>(),
                 error: null as Error | null,
               }),
+          includeRemoveEligibility
+            ? classRepository.findClassById(adminClient, classId)
+            : Promise.resolve({ data: null, error: null }),
         ])
       );
 
@@ -573,48 +586,58 @@ export async function loadClassStudentRows(
       throw new Error(emailResult.error.message);
     }
 
+    if (includeRemoveEligibility && classResult.error) {
+      throw new Error(classResult.error.message);
+    }
+
     const studentProfileByUserId = new Map(
       (studentProfilesResult.data ?? []).map((row) => [row.user_id, row])
     );
     const emailById = emailResult.data;
+    const semesterId = includeRemoveEligibility
+      ? (classResult.data?.semester_id ?? null)
+      : null;
 
-    const classResult = await classRepository.findClassById(
-      adminClient,
-      classId
-    );
-    if (classResult.error) {
-      throw new Error(classResult.error.message);
-    }
-    const semesterId = classResult.data?.semester_id ?? null;
-
-    const pendingDropsResult = semesterId
-      ? await semesterDropRequestRepository.listPendingDropsBySemesterId(
-          adminClient,
-          semesterId
-        )
-      : await semesterDropRequestRepository.listPendingDropsByStudentIds(
-          adminClient,
-          userIds
-        );
-    if (pendingDropsResult.error) {
-      throw new Error(pendingDropsResult.error.message);
-    }
-    const pendingDropByStudentId = new Map(
-      (pendingDropsResult.data ?? [])
-        .filter((row) => userIds.includes(row.student_id))
-        .map((row) => [row.student_id, row.id])
-    );
-
+    const pendingDropByStudentId = new Map<string, string>();
     const studentsWithSppPayments = new Set<string>();
-    if (semesterId) {
-      const phaseResult =
-        await paymentPhaseRepository.findCurrentSyncPhaseBySemesterId(
-          adminClient,
-          semesterId
-        );
+
+    if (includeRemoveEligibility) {
+      const [pendingDropsResult, phaseResult] = await timer.step(
+        "eligibility",
+        () =>
+          Promise.all([
+            semesterId
+              ? semesterDropRequestRepository.listPendingDropsBySemesterId(
+                  adminClient,
+                  semesterId
+                )
+              : semesterDropRequestRepository.listPendingDropsByStudentIds(
+                  adminClient,
+                  userIds
+                ),
+            semesterId
+              ? paymentPhaseRepository.findCurrentSyncPhaseBySemesterId(
+                  adminClient,
+                  semesterId
+                )
+              : Promise.resolve({ data: null, error: null }),
+          ])
+      );
+
+      if (pendingDropsResult.error) {
+        throw new Error(pendingDropsResult.error.message);
+      }
+
+      for (const row of pendingDropsResult.data ?? []) {
+        if (userIds.includes(row.student_id)) {
+          pendingDropByStudentId.set(row.student_id, row.id);
+        }
+      }
+
       if (phaseResult.error) {
         throw new Error(phaseResult.error.message);
       }
+
       if (phaseResult.data?.id) {
         const sppsResult =
           await studentPaymentPhaseRepository.listSppsByPaymentPhaseId(

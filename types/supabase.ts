@@ -3439,6 +3439,10 @@ export type Database = {
         Args: { p_email: string }
         Returns: string | null
       }
+      list_auth_emails_by_ids: {
+        Args: { p_ids: string[] }
+        Returns: { id: string; email: string }[]
+      }
       count_classes_by_subject: {
         Args: never
         Returns: { subject_id: string; class_count: number }[]

@@ -109,6 +109,7 @@ export type ChangeGuestStatusActionState = {
   success?: boolean;
   error?: string;
   message?: string;
+  warning?: string;
   fieldErrors?: FieldErrors;
   guest?: ManagerGuestRow;
   statusEvents?: ManagerGuestStatusEventRow[];
@@ -120,6 +121,7 @@ export type SetGuestProfileStatusActionState = {
   success?: boolean;
   error?: string;
   message?: string;
+  warning?: string;
   fieldErrors?: FieldErrors;
   guest?: ManagerGuestRow;
 };

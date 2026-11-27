@@ -1,5 +1,6 @@
 import { SubjectsCatalogPanel } from "@/components/manager/subjects/catalog/subjects-catalog-panel";
 import { getSessionUser } from "@/lib/auth/session";
+import { logOpsWarn } from "@/lib/ops/logger";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { listCategoriesForManager } from "@/services/classes/category.service";
 import { listExercisesForManager } from "@/services/classes/exercise.service";
@@ -10,8 +11,18 @@ export default async function ManagerSubjectsCatalogPage() {
   const userId = user?.id ?? null;
 
   const [categories, exercises] = await Promise.all([
-    listCategoriesForManager(adminClient, userId).catch(() => []),
-    listExercisesForManager(adminClient, userId).catch(() => []),
+    listCategoriesForManager(adminClient, userId).catch((error) => {
+      logOpsWarn("manager/subjects/catalog", "Categories list failed", {
+        error: error instanceof Error ? error.message : String(error),
+      });
+      return [];
+    }),
+    listExercisesForManager(adminClient, userId).catch((error) => {
+      logOpsWarn("manager/subjects/catalog", "Exercises list failed", {
+        error: error instanceof Error ? error.message : String(error),
+      });
+      return [];
+    }),
   ]);
 
   return (

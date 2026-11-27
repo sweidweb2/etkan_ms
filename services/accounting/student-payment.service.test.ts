@@ -39,6 +39,11 @@ vi.mock("@/repositories/student-payment-phase-clearance.repository", () => ({
 vi.mock("@/services/ops/audit-log.service", () => ({
   recordManagerAuditLog: vi.fn().mockResolvedValue(null),
 }));
+vi.mock("@/lib/ops/logger", () => ({
+  logOpsWarn: vi.fn(),
+  logOpsError: vi.fn(),
+  logOpsInfo: vi.fn(),
+}));
 
 vi.mock("@/services/auth/authorization.service", () => ({
   UNAUTHORIZED_MESSAGE: "Unauthorized.",
@@ -265,6 +270,45 @@ describe("createStudentPaymentForManager", () => {
       expect(result.fieldErrors?.amount?.[0]).toMatch(/payment phase price/i);
     }
     expect(auditLogService.recordManagerAuditLog).not.toHaveBeenCalled();
+  });
+
+  it("still succeeds when SPP snapshot cannot be loaded after write", async () => {
+    vi.mocked(
+      studentPaymentRepository.createStudentPaymentWithRecalc
+    ).mockResolvedValue({
+      data: {
+        payment: paymentRecord,
+        paymentPhaseId: phaseId,
+        spp: null,
+      },
+      error: null,
+    } as never);
+    vi.mocked(studentPaymentPhaseRepository.findSppById).mockResolvedValue({
+      data: null,
+      error: { message: "SPP load failed" },
+    } as never);
+
+    const result = await createStudentPaymentForManager(
+      adminClient,
+      actor.userId,
+      actor,
+      {
+        student_payment_phase_id: sppId,
+        payment_date: "2026-07-15",
+        amount: 1000,
+        payment_method: "cash",
+        received_by: "Manager",
+        received_by_management: true,
+      }
+    );
+
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.payment.id).toBe(paymentRecord.id);
+      expect(result.spp).toBeUndefined();
+      expect(result.warning).toMatch(/balance snapshot could not be loaded/i);
+    }
+    expect(auditLogService.recordManagerAuditLog).toHaveBeenCalled();
   });
 });
 

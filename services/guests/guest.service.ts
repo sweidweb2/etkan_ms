@@ -103,6 +103,7 @@ export type ChangeGuestStatusSuccess = {
   guest: ManagerGuestRow;
   message: string;
   statusEvents: ManagerGuestStatusEventRow[];
+  warning?: string;
 };
 
 export type ChangeGuestStatusFailure = {
@@ -137,6 +138,7 @@ export type SetGuestProfileStatusSuccess = {
   success: true;
   guest: ManagerGuestRow;
   message: string;
+  warning?: string;
 };
 
 export type SetGuestProfileStatusFailure = {
@@ -457,7 +459,7 @@ async function finishGuestProfileFromPipeline(
   adminClient: Supabase,
   actor: AuditActor,
   guest: ManagerGuestRow
-): Promise<{ guest: ManagerGuestRow; error?: string }> {
+): Promise<{ guest: ManagerGuestRow; error?: string; warning?: string }> {
   if (guest.status === GUEST_CURRENT_STATUSES.FINISHED) {
     return { guest };
   }
@@ -485,14 +487,19 @@ async function finishGuestProfileFromPipeline(
     metadata: { note: "Guest profile set to finished from pipeline." },
   });
 
-  await releaseGuestFromTeamIfBecameClosed(adminClient, actor, {
+  const release = await releaseGuestFromTeamIfBecameClosed(adminClient, actor, {
     guestId: guest.id,
     previousStatus: guest.status,
     nextStatus: data.status,
     guestName: data.full_name,
   });
 
-  return { guest: mapGuestRecordToRow(data) };
+  return {
+    guest: mapGuestRecordToRow(data),
+    warning: release?.error
+      ? `Guest marked finished, but team release failed: ${release.error}`
+      : undefined,
+  };
 }
 
 async function reopenFinishedGuestToPending(
@@ -618,6 +625,7 @@ export async function setGuestStatusForManager(
   });
 
   let guest = current;
+  let warning: string | undefined;
   if (status === GUEST_PIPELINE_STATUSES.FINISHED) {
     const finished = await finishGuestProfileFromPipeline(
       adminClient,
@@ -628,6 +636,7 @@ export async function setGuestStatusForManager(
       return { success: false, error: finished.error };
     }
     guest = finished.guest;
+    warning = finished.warning;
   }
 
   return {
@@ -638,6 +647,7 @@ export async function setGuestStatusForManager(
         ? "Status recorded. Guest marked finished."
         : "Status recorded.",
     statusEvents: mergeGuestStatusEventRows(existingEvents, [eventResult.data]),
+    warning,
   };
 }
 
@@ -744,7 +754,7 @@ export async function applyGuestProfileStatusForGuestRecord(
     metadata: { note: "Guest profile status changed." },
   });
 
-  await releaseGuestFromTeamIfBecameClosed(adminClient, actor, {
+  const release = await releaseGuestFromTeamIfBecameClosed(adminClient, actor, {
     guestId: id,
     previousStatus: guestRecord.status,
     nextStatus: data.status,
@@ -755,6 +765,9 @@ export async function applyGuestProfileStatusForGuestRecord(
     success: true,
     guest: mapGuestRecordToRow(data),
     message: "Guest status updated.",
+    warning: release?.error
+      ? `Guest status updated, but team release failed: ${release.error}`
+      : undefined,
   };
 }
 
@@ -840,6 +853,7 @@ export async function recordGuestPipelineStatusesForGuest(
   });
 
   let guest = current;
+  let warning: string | undefined;
   const recordedFinished = toRecord.includes(GUEST_PIPELINE_STATUSES.FINISHED);
   if (recordedFinished && finishProfileOnPipelineFinished) {
     const finished = await finishGuestProfileFromPipeline(
@@ -851,6 +865,7 @@ export async function recordGuestPipelineStatusesForGuest(
       return { success: false, error: finished.error };
     }
     guest = finished.guest;
+    warning = finished.warning;
   }
 
   return {
@@ -863,6 +878,7 @@ export async function recordGuestPipelineStatusesForGuest(
           ? "Status recorded."
           : `${toRecord.length} statuses recorded.`,
     statusEvents: mergeGuestStatusEventRows(existingEvents, batchResult.data),
+    warning,
   };
 }
 

@@ -544,7 +544,8 @@ export async function getTaskAttachmentSignedUrlForActor(
     parsed.data.id
   );
   if (existing.error) {
-    return { success: false, error: existing.error.message };
+    console.error("[task-attachments] signed-url lookup failed", existing.error);
+    return { success: false, error: "Unable to open file." };
   }
   if (!existing.data) {
     return { success: false, error: "Attachment not found." };
@@ -567,9 +568,10 @@ export async function getTaskAttachmentSignedUrlForActor(
       row.storage_path
     );
   if (signed.error || !signed.data) {
+    console.error("[task-attachments] signed-url create failed", signed.error);
     return {
       success: false,
-      error: signed.error?.message || "Unable to open file.",
+      error: "Unable to open file.",
     };
   }
 

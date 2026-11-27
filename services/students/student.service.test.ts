@@ -9,6 +9,7 @@ import * as profileRepository from "@/repositories/profile.repository";
 import * as studentClassRepository from "@/repositories/student-class.repository";
 import * as studentProfileRepository from "@/repositories/student-profile.repository";
 import * as studentTaskRepository from "@/repositories/student-task.repository";
+import * as semesterDropRequestRepository from "@/repositories/semester-drop-request.repository";
 import * as auditLogService from "@/services/ops/audit-log.service";
 import type { AuditActor } from "@/services/ops/audit-log.service";
 import * as profileService from "@/services/auth/profile.service";
@@ -29,8 +30,14 @@ vi.mock("@/repositories/profile.repository");
 vi.mock("@/repositories/student-profile.repository");
 vi.mock("@/repositories/student-class.repository");
 vi.mock("@/repositories/student-task.repository");
+vi.mock("@/repositories/semester-drop-request.repository");
 vi.mock("@/services/ops/audit-log.service", () => ({
   recordManagerAuditLog: vi.fn().mockResolvedValue(null),
+}));
+vi.mock("@/lib/ops/logger", () => ({
+  logOpsWarn: vi.fn(),
+  logOpsError: vi.fn(),
+  logOpsInfo: vi.fn(),
 }));
 vi.mock("@/services/auth/profile.service");
 vi.mock("@/services/auth/role.service");
@@ -146,6 +153,12 @@ describe("listStudentsForManager", () => {
       data: new Map([["user-1", "jane@school.com"]]),
       error: null,
     });
+    vi.mocked(
+      semesterDropRequestRepository.listPendingDropsByStudentIds
+    ).mockResolvedValue({
+      data: [],
+      error: null,
+    } as never);
 
     const students = await listStudentsForManager(adminClient, actor.userId);
 
@@ -161,6 +174,7 @@ describe("listStudentsForManager", () => {
         created_at: "2026-01-01T00:00:00.000Z",
         role: ROLES.STUDENT,
         is_instructor: false,
+        has_pending_drop: false,
       },
     ]);
   });
@@ -453,6 +467,36 @@ describe("createStudent", () => {
       "user-1"
     );
   });
+
+  it("notes orphan risk when auth cleanup also fails", async () => {
+    vi.mocked(authRepository.findAuthUserByEmail).mockResolvedValue({
+      data: null,
+      error: null,
+    });
+    vi.mocked(authRepository.createAuthUser).mockResolvedValue({
+      data: { user: authUser },
+      error: null,
+    });
+    vi.mocked(profileService.ensureStudentRegistration).mockRejectedValue(
+      new Error("Registration failed.")
+    );
+    vi.mocked(authRepository.deleteAuthUser).mockResolvedValue({
+      data: { user: null },
+      error: { message: "delete failed", name: "AuthApiError", status: 500 },
+    } as never);
+
+    const result = await createStudent(
+      adminClient,
+      actor.userId,
+      actor,
+      validStudentInput
+    );
+
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(result.error).toMatch(/Cleanup of the auth account also failed/i);
+    }
+  });
 });
 
 describe("updateStudent", () => {
@@ -573,38 +617,19 @@ describe("listStudentsWithoutInProgressClassForManager", () => {
   });
 
   it("returns students who are not enrolled on any in-progress class", async () => {
-    const otherProfile = {
-      id: "student-profile-2",
-      user_id: "user-2",
-      full_name: "Alex Other",
-      birth_date: null,
-      phone: null,
-      status: STUDENT_STATUSES.ACTIVE,
-      created_at: "2026-01-02T00:00:00.000Z",
-    };
-
-    vi.mocked(studentProfileRepository.listStudentProfiles).mockResolvedValue({
-      data: [studentProfile, otherProfile],
-      error: null,
-      count: null,
-      status: 200,
-      statusText: "OK",
-    } as never);
-    vi.mocked(classRepository.listInProgressClasses).mockResolvedValue({
-      data: [{ id: "class-1", name: "Math" }],
-      error: null,
-      count: null,
-      status: 200,
-      statusText: "OK",
-    } as never);
     vi.mocked(
-      studentClassRepository.listMemberUserIdsByClassIds
+      studentProfileRepository.listStudentProfilesWithoutActiveClass
     ).mockResolvedValue({
-      data: [{ user_id: "user-1", class_id: "class-1" }],
+      data: [
+        {
+          id: "student-profile-2",
+          user_id: "user-2",
+          full_name: "Alex Other",
+          phone: null,
+          status: STUDENT_STATUSES.ACTIVE,
+        },
+      ],
       error: null,
-      count: null,
-      status: 200,
-      statusText: "OK",
     } as never);
 
     const result = await listStudentsWithoutInProgressClassForManager(
@@ -622,5 +647,8 @@ describe("listStudentsWithoutInProgressClassForManager", () => {
         status: STUDENT_STATUSES.ACTIVE,
       },
     ]);
+    expect(
+      studentProfileRepository.listStudentProfilesWithoutActiveClass
+    ).toHaveBeenCalledWith(adminClient);
   });
 });

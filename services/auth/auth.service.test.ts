@@ -6,6 +6,7 @@ import * as appSettingsRepository from "@/repositories/app-settings.repository";
 import * as authRepository from "@/repositories/auth.repository";
 import * as profileRepository from "@/repositories/profile.repository";
 import { setCachedSessionShell } from "@/lib/auth/session-shell-cache";
+import * as opsLogger from "@/lib/ops/logger";
 import { login, logout, register, getSessionAuthIdentity } from "@/services/auth/auth.service";
 import * as profileService from "@/services/auth/profile.service";
 import * as roleService from "@/services/auth/role.service";
@@ -17,6 +18,11 @@ vi.mock("@/repositories/profile.repository");
 vi.mock("@/services/auth/profile.service");
 vi.mock("@/lib/auth/session-shell-cache", () => ({
   setCachedSessionShell: vi.fn(),
+}));
+vi.mock("@/lib/ops/logger", () => ({
+  logOpsWarn: vi.fn(),
+  logOpsInfo: vi.fn(),
+  logOpsError: vi.fn(),
 }));
 vi.mock("@/services/auth/authorization.service", () => ({
   getEffectivePermissionsForUserCached: vi.fn(async () => new Set()),
@@ -112,6 +118,11 @@ describe("login", () => {
     if (!result.success) {
       expect(result.error).toBe("Invalid email or password.");
     }
+    expect(opsLogger.logOpsWarn).toHaveBeenCalledWith(
+      "auth.login",
+      "Invalid email or password.",
+      expect.objectContaining({ email: "ja***@school.com" })
+    );
   });
 
   it("redirects to the role dashboard on success", async () => {
@@ -299,6 +310,31 @@ describe("register", () => {
       adminClient,
       "user-1"
     );
+  });
+
+  it("notes orphan risk when auth cleanup also fails", async () => {
+    vi.mocked(authRepository.signUp).mockResolvedValue({
+      data: {
+        user: authUser,
+        session: {} as never,
+      },
+      error: null,
+    });
+    vi.mocked(profileService.ensureStudentRegistration).mockRejectedValue(
+      new Error("profile failed")
+    );
+    vi.mocked(authRepository.deleteAuthUser).mockResolvedValue({
+      data: { user: null },
+      error: { message: "delete failed", name: "AuthApiError", status: 500 },
+    } as never);
+
+    const result = await register(authClient, adminClient, validRegisterInput);
+
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(result.error).toMatch(/Cleanup of the auth account also failed/i);
+    }
+    expect(opsLogger.logOpsError).toHaveBeenCalled();
   });
 
   it("returns confirm-email flow when session is missing", async () => {

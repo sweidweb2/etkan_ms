@@ -2,6 +2,7 @@ import "server-only";
 
 import { submitPublicFinancialFormSchema } from "@/lib/validators/manager/upsert-financial-form";
 import { checkPublicFinancialFormSubmitRateLimit } from "@/lib/rate-limit/public-financial-form-rate-limit";
+import { logOpsInfo, logOpsWarn } from "@/lib/ops/logger";
 import * as inviteRepository from "@/repositories/student-financial-form-invite.repository";
 import * as formRepository from "@/repositories/student-financial-form.repository";
 import * as profileRepository from "@/repositories/profile.repository";
@@ -178,6 +179,10 @@ export async function submitFinancialFormByToken(
   );
 
   if (createError || !created) {
+    logOpsWarn("public.financial_form.submit", "Unable to create financial form", {
+      invite_id: invite.id,
+      student_payment_phase_id: loaded.spp.id,
+    });
     return {
       success: false,
       error: "Unable to submit form. Please try again.",
@@ -193,11 +198,21 @@ export async function submitFinancialFormByToken(
   );
 
   if (markError || !marked) {
+    logOpsWarn("public.financial_form.submit", "Invite already used after create", {
+      invite_id: invite.id,
+      form_id: created.id,
+    });
     return {
       success: false,
       error: "This link has already been used.",
     };
   }
+
+  logOpsInfo("public.financial_form.submit", "Financial form submitted", {
+    form_id: created.id,
+    invite_id: invite.id,
+    student_payment_phase_id: loaded.spp.id,
+  });
 
   return {
     success: true,

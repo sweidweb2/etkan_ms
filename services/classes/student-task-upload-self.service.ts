@@ -379,9 +379,13 @@ export async function getStudentTaskUploadSignedUrlForSelf(
   );
 
   if (existing.error) {
+    console.error(
+      "[student-task-upload-self] signed-url lookup failed",
+      existing.error.message
+    );
     return {
       success: false,
-      error: existing.error.message || "Unable to open file.",
+      error: "Unable to open file.",
     };
   }
 
@@ -405,9 +409,13 @@ export async function getStudentTaskUploadSignedUrlForSelf(
   );
 
   if (signed.error || !signed.data) {
+    console.error(
+      "[student-task-upload-self] signed-url create failed",
+      signed.error?.message
+    );
     return {
       success: false,
-      error: signed.error?.message || "Unable to open file.",
+      error: "Unable to open file.",
     };
   }
 

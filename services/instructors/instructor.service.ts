@@ -12,6 +12,10 @@ import {
   assertPermission,
   getUnauthorizedError,
 } from "@/services/auth/authorization.service";
+import {
+  recordManagerAuditLog,
+  type AuditActor,
+} from "@/services/ops/audit-log.service";
 import { SUBJECT_SCOPES } from "@/lib/constants/subject-scope";
 import { loadSubjectScopeData } from "@/services/subjects/subject-catalog.service";
 import { addInstructorsSchema } from "@/lib/validators/manager/add-instructors";
@@ -140,6 +144,7 @@ export type RemoveInstructorResult =
 export async function removeInstructorForManager(
   adminClient: Supabase,
   actorUserId: string | null,
+  actor: AuditActor,
   userId: string
 ): Promise<RemoveInstructorResult> {
   const unauthorized = await getUnauthorizedError(
@@ -188,6 +193,19 @@ export async function removeInstructorForManager(
 
   clearCachedSessionShell(trimmedId);
 
+  await recordManagerAuditLog(adminClient, actor, {
+    action: "update",
+    severity: "warning",
+    table_name: "profiles",
+    record_id: trimmedId,
+    old_data: { is_instructor: true },
+    new_data: { is_instructor: false },
+    metadata: {
+      note: "Instructor removed.",
+      userId: trimmedId,
+    },
+  });
+
   return {
     success: true,
     message: "Instructor removed.",
@@ -202,6 +220,7 @@ export type AddInstructorsResult =
 export async function addInstructorsForManager(
   adminClient: Supabase,
   actorUserId: string | null,
+  actor: AuditActor,
   input: { userIds: string[] }
 ): Promise<AddInstructorsResult> {
   const unauthorized = await getUnauthorizedError(
@@ -264,6 +283,20 @@ export async function addInstructorsForManager(
     }
     clearCachedSessionShell(profile.id);
   }
+
+  await recordManagerAuditLog(adminClient, actor, {
+    action: "update",
+    severity: "info",
+    table_name: "profiles",
+    metadata: {
+      note:
+        toPromote.length === 1
+          ? "Instructor added."
+          : `${toPromote.length} instructors added.`,
+      added_count: toPromote.length,
+      user_ids: toPromote,
+    },
+  });
 
   return {
     success: true,

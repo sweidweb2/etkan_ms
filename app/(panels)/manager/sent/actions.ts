@@ -22,11 +22,16 @@ export async function resendManagerEmailAction(
   }
 
   const adminClient = createSupabaseAdminClient();
-  const result = await resendSentEmailForManager(adminClient, actor.userId, {
-    emailSentId: parsed.data.emailSentId,
-    userIds: parsed.data.userIds,
-    toEmails: parsed.data.toEmails,
-  });
+  const result = await resendSentEmailForManager(
+    adminClient,
+    actor.userId,
+    actor,
+    {
+      emailSentId: parsed.data.emailSentId,
+      userIds: parsed.data.userIds,
+      toEmails: parsed.data.toEmails,
+    }
+  );
 
   if (!result.success) {
     return {

@@ -34,6 +34,7 @@ import {
   type ClassTransferOption,
 } from "@/components/manager/classes/transfer-student-between-classes-dialog";
 import { SEMESTER_DROP_BADGE_LABELS } from "@/lib/constants/manager-semester-drop-display";
+import { hasLinkedStudentProfile } from "@/lib/manager/class-student-row-access";
 import { ClassTabCollapsibleSection } from "@/components/manager/students/class-tab-collapsible-section";
 import { InlineSpinner } from "@/components/loaders/inline-spinner";
 import { Button } from "@/components/ui/button";
@@ -586,7 +587,7 @@ export function ClassStudentsSection({
                       ) : null}
                       <td className="px-4 py-3 text-right">
                         <div className="inline-flex items-center justify-end gap-1">
-                          {student.student_profile_id ? (
+                          {hasLinkedStudentProfile(student.student_profile_id) ? (
                             <Can permission={PERMISSIONS.CLASSES_DROP_SEMESTER}>
                               {student.has_pending_drop ? (
                                 <Tooltip>
@@ -657,7 +658,9 @@ export function ClassStudentsSection({
                                     : "Remove"}
                               </TooltipContent>
                             </Tooltip>
-                            {student.student_profile_id ? (
+                            {hasLinkedStudentProfile(
+                              student.student_profile_id
+                            ) ? (
                               <Tooltip>
                                 <TooltipTrigger
                                   render={
@@ -685,7 +688,7 @@ export function ClassStudentsSection({
                               </Tooltip>
                             ) : null}
                           </Can>
-                          {student.student_profile_id ? (
+                          {hasLinkedStudentProfile(student.student_profile_id) ? (
                             <Link
                               href={getManagerStudentDetailRoute(
                                 student.student_profile_id

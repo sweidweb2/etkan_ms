@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   appendUniqueById,
+  mergeItemsById,
   prependUniqueById,
   prependUniqueByKey,
 } from "@/lib/utils/prepend-unique-by-id";
@@ -75,6 +76,39 @@ describe("prependUniqueByKey", () => {
     ).toEqual([
       { user_id: "u1", name: "From action" },
       { user_id: "u2", name: "Other" },
+    ]);
+  });
+});
+
+describe("mergeItemsById", () => {
+  it("updates overlapping ids and keeps rows missing from next", () => {
+    const current: Row[] = [
+      { id: "a", name: "A" },
+      { id: "b", name: "B" },
+      { id: "c", name: "C" },
+    ];
+    const next: Row[] = [
+      { id: "b", name: "B moved" },
+      { id: "a", name: "A moved" },
+    ];
+
+    expect(mergeItemsById(current, next)).toEqual([
+      { id: "a", name: "A moved" },
+      { id: "b", name: "B moved" },
+      { id: "c", name: "C" },
+    ]);
+  });
+
+  it("appends brand-new ids from next", () => {
+    const current: Row[] = [{ id: "a", name: "A" }];
+    const next: Row[] = [
+      { id: "a", name: "A2" },
+      { id: "d", name: "D" },
+    ];
+
+    expect(mergeItemsById(current, next)).toEqual([
+      { id: "a", name: "A2" },
+      { id: "d", name: "D" },
     ]);
   });
 });

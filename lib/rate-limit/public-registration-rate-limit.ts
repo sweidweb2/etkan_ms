@@ -1,3 +1,4 @@
+import { logOpsWarn } from "@/lib/ops/logger";
 import {
   consumeRateLimit,
   formatRetryAfter,
@@ -30,6 +31,12 @@ export async function checkPublicRegistrationSubmitRateLimit(): Promise<
     return { allowed: true };
   }
 
+  logOpsWarn("public-registration-rate-limit", "Blocked submit attempts", {
+    kind: "submit",
+    ip,
+    retryAfterMs: result.retryAfterMs,
+  });
+
   return {
     allowed: false,
     message: `Too many submit attempts. Try again in ${formatRetryAfter(result.retryAfterMs)}.`,
@@ -51,6 +58,12 @@ export async function checkPublicRegistrationUploadRateLimit(): Promise<
   if (result.allowed) {
     return { allowed: true };
   }
+
+  logOpsWarn("public-registration-rate-limit", "Blocked upload attempts", {
+    kind: "upload",
+    ip,
+    retryAfterMs: result.retryAfterMs,
+  });
 
   return {
     allowed: false,

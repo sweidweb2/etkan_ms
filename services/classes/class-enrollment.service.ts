@@ -17,6 +17,7 @@ import { copyStudentsFromClassSchema } from "@/lib/validators/manager/copy-stude
 import { removeStudentFromClassSchema } from "@/lib/validators/manager/remove-student-from-class";
 import { transferStudentBetweenClassesSchema } from "@/lib/validators/manager/transfer-student-between-classes";
 import { createNavStepTimer } from "@/lib/debug/nav-timing";
+import { logOpsWarn } from "@/lib/ops/logger";
 import * as authRepository from "@/repositories/auth.repository";
 import * as classRepository from "@/repositories/class.repository";
 import type { ClassDetailRecord } from "@/repositories/class.repository";
@@ -272,33 +273,41 @@ export async function addStudentToClassForManager(
         ),
     ]);
 
+    let warning: string | undefined;
+
     if (gradeResult.error) {
-      return {
-        success: false,
-        error:
-          gradeResult.error.message ??
-          "Student enrolled, but final exam grade row could not be created.",
-      };
+      const seedWarning =
+        gradeResult.error.message ??
+        "Student enrolled, but final exam grade row could not be created.";
+      logOpsWarn("classEnrollment.seedFinalExamGrade", seedWarning, {
+        classId: input.class_id,
+        userId,
+      });
+      warning = seedWarning;
     }
 
     if (attendeesError) {
-      return {
-        success: false,
-        error:
-          attendeesError instanceof Error
-            ? attendeesError.message
-            : "Student enrolled, but attendance rows could not be created.",
-      };
+      const seedWarning =
+        attendeesError instanceof Error
+          ? attendeesError.message
+          : "Student enrolled, but attendance rows could not be created.";
+      logOpsWarn("classEnrollment.seedAttendees", seedWarning, {
+        classId: input.class_id,
+        userId,
+      });
+      warning = warning ?? seedWarning;
     }
 
     if (tasksError) {
-      return {
-        success: false,
-        error:
-          tasksError instanceof Error
-            ? tasksError.message
-            : "Student enrolled, but task grade rows could not be created.",
-      };
+      const seedWarning =
+        tasksError instanceof Error
+          ? tasksError.message
+          : "Student enrolled, but task grade rows could not be created.";
+      logOpsWarn("classEnrollment.seedTasks", seedWarning, {
+        classId: input.class_id,
+        userId,
+      });
+      warning = warning ?? seedWarning;
     }
 
     if (gradeResult.data) {
@@ -325,8 +334,6 @@ export async function addStudentToClassForManager(
         },
       })
     );
-
-    let warning: string | undefined;
 
     const semesterId = classRecord.semester_id;
     const reactivatePromise = semesterId
@@ -361,7 +368,7 @@ export async function addStudentToClassForManager(
           ),
         { timer }
       );
-      warning = sync.warning;
+      warning = warning ?? sync.warning;
     }
 
     await reactivatePromise;
@@ -527,53 +534,69 @@ async function enrollStudentsInClassCore(
       };
     }
 
-    let gradeResult: Awaited<
-      ReturnType<typeof finalExamRepository.ensureEnrollmentFinalExamGrades>
-    >;
-    let emailsResult: Awaited<
-      ReturnType<typeof authRepository.listAuthEmailsByIds>
-    >;
-
-    try {
-      [gradeResult, , , emailsResult] = await timer.step(
-        "hydrate",
-        () =>
-          Promise.all([
-            finalExamRepository.ensureEnrollmentFinalExamGrades(
-              adminClient,
-              input.class_id,
-              insertedUserIds
-            ),
-            seedLateJoinAttendeesForStudents(
-              adminClient,
-              input.class_id,
-              insertedUserIds
-            ),
-            seedLateJoinStudentTasksForStudents(
-              adminClient,
-              input.class_id,
-              insertedUserIds
-            ),
-            authRepository.listAuthEmailsByIds(adminClient, insertedUserIds),
-          ])
+    const [gradeResult, attendeesError, tasksError, emailsResult] =
+      await timer.step("hydrate", () =>
+        Promise.all([
+          finalExamRepository.ensureEnrollmentFinalExamGrades(
+            adminClient,
+            input.class_id,
+            insertedUserIds
+          ),
+          seedLateJoinAttendeesForStudents(
+            adminClient,
+            input.class_id,
+            insertedUserIds
+          ).then(
+            () => null,
+            (err: unknown) => err
+          ),
+          seedLateJoinStudentTasksForStudents(
+            adminClient,
+            input.class_id,
+            insertedUserIds
+          ).then(
+            () => null,
+            (err: unknown) => err
+          ),
+          authRepository.listAuthEmailsByIds(adminClient, insertedUserIds),
+        ])
       );
-    } catch (err) {
-      return {
-        success: false,
-        error:
-          err instanceof Error
-            ? err.message
-            : "Student enrolled, but attendance or task grade rows could not be created.",
-      };
-    }
+
+    let warning: string | undefined;
 
     if (gradeResult.error) {
-      return {
-        success: false,
-        error:
-          gradeResult.error.message ??
-          "Student enrolled, but final exam grade row could not be created.",
-      };
+      const seedWarning =
+        gradeResult.error.message ??
+        "Student enrolled, but final exam grade row could not be created.";
+      logOpsWarn("classEnrollment.batchSeedFinalExamGrade", seedWarning, {
+        classId: input.class_id,
+        studentCount: insertedUserIds.length,
+      });
+      warning = seedWarning;
+    }
+
+    if (attendeesError) {
+      const seedWarning =
+        attendeesError instanceof Error
+          ? attendeesError.message
+          : "Student enrolled, but attendance or task grade rows could not be created.";
+      logOpsWarn("classEnrollment.batchSeedAttendees", seedWarning, {
+        classId: input.class_id,
+        studentCount: insertedUserIds.length,
+      });
+      warning = warning ?? seedWarning;
+    }
+
+    if (tasksError) {
+      const seedWarning =
+        tasksError instanceof Error
+          ? tasksError.message
+          : "Student enrolled, but attendance or task grade rows could not be created.";
+      logOpsWarn("classEnrollment.batchSeedTasks", seedWarning, {
+        classId: input.class_id,
+        studentCount: insertedUserIds.length,
+      });
+      warning = warning ?? seedWarning;
     }
 
     if (emailsResult.error) {
@@ -644,7 +667,6 @@ async function enrollStudentsInClassCore(
       })
     );
 
-    let warning: string | undefined;
     let joinItems: StudentJoinSyncItem[] = [];
 
     const semesterId = classRecord.semester_id;
@@ -682,7 +704,7 @@ async function enrollStudentsInClassCore(
             })
           )
         );
-        warning = PAYMENT_SYNC_FAILURE_WARNING;
+        warning = warning ?? PAYMENT_SYNC_FAILURE_WARNING;
       }
     } catch (syncError) {
       await Promise.all(
@@ -695,7 +717,7 @@ async function enrollStudentsInClassCore(
           })
         )
       );
-      warning = PAYMENT_SYNC_FAILURE_WARNING;
+      warning = warning ?? PAYMENT_SYNC_FAILURE_WARNING;
     }
 
     await reactivatePromise;

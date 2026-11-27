@@ -94,6 +94,7 @@ export type CreateStudentPaymentActionState = {
   success?: boolean;
   error?: string;
   message?: string;
+  warning?: string;
   fieldErrors?: FieldErrors;
   payment?: ManagerStudentPaymentRow;
   spp?: ManagerSppFinancialSnapshot;
@@ -103,6 +104,7 @@ export type UpdateStudentPaymentActionState = {
   success?: boolean;
   error?: string;
   message?: string;
+  warning?: string;
   fieldErrors?: FieldErrors;
   payment?: ManagerStudentPaymentRow;
   spp?: ManagerSppFinancialSnapshot;
@@ -112,6 +114,7 @@ export type DeleteStudentPaymentActionState = {
   success?: boolean;
   error?: string;
   message?: string;
+  warning?: string;
   fieldErrors?: FieldErrors;
   student_payment_phase_id?: string;
   payment_phase_id?: string;

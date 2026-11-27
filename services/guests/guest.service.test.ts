@@ -34,7 +34,9 @@ vi.mock("@/services/guests/guest-registration.service", () => ({
   getGuestRegistrationInviteBundleForManager: vi.fn(),
 }));
 vi.mock("@/services/teams/release-guest-from-team.service", () => ({
-  releaseGuestFromTeamIfBecameClosed: vi.fn().mockResolvedValue(undefined),
+  releaseGuestFromTeamIfBecameClosed: vi
+    .fn()
+    .mockResolvedValue({ released: false, error: null }),
 }));
 
 vi.mock("@/services/auth/authorization.service", () => ({
@@ -115,6 +117,10 @@ function mockGuestStatusEvents(
 describe("listGuestsForManager", () => {
   beforeEach(() => {
     vi.resetAllMocks();
+    vi.mocked(releaseGuestFromTeamIfBecameClosed).mockResolvedValue({
+      released: false,
+      error: null,
+    });
     vi.mocked(registrationRepository.listActiveEmailsByGuestIds).mockResolvedValue({
       data: [],
       ...okResult,
@@ -148,6 +154,10 @@ describe("listGuestsForManager", () => {
 describe("getGuestForManager", () => {
   beforeEach(() => {
     vi.resetAllMocks();
+    vi.mocked(releaseGuestFromTeamIfBecameClosed).mockResolvedValue({
+      released: false,
+      error: null,
+    });
   });
 
   it("returns null when guest is missing", async () => {
@@ -165,6 +175,10 @@ describe("getGuestForManager", () => {
 describe("createGuestForManager", () => {
   beforeEach(() => {
     vi.resetAllMocks();
+    vi.mocked(releaseGuestFromTeamIfBecameClosed).mockResolvedValue({
+      released: false,
+      error: null,
+    });
   });
 
   it("denies unauthorized actors", async () => {
@@ -233,6 +247,10 @@ describe("createGuestForManager", () => {
 describe("updateGuestForManager", () => {
   beforeEach(() => {
     vi.resetAllMocks();
+    vi.mocked(releaseGuestFromTeamIfBecameClosed).mockResolvedValue({
+      released: false,
+      error: null,
+    });
   });
 
   it("updates intake fields", async () => {
@@ -266,6 +284,10 @@ describe("updateGuestForManager", () => {
 describe("deleteGuestForManager", () => {
   beforeEach(() => {
     vi.resetAllMocks();
+    vi.mocked(releaseGuestFromTeamIfBecameClosed).mockResolvedValue({
+      released: false,
+      error: null,
+    });
   });
 
   it("hard-deletes an existing guest after cleaning related files", async () => {
@@ -347,6 +369,10 @@ describe("deleteGuestForManager", () => {
 describe("getGuestDetailForManager", () => {
   beforeEach(() => {
     vi.resetAllMocks();
+    vi.mocked(releaseGuestFromTeamIfBecameClosed).mockResolvedValue({
+      released: false,
+      error: null,
+    });
     vi.mocked(getGuestRegistrationInviteBundleForManager).mockResolvedValue({
       invite: null,
       application: null,
@@ -401,6 +427,10 @@ describe("getGuestDetailForManager", () => {
 describe("setGuestStatusForManager", () => {
   beforeEach(() => {
     vi.resetAllMocks();
+    vi.mocked(releaseGuestFromTeamIfBecameClosed).mockResolvedValue({
+      released: false,
+      error: null,
+    });
     mockGuestStatusEvents([]);
   });
 
@@ -626,6 +656,10 @@ describe("setGuestStatusForManager", () => {
 describe("setGuestStatusesForManager", () => {
   beforeEach(() => {
     vi.resetAllMocks();
+    vi.mocked(releaseGuestFromTeamIfBecameClosed).mockResolvedValue({
+      released: false,
+      error: null,
+    });
     mockGuestStatusEvents([]);
   });
 
@@ -794,6 +828,10 @@ describe("setGuestStatusesForManager", () => {
 describe("setGuestProfileStatusForManager", () => {
   beforeEach(() => {
     vi.resetAllMocks();
+    vi.mocked(releaseGuestFromTeamIfBecameClosed).mockResolvedValue({
+      released: false,
+      error: null,
+    });
   });
 
   it("denies unauthorized actors", async () => {
@@ -914,6 +952,10 @@ describe("setGuestProfileStatusForManager", () => {
 describe("removeGuestStatusForManager", () => {
   beforeEach(() => {
     vi.resetAllMocks();
+    vi.mocked(releaseGuestFromTeamIfBecameClosed).mockResolvedValue({
+      released: false,
+      error: null,
+    });
     mockGuestStatusEvents([]);
   });
 

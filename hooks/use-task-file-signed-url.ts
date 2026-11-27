@@ -39,7 +39,21 @@ export function useTaskFileSignedUrl() {
       }
 
       if (mode === "open") {
-        window.open(result.signedUrl, "_blank", "noopener,noreferrer");
+        const opened = window.open(
+          result.signedUrl,
+          "_blank",
+          "noopener,noreferrer"
+        );
+        // Popup blockers return null — fall back to a user-gesture <a> click.
+        if (!opened) {
+          const anchor = document.createElement("a");
+          anchor.href = result.signedUrl;
+          anchor.target = "_blank";
+          anchor.rel = "noopener noreferrer";
+          document.body.appendChild(anchor);
+          anchor.click();
+          anchor.remove();
+        }
         return;
       }
 

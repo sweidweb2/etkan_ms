@@ -6,7 +6,6 @@ import {
   useMemo,
   useRef,
   useState,
-  useSyncExternalStore,
   useTransition,
 } from "react";
 import { useRouter } from "next/navigation";
@@ -24,6 +23,7 @@ import { InlineSpinner } from "@/components/loaders/inline-spinner";
 import { Button } from "@/components/ui/button";
 import { useActionStateSuccess } from "@/hooks/use-action-state-success";
 import { useActionStateToast } from "@/hooks/use-action-state-toast";
+import { useHasMounted } from "@/hooks/use-has-mounted";
 import {
   getCategoryById,
   getDirectChildren,
@@ -42,16 +42,6 @@ import {
 import { PERMISSIONS } from "@/lib/constants/permissions";
 import type { ManagerCategoryRow } from "@/types/manager-category";
 import type { SaveClassFollowUpActionState } from "@/types/manager-class-follow-up";
-
-const emptySubscribe = () => () => {};
-
-function useHasMounted() {
-  return useSyncExternalStore(
-    emptySubscribe,
-    () => true,
-    () => false
-  );
-}
 
 const CONTAINERS: readonly FollowUpContainer[] = [
   "pool",

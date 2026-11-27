@@ -3,8 +3,6 @@ import {
   applyBoardColumns,
   applyColumnOrder,
   buildBoardColumns,
-  commitCardMove,
-  commitColumnMove,
   type BoardColumns,
 } from "@/lib/kanban/board-state";
 import type { ManagerSemesterTeamRow } from "@/types/manager-semester-team";
@@ -42,9 +40,3 @@ export function applyTeamOrder(
 ): ManagerSemesterTeamRow[] {
   return applyColumnOrder(teams, orderedIds);
 }
-
-/** @deprecated Prefer `commitCardMove` from `@/lib/kanban/board-state`. */
-export const commitSemesterCardMove = commitCardMove;
-
-/** @deprecated Prefer `commitColumnMove` from `@/lib/kanban/board-state`. */
-export const commitTeamColumnMove = commitColumnMove;

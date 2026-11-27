@@ -57,6 +57,7 @@ export async function updateRegistrationStatusAction(
   const result = await updateRegistrationApplicationStatusForManager(
     adminClient,
     actor.userId,
+    actor,
     parsed.data
   );
 
@@ -91,6 +92,7 @@ export async function updateRegistrationApplicationAction(
   const result = await updateRegistrationApplicationForManager(
     adminClient,
     actor.userId,
+    actor,
     parsed.data
   );
 

@@ -42,6 +42,7 @@ export async function createStudentPaymentAction(
     mapSuccess: (result) => ({
       success: true,
       message: result.message,
+      warning: result.warning,
       payment: result.payment,
       spp: result.spp,
     }),
@@ -66,6 +67,7 @@ export async function updateStudentPaymentAction(
     mapSuccess: (result) => ({
       success: true,
       message: result.message,
+      warning: result.warning,
       payment: result.payment,
       spp: result.spp,
     }),
@@ -90,6 +92,7 @@ export async function deleteStudentPaymentAction(
     mapSuccess: (result) => ({
       success: true,
       message: result.message,
+      warning: result.warning,
       student_payment_phase_id: result.student_payment_phase_id,
       payment_phase_id: result.payment_phase_id,
       spp: result.spp,

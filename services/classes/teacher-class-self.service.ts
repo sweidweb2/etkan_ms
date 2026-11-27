@@ -276,6 +276,7 @@ export async function getTeachingClassPageBundleForSelf(
     // Skip Auth Admin email fan-out; teacher roster uses the student name.
     loadClassStudentRows(adminClient, classId, {
       includeAuthEmails: false,
+      includeRemoveEligibility: false,
     }),
     getClassComputedGradeLockState(adminClient, classId),
     getClassWeekSkipState(adminClient, { classId, actorRole: ROLES.TEACHER }),

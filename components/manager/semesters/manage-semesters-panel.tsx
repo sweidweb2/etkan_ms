@@ -13,7 +13,10 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { hasPermissionInSet } from "@/lib/auth/permission-checks";
 import { PERMISSIONS } from "@/lib/constants/permissions";
-import { prependUniqueById } from "@/lib/utils/prepend-unique-by-id";
+import {
+  mergeItemsById,
+  prependUniqueById,
+} from "@/lib/utils/prepend-unique-by-id";
 import type { ManagerSemesterRow } from "@/types/manager-semester";
 import type { ManagerSemesterTeamRow } from "@/types/manager-semester-team";
 
@@ -191,7 +194,9 @@ export function ManageSemestersPanel({
           canDragCards={canUpdateSemesters}
           canReorderTeams={canReorderColumns}
           sortingEnabled={sortingEnabled}
-          onSemestersChange={setSemesters}
+          onSemestersChange={(next) => {
+            setSemesters((current) => mergeItemsById(current, next));
+          }}
           onTeamsChange={setTeams}
           onRequestCreateTeam={() => setIsCreateTeamOpen(true)}
         />

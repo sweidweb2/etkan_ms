@@ -412,7 +412,9 @@ export async function computeAllStudentCourseGradesForManager(
     try {
       const loaded = await timer.step("gradeContext", () =>
         Promise.all([
-          listClassStudentsForManager(adminClient, actorUserId, classId),
+          listClassStudentsForManager(adminClient, actorUserId, classId, {
+            includeRemoveEligibility: false,
+          }),
           loadClassGradeContext(adminClient, classId),
         ])
       );

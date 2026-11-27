@@ -31,7 +31,10 @@ import type {
 } from "@/repositories/email-users.repository";
 import * as profileRepository from "@/repositories/profile.repository";
 import * as studentClassRepository from "@/repositories/student-class.repository";
-import type { AuditActor } from "@/services/ops/audit-log.service";
+import {
+  recordManagerAuditLog,
+  type AuditActor,
+} from "@/services/ops/audit-log.service";
 import type { SendEmailInput as SendManagerEmailInput } from "@/lib/validators/manager/send-email";
 import type { FieldErrors } from "@/types/auth";
 import type {
@@ -483,6 +486,22 @@ export async function sendEmailsForManager(
       parts.push(`Failed ${failedCount}.`);
     }
 
+    await recordManagerAuditLog(adminClient, actor, {
+      action: "other",
+      severity: "info",
+      table_name: "email_sent",
+      record_id: emailSent.id,
+      metadata: {
+        note: parts[0],
+        recipient_count: sentCount,
+        skipped_count: skippedCount,
+        failed_count: failedCount,
+        subject: snapshot.title,
+        reference_code: emailSent.reference_code,
+        template_id: input.templateId,
+      },
+    });
+
     return {
       success: true,
       message: parts.join(" "),
@@ -743,6 +762,7 @@ export async function getSentEmailDetailForManager(
 export async function resendSentEmailForManager(
   adminClient: Supabase,
   actorUserId: string | null,
+  actor: AuditActor,
   input: {
     emailSentId: string;
     userIds: string[];
@@ -877,6 +897,22 @@ export async function resendSentEmailForManager(
     if (failedCount > 0) {
       parts.push(`Failed ${failedCount}.`);
     }
+
+    await recordManagerAuditLog(adminClient, actor, {
+      action: "other",
+      severity: "info",
+      table_name: "email_sent",
+      record_id: emailSent.id,
+      metadata: {
+        note: parts[0],
+        recipient_count: sentCount,
+        skipped_count: skippedCount,
+        failed_count: failedCount,
+        subject: emailSent.title,
+        reference_code: emailSent.reference_code,
+        resent: true,
+      },
+    });
 
     return {
       success: true,

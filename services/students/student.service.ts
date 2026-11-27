@@ -13,6 +13,7 @@ import {
   getUnauthorizedError,
 } from "@/services/auth/authorization.service";
 import { MANAGER_CACHE_TAGS } from "@/lib/cache/manager-list-cache";
+import { logOpsError } from "@/lib/ops/logger";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { isUuid } from "@/lib/shared/is-uuid";
 import {
@@ -435,59 +436,22 @@ export async function listStudentsWithoutInProgressClassForManager(
 ): Promise<ManagerStudentWithoutActiveClassRow[]> {
   await assertPermission(adminClient, actorUserId, viewPermission);
 
-  const [
-    { data: studentProfiles, error: profilesError },
-    { data: inProgressClasses, error: classesError },
-  ] = await Promise.all([
-    studentProfileRepository.listStudentProfiles(adminClient),
-    classRepository.listInProgressClasses(adminClient),
-  ]);
+  const { data, error } =
+    await studentProfileRepository.listStudentProfilesWithoutActiveClass(
+      adminClient
+    );
 
-  if (profilesError) {
-    throw new Error(profilesError.message);
+  if (error) {
+    throw new Error(error.message);
   }
 
-  if (classesError) {
-    throw new Error(classesError.message);
-  }
-
-  const profiles = studentProfiles ?? [];
-  if (profiles.length === 0) {
-    return [];
-  }
-
-  const inProgressClassIds = (inProgressClasses ?? []).map(
-    (classRow) => classRow.id
-  );
-
-  const enrolledUserIds = new Set<string>();
-
-  if (inProgressClassIds.length > 0) {
-    const { data: enrollments, error: enrollmentError } =
-      await studentClassRepository.listMemberUserIdsByClassIds(
-        adminClient,
-        inProgressClassIds
-      );
-
-    if (enrollmentError) {
-      throw new Error(enrollmentError.message);
-    }
-
-    for (const row of enrollments ?? []) {
-      enrolledUserIds.add(row.user_id);
-    }
-  }
-
-  return profiles
-    .filter((profile) => !enrolledUserIds.has(profile.user_id))
-    .map((profile) => ({
-      user_id: profile.user_id,
-      student_profile_id: profile.id,
-      full_name: profile.full_name,
-      phone: profile.phone,
-      status: mapStudentStatus(profile.status),
-    }))
-    .sort((a, b) => a.full_name.localeCompare(b.full_name));
+  return (data ?? []).map((profile) => ({
+    user_id: profile.user_id,
+    student_profile_id: profile.id,
+    full_name: profile.full_name,
+    phone: profile.phone,
+    status: mapStudentStatus(profile.status),
+  }));
 }
 
 export async function getStudentForManager(
@@ -1076,8 +1040,21 @@ export async function createStudent(
       message: "Student account created.",
     };
   } catch (err) {
-    await authRepository.deleteAuthUser(adminClient, authUserId);
     const message = err instanceof Error ? err.message : "Registration failed.";
+    const { error: deleteError } = await authRepository.deleteAuthUser(
+      adminClient,
+      authUserId
+    );
+    if (deleteError) {
+      logOpsError("createStudent.rollbackAuth", deleteError, {
+        userId: authUserId,
+        note: "Auth account may be orphaned after failed student create.",
+      });
+      return {
+        success: false,
+        error: `${message} Cleanup of the auth account also failed; contact an admin.`,
+      };
+    }
     return {
       success: false,
       error: message,

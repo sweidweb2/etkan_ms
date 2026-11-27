@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   clearCachedAuthEmails,
   collectCachedAuthEmails,
@@ -6,8 +6,13 @@ import {
   setCachedAuthEmails,
 } from "@/lib/auth/auth-emails-cache";
 
+beforeEach(() => {
+  vi.useRealTimers();
+});
+
 afterEach(() => {
   clearCachedAuthEmails();
+  vi.useRealTimers();
 });
 
 describe("auth-emails-cache", () => {
@@ -33,5 +38,17 @@ describe("auth-emails-cache", () => {
     setCachedAuthEmails(["user-a"], new Map());
 
     expect(getMissingAuthEmailIds(["user-a"])).toEqual(["user-a"]);
+  });
+
+  it("treats expired entries as missing", () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-01-01T00:00:00.000Z"));
+
+    setCachedAuthEmails(["user-a"], new Map([["user-a", "a@school.com"]]), 1_000);
+    expect(getMissingAuthEmailIds(["user-a"])).toEqual([]);
+
+    vi.advanceTimersByTime(1_001);
+    expect(getMissingAuthEmailIds(["user-a"])).toEqual(["user-a"]);
+    expect(collectCachedAuthEmails(["user-a"]).size).toBe(0);
   });
 });

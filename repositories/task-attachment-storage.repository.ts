@@ -24,7 +24,8 @@ export async function uploadTaskAttachmentStorageObject(
   client: Supabase,
   storagePath: string,
   body: StorageObjectBody,
-  contentType: string
+  contentType: string,
+  options?: { upsert?: boolean }
 ): Promise<{ error: { message: string } | null }> {
   const { objectPath } = splitTaskAttachmentStoragePath(storagePath);
   return uploadObject(
@@ -32,7 +33,8 @@ export async function uploadTaskAttachmentStorageObject(
     TASK_ATTACHMENTS_STORAGE_BUCKET,
     objectPath,
     body,
-    contentType
+    contentType,
+    options
   );
 }
 

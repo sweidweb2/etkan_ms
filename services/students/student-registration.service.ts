@@ -42,6 +42,11 @@ import {
   getUnauthorizedError,
 } from "@/services/auth/authorization.service";
 import { notifyManagersOfRegistrationSubmitted } from "@/services/communications/notification.service";
+import {
+  recordManagerAuditLog,
+  type AuditActor,
+} from "@/services/ops/audit-log.service";
+import { logOpsInfo } from "@/lib/ops/logger";
 import type { FieldErrors } from "@/types/auth";
 import type {
   ManagerRegistrationApplicationRow,
@@ -468,6 +473,33 @@ export async function submitPublicRegistrationApplication(
     createdBy: staffActorUserId,
   });
 
+  if (staffActorUserId) {
+    await recordManagerAuditLog(
+      adminClient,
+      {
+        userId: staffActorUserId,
+        userLabel: "Manager",
+      },
+      {
+        action: "insert",
+        severity: "info",
+        table_name: "student_registration_applications",
+        record_id: applicationId,
+        new_data: {
+          guest_id: options?.guest_id ?? null,
+        },
+        metadata: {
+          note: "Registration application created by staff.",
+        },
+      }
+    );
+  } else {
+    logOpsInfo("public.registration.submit", "Registration application submitted", {
+      applicationId,
+      guest_id: options?.guest_id ?? null,
+    });
+  }
+
   return {
     success: true,
     id: applicationId,
@@ -809,6 +841,7 @@ export async function getRegistrationDocumentSignedUrlsForManager(
 export async function updateRegistrationApplicationStatusForManager(
   adminClient: Supabase,
   actorUserId: string | null,
+  actor: AuditActor,
   input: UpdateRegistrationStatusInput
 ): Promise<
   | { success: true; message: string; application: ManagerRegistrationApplicationRow }
@@ -848,12 +881,30 @@ export async function updateRegistrationApplicationStatusForManager(
     };
   }
 
+  const message =
+    input.notes !== undefined
+      ? "Application updated."
+      : "Application status updated.";
+
+  await recordManagerAuditLog(adminClient, actor, {
+    action: "update",
+    severity: "info",
+    table_name: "student_registration_applications",
+    record_id: input.id,
+    old_data: {
+      status: existing.data.status,
+      notes: existing.data.notes ?? null,
+    },
+    new_data: {
+      status: result.data.status,
+      notes: result.data.notes ?? null,
+    },
+    metadata: { note: message },
+  });
+
   return {
     success: true,
-    message:
-      input.notes !== undefined
-        ? "Application updated."
-        : "Application status updated.",
+    message,
     application: mapApplicationRecord(
       result.data as StudentRegistrationApplicationRecord
     ),
@@ -863,6 +914,7 @@ export async function updateRegistrationApplicationStatusForManager(
 export async function updateRegistrationApplicationForManager(
   adminClient: Supabase,
   actorUserId: string | null,
+  actor: AuditActor,
   input: UpdateManagerRegistrationInput
 ): Promise<
   | { success: true; message: string; application: ManagerRegistrationApplicationRow }
@@ -932,6 +984,24 @@ export async function updateRegistrationApplicationForManager(
       error: result.error?.message ?? "Unable to update application.",
     };
   }
+
+  await recordManagerAuditLog(adminClient, actor, {
+    action: "update",
+    severity: "info",
+    table_name: "student_registration_applications",
+    record_id: input.id,
+    old_data: {
+      status: existing.data.status,
+      full_name: existing.data.full_name,
+      email: existing.data.email,
+    },
+    new_data: {
+      status: result.data.status,
+      full_name: result.data.full_name,
+      email: result.data.email,
+    },
+    metadata: { note: "Application updated." },
+  });
 
   return {
     success: true,

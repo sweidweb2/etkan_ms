@@ -8,6 +8,9 @@ import * as registrationStorage from "@/repositories/registration-storage.reposi
 import * as studentProfileRepository from "@/repositories/student-profile.repository";
 import * as authorizationService from "@/services/auth/authorization.service";
 import * as notificationService from "@/services/communications/notification.service";
+import * as auditLogService from "@/services/ops/audit-log.service";
+import type { AuditActor } from "@/services/ops/audit-log.service";
+import * as opsLogger from "@/lib/ops/logger";
 import {
   getLinkedRegistrationApplicationIdForStudentManager,
   getRegistrationApplicationDetailForManager,
@@ -45,9 +48,21 @@ vi.mock("@/services/auth/authorization.service", () => ({
 vi.mock("@/services/communications/notification.service", () => ({
   notifyManagersOfRegistrationSubmitted: vi.fn(async () => undefined),
 }));
+vi.mock("@/services/ops/audit-log.service", () => ({
+  recordManagerAuditLog: vi.fn().mockResolvedValue(null),
+}));
+vi.mock("@/lib/ops/logger", () => ({
+  logOpsInfo: vi.fn(),
+  logOpsWarn: vi.fn(),
+  logOpsError: vi.fn(),
+}));
 
 const adminClient = {} as never;
 const actorUserId = "11111111-1111-4111-8111-111111111111";
+const actor: AuditActor = {
+  userId: actorUserId,
+  userLabel: "Manager",
+};
 const uploadSessionId = "cccccccc-cccc-4ccc-8ccc-cccccccccccc";
 const applicationId = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
 
@@ -234,6 +249,12 @@ describe("student-registration.service", () => {
         createdBy: null,
       })
     );
+    expect(opsLogger.logOpsInfo).toHaveBeenCalledWith(
+      "public.registration.submit",
+      "Registration application submitted",
+      expect.objectContaining({ applicationId })
+    );
+    expect(auditLogService.recordManagerAuditLog).not.toHaveBeenCalled();
   });
 
   it("suppresses live toast when staff fills the registration", async () => {
@@ -274,6 +295,16 @@ describe("student-registration.service", () => {
         createdBy: actorUserId,
       })
     );
+    expect(auditLogService.recordManagerAuditLog).toHaveBeenCalledWith(
+      adminClient,
+      expect.objectContaining({ userId: actorUserId }),
+      expect.objectContaining({
+        action: "insert",
+        table_name: "student_registration_applications",
+        record_id: applicationId,
+      })
+    );
+    expect(opsLogger.logOpsInfo).not.toHaveBeenCalled();
   });
 
   it("rolls back application when document move fails", async () => {
@@ -545,7 +576,7 @@ describe("student-registration.service", () => {
 
   it("rejects unauthorized status updates", async () => {
     await expect(
-      updateRegistrationApplicationStatusForManager(adminClient, null, {
+      updateRegistrationApplicationStatusForManager(adminClient, null, actor, {
         id: applicationId,
         status: "accepted",
       })
@@ -556,7 +587,7 @@ describe("student-registration.service", () => {
     vi.mocked(
       registrationRepository.findStudentRegistrationApplicationById
     ).mockResolvedValue({
-      data: { id: applicationId },
+      data: { ...applicationRecord, status: "pending", notes: null },
       error: null,
     } as never);
     vi.mocked(
@@ -569,6 +600,7 @@ describe("student-registration.service", () => {
     const result = await updateRegistrationApplicationStatusForManager(
       adminClient,
       actorUserId,
+      actor,
       {
         id: applicationId,
         status: "missing",
@@ -585,13 +617,22 @@ describe("student-registration.service", () => {
       actorUserId,
       PERMISSIONS.REGISTRATIONS_UPDATE_STATUS
     );
+    expect(auditLogService.recordManagerAuditLog).toHaveBeenCalledWith(
+      adminClient,
+      actor,
+      expect.objectContaining({
+        action: "update",
+        table_name: "student_registration_applications",
+        record_id: applicationId,
+      })
+    );
   });
 
   it("updates full application fields for authorized managers", async () => {
     vi.mocked(
       registrationRepository.findStudentRegistrationApplicationById
     ).mockResolvedValue({
-      data: { id: applicationId },
+      data: { ...applicationRecord },
       error: null,
     } as never);
     vi.mocked(
@@ -604,6 +645,7 @@ describe("student-registration.service", () => {
     const result = await updateRegistrationApplicationForManager(
       adminClient,
       actorUserId,
+      actor,
       {
         id: applicationId,
         status: "accepted",
@@ -644,5 +686,14 @@ describe("student-registration.service", () => {
     expect(
       registrationRepository.updateStudentRegistrationApplication
     ).toHaveBeenCalledOnce();
+    expect(auditLogService.recordManagerAuditLog).toHaveBeenCalledWith(
+      adminClient,
+      actor,
+      expect.objectContaining({
+        action: "update",
+        table_name: "student_registration_applications",
+        record_id: applicationId,
+      })
+    );
   });
 });

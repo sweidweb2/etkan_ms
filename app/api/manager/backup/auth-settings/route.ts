@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { PERMISSIONS } from "@/lib/constants/permissions";
+import { logOpsError } from "@/lib/ops/logger";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { createSupabaseServerActionClient } from "@/lib/supabase/server";
 import { getSessionAuthIdentity } from "@/services/auth/auth.service";
@@ -62,6 +63,7 @@ export async function GET() {
       },
     });
   } catch (error) {
+    logOpsError("api/manager/backup/auth-settings", error);
     const message =
       error instanceof Error
         ? error.message

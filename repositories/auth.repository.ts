@@ -173,10 +173,10 @@ export async function getAuthUserById(client: Supabase, id: string) {
   return client.auth.admin.getUserById(id);
 }
 
-/** Parallel `getUserById` chunk size — never scan the full Auth directory. */
-const AUTH_EMAIL_GET_BY_ID_CHUNK = 40;
 /** Cap Auth Admin hangs so roster/list pages soft-fail instead of stalling. */
 const AUTH_EMAIL_LOOKUP_TIMEOUT_MS = 8_000;
+/** Parallel Auth Admin fallback chunk size when the RPC misses rows. */
+const AUTH_EMAIL_GET_BY_ID_CHUNK = 40;
 
 type AuthEmailLookupResult = {
   id: string;
@@ -204,17 +204,14 @@ async function lookupAuthEmailById(
 
     return { id, email: result.data.user?.email ?? "", ok: true };
   } catch {
-    // Network throw / timeout — soft-fail this id; leave uncached for retry.
     return { id, email: "", ok: false };
   }
 }
 
 /**
- * Resolve emails for many auth user IDs via targeted `getUserById` chunks.
- * Never falls back to paginated `listUsers` (O(directory) and cold-cache costly).
- *
- * Per-id Auth failures and timeouts soft-fail to `""` and are not cached.
- * This helper always returns `error: null` so list pages stay up during Auth blips.
+ * Resolve emails for many auth user IDs.
+ * Prefer one DB RPC against auth.users; fall back to timed Auth Admin getUserById
+ * only for ids the RPC did not return. Failures soft-fail to "" and are not cached.
  */
 export async function listAuthEmailsByIds(
   client: Supabase,
@@ -233,24 +230,44 @@ export async function listAuthEmailsByIds(
   }
 
   const fetched = new Map<string, string>();
+  let stillMissing = missingIds;
 
-  for (
-    let index = 0;
-    index < missingIds.length;
-    index += AUTH_EMAIL_GET_BY_ID_CHUNK
-  ) {
-    const chunk = missingIds.slice(index, index + AUTH_EMAIL_GET_BY_ID_CHUNK);
-    const results = await Promise.all(
-      chunk.map((id) => lookupAuthEmailById(client, id))
-    );
+  const { data: rpcRows, error: rpcError } = await client.rpc(
+    "list_auth_emails_by_ids",
+    { p_ids: missingIds }
+  );
 
-    for (const row of results) {
-      if (!row.ok) {
-        emailById.set(row.id, "");
-        continue;
+  if (!rpcError && rpcRows) {
+    for (const row of rpcRows) {
+      const email = row.email ?? "";
+      fetched.set(row.id, email);
+      emailById.set(row.id, email);
+    }
+    stillMissing = missingIds.filter((id) => !fetched.has(id));
+  }
+
+  if (stillMissing.length > 0) {
+    for (
+      let index = 0;
+      index < stillMissing.length;
+      index += AUTH_EMAIL_GET_BY_ID_CHUNK
+    ) {
+      const chunk = stillMissing.slice(
+        index,
+        index + AUTH_EMAIL_GET_BY_ID_CHUNK
+      );
+      const results = await Promise.all(
+        chunk.map((id) => lookupAuthEmailById(client, id))
+      );
+
+      for (const row of results) {
+        if (!row.ok) {
+          emailById.set(row.id, "");
+          continue;
+        }
+        fetched.set(row.id, row.email);
+        emailById.set(row.id, row.email);
       }
-      fetched.set(row.id, row.email);
-      emailById.set(row.id, row.email);
     }
   }
 

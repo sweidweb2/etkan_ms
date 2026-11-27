@@ -55,3 +55,35 @@ export function appendUniqueById<T extends { id: string }>(
 ): T[] {
   return appendUniqueByKey(current, created, (item) => item.id);
 }
+
+/**
+ * Apply a (possibly partial) board update onto the full list.
+ * Keeps rows missing from `next` so filtered kanban persists cannot wipe them.
+ */
+export function mergeItemsById<T extends { id: string }>(
+  current: readonly T[],
+  next: readonly T[]
+): T[] {
+  if (next.length === 0) {
+    return [...current];
+  }
+
+  const nextById = new Map(next.map((item) => [item.id, item]));
+  const seen = new Set<string>();
+  const merged = current.map((item) => {
+    const updated = nextById.get(item.id);
+    if (updated) {
+      seen.add(item.id);
+      return updated;
+    }
+    return item;
+  });
+
+  for (const item of next) {
+    if (!seen.has(item.id)) {
+      merged.push(item);
+    }
+  }
+
+  return merged;
+}

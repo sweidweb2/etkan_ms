@@ -26,6 +26,11 @@ vi.mock("@/services/instructors/clear-instructor-related.service", () => ({
 vi.mock("@/services/ops/audit-log.service", () => ({
   recordManagerAuditLog: vi.fn().mockResolvedValue(null),
 }));
+vi.mock("@/lib/ops/logger", () => ({
+  logOpsWarn: vi.fn(),
+  logOpsError: vi.fn(),
+  logOpsInfo: vi.fn(),
+}));
 vi.mock("@/services/auth/role.service");
 vi.mock("next/cache", () => ({
   unstable_cache: <T extends (...args: never[]) => unknown>(fn: T) => fn,
@@ -523,6 +528,46 @@ describe("createStaffUser", () => {
       adminClient,
       "user-1"
     );
+  });
+
+  it("notes orphan risk when auth cleanup also fails", async () => {
+    vi.mocked(authRepository.findAuthUserByEmail).mockResolvedValue({
+      data: null,
+      error: null,
+    });
+    vi.mocked(authRepository.createAuthUser).mockResolvedValue({
+      data: { user: authUser },
+      error: null,
+    });
+    vi.mocked(profileRepository.createProfile).mockResolvedValue({
+      data: null,
+      error: {
+        message: "Profile insert failed.",
+        name: "PostgrestError",
+        details: "",
+        hint: "",
+        code: "500",
+      },
+      count: null,
+      status: 500,
+      statusText: "Internal Server Error",
+    });
+    vi.mocked(authRepository.deleteAuthUser).mockResolvedValue({
+      data: { user: null },
+      error: { message: "delete failed", name: "AuthApiError", status: 500 },
+    } as never);
+
+    const result = await createStaffUser(
+      adminClient,
+      actor.userId,
+      actor,
+      validStaffInput
+    );
+
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(result.error).toMatch(/Cleanup of the auth account also failed/i);
+    }
   });
 });
 

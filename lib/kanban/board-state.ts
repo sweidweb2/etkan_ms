@@ -112,7 +112,7 @@ export function applyColumnOrder<TColumn extends BoardColumnBase>(
 }
 
 /** Move a card across / within board columns. */
-export function moveBoardItem(
+function moveBoardItem(
   columns: BoardColumns,
   input: {
     initialGroup: string | number | undefined | null;

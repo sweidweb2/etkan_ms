@@ -5,7 +5,12 @@ import {
   TASK_ATTACHMENT_ENTITIES,
   TASK_ATTACHMENT_MAX_FILES,
 } from "@/lib/constants/task-attachments";
+import {
+  isCloneSourceAlreadyCopied,
+  isDuplicateStoragePathError,
+} from "@/lib/manager/task-attachments/clone-dedupe";
 import { buildTaskAttachmentStoragePath } from "@/lib/manager/task-attachments/storage-path";
+import { logOpsError } from "@/lib/ops/logger";
 import { scheduleAfterResponse } from "@/lib/ops/schedule-after-response";
 import * as cloneJobRepository from "@/repositories/task-attachment-clone-job.repository";
 import type { TaskAttachmentCloneJobRecord } from "@/repositories/task-attachment-clone-job.repository";
@@ -82,35 +87,25 @@ export async function enqueueAttachmentCloneJobsForClassTasks(
   return { error: null };
 }
 
-/** Schedule (or run inline) pending clone job processing. */
+/**
+ * Schedule pending clone job processing.
+ * Prefer Next.js `after()`, but always also kick a fire-and-forget run so a
+ * process death mid-`after` (or missing external cron) is less likely to leave
+ * jobs stuck forever. Processing is idempotent (claim + deterministic paths).
+ */
 export function scheduleAttachmentCloneProcessing(adminClient: Supabase): void {
-  const deferred = scheduleAfterResponse(() =>
-    processPendingTaskAttachmentCloneJobs(adminClient)
-  );
-  if (!deferred) {
-    void processPendingTaskAttachmentCloneJobs(adminClient).catch((error) => {
-      console.error("[task-attachments] clone processing failed", error);
+  const run = () =>
+    processPendingTaskAttachmentCloneJobs(adminClient).catch((error) => {
+      logOpsError("task-attachments/clone", error);
     });
-  }
-}
 
-/** Prefer source attachment id embedded in dest path; fall back for legacy copies. */
-function isSourceAlreadyCopied(
-  source: { id: string; file_name: string; file_size: number },
-  existing: ReadonlyArray<{
-    storage_path: string;
-    file_name: string;
-    file_size: number;
-  }>
-) {
-  const idToken = `/${source.id}-`;
-  if (existing.some((row) => row.storage_path.includes(idToken))) {
-    return true;
+  const deferred = scheduleAfterResponse(run);
+  // Backup path: start soon either way (deferred may never run on crash).
+  if (deferred) {
+    setTimeout(run, 2_000);
+  } else {
+    run();
   }
-  return existing.some(
-    (row) =>
-      row.file_name === source.file_name && row.file_size === source.file_size
-  );
 }
 
 /**
@@ -188,17 +183,26 @@ async function processOneCloneJob(
       return;
     }
 
-    const existingRows = existingAttachments.data ?? [];
+    const copiedPaths: Array<{ storage_path: string }> = (
+      existingAttachments.data ?? []
+    ).map((row) => ({ storage_path: row.storage_path }));
 
-    let remaining = TASK_ATTACHMENT_MAX_FILES - existingRows.length;
+    let remaining = TASK_ATTACHMENT_MAX_FILES - copiedPaths.length;
     if (remaining <= 0) {
       await cloneJobRepository.completeCloneJob(adminClient, job.id);
       return;
     }
 
-    const pendingSources = (sourceAttachments.data ?? []).filter(
-      (source) => !isSourceAlreadyCopied(source, existingRows)
-    );
+    const sources = sourceAttachments.data ?? [];
+    const pendingSources = sources.filter((source) => {
+      const destPath = buildTaskAttachmentStoragePath(
+        TASK_ATTACHMENT_ENTITIES.CLASS_TASK,
+        job.class_task_id,
+        source.file_name,
+        source.id
+      );
+      return !isCloneSourceAlreadyCopied(source.id, destPath, copiedPaths);
+    });
 
     if (pendingSources.length === 0) {
       await cloneJobRepository.completeCloneJob(adminClient, job.id);
@@ -206,11 +210,24 @@ async function processOneCloneJob(
     }
 
     let copiedCount = 0;
+    let skippedMissing = 0;
     let lastError: string | null = null;
 
     for (const source of pendingSources) {
       if (remaining <= 0) {
         break;
+      }
+
+      // Deterministic object id = source attachment id (idempotent re-runs).
+      const destPath = buildTaskAttachmentStoragePath(
+        TASK_ATTACHMENT_ENTITIES.CLASS_TASK,
+        job.class_task_id,
+        source.file_name,
+        source.id
+      );
+
+      if (isCloneSourceAlreadyCopied(source.id, destPath, copiedPaths)) {
+        continue;
       }
 
       const downloaded =
@@ -220,26 +237,26 @@ async function processOneCloneJob(
         );
 
       if (downloaded.error || !downloaded.data) {
-        lastError =
-          downloaded.error?.message ?? "Unable to download source attachment.";
-        break;
+        // Missing source blob: skip and continue other files.
+        skippedMissing += 1;
+        console.error(
+          "[task-attachments] clone source missing",
+          source.storage_path,
+          downloaded.error?.message
+        );
+        continue;
       }
 
       const bytes = Buffer.from(await downloaded.data.arrayBuffer());
-      // Deterministic object id = source attachment id (idempotent re-runs).
-      const destPath = buildTaskAttachmentStoragePath(
-        TASK_ATTACHMENT_ENTITIES.CLASS_TASK,
-        job.class_task_id,
-        source.file_name,
-        source.id
-      );
 
+      // Upsert so a crash between upload and DB insert can resume cleanly.
       const uploaded =
         await taskAttachmentStorageRepository.uploadTaskAttachmentStorageObject(
           adminClient,
           destPath,
           bytes,
-          source.mime_type
+          source.mime_type,
+          { upsert: true }
         );
 
       if (uploaded.error) {
@@ -262,14 +279,17 @@ async function processOneCloneJob(
       );
 
       if (created.error) {
-        await taskAttachmentStorageRepository.removeTaskAttachmentStorageObjects(
-          adminClient,
-          [destPath]
-        );
+        if (isDuplicateStoragePathError(created.error.message)) {
+          copiedPaths.push({ storage_path: destPath });
+          copiedCount += 1;
+          remaining -= 1;
+          continue;
+        }
         lastError = created.error.message;
         break;
       }
 
+      copiedPaths.push({ storage_path: destPath });
       copiedCount += 1;
       remaining -= 1;
     }
@@ -282,6 +302,19 @@ async function processOneCloneJob(
         copiedCount > 0
           ? `Copied ${copiedCount} file(s), then failed: ${lastError}`
           : lastError
+      );
+      return;
+    }
+
+    if (
+      copiedCount === 0 &&
+      skippedMissing > 0 &&
+      skippedMissing === pendingSources.length
+    ) {
+      await cloneJobRepository.failCloneJob(
+        adminClient,
+        job.id,
+        "All source attachment files are missing from storage."
       );
       return;
     }

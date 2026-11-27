@@ -1,6 +1,8 @@
 "use client";
 
+import { useEffect } from "react";
 import { ErrorPage } from "@/components/errors/error-page";
+import { logOpsError } from "@/lib/ops/logger";
 
 type GlobalErrorProps = {
   error: Error & { digest?: string };
@@ -8,6 +10,10 @@ type GlobalErrorProps = {
 };
 
 export default function GlobalError({ error, reset }: GlobalErrorProps) {
+  useEffect(() => {
+    logOpsError("app/global-error", error, { digest: error.digest });
+  }, [error]);
+
   return (
     <html lang="en">
       <body>

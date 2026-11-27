@@ -347,6 +347,33 @@ describe("listWorkshopsForManager", () => {
       actor.userId
     );
   });
+
+  it("falls back to profiles.role when actorRole is null", async () => {
+    vi.mocked(profileRepository.findRoleById).mockResolvedValue({
+      data: { role: ROLES.MANAGER },
+      error: null,
+      count: null,
+      status: 200,
+      statusText: "OK",
+    });
+    vi.mocked(workshopRepository.listWorkshopsPage).mockResolvedValue({
+      data: [workshopRecord],
+      error: null,
+      count: 1,
+    });
+
+    const result = await listWorkshopsForManager(
+      adminClient,
+      actor.userId,
+      null
+    );
+
+    expect(result.workshops).toHaveLength(1);
+    expect(profileRepository.findRoleById).toHaveBeenCalledWith(
+      adminClient,
+      actor.userId
+    );
+  });
 });
 
 describe("createWorkshopForManager", () => {

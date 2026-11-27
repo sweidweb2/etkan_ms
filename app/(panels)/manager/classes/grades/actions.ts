@@ -183,7 +183,12 @@ export async function deleteComputedGradeAction(
 ): Promise<ClassGradesActionState> {
   const actor = await getSessionAuditActor();
   const adminClient = createSupabaseAdminClient();
-  const students = await listClassStudentsForManager(adminClient, actor.userId, classId);
+  const students = await listClassStudentsForManager(
+    adminClient,
+    actor.userId,
+    classId,
+    { includeRemoveEligibility: false }
+  );
   const student = students.find((row) => row.user_id === userId);
   const result = await deleteStudentCourseGradeForManager(
     adminClient,
@@ -287,7 +292,9 @@ export async function fetchStudentFastCertificateBundleAction(
 
   try {
     const [classRow, detailBundle] = await Promise.all([
-      getClassForManager(adminClient, actor.userId, classId),
+      getClassForManager(adminClient, actor.userId, classId, {
+        includeCounts: false,
+      }),
       getStudentClassGradeDetailForManager(
         adminClient,
         actor.userId,

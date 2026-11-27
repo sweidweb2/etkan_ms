@@ -20,6 +20,23 @@ import {
 import type { MutationFailure, Supabase } from "@/services/shared/mutation";
 import type { ManagerSemesterDropRequestRow } from "@/types/manager-semester-drop";
 
+function mapWaiveDropRefundError(message: string | undefined): string {
+  const normalized = (message ?? "").toLowerCase();
+  if (normalized.includes("only completed drop requests")) {
+    return "Only completed drop requests can have refunds waived.";
+  }
+  if (normalized.includes("only owed drop refunds")) {
+    return "Only owed drop refunds can be waived.";
+  }
+  if (normalized.includes("no remaining refund")) {
+    return "There is no remaining refund to waive.";
+  }
+  if (normalized.includes("not found")) {
+    return "Drop request not found.";
+  }
+  return "Unable to waive drop refund.";
+}
+
 export type ProcessDropRefundResult =
   | {
       success: true;
@@ -66,7 +83,8 @@ export async function processDropRefundForManager(
     parsed.data.request_id
   );
   if (existing.error) {
-    return { success: false, error: existing.error.message };
+    console.error("[drop-refund] lookup failed", existing.error.message);
+    return { success: false, error: "Unable to record refund." };
   }
   if (!existing.data) {
     return { success: false, error: "Drop request not found." };
@@ -107,10 +125,11 @@ export async function processDropRefundForManager(
       return {
         success: false,
         error: "Please fix the errors below.",
-        fieldErrors: { amount: [message] },
+        fieldErrors: { amount: [DROP_REFUND_AMOUNT_SQL_MESSAGE] },
       };
     }
-    return { success: false, error: message };
+    console.error("[drop-refund] process failed", message);
+    return { success: false, error: "Unable to record refund." };
   }
 
   if (!data?.payment || !data.request) {
@@ -196,9 +215,10 @@ export async function waiveDropRefundForManager(
     );
 
   if (error) {
+    console.error("[drop-refund] waive failed", error.message);
     return {
       success: false,
-      error: error.message || "Unable to waive drop refund.",
+      error: mapWaiveDropRefundError(error.message),
     };
   }
 

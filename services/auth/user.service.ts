@@ -15,6 +15,7 @@ import {
   getUnauthorizedError,
 } from "@/services/auth/authorization.service";
 import { MANAGER_CACHE_TAGS } from "@/lib/cache/manager-list-cache";
+import { logOpsError } from "@/lib/ops/logger";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import {
   createStaffUserSchema,
@@ -828,8 +829,21 @@ export async function createStaffUser(
       message: "Staff account created.",
     };
   } catch (err) {
-    await authRepository.deleteAuthUser(adminClient, authUserId);
     const message = err instanceof Error ? err.message : "Registration failed.";
+    const { error: deleteError } = await authRepository.deleteAuthUser(
+      adminClient,
+      authUserId
+    );
+    if (deleteError) {
+      logOpsError("createStaffUser.rollbackAuth", deleteError, {
+        userId: authUserId,
+        note: "Auth account may be orphaned after failed staff create.",
+      });
+      return {
+        success: false,
+        error: `${message} Cleanup of the auth account also failed; contact an admin.`,
+      };
+    }
     return {
       success: false,
       error: message,

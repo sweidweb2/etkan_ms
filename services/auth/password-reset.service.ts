@@ -12,6 +12,10 @@ import {
 import * as authRepository from "@/repositories/auth.repository";
 import * as profileRepository from "@/repositories/profile.repository";
 import { getUnauthorizedError } from "@/services/auth/authorization.service";
+import {
+  recordManagerAuditLog,
+  type AuditActor,
+} from "@/services/ops/audit-log.service";
 import type {
   PasswordResetExportRow,
   PasswordResetFailureResult,
@@ -114,6 +118,7 @@ export async function loadPasswordResetUsersDeferredForManager(
 export async function resetPasswordsByRoleForManager(
   adminClient: Supabase,
   actorUserId: string | null,
+  actor: AuditActor,
   input: { role: string }
 ): Promise<ResetByRoleSuccess | PasswordResetFailureResult> {
   const unauthorized = await getUnauthorizedError(
@@ -204,12 +209,26 @@ export async function resetPasswordsByRoleForManager(
       ? `Reset ${exportRows.length} of ${targets.length} ${role} password(s). Excel is downloading.`
       : `Reset ${exportRows.length} ${role} password(s). Excel is downloading.`;
 
+  await recordManagerAuditLog(adminClient, actor, {
+    action: "update",
+    severity: "critical",
+    table_name: "auth.users",
+    metadata: {
+      note: `Bulk password reset for role ${role}.`,
+      role,
+      passwords_reset_count: exportRows.length,
+      passwords_reset_failed_count: failureCount,
+      password_changed: true,
+    },
+  });
+
   return { success: true, message, rows: exportRows };
 }
 
 export async function resetUserPasswordForManager(
   adminClient: Supabase,
   actorUserId: string | null,
+  actor: AuditActor,
   input: { userId: string; password: string }
 ): Promise<ResetUserSuccess | PasswordResetFailureResult> {
   const unauthorized = await getUnauthorizedError(
@@ -258,6 +277,21 @@ export async function resetUserPasswordForManager(
   }
 
   const label = profile.full_name?.trim() || "user";
+
+  await recordManagerAuditLog(adminClient, actor, {
+    action: "update",
+    severity: "critical",
+    table_name: "auth.users",
+    record_id: userId,
+    metadata: {
+      note: `Password reset for ${label}.`,
+      userId,
+      role: profile.role,
+      passwords_reset_count: 1,
+      password_changed: true,
+    },
+  });
+
   return {
     success: true,
     message: `Password updated for ${label}.`,

@@ -2,6 +2,7 @@ import "server-only";
 
 import { after } from "next/server";
 import { getSessionAuditActor } from "@/lib/auth/session";
+import { logOpsError } from "@/lib/ops/logger";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import type { ParseFormResult } from "@/lib/validators/safe-parse-form-data";
 import type { FieldErrors } from "@/types/auth";
@@ -93,7 +94,8 @@ export async function runManagerAction<
       });
     }
     return options.mapSuccess(success, data);
-  } catch {
+  } catch (error) {
+    logOpsError("runManagerAction", error);
     return {
       success: false,
       error: "Something went wrong. Please try again.",
@@ -150,7 +152,8 @@ export async function runManagerMutation<
       });
     }
     return options.mapSuccess(success, data);
-  } catch {
+  } catch (error) {
+    logOpsError("runManagerMutation", error);
     return {
       success: false,
       error: "Something went wrong. Please try again.",

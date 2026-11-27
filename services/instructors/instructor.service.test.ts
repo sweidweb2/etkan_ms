@@ -2,6 +2,8 @@ import { describe, expect, it, vi, beforeEach } from "vitest";
 import { ROLES } from "@/lib/constants/roles";
 import { clearInstructorWorkshopRelatedData } from "@/services/instructors/clear-instructor-related.service";
 import * as profileRepository from "@/repositories/profile.repository";
+import * as auditLogService from "@/services/ops/audit-log.service";
+import type { AuditActor } from "@/services/ops/audit-log.service";
 import {
   addInstructorsForManager,
   removeInstructorForManager,
@@ -18,6 +20,9 @@ vi.mock("next/cache", () => ({
 vi.mock("@/lib/supabase/admin", () => ({
   createSupabaseAdminClient: vi.fn(),
 }));
+vi.mock("@/services/ops/audit-log.service", () => ({
+  recordManagerAuditLog: vi.fn().mockResolvedValue(null),
+}));
 
 vi.mock("@/services/auth/authorization.service", () => ({
   UNAUTHORIZED_MESSAGE: "Unauthorized.",
@@ -31,6 +36,10 @@ vi.mock("@/services/auth/authorization.service", () => ({
 
 const adminClient = {} as never;
 const actorUserId = "11111111-1111-4111-8111-111111111111";
+const actor: AuditActor = {
+  userId: actorUserId,
+  userLabel: "Manager",
+};
 const instructorId = "22222222-2222-4222-8222-222222222222";
 
 const okResult = {
@@ -71,9 +80,14 @@ describe("addInstructorsForManager", () => {
       error: null,
     });
 
-    const result = await addInstructorsForManager(adminClient, actorUserId, {
-      userIds: [instructorId, secondId],
-    });
+    const result = await addInstructorsForManager(
+      adminClient,
+      actorUserId,
+      actor,
+      {
+        userIds: [instructorId, secondId],
+      }
+    );
 
     expect(result).toEqual({
       success: true,
@@ -87,6 +101,18 @@ describe("addInstructorsForManager", () => {
       true
     );
     expect(profileRepository.updateProfileInstructorFlag).not.toHaveBeenCalled();
+    expect(auditLogService.recordManagerAuditLog).toHaveBeenCalledWith(
+      adminClient,
+      actor,
+      expect.objectContaining({
+        action: "update",
+        table_name: "profiles",
+        metadata: expect.objectContaining({
+          added_count: 2,
+          user_ids: [instructorId, secondId],
+        }),
+      })
+    );
   });
 });
 
@@ -128,6 +154,7 @@ describe("removeInstructorForManager", () => {
     const result = await removeInstructorForManager(
       adminClient,
       actorUserId,
+      actor,
       instructorId
     );
 
@@ -144,6 +171,15 @@ describe("removeInstructorForManager", () => {
       adminClient,
       instructorId,
       false
+    );
+    expect(auditLogService.recordManagerAuditLog).toHaveBeenCalledWith(
+      adminClient,
+      actor,
+      expect.objectContaining({
+        action: "update",
+        table_name: "profiles",
+        record_id: instructorId,
+      })
     );
   });
 });
