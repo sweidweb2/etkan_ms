@@ -221,10 +221,25 @@ export async function updateClassTaskStartState(
     .single();
 }
 
-export async function deleteClassTaskById(client: Supabase, id: string) {
-  return client.from("class_tasks").delete().eq("id", id);
+/** Atomically delete class_task + task_attachments (student_tasks cascade). */
+export async function deleteClassTaskWithAttachments(
+  client: Supabase,
+  classTaskId: string
+) {
+  const { error } = await client.rpc("delete_class_task_with_attachments", {
+    p_class_task_id: classTaskId,
+  });
+  return { error };
 }
 
-export async function deleteClassTasksByClassId(client: Supabase, classId: string) {
-  return client.from("class_tasks").delete().eq("class_id", classId);
+/** Atomically delete all class_tasks for a class + their task_attachments. */
+export async function deleteClassTasksForClassWithAttachments(
+  client: Supabase,
+  classId: string
+) {
+  const { error } = await client.rpc(
+    "delete_class_tasks_for_class_with_attachments",
+    { p_class_id: classId }
+  );
+  return { error };
 }

@@ -225,7 +225,6 @@ export function StudentJoinedClassesSection({
         current.filter((bundle) => bundle.classRow.id !== removedId)
       );
       setRemovingClass(null);
-      router.refresh();
     },
     (nextState) => Boolean(nextState.success && nextState.removedStudentId)
   );

@@ -12,7 +12,7 @@ import {
 } from "@/components/ui/tooltip";
 import { EMAIL_REGEX } from "@/lib/validators/auth/fields";
 import { ROLES, type RoleValue } from "@/lib/constants/roles";
-import { showErrorToast } from "@/lib/toast";
+import { showErrorToast, showInfoToast } from "@/lib/toast";
 import { cn } from "@/lib/utils";
 import type { ManagerUserRow } from "@/types/manager-user";
 
@@ -25,8 +25,13 @@ type RecipientToFieldProps = {
   users?: ManagerUserRow[];
   /** Server search for typeahead suggestions. */
   searchUsers?: (query: string) => Promise<ManagerUserRow[]>;
-  /** On-demand bulk roster for role shortcuts. */
-  loadUsersByRole?: (roles?: RoleValue[]) => Promise<ManagerUserRow[]>;
+  /** On-demand bulk roster for role shortcuts (may be capped server-side). */
+  loadUsersByRole?: (
+    roles?: RoleValue[]
+  ) => Promise<
+    | ManagerUserRow[]
+    | { users: ManagerUserRow[]; truncated?: boolean; limit?: number }
+  >;
   /** Resolve a typed email to an existing user when possible. */
   resolveUserByEmail?: (email: string) => Promise<ManagerUserRow | null>;
   recipients: ComposeRecipient[];
@@ -220,12 +225,15 @@ export function RecipientToField({
 
     setIsLoadingBulk(true);
     try {
-      const loaded = loadUsersByRole
+      const loadedRaw = loadUsersByRole
         ? await loadUsersByRole(roles)
         : staticUsersWithEmail.filter((user) =>
             roles ? roles.includes(user.role) : true
           );
-      const loadedWithEmail = loaded.filter((user) =>
+      const loadedResult = Array.isArray(loadedRaw)
+        ? { users: loadedRaw, truncated: false, limit: undefined }
+        : loadedRaw;
+      const loadedWithEmail = loadedResult.users.filter((user) =>
         Boolean(user.email?.trim())
       );
       const pool = roles
@@ -245,6 +253,12 @@ export function RecipientToField({
       }
 
       onChange(next);
+
+      if (loadedResult.truncated) {
+        showInfoToast(
+          `Added the first ${loadedResult.limit ?? pool.length} matching recipients. Use search to add more.`
+        );
+      }
     } catch {
       showErrorToast("Unable to load recipients.");
     } finally {

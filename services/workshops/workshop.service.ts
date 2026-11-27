@@ -47,7 +47,6 @@ export {
   getWorkshopForManager,
   getWorkshopRowForManager,
   getWorkshopPaymentsOverviewForManager,
-  listAllWorkshopPaymentsForManager,
   listWorkshopInstructorCandidatesForManager,
   listWorkshopPaymentsForManager,
   listWorkshopScheduleSlotsForManager,

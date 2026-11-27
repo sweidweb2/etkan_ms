@@ -3,6 +3,7 @@ import "server-only";
 import {
   collectCachedAuthEmails,
   getMissingAuthEmailIds,
+  setCachedAuthEmailMisses,
   setCachedAuthEmails,
 } from "@/lib/auth/auth-emails-cache";
 import { getClaimsWithSharedJwks } from "@/lib/auth/get-claims";
@@ -211,7 +212,8 @@ async function lookupAuthEmailById(
 /**
  * Resolve emails for many auth user IDs.
  * Prefer one DB RPC against auth.users; fall back to timed Auth Admin getUserById
- * only for ids the RPC did not return. Failures soft-fail to "" and are not cached.
+ * only for ids the RPC did not return. Soft-fail misses use a short negative
+ * cache so concurrent roster loads do not stampede Auth Admin.
  */
 export async function listAuthEmailsByIds(
   client: Supabase,
@@ -231,13 +233,24 @@ export async function listAuthEmailsByIds(
 
   const fetched = new Map<string, string>();
   let stillMissing = missingIds;
+  const failedIds: string[] = [];
 
   const { data: rpcRows, error: rpcError } = await client.rpc(
     "list_auth_emails_by_ids",
     { p_ids: missingIds }
   );
 
-  if (!rpcError && rpcRows) {
+  if (rpcError) {
+    // RPC down: soft-fail without Auth Admin fan-out under concurrent load.
+    for (const id of missingIds) {
+      emailById.set(id, "");
+      failedIds.push(id);
+    }
+    setCachedAuthEmailMisses(failedIds);
+    return { data: emailById, error: null };
+  }
+
+  if (rpcRows) {
     for (const row of rpcRows) {
       const email = row.email ?? "";
       fetched.set(row.id, email);
@@ -263,6 +276,7 @@ export async function listAuthEmailsByIds(
       for (const row of results) {
         if (!row.ok) {
           emailById.set(row.id, "");
+          failedIds.push(row.id);
           continue;
         }
         fetched.set(row.id, row.email);
@@ -272,6 +286,7 @@ export async function listAuthEmailsByIds(
   }
 
   setCachedAuthEmails([...fetched.keys()], fetched);
+  setCachedAuthEmailMisses(failedIds);
 
   return { data: emailById, error: null };
 }

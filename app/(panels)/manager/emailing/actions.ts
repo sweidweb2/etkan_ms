@@ -11,7 +11,7 @@ import {
   findEmailingRecipientByEmailForManager,
   listEmailingRecipientsForBulkForManager,
   listEmailingRecipientsPageForManager,
-} from "@/services/auth/user.service";
+} from "@/services/communications/emailing-recipients.service";
 import type { RoleValue } from "@/lib/constants/roles";
 import type {
   ManagerEmailingRecipientsListData,
@@ -114,27 +114,37 @@ export async function searchEmailingRecipientsAction(
   }
 }
 
+export type LoadEmailingRecipientsByRoleResult = {
+  users: ManagerUserRow[];
+  truncated: boolean;
+  limit: number;
+};
+
 /**
  * Bulk role shortcuts for compose/resend — loads matching roster on demand.
  */
 export async function loadEmailingRecipientsByRoleAction(
   roles?: RoleValue[]
-): Promise<ManagerUserRow[]> {
+): Promise<LoadEmailingRecipientsByRoleResult> {
   const actor = await getSessionAuditActor();
   if (!actor.userId) {
-    return [];
+    return { users: [], truncated: false, limit: 0 };
   }
 
   const adminClient = createSupabaseAdminClient();
   try {
-    const users = await listEmailingRecipientsForBulkForManager(
+    const result = await listEmailingRecipientsForBulkForManager(
       adminClient,
       actor.userId,
       roles?.length ? roles : null
     );
-    return users.filter((user) => Boolean(user.email?.trim()));
+    return {
+      users: result.users.filter((user) => Boolean(user.email?.trim())),
+      truncated: result.truncated,
+      limit: result.limit,
+    };
   } catch {
-    return [];
+    return { users: [], truncated: false, limit: 0 };
   }
 }
 

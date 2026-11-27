@@ -56,14 +56,6 @@ export type WorkshopPaymentWithWorkshopRecord = WorkshopPaymentRecord & {
   workshops: { name: string } | null;
 };
 
-export async function listAllWorkshopPayments(client: Supabase) {
-  return client
-    .from("workshop_payments")
-    .select(`${WORKSHOP_PAYMENT_COLUMNS}, workshops(name)`)
-    .order("payment_date", { ascending: false })
-    .order("created_at", { ascending: false });
-}
-
 export async function listWorkshopPaymentsPage(
   client: Supabase,
   input: { offset: number; limit: number }

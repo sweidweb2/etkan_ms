@@ -17,6 +17,9 @@ import { ROLES } from "@/lib/constants/roles";
 import * as profileRepository from "@/repositories/profile.repository";
 
 vi.mock("@/repositories/profile.repository");
+vi.mock("@/lib/supabase/admin", () => ({
+  createSupabaseAdminClient: vi.fn(() => ({})),
+}));
 
 describe("maintenance-mode-cache", () => {
   beforeEach(() => {
@@ -47,7 +50,7 @@ describe("roleFromJwtClaims / roleFromAuthMetadata", () => {
     ).toBe(ROLES.MANAGER);
   });
 
-  it("reads user_metadata.role from auth user", () => {
+  it("ignores user_metadata.role on auth user", () => {
     expect(
       roleFromAuthMetadata({
         id: "u1",
@@ -56,7 +59,15 @@ describe("roleFromJwtClaims / roleFromAuthMetadata", () => {
         aud: "authenticated",
         created_at: "",
       } as never)
-    ).toBe(ROLES.CEO);
+    ).toBeNull();
+  });
+
+  it("ignores user_metadata.role on JWT claims", () => {
+    expect(
+      roleFromJwtClaims({
+        user_metadata: { role: ROLES.MANAGER },
+      })
+    ).toBeNull();
   });
 });
 

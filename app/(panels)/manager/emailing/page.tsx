@@ -2,7 +2,7 @@ import { ManageEmailingPanel } from "@/components/manager/emailing/manage-emaili
 import { getSessionUser } from "@/lib/auth/session";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { listEmailingTableFilterDataForManager } from "@/services/communications/email.service";
-import { listEmailingRecipientsPageForManager } from "@/services/auth/user.service";
+import { listEmailingRecipientsPageForManager } from "@/services/communications/emailing-recipients.service";
 
 export default async function ManagerEmailingPage() {
   const adminClient = createSupabaseAdminClient();

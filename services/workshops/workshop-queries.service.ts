@@ -248,24 +248,6 @@ export function buildWorkshopPaymentsTotals(
   };
 }
 
-export async function listAllWorkshopPaymentsForManager(
-  adminClient: Supabase,
-  actorUserId: string | null
-): Promise<{
-  payments: ManagerWorkshopPaymentLedgerRow[];
-  totals: ManagerWorkshopPaymentsTotals;
-}> {
-  const overview = await getWorkshopPaymentsOverviewForManager(
-    adminClient,
-    actorUserId,
-    { page: 1, pageSize: 10 }
-  );
-  return {
-    payments: overview.payments,
-    totals: overview.totals,
-  };
-}
-
 export async function getWorkshopPaymentsOverviewForManager(
   adminClient: Supabase,
   actorUserId: string | null,

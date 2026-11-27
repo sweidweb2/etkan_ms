@@ -123,6 +123,26 @@ export async function countSppsByPaymentPhaseIds(
   return { data: counts, error: null };
 }
 
+/**
+ * SPPs for one phase limited to the given students (roster eligibility).
+ * Avoids loading every SPP on a large semester phase.
+ */
+export async function listSppsByPhaseAndStudentIds(
+  client: Supabase,
+  paymentPhaseId: string,
+  studentIds: readonly string[]
+) {
+  if (studentIds.length === 0) {
+    return { data: [] as StudentPaymentPhaseRecord[], error: null };
+  }
+
+  return client
+    .from("student_payment_phases")
+    .select(SPP_COLUMNS)
+    .eq("payment_phase_id", paymentPhaseId)
+    .in("student_id", [...studentIds]);
+}
+
 /** All SPPs for one phase, paged past PostgREST `max_rows`. */
 export async function listSppsByPaymentPhaseId(
   client: Supabase,
@@ -275,13 +295,6 @@ export async function listActiveUnpaidSpps(client: Supabase) {
   }
 
   return { data: rows, error: null };
-}
-
-export async function listAllSpps(client: Supabase) {
-  return client
-    .from("student_payment_phases")
-    .select(SPP_COLUMNS)
-    .order("created_at", { ascending: false });
 }
 
 export async function createStudentPaymentPhase(

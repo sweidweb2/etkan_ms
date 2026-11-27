@@ -59,7 +59,13 @@ import type {
 } from "@/types/manager-class-list";
 import { resolveActiveStudentDiff } from "@/services/classes/class-enrollment.service";
 import type { ManagerClassSessionRow } from "@/types/manager-class-session";
-import type { ManagerClassStudentRow } from "@/types/manager-class-student";
+import type {
+  ManagerClassStudentRow,
+  ManagerClassStudentsListData,
+  ManagerClassStudentsListQuery,
+} from "@/types/manager-class-student";
+import { CLASS_STUDENTS_PAGE_SIZE } from "@/lib/constants/manager-class-student-display";
+import type { StudentClassRecord } from "@/repositories/student-class.repository";
 import type {
   ManagerClassSemesterOption,
   ManagerClassSubjectOption,
@@ -425,14 +431,25 @@ export async function listClassTransferOptionsForManager(
     .map((row) => ({ id: row.id, name: row.name }));
 }
 
-/** Assigned teachers only — for class detail shell before the assign dropdown opens. */
+/**
+ * Assigned teachers only — for class detail shell before the assign dropdown opens.
+ * Callers that already asserted `CLASSES_VIEW` in this request may use
+ * `loadAssignedClassTeachers` instead.
+ */
 export async function listAssignedClassTeachersForManager(
   adminClient: Supabase,
   actorUserId: string | null,
   classId: string
 ): Promise<ManagerClassTeacherOption[]> {
   await assertPermission(adminClient, actorUserId, PERMISSIONS.CLASSES_VIEW);
+  return loadAssignedClassTeachers(adminClient, classId);
+}
 
+/** Same as `listAssignedClassTeachersForManager` without the permission check. */
+export async function loadAssignedClassTeachers(
+  adminClient: Supabase,
+  classId: string
+): Promise<ManagerClassTeacherOption[]> {
   if (!isUuid(classId)) {
     return [];
   }
@@ -491,7 +508,14 @@ export async function listClassSessionsForManager(
   classId: string
 ): Promise<ManagerClassSessionRow[]> {
   await assertPermission(adminClient, actorUserId, PERMISSIONS.SESSIONS_VIEW);
+  return loadClassSessions(adminClient, classId);
+}
 
+/** Same as `listClassSessionsForManager` without the permission check. */
+export async function loadClassSessions(
+  adminClient: Supabase,
+  classId: string
+): Promise<ManagerClassSessionRow[]> {
   const { data, error } = await sessionRepository.listSessionsByClassId(
     adminClient,
     classId
@@ -527,38 +551,34 @@ export type LoadClassStudentRowsOptions = {
    * @default true
    */
   includeRemoveEligibility?: boolean;
+  /**
+   * When set (including `null`), skip the class lookup used only to resolve
+   * `semester_id` for remove-eligibility queries.
+   */
+  semesterId?: string | null;
 };
 
-/**
- * Same rows as `listClassStudentsForManager` without the permission check.
- * Only for callers that already asserted `CLASSES_VIEW` (and class scope, e.g.
- * teacher assignment) earlier in the same request.
- */
-export async function loadClassStudentRows(
+async function hydrateClassStudentEnrollments(
   adminClient: Supabase,
   classId: string,
+  enrollments: StudentClassRecord[],
   options?: LoadClassStudentRowsOptions
 ): Promise<ManagerClassStudentRow[]> {
+  if (enrollments.length === 0) {
+    return [];
+  }
+
   const includeAuthEmails = options?.includeAuthEmails !== false;
   const includeRemoveEligibility = options?.includeRemoveEligibility !== false;
-  const timer = createNavStepTimer("class_students");
+  const hasSemesterPreload = options?.semesterId !== undefined;
+  const timer = createNavStepTimer("class_students_hydrate");
+
   try {
-    const { data: enrollments, error } = await timer.step("enrollments", () =>
-      studentClassRepository.listStudentClassesByClassId(adminClient, classId)
-    );
-
-    if (error) {
-      throw new Error(error.message);
-    }
-
-    if (!enrollments?.length) {
-      return [];
-    }
-
     const userIds = enrollments.map((row) => row.user_id);
+    const userIdSet = new Set(userIds);
+    const needsClassLookup =
+      includeRemoveEligibility && !hasSemesterPreload;
 
-    // Profiles/emails do not depend on class/semester; run them in parallel
-    // with the class lookup when remove-eligibility flags are needed.
     const [studentProfilesResult, emailResult, classResult] =
       await timer.step("profiles", () =>
         Promise.all([
@@ -572,7 +592,7 @@ export async function loadClassStudentRows(
                 data: new Map<string, string>(),
                 error: null as Error | null,
               }),
-          includeRemoveEligibility
+          needsClassLookup
             ? classRepository.findClassById(adminClient, classId)
             : Promise.resolve({ data: null, error: null }),
         ])
@@ -586,7 +606,7 @@ export async function loadClassStudentRows(
       throw new Error(emailResult.error.message);
     }
 
-    if (includeRemoveEligibility && classResult.error) {
+    if (needsClassLookup && classResult.error) {
       throw new Error(classResult.error.message);
     }
 
@@ -595,7 +615,9 @@ export async function loadClassStudentRows(
     );
     const emailById = emailResult.data;
     const semesterId = includeRemoveEligibility
-      ? (classResult.data?.semester_id ?? null)
+      ? hasSemesterPreload
+        ? (options.semesterId ?? null)
+        : (classResult.data?.semester_id ?? null)
       : null;
 
     const pendingDropByStudentId = new Map<string, string>();
@@ -629,7 +651,7 @@ export async function loadClassStudentRows(
       }
 
       for (const row of pendingDropsResult.data ?? []) {
-        if (userIds.includes(row.student_id)) {
+        if (userIdSet.has(row.student_id)) {
           pendingDropByStudentId.set(row.student_id, row.id);
         }
       }
@@ -640,16 +662,15 @@ export async function loadClassStudentRows(
 
       if (phaseResult.data?.id) {
         const sppsResult =
-          await studentPaymentPhaseRepository.listSppsByPaymentPhaseId(
+          await studentPaymentPhaseRepository.listSppsByPhaseAndStudentIds(
             adminClient,
-            phaseResult.data.id
+            phaseResult.data.id,
+            userIds
           );
         if (sppsResult.error) {
           throw new Error(sppsResult.error.message);
         }
-        const sppsForRoster = (sppsResult.data ?? []).filter((row) =>
-          userIds.includes(row.student_id)
-        );
+        const sppsForRoster = sppsResult.data ?? [];
         const sppIds = sppsForRoster.map((row) => row.id);
         const paymentsResult =
           await studentPaymentRepository.listPaymentSppIdsBySppIds(
@@ -681,8 +702,6 @@ export async function loadClassStudentRows(
       const hasSppPayments = studentsWithSppPayments.has(enrollment.user_id);
       const hasPendingDrop = Boolean(pendingDropId);
 
-      // Keep orphan enrollments (no student_profiles row) visible so roster
-      // length matches DB enrollment count and managers can see the gap.
       rows.push({
         id: enrollment.id,
         student_profile_id: studentProfile?.id ?? "",
@@ -703,6 +722,161 @@ export async function loadClassStudentRows(
   } finally {
     timer.end();
   }
+}
+
+/**
+ * Same rows as `listClassStudentsForManager` without the permission check.
+ * Only for callers that already asserted `CLASSES_VIEW` (and class scope, e.g.
+ * teacher assignment) earlier in the same request.
+ */
+export async function loadClassStudentRows(
+  adminClient: Supabase,
+  classId: string,
+  options?: LoadClassStudentRowsOptions
+): Promise<ManagerClassStudentRow[]> {
+  const timer = createNavStepTimer("class_students");
+  try {
+    const { data: enrollments, error } = await timer.step("enrollments", () =>
+      studentClassRepository.listStudentClassesByClassId(adminClient, classId)
+    );
+
+    if (error) {
+      throw new Error(error.message);
+    }
+
+    return hydrateClassStudentEnrollments(
+      adminClient,
+      classId,
+      (enrollments ?? []) as StudentClassRecord[],
+      options
+    );
+  } finally {
+    timer.end();
+  }
+}
+
+async function resolveClassStudentSearchUserIds(
+  adminClient: Supabase,
+  classId: string,
+  search: string
+): Promise<string[] | null> {
+  const normalized = search.trim();
+  if (!normalized) {
+    return null;
+  }
+
+  const membersResult =
+    await studentClassRepository.listMemberUserIdsByClassId(
+      adminClient,
+      classId
+    );
+  if (membersResult.error) {
+    throw new Error(membersResult.error.message);
+  }
+
+  const memberIds = [
+    ...new Set((membersResult.data ?? []).map((row) => row.user_id)),
+  ];
+  if (memberIds.length === 0) {
+    return [];
+  }
+
+  if (normalized.includes("@")) {
+    const { data: authUser, error } = await authRepository.findAuthUserByEmail(
+      adminClient,
+      normalized
+    );
+    if (error) {
+      throw new Error(error.message);
+    }
+    const userId = authUser?.user?.id;
+    return userId && memberIds.includes(userId) ? [userId] : [];
+  }
+
+  const matched =
+    await studentProfileRepository.listStudentProfileUserIdsMatchingSearch(
+      adminClient,
+      memberIds,
+      normalized
+    );
+  if (matched.error) {
+    throw new Error(matched.error.message);
+  }
+
+  return [...new Set((matched.data ?? []).map((row) => row.user_id))];
+}
+
+/**
+ * Server-paged class roster for the manager students tab.
+ * Hydrates Auth emails + remove-eligibility only for the current page.
+ */
+export async function loadClassStudentsPage(
+  adminClient: Supabase,
+  classId: string,
+  query: ManagerClassStudentsListQuery = {},
+  options?: LoadClassStudentRowsOptions
+): Promise<ManagerClassStudentsListData> {
+  const pageSize = Math.min(
+    50,
+    Math.max(1, query.pageSize ?? CLASS_STUDENTS_PAGE_SIZE)
+  );
+  const requestedPage = Math.max(1, Math.floor(query.page ?? 1));
+  const search = query.search?.trim() ?? "";
+
+  const matchedUserIds = await resolveClassStudentSearchUserIds(
+    adminClient,
+    classId,
+    search
+  );
+
+  const fetchPage = (page: number) =>
+    studentClassRepository.listStudentClassesPageByClassId(adminClient, classId, {
+      offset: (page - 1) * pageSize,
+      limit: pageSize,
+      userIds: matchedUserIds ?? undefined,
+    });
+
+  let pageResult = await fetchPage(requestedPage);
+  if (pageResult.error) {
+    throw new Error(pageResult.error.message);
+  }
+
+  let page = requestedPage;
+  const totalCount = pageResult.count ?? 0;
+
+  if (totalCount > 0 && (pageResult.data ?? []).length === 0) {
+    page = Math.max(1, Math.ceil(totalCount / pageSize));
+    pageResult = await fetchPage(page);
+    if (pageResult.error) {
+      throw new Error(pageResult.error.message);
+    }
+  }
+
+  const students = await hydrateClassStudentEnrollments(
+    adminClient,
+    classId,
+    (pageResult.data ?? []) as StudentClassRecord[],
+    options
+  );
+
+  return {
+    students,
+    totalCount,
+    page,
+    pageSize,
+    search,
+  };
+}
+
+export async function listClassStudentsPageForManager(
+  adminClient: Supabase,
+  actorUserId: string | null,
+  classId: string,
+  query: ManagerClassStudentsListQuery = {},
+  options?: LoadClassStudentRowsOptions
+): Promise<ManagerClassStudentsListData> {
+  await assertPermission(adminClient, actorUserId, PERMISSIONS.CLASSES_VIEW);
+  return loadClassStudentsPage(adminClient, classId, query, options);
 }
 
 export async function fetchClassStudentRowForManager(
@@ -941,7 +1115,17 @@ export async function getClassFinalExamForManager(
   studentGrades: ManagerStudentFinalExamGradeRow[];
 }> {
   await assertPermission(adminClient, actorUserId, PERMISSIONS.FINAL_EXAMS_VIEW);
+  return loadClassFinalExam(adminClient, classId);
+}
 
+/** Same as `getClassFinalExamForManager` without the permission check. */
+export async function loadClassFinalExam(
+  adminClient: Supabase,
+  classId: string
+): Promise<{
+  finalExam: ManagerClassFinalExamRow | null;
+  studentGrades: ManagerStudentFinalExamGradeRow[];
+}> {
   const { data: exam, error } = await finalExamRepository.findFinalExamByClassId(
     adminClient,
     classId
@@ -994,12 +1178,19 @@ export async function getClassAnalyticsForManager(
       group_grade_level: string | null;
     }>;
     enrolledCount?: number;
+    tasks?: Array<{
+      id: string;
+      max_grade: number | null;
+      started: boolean;
+      started_at: string | null;
+    }>;
   }
 ): Promise<ManagerClassAnalyticsPreview> {
   await assertPermission(adminClient, actorUserId, PERMISSIONS.CLASSES_VIEW_ANALYTICS);
 
   const hasPreloadedSessions = options?.sessions !== undefined;
   const hasPreloadedEnrollment = typeof options?.enrolledCount === "number";
+  const hasPreloadedTasks = options?.tasks !== undefined;
 
   const [sessionsResult, enrollmentResult, tasksResult] = await Promise.all([
     hasPreloadedSessions
@@ -1008,7 +1199,9 @@ export async function getClassAnalyticsForManager(
     hasPreloadedEnrollment
       ? Promise.resolve({ count: options.enrolledCount!, error: null })
       : studentClassRepository.countStudentClassesByClassId(adminClient, classId),
-    classTaskRepository.listClassTasksByClassId(adminClient, classId),
+    hasPreloadedTasks
+      ? Promise.resolve({ data: options.tasks!, error: null })
+      : classTaskRepository.listClassTasksByClassId(adminClient, classId),
   ]);
 
   if (!hasPreloadedSessions && sessionsResult.error) {
@@ -1019,7 +1212,7 @@ export async function getClassAnalyticsForManager(
     throw new Error(enrollmentResult.error.message);
   }
 
-  if (tasksResult.error) {
+  if (!hasPreloadedTasks && tasksResult.error) {
     throw new Error(tasksResult.error.message);
   }
 
@@ -1167,6 +1360,12 @@ export async function loadClassAnalyticsDeferredForManager(
       group_grade_level: string | null;
     }>;
     enrolledCount?: number;
+    tasks?: Array<{
+      id: string;
+      max_grade: number | null;
+      started: boolean;
+      started_at: string | null;
+    }>;
   }
 ): Promise<ManagerClassAnalyticsPreview> {
   const adminClient = createSupabaseAdminClient();

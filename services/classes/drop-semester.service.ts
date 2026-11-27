@@ -383,6 +383,113 @@ export async function cancelSemesterDropForManager(
   };
 }
 
+export type DropAllSemestersTarget = {
+  semester_id: string;
+  semester_name?: string;
+  origin_class_id: string;
+  origin_membership_id?: string;
+};
+
+export type DropAllSemestersResult =
+  | {
+      success: true;
+      completedCount: number;
+      message: string;
+    }
+  | (MutationFailure & {
+      completedCount?: number;
+      failedSemesterId?: string | null;
+    });
+
+/**
+ * Drop every listed semester immediately with the same restriction.
+ * Fail-fast: stops on the first semester that cannot complete immediately.
+ */
+export async function dropAllSemestersForManager(
+  adminClient: Supabase,
+  actorUserId: string | null,
+  actor: AuditActor,
+  input: {
+    student_id: string;
+    targets: DropAllSemestersTarget[];
+    restriction_mode?: string;
+    required_percent?: number | null;
+    required_amount?: number | null;
+    notes?: string | null;
+  }
+): Promise<DropAllSemestersResult> {
+  const unauthorized = await getUnauthorizedError(
+    adminClient,
+    actorUserId,
+    PERMISSIONS.CLASSES_DROP_SEMESTER
+  );
+  if (unauthorized) {
+    return { success: false, error: unauthorized, completedCount: 0 };
+  }
+
+  if (!input.targets.length) {
+    return {
+      success: false,
+      error: "No semesters available to drop.",
+      completedCount: 0,
+    };
+  }
+
+  let completedCount = 0;
+  for (const target of input.targets) {
+    const result = await createSemesterDropForManager(
+      adminClient,
+      actorUserId,
+      actor,
+      {
+        student_id: input.student_id,
+        class_id: target.origin_class_id,
+        membership_id: target.origin_membership_id,
+        restriction_mode: input.restriction_mode,
+        required_percent: input.required_percent,
+        required_amount: input.required_amount,
+        require_immediate: true,
+        notes:
+          input.notes ??
+          `Drop all semesters from console (${target.semester_name ?? target.semester_id}).`,
+        auditSource: "drop_student_console",
+      }
+    );
+
+    if (!result.success) {
+      return {
+        success: false,
+        error:
+          result.error ||
+          `Unable to drop ${target.semester_name ?? "semester"}.`,
+        fieldErrors: result.fieldErrors,
+        completedCount,
+        failedSemesterId: target.semester_id,
+      };
+    }
+
+    if (!result.completedImmediately) {
+      return {
+        success: false,
+        error: `Drop for ${target.semester_name ?? "semester"} cannot complete immediately. Lower the requirement, choose no restriction (empty/0), or finish pending drops first.`,
+        completedCount,
+        failedSemesterId: target.semester_id,
+      };
+    }
+
+    completedCount += 1;
+  }
+
+  return {
+    success: true,
+    completedCount,
+    message:
+      completedCount === 1
+        ? "Dropped 1 semester immediately."
+        : `Dropped ${completedCount} semesters immediately.`,
+  };
+}
+
 export async function studentHasPendingSemesterDrop(
   adminClient: Supabase,
   studentId: string,

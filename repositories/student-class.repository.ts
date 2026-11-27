@@ -68,6 +68,37 @@ export async function listStudentClassesByClassId(
     .order("joined_at", { ascending: false });
 }
 
+/**
+ * One page of enrollments for a class (newest join first) plus exact count.
+ * Optional `userIds` restricts to a search-matched subset.
+ */
+export async function listStudentClassesPageByClassId(
+  client: Supabase,
+  classId: string,
+  options: {
+    offset: number;
+    limit: number;
+    userIds?: string[];
+  }
+) {
+  if (options.userIds && options.userIds.length === 0) {
+    return { data: [] as StudentClassRecord[], error: null, count: 0 };
+  }
+
+  let query = client
+    .from("student_class")
+    .select(STUDENT_CLASS_COLUMNS, { count: "exact" })
+    .eq("class_id", classId)
+    .order("joined_at", { ascending: false })
+    .order("id", { ascending: false });
+
+  if (options.userIds?.length) {
+    query = query.in("user_id", options.userIds);
+  }
+
+  return query.range(options.offset, options.offset + options.limit - 1);
+}
+
 export async function listStudentClassesByUserId(
   client: Supabase,
   userId: string

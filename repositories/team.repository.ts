@@ -2,6 +2,7 @@ import "server-only";
 
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { TeamStatus } from "@/lib/constants/team";
+import { collectAllPages } from "@/repositories/_shared/collect-all-pages";
 import type { Database } from "@/types/supabase";
 
 type Supabase = SupabaseClient<Database>;
@@ -93,6 +94,17 @@ export async function listTeamGuests(client: Supabase) {
     .from("team_guests")
     .select("id, team_id, guest_id, created_at")
     .order("created_at", { ascending: true });
+}
+
+/** Distinct assigned guest ids (paged) for unassigned-guest filters. */
+export async function listAllTeamGuestIds(client: Supabase) {
+  return collectAllPages((offset, limit) =>
+    client
+      .from("team_guests")
+      .select("guest_id")
+      .order("guest_id", { ascending: true })
+      .range(offset, offset + limit - 1)
+  );
 }
 
 export async function findTeamGuestByGuestId(client: Supabase, guestId: string) {

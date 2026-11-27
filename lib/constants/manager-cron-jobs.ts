@@ -123,14 +123,14 @@ export const MANAGER_CRON_JOBS: ManagerCronJobRow[] = [
     summary:
       "Drain pending class-task attachment clone jobs if request-scoped processing stalled.",
     description:
-      "Safety net: POST /api/cron/task-attachment-clone with Bearer CRON_SECRET. Requeues stale running/failed jobs and copies remaining subject-task files onto class tasks. Primary processing runs after class-task clone via scheduleAfterResponse (+ 2s backup kick). pg_cron calls public.run_task_attachment_clone_drain() every 5 minutes (URL derived from vault database_backup_cron_url).",
+      "Safety net: POST /api/cron/task-attachment-clone with Bearer CRON_SECRET. Requeues stale running/failed jobs and copies remaining subject-task files onto class tasks. Primary processing runs after class-task clone via scheduleAfterResponse (+ 2s backup kick). pg_cron calls public.run_task_attachment_clone_drain() every 5 minutes. Prefer vault task_attachment_clone_cron_url; else derive from database_backup_cron_url (/api/cron/… or origin + path).",
     function_name: "public.run_task_attachment_clone_drain",
     tables: [
       "task_attachment_clone_jobs",
       "task_attachments",
       "storage.buckets/task-attachments",
     ],
-    migration: "20261128030000_cron_task_attachment_clone_drain.sql",
+    migration: "20261128060000_cron_clone_url_safer_derive.sql",
     verify_hint:
       "curl -X POST \"$APP_URL/api/cron/task-attachment-clone\" -H \"Authorization: Bearer $CRON_SECRET\"; select status, count(*) from task_attachment_clone_jobs group by status;",
     manual_run:

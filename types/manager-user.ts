@@ -53,6 +53,7 @@ export type UpdateManagerUserActionState = {
   success?: boolean;
   error?: string;
   message?: string;
+  warning?: string;
   fieldErrors?: FieldErrors;
   user?: ManagerUserRow;
 };

@@ -1,6 +1,7 @@
 import "server-only";
 
 import { PERMISSIONS } from "@/lib/constants/permissions";
+import { resolveClassRosterOptions } from "@/lib/manager/class-roster-mode";
 import {
   assertPermission,
   assertPermissions,
@@ -230,9 +231,12 @@ export async function listComputedStudentGradeSheetBundlesForManager(
   }
 
   const [students, context] = await Promise.all([
-    listClassStudentsForManager(adminClient, actorUserId, classId, {
-      includeRemoveEligibility: false,
-    }),
+    listClassStudentsForManager(
+      adminClient,
+      actorUserId,
+      classId,
+      resolveClassRosterOptions({ mode: "grades" })
+    ),
     loadClassGradeContext(adminClient, classId),
   ]);
 
@@ -287,9 +291,12 @@ export async function listClassStudentGradesForManager(
   await assertPermission(adminClient, actorUserId, PERMISSIONS.GRADES_VIEW);
 
   const [students, context] = await Promise.all([
-    listClassStudentsForManager(adminClient, actorUserId, classId, {
-      includeRemoveEligibility: false,
-    }),
+    listClassStudentsForManager(
+      adminClient,
+      actorUserId,
+      classId,
+      resolveClassRosterOptions({ mode: "grades" })
+    ),
     loadClassGradeContext(adminClient, classId),
   ]);
 
@@ -332,9 +339,12 @@ export async function loadClassGradesPageData(
   }
 
   const [students, context] = await Promise.all([
-    listClassStudentsForManager(adminClient, actorUserId, classId, {
-      includeRemoveEligibility: false,
-    }),
+    listClassStudentsForManager(
+      adminClient,
+      actorUserId,
+      classId,
+      resolveClassRosterOptions({ mode: "grades" })
+    ),
     loadClassGradeContext(adminClient, classId),
   ]);
 

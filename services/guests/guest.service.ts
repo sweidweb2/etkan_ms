@@ -294,7 +294,8 @@ export async function listGuestsPageForManager(
 
   let excludeIds: string[] | undefined;
   if (unassignedOnly) {
-    const membershipResult = await teamRepository.listTeamGuests(adminClient);
+    const membershipResult =
+      await teamRepository.listAllTeamGuestIds(adminClient);
     if (membershipResult.error) {
       throw new Error(membershipResult.error.message);
     }

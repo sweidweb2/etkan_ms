@@ -34,14 +34,6 @@ export type CreateTransactionRecordInput = {
   notes: string | null;
 };
 
-export async function listAllTransactions(client: Supabase) {
-  return client
-    .from("transactions")
-    .select(TRANSACTION_COLUMNS)
-    .order("transaction_date", { ascending: false })
-    .order("created_at", { ascending: false });
-}
-
 /** Inclusive `from`, exclusive `to` on `transaction_date` (ISO date strings). */
 export async function listTransactionsBetween(
   client: Supabase,

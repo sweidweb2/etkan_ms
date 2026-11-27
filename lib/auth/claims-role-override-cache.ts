@@ -8,6 +8,8 @@
  *
  * Unchanged users never enter this Map → JWT fast path stays intact.
  * Same class as session-shell-cache: one Node process, not multi-region.
+ * Logout must clear only the signing-out userId — never `clear()` all entries.
+ * Session pack rebuild also prefers `profiles.role` when it differs from JWT.
  */
 
 import type { RoleValue } from "@/lib/constants/roles";

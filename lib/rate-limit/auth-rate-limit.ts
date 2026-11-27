@@ -1,10 +1,10 @@
 import { AUTH_RATE_LIMITS } from "@/lib/constants/auth-limits";
-import { logOpsWarn } from "@/lib/ops/logger";
+import { getClientIp } from "@/lib/rate-limit/client-ip";
+import { logRateLimitBlocked } from "@/lib/rate-limit/log-blocked";
 import {
   consumeRateLimit,
   formatRetryAfter,
 } from "@/lib/rate-limit/memory-store";
-import { getClientIp } from "@/lib/rate-limit/client-ip";
 
 export type AuthRateLimitKind = "login" | "signup";
 
@@ -34,7 +34,7 @@ export async function checkAuthRateLimit(
     return { allowed: true };
   }
 
-  logOpsWarn("auth-rate-limit", `Blocked ${kind} attempts`, {
+  logRateLimitBlocked("auth-rate-limit", `Blocked ${kind} attempts`, {
     kind,
     ip,
     retryAfterMs: result.retryAfterMs,

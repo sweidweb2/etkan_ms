@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useCallback } from "react";
 import { FolderPlusIcon, LayersIcon, PlusIcon, SearchIcon } from "lucide-react";
 import { Can } from "@/components/auth/can";
 import { usePermissions } from "@/components/auth/permissions-provider";
@@ -11,16 +11,14 @@ import { SemestersKanbanBoard } from "@/components/manager/semesters/semesters-k
 import { PanelPageHeader } from "@/components/panels/panel-page-header";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { useManageKanbanPanel } from "@/hooks/use-manage-kanban-panel";
 import { hasPermissionInSet } from "@/lib/auth/permission-checks";
 import { PERMISSIONS } from "@/lib/constants/permissions";
-import {
-  mergeItemsById,
-  prependUniqueById,
-} from "@/lib/utils/prepend-unique-by-id";
+import { prependUniqueById } from "@/lib/utils/prepend-unique-by-id";
 import type { ManagerSemesterRow } from "@/types/manager-semester";
 import type { ManagerSemesterTeamRow } from "@/types/manager-semester-team";
 
-function matchesSearch(semester: ManagerSemesterRow, query: string) {
+const matchesSearch = (semester: ManagerSemesterRow, query: string) => {
   const normalizedQuery = query.trim().toLowerCase();
   if (!normalizedQuery) {
     return true;
@@ -31,17 +29,17 @@ function matchesSearch(semester: ManagerSemesterRow, query: string) {
     .toLowerCase();
 
   return haystack.includes(normalizedQuery);
-}
+};
 
-function compareTeams(
+const compareTeams = (
   left: ManagerSemesterTeamRow,
   right: ManagerSemesterTeamRow
-) {
+) => {
   if (left.sort_order !== right.sort_order) {
     return left.sort_order - right.sort_order;
   }
   return left.name.localeCompare(right.name);
-}
+};
 
 type ManageSemestersPanelProps = {
   initialSemesters: ManagerSemesterRow[];
@@ -52,16 +50,30 @@ export function ManageSemestersPanel({
   initialSemesters,
   initialTeams,
 }: ManageSemestersPanelProps) {
-  const [semesters, setSemesters] = useState(initialSemesters);
-  const [prevSemesters, setPrevSemesters] = useState(initialSemesters);
-  const [teams, setTeams] = useState(() =>
-    [...initialTeams].sort(compareTeams)
-  );
-  const [prevTeams, setPrevTeams] = useState(initialTeams);
-  const [isAddOpen, setIsAddOpen] = useState(false);
-  const [isCreateTeamOpen, setIsCreateTeamOpen] = useState(false);
-  const [isAssignOpen, setIsAssignOpen] = useState(false);
-  const [searchQuery, setSearchQuery] = useState("");
+  const {
+    items: semesters,
+    setItems: setSemesters,
+    groups: teams,
+    setGroups: setTeams,
+    filteredItems: filteredSemesters,
+    searchQuery,
+    setSearchQuery,
+    sortingEnabled,
+    isAddOpen,
+    setIsAddOpen,
+    isCreateGroupOpen: isCreateTeamOpen,
+    setIsCreateGroupOpen: setIsCreateTeamOpen,
+    isAssignOpen,
+    setIsAssignOpen,
+    handleItemsBoardChange,
+    handleGroupCreated: handleTeamCreated,
+  } = useManageKanbanPanel({
+    initialItems: initialSemesters,
+    initialGroups: initialTeams,
+    matchesSearch,
+    compareGroups: compareTeams,
+  });
+
   const permissions = usePermissions();
   const canUpdateSemesters = hasPermissionInSet(
     permissions,
@@ -72,48 +84,29 @@ export function ManageSemestersPanel({
     PERMISSIONS.SEMESTERS_TEAMS_UPDATE
   );
 
-  if (initialSemesters !== prevSemesters) {
-    setPrevSemesters(initialSemesters);
-    setSemesters(initialSemesters);
-  }
-
-  if (initialTeams !== prevTeams) {
-    setPrevTeams(initialTeams);
-    setTeams([...initialTeams].sort(compareTeams));
-  }
-
-  const filteredSemesters = useMemo(() => {
-    return semesters.filter((semester) => matchesSearch(semester, searchQuery));
-  }, [semesters, searchQuery]);
-
-  const sortingEnabled = searchQuery.trim().length === 0;
-
-  const handleSemesterCreated = (semester: ManagerSemesterRow) => {
+  const handleSemesterCreated = useCallback((semester: ManagerSemesterRow) => {
     setSemesters((current) => prependUniqueById(current, semester));
-  };
+  }, [setSemesters]);
 
-  const handleTeamCreated = (team: ManagerSemesterTeamRow) => {
-    setTeams((current) =>
-      [...current.filter((row) => row.id !== team.id), team].sort(compareTeams)
-    );
-  };
-
-  const handleSemestersTeamChange = (assigned: ManagerSemesterRow[]) => {
-    const byId = new Map(assigned.map((semester) => [semester.id, semester]));
-    setSemesters((current) =>
-      current.map((semester) => {
-        const next = byId.get(semester.id);
-        if (!next) {
-          return semester;
-        }
-        return {
-          ...semester,
-          team_id: next.team_id,
-          sort_order: next.sort_order,
-        };
-      })
-    );
-  };
+  const handleSemestersTeamChange = useCallback(
+    (assigned: ManagerSemesterRow[]) => {
+      const byId = new Map(assigned.map((semester) => [semester.id, semester]));
+      setSemesters((current) =>
+        current.map((semester) => {
+          const next = byId.get(semester.id);
+          if (!next) {
+            return semester;
+          }
+          return {
+            ...semester,
+            team_id: next.team_id,
+            sort_order: next.sort_order,
+          };
+        })
+      );
+    },
+    [setSemesters]
+  );
 
   return (
     <div className="flex flex-col gap-6">
@@ -194,9 +187,7 @@ export function ManageSemestersPanel({
           canDragCards={canUpdateSemesters}
           canReorderTeams={canReorderColumns}
           sortingEnabled={sortingEnabled}
-          onSemestersChange={(next) => {
-            setSemesters((current) => mergeItemsById(current, next));
-          }}
+          onSemestersChange={handleItemsBoardChange}
           onTeamsChange={setTeams}
           onRequestCreateTeam={() => setIsCreateTeamOpen(true)}
         />

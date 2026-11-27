@@ -15,7 +15,7 @@ import { deriveSppLocks } from "@/lib/manager/accounting/semester-drop-status";
 import { isPhaseUpfrontWindowActive } from "@/lib/manager/accounting/upfront-window";
 import { PERMISSIONS } from "@/lib/constants/permissions";
 import { createNavStepTimer } from "@/lib/debug/nav-timing";
-import { logOpsWarn } from "@/lib/ops/logger";
+import { warnSoftFailure } from "@/lib/ops/soft-success";
 import { dateRangeForYearMonth } from "@/lib/utils/iso-date-range";
 import { createStudentPaymentSchema } from "@/lib/validators/manager/create-student-payment";
 import { deleteStudentPaymentSchema } from "@/lib/validators/manager/delete-student-payment";
@@ -492,12 +492,13 @@ export async function createStudentPaymentForManager(
     let spp: ManagerSppFinancialSnapshot | undefined;
     let warning: string | undefined;
     if ("error" in sppAfterWrite) {
-      logOpsWarn(
+      warning = warnSoftFailure(
         "createStudentPayment.resolveSpp",
         sppAfterWrite.error,
-        { studentPaymentPhaseId: created.student_payment_phase_id }
+        SPP_SNAPSHOT_LOAD_WARNING,
+        { studentPaymentPhaseId: created.student_payment_phase_id },
+        { userMessage: SPP_SNAPSHOT_LOAD_WARNING }
       );
-      warning = SPP_SNAPSHOT_LOAD_WARNING;
     } else {
       spp = mapSppRecordToFinancialSnapshot(sppAfterWrite.record);
     }
@@ -604,12 +605,13 @@ export async function updateStudentPaymentForManager(
   let spp: ManagerSppFinancialSnapshot | undefined;
   let warning: string | undefined;
   if ("error" in sppAfterWrite) {
-    logOpsWarn(
+    warning = warnSoftFailure(
       "updateStudentPayment.resolveSpp",
       sppAfterWrite.error,
-      { studentPaymentPhaseId: updated.student_payment_phase_id }
+      SPP_SNAPSHOT_LOAD_WARNING,
+      { studentPaymentPhaseId: updated.student_payment_phase_id },
+      { userMessage: SPP_SNAPSHOT_LOAD_WARNING }
     );
-    warning = SPP_SNAPSHOT_LOAD_WARNING;
   } else {
     spp = mapSppRecordToFinancialSnapshot(sppAfterWrite.record);
   }
@@ -732,12 +734,13 @@ export async function deleteStudentPaymentForManager(
   let spp: ManagerSppFinancialSnapshot | undefined;
   let warning: string | undefined;
   if ("error" in sppAfterWrite) {
-    logOpsWarn(
+    warning = warnSoftFailure(
       "deleteStudentPayment.resolveSpp",
       sppAfterWrite.error,
-      { studentPaymentPhaseId: data.studentPaymentPhaseId }
+      SPP_SNAPSHOT_LOAD_WARNING,
+      { studentPaymentPhaseId: data.studentPaymentPhaseId },
+      { userMessage: SPP_SNAPSHOT_LOAD_WARNING }
     );
-    warning = SPP_SNAPSHOT_LOAD_WARNING;
   } else {
     spp = mapSppRecordToFinancialSnapshot(sppAfterWrite.record);
   }

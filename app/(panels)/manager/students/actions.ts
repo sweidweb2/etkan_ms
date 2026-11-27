@@ -4,7 +4,10 @@ import { revalidatePath } from "next/cache";
 import { runManagerAction } from "@/lib/actions/run-manager-action";
 import { getSessionAuditActor } from "@/lib/auth/session";
 import { revalidateManagerPeopleLists } from "@/lib/cache/manager-list-cache";
-import { getManagerStudentDetailRoute } from "@/lib/constants/routes";
+import {
+  getManagerStudentDetailRoute,
+  ROUTES,
+} from "@/lib/constants/routes";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import {
   parseStudentAvatarTargetFormData,
@@ -125,6 +128,7 @@ export async function changeStudentStatusAction(
       changeStudentStatusForManager(adminClient, actor.userId, actor, data),
     revalidate: () => {
       revalidateManagerPeopleLists();
+      revalidatePath(ROUTES.MANAGER_STUDENTS_DROP);
     },
     mapSuccess: (result) => ({
       success: true,
@@ -212,3 +216,8 @@ export async function loadStudentStatusSideEffectsPreviewAction(
     };
   }
 }
+
+export {
+  loadDropStudentConsoleSnapshotAction,
+  dropAllSemestersAction,
+} from "./actions/drop-student-console";

@@ -5,11 +5,6 @@ import { PERMISSIONS } from "@/lib/constants/permissions";
 import { logOpsWarn } from "@/lib/ops/logger";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { hasPermissionInSet } from "@/services/auth/authorization.service";
-import { listCategoriesForManager } from "@/services/classes/category.service";
-import {
-  listExercisesForManager,
-  listSubjectCatalogLinksForManager,
-} from "@/services/classes/exercise.service";
 import { getSubjectDetailForManager } from "@/services/classes/subject.service";
 import { TASK_ATTACHMENT_ENTITIES } from "@/lib/constants/task-attachments";
 import { listSubjectTasksForManager } from "@/services/subjects/subject-tasks.service";
@@ -32,26 +27,20 @@ export default async function ManagerSubjectDetailPage({
     PERMISSIONS.SUBJECTS_TASKS_VIEW
   );
 
-  const softEmpty = (scope: string) => (error: unknown) => {
-    logOpsWarn("manager/subjects/[id]", scope, {
-      subjectId: id,
-      error: error instanceof Error ? error.message : String(error),
-    });
-    return [];
-  };
+  // Catalog linking UI is still "coming soon" — do not load full category /
+  // exercise catalogs on this page (that was two full-table reads for unused UI).
 
-  const [detail, categories, exercises, links, tasks] = await Promise.all([
+  const [detail, tasks] = await Promise.all([
     getSubjectDetailForManager(adminClient, actorUserId, id),
-    listCategoriesForManager(adminClient, actorUserId).catch(
-      softEmpty("Categories list failed")
-    ),
-    listExercisesForManager(adminClient, actorUserId).catch(
-      softEmpty("Exercises list failed")
-    ),
-    listSubjectCatalogLinksForManager(adminClient, actorUserId, id),
     canViewTasks
       ? listSubjectTasksForManager(adminClient, actorUserId, id).catch(
-          softEmpty("Subject tasks list failed")
+          (error: unknown) => {
+            logOpsWarn("manager/subjects/[id]", "Subject tasks list failed", {
+              subjectId: id,
+              error: error instanceof Error ? error.message : String(error),
+            });
+            return [];
+          }
         )
       : Promise.resolve([]),
   ]);
@@ -82,10 +71,6 @@ export default async function ManagerSubjectDetailPage({
     <SubjectDetailsPanel
       subject={detail.subject}
       classes={detail.classes}
-      categories={categories}
-      exercises={exercises}
-      linkedCategoryIds={links.categoryIds}
-      linkedExerciseIds={links.exerciseIds}
       tasks={tasks}
       taskAttachmentsByTaskId={attachmentsByTaskId}
     />

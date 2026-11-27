@@ -134,6 +134,11 @@ export const MANAGER_PANEL_NAVIGATION: PanelNavigation = {
           icon: "book-open",
         },
         {
+          title: "Drop student (beta)",
+          href: ROUTES.MANAGER_STUDENTS_DROP,
+          icon: "user-minus",
+        },
+        {
           title: "Manage instructors",
           href: ROUTES.MANAGER_INSTRUCTORS,
           icon: "school",

@@ -511,7 +511,10 @@ describe("listComputedStudentGradeSheetBundlesForManager", () => {
       adminClient,
       actorUserId,
       classId,
-      { includeRemoveEligibility: false }
+      {
+        includeAuthEmails: true,
+        includeRemoveEligibility: false,
+      }
     );
     expect(result.bundles).toHaveLength(1);
     expect(result.bundles[0]?.student.full_name).toBe("Sara Ahmed");

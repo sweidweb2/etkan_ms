@@ -81,6 +81,11 @@ export function SemestersKanbanBoard({
       isEmpty={semesters.length === 0 && teams.length === 0}
       emptyTitle="No semesters yet"
       emptyDescription="Create a semester or team to get started."
+      isFilterEmpty={
+        !sortingEnabled && semesters.length === 0 && teams.length > 0
+      }
+      filterEmptyTitle="No matching semesters"
+      filterEmptyDescription="Clear search to drag columns and reorder cards."
       board={board}
       canDragCards={canDragCards}
       canReorderColumns={canReorderTeams}

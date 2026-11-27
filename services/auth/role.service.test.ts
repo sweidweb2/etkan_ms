@@ -7,6 +7,9 @@ import * as authRepository from "@/repositories/auth.repository";
 
 vi.mock("@/repositories/profile.repository");
 vi.mock("@/repositories/auth.repository");
+vi.mock("@/lib/supabase/admin", () => ({
+  createSupabaseAdminClient: vi.fn(() => ({})),
+}));
 
 const client = {} as never;
 

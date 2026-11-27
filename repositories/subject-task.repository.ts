@@ -100,6 +100,13 @@ export async function updateSubjectTaskById(
     .single();
 }
 
-export async function deleteSubjectTaskById(client: Supabase, id: string) {
-  return client.from("subject_tasks").delete().eq("id", id);
+/** Atomically delete subject_task + task_attachments. */
+export async function deleteSubjectTaskWithAttachments(
+  client: Supabase,
+  subjectTaskId: string
+) {
+  const { error } = await client.rpc("delete_subject_task_with_attachments", {
+    p_subject_task_id: subjectTaskId,
+  });
+  return { error };
 }

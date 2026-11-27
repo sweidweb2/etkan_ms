@@ -19,3 +19,17 @@ export type ClassStudentRow = {
 
 /** @deprecated Prefer `ClassStudentRow`. */
 export type ManagerClassStudentRow = ClassStudentRow;
+
+export type ManagerClassStudentsListQuery = {
+  page?: number;
+  pageSize?: number;
+  search?: string;
+};
+
+export type ManagerClassStudentsListData = {
+  students: ManagerClassStudentRow[];
+  totalCount: number;
+  page: number;
+  pageSize: number;
+  search: string;
+};

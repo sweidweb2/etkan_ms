@@ -1,6 +1,7 @@
 import "server-only";
 
 import { PERMISSIONS } from "@/lib/constants/permissions";
+import { TASK_ATTACHMENT_MAX_FILES_SQL_MESSAGE } from "@/lib/constants/task-attachment-messages";
 import {
   TASK_ATTACHMENT_ENTITIES,
   TASK_ATTACHMENT_MAX_FILES,
@@ -379,13 +380,28 @@ export async function uploadTaskAttachmentForActor(
   );
 
   if (created.error || !created.data) {
-    await taskAttachmentStorageRepository.removeTaskAttachmentStorageObjects(
-      adminClient,
-      [storagePath]
-    );
+    // Compensating delete: retry once if Storage remove fails after DB insert miss.
+    const removed =
+      await taskAttachmentStorageRepository.removeTaskAttachmentStorageObjects(
+        adminClient,
+        [storagePath]
+      );
+    if (removed.error) {
+      await taskAttachmentStorageRepository.removeTaskAttachmentStorageObjects(
+        adminClient,
+        [storagePath]
+      );
+    }
+    const message = created.error?.message || "Unable to save attachment.";
+    if (message.includes(TASK_ATTACHMENT_MAX_FILES_SQL_MESSAGE)) {
+      return {
+        success: false,
+        error: `Each task can have at most ${TASK_ATTACHMENT_MAX_FILES} attachments.`,
+      };
+    }
     return {
       success: false,
-      error: created.error?.message || "Unable to save attachment.",
+      error: "Unable to save attachment.",
     };
   }
 
@@ -697,116 +713,4 @@ export async function getTaskAttachmentSignedUrlForStudent(
     signedUrl: signed.data.signedUrl,
     fileName: row.file_name,
   };
-}
-
-/** List attachment storage paths without deleting rows. */
-export async function collectTaskAttachmentStoragePaths(
-  adminClient: Supabase,
-  entity: TaskAttachmentEntity,
-  entityIds: string[]
-): Promise<{ paths: string[]; error: { message: string } | null }> {
-  if (entityIds.length === 0) {
-    return { paths: [], error: null };
-  }
-
-  const listed =
-    await taskAttachmentRepository.listTaskAttachmentStoragePathsByEntityIds(
-      adminClient,
-      entity,
-      entityIds
-    );
-  if (listed.error) {
-    return { paths: [], error: { message: listed.error.message } };
-  }
-
-  return {
-    paths: (listed.data ?? []).map((row) => row.storage_path),
-    error: null,
-  };
-}
-
-/** Delete attachment rows only (caller cleans storage afterward). */
-export async function deleteTaskAttachmentRowsForEntities(
-  adminClient: Supabase,
-  entity: TaskAttachmentEntity,
-  entityIds: string[]
-): Promise<{ error: { message: string } | null }> {
-  for (const entityId of entityIds) {
-    const deleted = await taskAttachmentRepository.deleteTaskAttachmentsByEntity(
-      adminClient,
-      entity,
-      entityId
-    );
-    if (deleted.error) {
-      return { error: { message: deleted.error.message } };
-    }
-  }
-  return { error: null };
-}
-
-/**
- * Delete attachment rows and return their storage paths for a later
- * best-effort storage cleanup (after the parent entity delete succeeds).
- */
-export async function deleteTaskAttachmentRowsCollectingPaths(
-  adminClient: Supabase,
-  entity: TaskAttachmentEntity,
-  entityIds: string[]
-): Promise<{ paths: string[]; error: { message: string } | null }> {
-  const collected = await collectTaskAttachmentStoragePaths(
-    adminClient,
-    entity,
-    entityIds
-  );
-  if (collected.error) {
-    return collected;
-  }
-
-  const deleted = await deleteTaskAttachmentRowsForEntities(
-    adminClient,
-    entity,
-    entityIds
-  );
-  if (deleted.error) {
-    return { paths: [], error: deleted.error };
-  }
-
-  return { paths: collected.paths, error: null };
-}
-
-export async function removeTaskAttachmentStoragePaths(
-  adminClient: Supabase,
-  paths: string[]
-): Promise<void> {
-  if (paths.length === 0) {
-    return;
-  }
-  await taskAttachmentStorageRepository.removeTaskAttachmentStorageObjects(
-    adminClient,
-    paths
-  );
-}
-
-/**
- * Best-effort storage + row cleanup for task-definition attachments.
- * Prefer {@link deleteTaskAttachmentRowsCollectingPaths} + parent delete +
- * {@link removeTaskAttachmentStoragePaths} when cascading with other deletes.
- */
-export async function removeStorageAndRowsForTaskAttachments(
-  adminClient: Supabase,
-  entity: TaskAttachmentEntity,
-  entityIds: string[]
-): Promise<{ error: { message: string } | null }> {
-  const deleted = await deleteTaskAttachmentRowsCollectingPaths(
-    adminClient,
-    entity,
-    entityIds
-  );
-  if (deleted.error) {
-    return { error: deleted.error };
-  }
-
-  // Prefer orphaned storage over dangling DB rows after a cascade delete.
-  await removeTaskAttachmentStoragePaths(adminClient, deleted.paths);
-  return { error: null };
 }

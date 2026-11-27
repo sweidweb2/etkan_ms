@@ -11,6 +11,7 @@ import {
   getManagerClassStudentGradesDetailRoute,
 } from "@/lib/constants/routes";
 import type { FactorWeightsValues } from "@/lib/compute/custom-compute-form-utils";
+import { resolveClassRosterOptions } from "@/lib/manager/class-roster-mode";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { PERMISSIONS } from "@/lib/constants/permissions";
 import { updateClassWeightsSchema } from "@/lib/validators/manager/update-class-weights";
@@ -187,7 +188,7 @@ export async function deleteComputedGradeAction(
     adminClient,
     actor.userId,
     classId,
-    { includeRemoveEligibility: false }
+    resolveClassRosterOptions({ mode: "grades" })
   );
   const student = students.find((row) => row.user_id === userId);
   const result = await deleteStudentCourseGradeForManager(

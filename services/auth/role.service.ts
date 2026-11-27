@@ -16,28 +16,40 @@ function roleFromMetadataRole(raw: unknown): RoleValue | null {
   return parsed.success ? parsed.data : null;
 }
 
+/**
+ * Role from Auth app_metadata only. Never trust user_metadata.role —
+ * clients can typically write that field.
+ */
 export function roleFromAuthMetadata(user: User): RoleValue | null {
-  const raw = user.app_metadata?.role ?? user.user_metadata?.role;
-  return roleFromMetadataRole(raw);
+  return roleFromMetadataRole(user.app_metadata?.role);
 }
 
-/** Role embedded in a verified JWT (getClaims) — no DB round-trip. */
+/**
+ * Role embedded in a verified JWT (getClaims) — no DB round-trip.
+ * Prefer app_metadata.role; ignore user_metadata.role.
+ */
 export function roleFromJwtClaims(claims: {
   app_metadata?: { role?: unknown } | null;
   user_metadata?: { role?: unknown } | null;
   role?: unknown;
 }): RoleValue | null {
-  const raw =
-    claims.app_metadata?.role ?? claims.user_metadata?.role ?? claims.role;
+  const raw = claims.app_metadata?.role ?? claims.role;
   return roleFromMetadataRole(raw);
 }
 
+async function profileRoleClient(): Promise<Supabase> {
+  const { createSupabaseAdminClient } = await import("@/lib/supabase/admin");
+  return createSupabaseAdminClient();
+}
+
 export async function resolveUserRole(
-  client: Supabase,
+  _client: Supabase,
   authUser: User
 ): Promise<RoleValue> {
+  // profiles SELECT is revoked from authenticated; always use service role.
+  const adminClient = await profileRoleClient();
   const { data, error } = await profileRepository.findRoleById(
-    client,
+    adminClient,
     authUser.id
   );
 
@@ -57,9 +69,10 @@ export async function resolveUserRole(
  *
  * After an admin role write, a process-local override may force the new role
  * until the access token refreshes (JWT app_metadata does not invalidate).
+ * Profile fallback uses the admin client (authenticated table SELECT is revoked).
  */
 export async function resolveUserRoleForMiddleware(
-  client: Supabase,
+  _client: Supabase,
   input: { userId: string; claimsRole: RoleValue | null }
 ): Promise<RoleValue> {
   const effectiveClaimsRole = resolveEffectiveClaimsRole(
@@ -71,8 +84,9 @@ export async function resolveUserRoleForMiddleware(
     return effectiveClaimsRole;
   }
 
+  const adminClient = await profileRoleClient();
   const { data, error } = await profileRepository.findRoleById(
-    client,
+    adminClient,
     input.userId
   );
 
@@ -88,15 +102,16 @@ export async function resolveUserRoleForMiddleware(
 
 /** Resolve `profiles.is_instructor` for portal / path-access gates. */
 export async function resolveIsInstructor(
-  client: Supabase,
+  _client: Supabase,
   authUserId: string
 ): Promise<boolean> {
   if (!authUserId) {
     return false;
   }
 
+  const adminClient = await profileRoleClient();
   const { data, error } = await profileRepository.findProfileById(
-    client,
+    adminClient,
     authUserId
   );
 

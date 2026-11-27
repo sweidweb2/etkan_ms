@@ -2,6 +2,7 @@ import "server-only";
 
 import { cache } from "react";
 import type { User } from "@supabase/supabase-js";
+import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { createSupabaseServerComponentClient } from "@/lib/supabase/server";
 import {
   isPermissionKey,
@@ -89,22 +90,26 @@ type SessionClient = Awaited<
 >;
 
 async function buildSessionShell(
-  client: SessionClient,
+  _client: SessionClient,
   user: User,
   claimsRole: RoleValue | null,
   bag: Record<string, number> | null
 ): Promise<SessionShellPayload> {
+  // profiles / student_profiles SELECT is revoked from authenticated;
+  // session MISS must use the service-role client.
+  const adminClient = createSupabaseAdminClient();
+
   let profile: Awaited<
     ReturnType<typeof profileRepository.findProfileById>
   >["data"];
   let permissions: ReadonlySet<PermissionKey>;
 
   if (claimsRole) {
-    // Profile and effective grants are independent when JWT already carries role.
-    // Effective = role_permissions only (see getEffectivePermissionsForUserCached).
+    // Profile and JWT-role grants are independent; load in parallel, then
+    // prefer DB role when it differs (cross-instance demotion on shell rebuild).
     const [profileResult, claimedPermissions] = await Promise.all([
       timeBag(bag, "session_profile", () =>
-        profileRepository.findProfileById(client, user.id)
+        profileRepository.findProfileById(adminClient, user.id)
       ),
       timeBag(bag, "session_permissions", () =>
         getEffectivePermissionsForUserCached(user.id, claimsRole)
@@ -117,7 +122,7 @@ async function buildSessionShell(
     permissions = claimedPermissions;
   } else {
     const profileResult = await timeBag(bag, "session_profile", () =>
-      profileRepository.findProfileById(client, user.id)
+      profileRepository.findProfileById(adminClient, user.id)
     );
     if (profileResult.error) {
       throw new Error(profileResult.error.message);
@@ -126,15 +131,26 @@ async function buildSessionShell(
     permissions = EMPTY_PERMISSIONS;
   }
 
-  const profileRole = roleSchema.safeParse(profile?.role);
+  const profileRoleParsed = roleSchema.safeParse(profile?.role);
+  const profileRole = profileRoleParsed.success ? profileRoleParsed.data : null;
+  // Prefer profiles.role when present so demotions apply on the next shell
+  // rebuild even if the JWT still carries the old app_metadata.role.
   const role: RoleValue =
+    profileRole ??
     claimsRole ??
-    (profileRole.success ? profileRole.data : null) ??
     roleFromAuthMetadata(user) ??
     ROLES.STUDENT;
 
-  // No JWT role: permissions waited on profile/metadata role resolution.
-  if (!claimsRole) {
+  // Seed process override so middleware on this instance also prefers DB role
+  // after the first shell rebuild (JWT may still be elevated).
+  if (profileRole && claimsRole && profileRole !== claimsRole) {
+    const { markClaimsRoleOverride } = await import(
+      "@/lib/auth/claims-role-override-cache"
+    );
+    markClaimsRoleOverride(user.id, profileRole);
+  }
+
+  if (!claimsRole || (profileRole && profileRole !== claimsRole)) {
     permissions = await timeBag(bag, "session_permissions", () =>
       getEffectivePermissionsForUserCached(user.id, role)
     );
@@ -153,7 +169,7 @@ async function buildSessionShell(
     )
   ) {
     const { data } = await timeBag(bag, "session_student_profile", () =>
-      studentProfileRepository.findStudentProfileByUserId(client, user.id)
+      studentProfileRepository.findStudentProfileByUserId(adminClient, user.id)
     );
     if (data?.full_name?.trim()) {
       displayName = data.full_name.trim();

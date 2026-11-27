@@ -82,6 +82,12 @@ export async function resetPasswordsByRoleAction(
   _prevState: ResetPasswordsByRoleActionState,
   formData: FormData
 ): Promise<ResetPasswordsByRoleActionState> {
+  // One-shot ack after XLSX download — clears plaintext credentials from action state
+  // without re-toasting (empty state is not a success payload).
+  if (formData.get("ackDownload") === "1") {
+    return {};
+  }
+
   const actor = await getSessionAuditActor();
   const adminClient = createSupabaseAdminClient();
 

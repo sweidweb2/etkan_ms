@@ -1,8 +1,14 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { useActionState, useMemo, useState, useTransition } from "react";
+import {
+  useActionState,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  useTransition,
+} from "react";
 import { format } from "date-fns";
 import {
   ArrowRightLeftIcon,
@@ -18,6 +24,7 @@ import {
   XIcon,
 } from "lucide-react";
 import {
+  loadClassStudentsPageAction,
   removeStudentFromClassAction,
   setStudentTeamLeaderAction,
 } from "@/app/manager/classes/actions";
@@ -34,7 +41,11 @@ import {
   type ClassTransferOption,
 } from "@/components/manager/classes/transfer-student-between-classes-dialog";
 import { SEMESTER_DROP_BADGE_LABELS } from "@/lib/constants/manager-semester-drop-display";
-import { hasLinkedStudentProfile } from "@/lib/manager/class-student-row-access";
+import {
+  canRemoveClassStudent,
+  classStudentRemoveBlockedReason,
+  hasLinkedStudentProfile,
+} from "@/lib/manager/class-student-row-access";
 import { ClassTabCollapsibleSection } from "@/components/manager/students/class-tab-collapsible-section";
 import { InlineSpinner } from "@/components/loaders/inline-spinner";
 import { Button } from "@/components/ui/button";
@@ -55,12 +66,16 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { COLLAPSIBLE_SECTION_STORAGE_KEYS } from "@/lib/constants/collapsible-section-storage";
-import { CLASS_STUDENT_TABLE_LIMITS } from "@/lib/constants/manager-class-student-display";
+import {
+  CLASS_STUDENTS_PAGE_SIZE,
+  CLASS_STUDENT_TABLE_LIMITS,
+} from "@/lib/constants/manager-class-student-display";
 import { PERMISSIONS } from "@/lib/constants/permissions";
 import { getManagerStudentDetailRoute } from "@/lib/constants/routes";
 import { useActionStateSuccess } from "@/hooks/use-action-state-success";
 import { useActionStateToast } from "@/hooks/use-action-state-toast";
 import { usePendingAwareOpenChange } from "@/hooks/use-pending-aware-open-change";
+import { showErrorToast } from "@/lib/toast";
 import { cn } from "@/lib/utils";
 import { truncateText } from "@/lib/utils/truncate-text";
 import type { ManagerStudentFinalExamGradeRow } from "@/types/manager-class-final-exam";
@@ -69,7 +84,7 @@ import type { ManagerClassStudentRow } from "@/types/manager-class-student";
 import type { ManagerStudentRow } from "@/types/manager-student";
 import type { RemoveStudentFromClassActionState } from "@/types/manager-class-detail";
 
-const PAGE_SIZE = 10;
+const PAGE_SIZE = CLASS_STUDENTS_PAGE_SIZE;
 const initialRemoveState: RemoveStudentFromClassActionState = {};
 
 type ClassStudentsSectionProps = {
@@ -77,6 +92,7 @@ type ClassStudentsSectionProps = {
   className: string;
   semesterId: string | null;
   initialStudents: ManagerClassStudentRow[];
+  initialTotalCount?: number;
   availableStudents: ManagerStudentRow[];
   transferClassOptions: ClassTransferOption[];
   onStudentsChange: (students: ManagerClassStudentRow[]) => void;
@@ -147,28 +163,12 @@ function getPageNumbers(currentPage: number, totalPages: number) {
   return result;
 }
 
-function matchesSearch(student: ManagerClassStudentRow, query: string) {
-  const normalizedQuery = query.trim().toLowerCase();
-  if (!normalizedQuery) {
-    return true;
-  }
-
-  const haystack = [
-    student.full_name,
-    student.email,
-    student.phone ?? "",
-  ]
-    .join(" ")
-    .toLowerCase();
-
-  return haystack.includes(normalizedQuery);
-}
-
 export function ClassStudentsSection({
   classId,
   className,
   semesterId,
   initialStudents,
+  initialTotalCount,
   availableStudents,
   transferClassOptions,
   onStudentsChange,
@@ -177,13 +177,13 @@ export function ClassStudentsSection({
   onStudentGradeAdded,
   collapsible = true,
 }: ClassStudentsSectionProps) {
-  const router = useRouter();
   const permissions = usePermissions();
   const canSetTeamLeader = hasPermissionInSet(
     permissions,
     PERMISSIONS.CLASSES_SET_TEAM_LEADER
   );
   const [isTransitionPending, startTransition] = useTransition();
+  const [isListPending, startListTransition] = useTransition();
   const [removeState, removeAction, isRemovePending] = useActionState(
     removeStudentFromClassAction,
     initialRemoveState
@@ -193,6 +193,9 @@ export function ClassStudentsSection({
   useActionStateToast(removeState, isPending);
 
   const [students, setStudents] = useState(initialStudents);
+  const [totalCount, setTotalCount] = useState(
+    initialTotalCount ?? initialStudents.length
+  );
   const [isAddOpen, setIsAddOpen] = useState(false);
   const [isCopyOpen, setIsCopyOpen] = useState(false);
   const [transferringStudent, setTransferringStudent] =
@@ -204,7 +207,10 @@ export function ClassStudentsSection({
   const [stoppingDropStudent, setStoppingDropStudent] =
     useState<ManagerClassStudentRow | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
+  const listRequestIdRef = useRef(0);
+  const skipInitialListFetchRef = useRef(true);
 
   const handleRemoveOpenChange = usePendingAwareOpenChange(
     isPending,
@@ -227,35 +233,63 @@ export function ClassStudentsSection({
       const nextStudents = students.filter((row) => row.id !== removedId);
       setStudents(nextStudents);
       onStudentsChange(nextStudents);
+      setTotalCount((count) => Math.max(0, count - 1));
       setRemovingStudent(null);
-      router.refresh();
     },
     (nextState) => Boolean(nextState.success && nextState.removedStudentId)
   );
 
-  const filteredStudents = useMemo(() => {
-    return students.filter((student) => matchesSearch(student, searchQuery));
-  }, [students, searchQuery]);
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      setDebouncedSearch(searchQuery.trim());
+      setCurrentPage(1);
+    }, 250);
+    return () => window.clearTimeout(timer);
+  }, [searchQuery]);
 
-  const totalPages = Math.max(1, Math.ceil(filteredStudents.length / PAGE_SIZE));
+  useEffect(() => {
+    if (
+      skipInitialListFetchRef.current &&
+      currentPage === 1 &&
+      debouncedSearch.length === 0
+    ) {
+      skipInitialListFetchRef.current = false;
+      return;
+    }
+    skipInitialListFetchRef.current = false;
+
+    const requestId = ++listRequestIdRef.current;
+    startListTransition(async () => {
+      const data = await loadClassStudentsPageAction(classId, {
+        page: currentPage,
+        pageSize: PAGE_SIZE,
+        search: debouncedSearch,
+      });
+      if (requestId !== listRequestIdRef.current) {
+        return;
+      }
+      if (!data) {
+        showErrorToast("Unable to load class students.");
+        return;
+      }
+      setStudents(data.students);
+      onStudentsChange(data.students);
+      setTotalCount(data.totalCount);
+      if (data.page !== currentPage) {
+        setCurrentPage(data.page);
+      }
+    });
+  }, [classId, currentPage, debouncedSearch, onStudentsChange]);
+
+  const totalPages = Math.max(1, Math.ceil(totalCount / PAGE_SIZE));
   const safeCurrentPage = Math.min(currentPage, totalPages);
-
-  const paginatedStudents = useMemo(() => {
-    const startIndex = (safeCurrentPage - 1) * PAGE_SIZE;
-    return filteredStudents.slice(startIndex, startIndex + PAGE_SIZE);
-  }, [filteredStudents, safeCurrentPage]);
-
   const pageNumbers = getPageNumbers(safeCurrentPage, totalPages);
   const rangeStart =
-    filteredStudents.length === 0 ? 0 : (safeCurrentPage - 1) * PAGE_SIZE + 1;
-  const rangeEnd = Math.min(
-    safeCurrentPage * PAGE_SIZE,
-    filteredStudents.length
-  );
+    totalCount === 0 ? 0 : (safeCurrentPage - 1) * PAGE_SIZE + 1;
+  const rangeEnd = Math.min(safeCurrentPage * PAGE_SIZE, totalCount);
 
   const handleSearchChange = (value: string) => {
     setSearchQuery(value);
-    setCurrentPage(1);
   };
 
   const handleTeamLeaderChange = (
@@ -296,9 +330,10 @@ export function ClassStudentsSection({
       return;
     }
 
-    const nextStudents = [...fresh, ...students];
+    const nextStudents = [...fresh, ...students].slice(0, PAGE_SIZE);
     setStudents(nextStudents);
     onStudentsChange(nextStudents);
+    setTotalCount((count) => count + fresh.length);
 
     const addedProfileIds = new Set(
       fresh.map((row) => row.student_profile_id)
@@ -312,6 +347,8 @@ export function ClassStudentsSection({
     for (const grade of studentGrades) {
       onStudentGradeAdded(grade);
     }
+    setSearchQuery("");
+    setDebouncedSearch("");
     setCurrentPage(1);
   };
 
@@ -347,8 +384,16 @@ export function ClassStudentsSection({
         student={transferringStudent}
         classOptions={transferClassOptions}
         onTransferred={() => {
+          if (transferringStudent) {
+            const transferredId = transferringStudent.id;
+            setStudents((prev) => {
+              const nextStudents = prev.filter((row) => row.id !== transferredId);
+              onStudentsChange(nextStudents);
+              return nextStudents;
+            });
+            setTotalCount((count) => Math.max(0, count - 1));
+          }
           setTransferringStudent(null);
-          router.refresh();
         }}
       />
 
@@ -497,25 +542,30 @@ export function ClassStudentsSection({
             </div>
           </div>
 
-          {paginatedStudents.length === 0 ? (
+          {students.length === 0 ? (
             <div className="px-4 py-3">
               <EmptyState
                 size="sm"
-                icon={students.length === 0 ? UsersIcon : SearchIcon}
+                icon={totalCount === 0 && !debouncedSearch ? UsersIcon : SearchIcon}
                 title={
-                  students.length === 0
+                  totalCount === 0 && !debouncedSearch
                     ? "No students yet"
                     : "No matching students"
                 }
                 description={
-                  students.length === 0
+                  totalCount === 0 && !debouncedSearch
                     ? "No students in this class yet."
                     : "No students match your search."
                 }
               />
             </div>
           ) : (
-            <div className="overflow-x-auto">
+            <div
+              className={cn(
+                "overflow-x-auto",
+                isListPending && "opacity-60 transition-opacity"
+              )}
+            >
               <table className="w-full min-w-[860px] text-sm">
                 <thead>
                   <tr className="border-b bg-muted/40 text-left">
@@ -531,7 +581,7 @@ export function ClassStudentsSection({
                   </tr>
                 </thead>
                 <tbody>
-                  {paginatedStudents.map((student, index) => (
+                  {students.map((student, index) => (
                     <tr
                       key={student.id}
                       className={
@@ -639,11 +689,7 @@ export function ClassStudentsSection({
                                     variant="ghost"
                                     size="icon-sm"
                                     aria-label={`Remove ${student.full_name}`}
-                                    disabled={
-                                      student.can_remove_student === false ||
-                                      Boolean(student.has_pending_drop) ||
-                                      Boolean(student.has_semester_spp_payments)
-                                    }
+                                    disabled={!canRemoveClassStudent(student)}
                                     onClick={() => setRemovingStudent(student)}
                                   />
                                 }
@@ -651,11 +697,8 @@ export function ClassStudentsSection({
                                 <Trash2Icon />
                               </TooltipTrigger>
                               <TooltipContent>
-                                {student.has_pending_drop
-                                  ? "Remove is blocked while a semester drop is pending"
-                                  : student.has_semester_spp_payments
-                                    ? "Remove is blocked when the semester SPP has payments — use Drop semester"
-                                    : "Remove"}
+                                {classStudentRemoveBlockedReason(student) ??
+                                  "Remove"}
                               </TooltipContent>
                             </Tooltip>
                             {hasLinkedStudentProfile(
@@ -708,10 +751,10 @@ export function ClassStudentsSection({
             </div>
           )}
 
-          {filteredStudents.length > 0 ? (
+          {totalCount > 0 ? (
             <div className="flex flex-col gap-3 border-t px-4 pt-2 pb-3 @lg/panel:flex-row @lg/panel:items-center @lg/panel:justify-between">
               <p className="text-sm text-muted-foreground">
-                Showing {rangeStart}–{rangeEnd} of {filteredStudents.length}
+                Showing {rangeStart}–{rangeEnd} of {totalCount}
               </p>
 
               <div className="flex items-center gap-1">
@@ -719,7 +762,7 @@ export function ClassStudentsSection({
                   type="button"
                   variant="outline"
                   size="icon-sm"
-                  disabled={safeCurrentPage <= 1}
+                  disabled={safeCurrentPage <= 1 || isListPending}
                   onClick={() => setCurrentPage((page) => page - 1)}
                   aria-label="Previous page"
                 >
@@ -741,6 +784,7 @@ export function ClassStudentsSection({
                       variant={page === safeCurrentPage ? "default" : "outline"}
                       size="icon-sm"
                       className="min-w-7"
+                      disabled={isListPending}
                       onClick={() => setCurrentPage(page)}
                       aria-label={`Page ${page}`}
                       aria-current={
@@ -756,7 +800,7 @@ export function ClassStudentsSection({
                   type="button"
                   variant="outline"
                   size="icon-sm"
-                  disabled={safeCurrentPage >= totalPages}
+                  disabled={safeCurrentPage >= totalPages || isListPending}
                   onClick={() => setCurrentPage((page) => page + 1)}
                   aria-label="Next page"
                 >

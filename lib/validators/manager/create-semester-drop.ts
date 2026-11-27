@@ -136,3 +136,85 @@ export const deleteDropRefundPaymentSchema = z.object({
 export type DeleteDropRefundPaymentInput = z.infer<
   typeof deleteDropRefundPaymentSchema
 >;
+
+/** Drop-all from the Drop student console (targets resolved server-side). */
+export const dropAllSemestersSchema = z
+  .object({
+    student_id: z.string().uuid("Invalid student."),
+    restriction_mode: z
+      .enum(SEMESTER_DROP_RESTRICTION_MODE_VALUES)
+      .default(SEMESTER_DROP_RESTRICTION_MODES.PERCENT),
+    required_percent: restrictionValueSchema,
+    required_amount: restrictionValueSchema,
+  })
+  .superRefine((data, ctx) => {
+    const mode = data.restriction_mode;
+    const percent = data.required_percent;
+    const amount = data.required_amount;
+
+    if (mode === SEMESTER_DROP_RESTRICTION_MODES.NONE) {
+      return;
+    }
+
+    if (mode === SEMESTER_DROP_RESTRICTION_MODES.PERCENT) {
+      if (percent === undefined || percent === 0) {
+        return;
+      }
+      if (percent < 0 || percent > 100) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ["required_percent"],
+          message: "Percent must be between 0 and 100.",
+        });
+      }
+      return;
+    }
+
+    if (mode === SEMESTER_DROP_RESTRICTION_MODES.AMOUNT) {
+      if (amount === undefined || amount === 0) {
+        return;
+      }
+      if (amount < 0) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ["required_amount"],
+          message: "Amount must be at least 0.",
+        });
+      }
+    }
+  })
+  .transform((data) => {
+    let mode: SemesterDropRestrictionMode = data.restriction_mode;
+    let requiredPercent = data.required_percent ?? null;
+    let requiredAmount = data.required_amount ?? null;
+
+    if (mode === SEMESTER_DROP_RESTRICTION_MODES.PERCENT) {
+      if (requiredPercent === null || requiredPercent === 0) {
+        mode = SEMESTER_DROP_RESTRICTION_MODES.NONE;
+        requiredPercent = null;
+        requiredAmount = null;
+      } else {
+        requiredAmount = null;
+      }
+    } else if (mode === SEMESTER_DROP_RESTRICTION_MODES.AMOUNT) {
+      if (requiredAmount === null || requiredAmount === 0) {
+        mode = SEMESTER_DROP_RESTRICTION_MODES.NONE;
+        requiredPercent = null;
+        requiredAmount = null;
+      } else {
+        requiredPercent = null;
+      }
+    } else {
+      requiredPercent = null;
+      requiredAmount = null;
+    }
+
+    return {
+      student_id: data.student_id,
+      restriction_mode: mode,
+      required_percent: requiredPercent,
+      required_amount: requiredAmount,
+    };
+  });
+
+export type DropAllSemestersInput = z.infer<typeof dropAllSemestersSchema>;

@@ -25,6 +25,7 @@ import {
   Settings,
   Shield,
   Sparkles,
+  UserMinus,
   UserPlus,
   Users,
   type LucideIcon,
@@ -58,4 +59,5 @@ export const PANEL_ICONS: Record<PanelNavIconKey, LucideIcon> = {
   images: Images,
   "folder-kanban": FolderKanban,
   "user-plus": UserPlus,
+  "user-minus": UserMinus,
 };

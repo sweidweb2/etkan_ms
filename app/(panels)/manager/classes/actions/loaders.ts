@@ -3,15 +3,23 @@
 import { getSessionAuditActor } from "@/lib/auth/session";
 import { PERMISSIONS } from "@/lib/constants/permissions";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
+import { CLASS_STUDENTS_PAGE_SIZE } from "@/lib/constants/manager-class-student-display";
+import { resolveClassRosterOptions } from "@/lib/manager/class-roster-mode";
 import {
   getClassCreateDialogDataForManager,
+  getClassForManager,
   listActiveStudentDiffFromClass,
   listAvailableStudentsForClass,
   listClassesPageForManager,
+  listClassStudentsPageForManager,
   listClassTeacherOptionsForManager,
   listClassTransferOptionsForManager,
   listSameSemesterClassesForCopy,
 } from "@/services/classes/class.service";
+import type {
+  ManagerClassStudentsListData,
+  ManagerClassStudentsListQuery,
+} from "@/types/manager-class-student";
 import { listSemestersForManager } from "@/services/classes/semester.service";
 import { listSubjectsForManager } from "@/services/classes/subject.service";
 import {
@@ -33,6 +41,43 @@ import type {
   ManagerStudentRow,
   ManagerStudentWithoutActiveClassRow,
 } from "@/types/manager-student";
+
+export async function loadClassStudentsPageAction(
+  classId: string,
+  query: ManagerClassStudentsListQuery = {}
+): Promise<ManagerClassStudentsListData | null> {
+  const actor = await getSessionAuditActor();
+  if (!actor.userId) {
+    return null;
+  }
+
+  const adminClient = createSupabaseAdminClient();
+  try {
+    const classRow = await getClassForManager(adminClient, actor.userId, classId, {
+      includeCounts: false,
+    });
+    if (!classRow) {
+      return null;
+    }
+
+    return await listClassStudentsPageForManager(
+      adminClient,
+      actor.userId,
+      classId,
+      {
+        page: query.page ?? 1,
+        pageSize: query.pageSize ?? CLASS_STUDENTS_PAGE_SIZE,
+        search: query.search ?? "",
+      },
+      resolveClassRosterOptions({
+        mode: "managerDetail",
+        semesterId: classRow.semester_id,
+      })
+    );
+  } catch {
+    return null;
+  }
+}
 
 export async function loadClassesPageAction(
   query: ManagerClassesListQuery

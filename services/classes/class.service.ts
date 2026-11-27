@@ -9,16 +9,21 @@ export {
   assertClassGradesUnlockedForManager,
   listTeacherOptionsForManager,
   listAssignedClassTeachersForManager,
+  loadAssignedClassTeachers,
   listClassTeacherOptionsForManager,
   listClassTransferOptionsForManager,
   listClassSessionsForManager,
+  loadClassSessions,
   listClassStudentsForManager,
+  listClassStudentsPageForManager,
   loadClassStudentRows,
+  loadClassStudentsPage,
   fetchClassStudentRowForManager,
   listAvailableStudentsForClass,
   listSameSemesterClassesForCopy,
   listActiveStudentDiffFromClass,
   getClassFinalExamForManager,
+  loadClassFinalExam,
   getClassAnalyticsForManager,
   loadClassAnalyticsDeferredForManager,
   type ManagerClassCreateDialogData,
@@ -42,6 +47,8 @@ export {
   type AssignClassTeacherResult,
   type UnassignClassTeacherResult,
 } from "@/services/classes/class-teachers.service";
+
+export { getManagerClassPageBundle } from "@/services/classes/manager-class-page-bundle.service";
 
 export {
   createFinalExamForManager,

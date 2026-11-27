@@ -65,9 +65,15 @@ function latestSessionOf(sessions: readonly SkipStateSession[]) {
   );
 }
 
+export type ClassSkipPreload = {
+  name: string;
+  status: string | null;
+  plannedSessions: number | null;
+};
+
 /**
  * Loads class, skips, grade lock and (when needed) attendance changes, then
- * builds the skip state. Pass `sessions` when the caller already has them.
+ * builds the skip state. Pass preloads when the caller already has them.
  */
 async function loadClassSkipContext(
   adminClient: Supabase,
@@ -75,12 +81,19 @@ async function loadClassSkipContext(
     classId: string;
     actorRole: AuditActor["role"];
     sessions?: readonly SkipStateSession[];
+    classDetail?: ClassSkipPreload;
+    hasComputedGrades?: boolean;
     now?: Date;
   }
 ): Promise<ClassSkipContext | null> {
+  const hasClassPreload = input.classDetail !== undefined;
+  const hasGradeLockPreload = typeof input.hasComputedGrades === "boolean";
+
   const [classResult, sessionsResult, skipsResult, gradeLock] =
     await Promise.all([
-      classRepository.findClassDetailById(adminClient, input.classId),
+      hasClassPreload
+        ? Promise.resolve({ data: input.classDetail!, error: null })
+        : classRepository.findClassDetailById(adminClient, input.classId),
       input.sessions
         ? Promise.resolve({ data: input.sessions, error: null })
         : sessionRepository.listSessionsByClassId(adminClient, input.classId),
@@ -88,10 +101,12 @@ async function loadClassSkipContext(
         adminClient,
         input.classId
       ),
-      getClassComputedGradeLockState(adminClient, input.classId),
+      hasGradeLockPreload
+        ? Promise.resolve({ hasComputedGrades: input.hasComputedGrades! })
+        : getClassComputedGradeLockState(adminClient, input.classId),
     ]);
 
-  if (classResult.error) {
+  if (!hasClassPreload && classResult.error) {
     throw new Error(classResult.error.message);
   }
 
@@ -131,20 +146,34 @@ async function loadClassSkipContext(
     latestSessionHasAttendanceChanges = (attendance.count ?? 0) > 0;
   }
 
-  const classRecord = classResult.data as {
-    name: string;
-    status: string | null;
-    subjects: { nb_sessions: number } | null;
-  };
+  let className: string;
+  let classStatus: string | null;
+  let plannedSessions: number | null;
+
+  if (hasClassPreload) {
+    const preloaded = input.classDetail!;
+    className = preloaded.name;
+    classStatus = preloaded.status;
+    plannedSessions = preloaded.plannedSessions;
+  } else {
+    const loaded = classResult.data as {
+      name: string;
+      status: string | null;
+      subjects: { nb_sessions: number } | null;
+    };
+    className = loaded.name;
+    classStatus = loaded.status;
+    plannedSessions = loaded.subjects?.nb_sessions ?? null;
+  }
 
   return {
-    className: classRecord.name,
+    className,
     state: buildClassWeekSkipState({
       now,
       isTeacher: input.actorRole === ROLES.TEACHER,
-      classInProgress: classRecord.status === CLASS_STATUSES.IN_PROGRESS,
+      classInProgress: classStatus === CLASS_STATUSES.IN_PROGRESS,
       hasComputedGrades: gradeLock.hasComputedGrades,
-      plannedSessions: classRecord.subjects?.nb_sessions ?? null,
+      plannedSessions,
       sessions,
       skips: skipsResult.data ?? [],
       latestSessionHasAttendanceChanges,
@@ -159,6 +188,8 @@ export async function getClassWeekSkipState(
     classId: string;
     actorRole: AuditActor["role"];
     sessions?: readonly SkipStateSession[];
+    classDetail?: ClassSkipPreload;
+    hasComputedGrades?: boolean;
   }
 ): Promise<ClassWeekSkipState> {
   const context = await loadClassSkipContext(adminClient, input);

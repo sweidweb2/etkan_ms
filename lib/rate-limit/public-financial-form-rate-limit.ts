@@ -1,9 +1,9 @@
-import { logOpsWarn } from "@/lib/ops/logger";
+import { getClientIp } from "@/lib/rate-limit/client-ip";
+import { logRateLimitBlocked } from "@/lib/rate-limit/log-blocked";
 import {
   consumeRateLimit,
   formatRetryAfter,
 } from "@/lib/rate-limit/memory-store";
-import { getClientIp } from "@/lib/rate-limit/client-ip";
 
 const PUBLIC_FORM_SUBMIT_LIMIT = {
   maxAttempts: 10,
@@ -26,10 +26,14 @@ export async function checkPublicFinancialFormSubmitRateLimit(
     return { allowed: true };
   }
 
-  logOpsWarn("public-financial-form-rate-limit", "Blocked submit attempts", {
-    ip,
-    retryAfterMs: result.retryAfterMs,
-  });
+  logRateLimitBlocked(
+    "public-financial-form-rate-limit",
+    "Blocked submit attempts",
+    {
+      ip,
+      retryAfterMs: result.retryAfterMs,
+    }
+  );
 
   return {
     allowed: false,

@@ -48,7 +48,7 @@ type EditStudentPaymentDialogProps = {
   payment: ManagerStudentPaymentRow | null;
   onUpdated: (
     payment: ManagerStudentPaymentRow,
-    spp: ManagerSppFinancialSnapshot
+    spp?: ManagerSppFinancialSnapshot
   ) => void;
 };
 
@@ -114,7 +114,7 @@ export function EditStudentPaymentDialog({
 
   useActionStateSuccess(state, isPending, (nextState) => {
     onOpenChange(false);
-    if (nextState.payment && nextState.spp) {
+    if (nextState.payment) {
       onUpdated(nextState.payment, nextState.spp);
     }
   });

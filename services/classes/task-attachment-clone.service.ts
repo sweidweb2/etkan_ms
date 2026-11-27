@@ -88,10 +88,10 @@ export async function enqueueAttachmentCloneJobsForClassTasks(
 }
 
 /**
- * Schedule pending clone job processing.
- * Prefer Next.js `after()`, but always also kick a fire-and-forget run so a
- * process death mid-`after` (or missing external cron) is less likely to leave
- * jobs stuck forever. Processing is idempotent (claim + deterministic paths).
+ * Schedule pending clone job processing via Next.js `after()`.
+ * If `after()` is unavailable, run inline once. External cron
+ * (`/api/cron/task-attachment-clone`) is the durability backup — do not also
+ * fire a delayed setTimeout here (that doubles drain work under load).
  */
 export function scheduleAttachmentCloneProcessing(adminClient: Supabase): void {
   const run = () =>
@@ -100,10 +100,7 @@ export function scheduleAttachmentCloneProcessing(adminClient: Supabase): void {
     });
 
   const deferred = scheduleAfterResponse(run);
-  // Backup path: start soon either way (deferred may never run on crash).
-  if (deferred) {
-    setTimeout(run, 2_000);
-  } else {
+  if (!deferred) {
     run();
   }
 }

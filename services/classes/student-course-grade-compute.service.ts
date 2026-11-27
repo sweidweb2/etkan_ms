@@ -2,6 +2,7 @@ import "server-only";
 
 import { PERMISSIONS } from "@/lib/constants/permissions";
 import { createNavStepTimer } from "@/lib/debug/nav-timing";
+import { resolveClassRosterOptions } from "@/lib/manager/class-roster-mode";
 import { getUnauthorizedError } from "@/services/auth/authorization.service";
 import {
   computeStudentTaskTotalGrade,
@@ -413,7 +414,7 @@ export async function computeAllStudentCourseGradesForManager(
       const loaded = await timer.step("gradeContext", () =>
         Promise.all([
           listClassStudentsForManager(adminClient, actorUserId, classId, {
-            includeRemoveEligibility: false,
+            ...resolveClassRosterOptions({ mode: "grades" }),
           }),
           loadClassGradeContext(adminClient, classId),
         ])

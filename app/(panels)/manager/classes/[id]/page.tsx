@@ -1,21 +1,8 @@
 import { ClassAnalyticsDeferred } from "@/components/manager/classes/class-analytics-deferred-section";
 import { ClassDetailsPanel } from "@/components/manager/classes/class-details-panel";
 import { getSessionPack } from "@/lib/auth/session";
-import { PERMISSIONS } from "@/lib/constants/permissions";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
-import { createNavStepTimer } from "@/lib/debug/nav-timing";
-import { hasPermissionInSet } from "@/services/auth/authorization.service";
-import {
-  getClassFinalExamForManager,
-  getClassForManager,
-  listAssignedClassTeachersForManager,
-  listClassSessionsForManager,
-  listClassStudentsForManager,
-} from "@/services/classes/class.service";
-import { getClassComputedGradeLockStateForManager } from "@/services/classes/class-computed-grade-lock.service";
-import { getClassWeekSkipState } from "@/services/classes/class-session-skip.service";
-import { EMPTY_CLASS_WEEK_SKIP_STATE } from "@/lib/manager/class-week-skips";
-import { listClassTasksForManager } from "@/services/classes/session.service";
+import { getManagerClassPageBundle } from "@/services/classes/manager-class-page-bundle.service";
 import { notFound } from "next/navigation";
 
 type ManagerClassDetailPageProps = {
@@ -28,98 +15,35 @@ export default async function ManagerClassDetailPage({
   const { id } = await params;
   const adminClient = createSupabaseAdminClient();
   const pack = await getSessionPack();
-  const actorUserId = pack.user?.id ?? null;
-  const permissions = pack.permissions;
 
-  const canSessions = hasPermissionInSet(
-    permissions,
-    PERMISSIONS.SESSIONS_VIEW
-  );
-  const canStudents = hasPermissionInSet(
-    permissions,
-    PERMISSIONS.CLASSES_VIEW
-  );
-  const canFinalExam = hasPermissionInSet(
-    permissions,
-    PERMISSIONS.FINAL_EXAMS_VIEW
-  );
-  const canAnalytics = hasPermissionInSet(
-    permissions,
-    PERMISSIONS.CLASSES_VIEW_ANALYTICS
-  );
-  const canGrades = hasPermissionInSet(permissions, PERMISSIONS.GRADES_VIEW);
-  const canTasks = hasPermissionInSet(permissions, PERMISSIONS.TASKS_VIEW);
+  const bundle = await getManagerClassPageBundle(adminClient, {
+    classId: id,
+    actorUserId: pack.user?.id ?? null,
+    actorRole: pack.role,
+    permissions: pack.permissions,
+  });
 
-  const timer = createNavStepTimer("class_detail");
-  const [
-    classRowBase,
-    sessions,
-    students,
-    finalExamBundle,
-    teachers,
-    computedGradeLock,
-    tasks,
-    weekSkipState,
-  ] = await Promise.all([
-    timer.step("class", () =>
-      getClassForManager(adminClient, actorUserId, id, {
-        includeCounts: false,
-      })
-    ),
-    timer.step("sessions", () =>
-      canSessions
-        ? listClassSessionsForManager(adminClient, actorUserId, id)
-        : Promise.resolve([])
-    ),
-    timer.step("students", () =>
-      canStudents
-        ? listClassStudentsForManager(adminClient, actorUserId, id)
-        : Promise.resolve([])
-    ),
-    timer.step("finalExam", () =>
-      canFinalExam
-        ? getClassFinalExamForManager(adminClient, actorUserId, id)
-        : Promise.resolve({ finalExam: null, studentGrades: [] })
-    ),
-    timer.step("teachers", () =>
-      listAssignedClassTeachersForManager(adminClient, actorUserId, id)
-    ),
-    timer.step("gradeLock", () =>
-      canGrades
-        ? getClassComputedGradeLockStateForManager(adminClient, actorUserId, id)
-        : Promise.resolve({ hasComputedGrades: false, lockedUserIds: [] })
-    ),
-    timer.step("tasks", () =>
-      canTasks
-        ? listClassTasksForManager(adminClient, actorUserId, id)
-        : Promise.resolve([])
-    ),
-    timer.step("weekSkips", () =>
-      canSessions
-        ? getClassWeekSkipState(adminClient, {
-            classId: id,
-            actorRole: pack.role,
-          })
-        : Promise.resolve(EMPTY_CLASS_WEEK_SKIP_STATE)
-    ),
-  ]);
-  timer.end();
-
-  if (!classRowBase) {
+  if (!bundle) {
     notFound();
   }
 
-  // Derive counts from already-loaded lists (avoids 3 extra count queries).
-  const classRow = {
-    ...classRowBase,
-    enrollment_count: canStudents
-      ? students.length
-      : classRowBase.enrollment_count,
-    teacher_count: teachers.length,
-    completed_sessions: canSessions
-      ? sessions.length
-      : classRowBase.completed_sessions,
-  };
+  const {
+    classRow,
+    sessions,
+    weekSkipState,
+    students,
+    studentsTotalCount,
+    tasks,
+    teachers,
+    finalExam,
+    studentGrades,
+    hasComputedGrades,
+    lockedUserIds,
+    canSessions,
+    canStudents,
+    canTasks,
+    canAnalytics,
+  } = bundle;
 
   return (
     <div className="flex flex-col gap-6">
@@ -130,26 +54,25 @@ export default async function ManagerClassDetailPage({
         initialTasks={tasks}
         canViewTasks={canTasks}
         initialStudents={students}
+        initialStudentsTotalCount={studentsTotalCount}
         initialAvailableStudents={[]}
         transferClassOptions={[]}
-        initialFinalExam={finalExamBundle.finalExam}
-        initialStudentGrades={finalExamBundle.studentGrades}
+        initialFinalExam={finalExam}
+        initialStudentGrades={studentGrades}
         initialTeachers={teachers}
         subjectOptions={[]}
         semesterOptions={[]}
-        hasComputedGrades={computedGradeLock.hasComputedGrades}
-        lockedUserIds={computedGradeLock.lockedUserIds}
+        hasComputedGrades={hasComputedGrades}
+        lockedUserIds={lockedUserIds}
         analyticsSlot={
           canAnalytics ? (
             <ClassAnalyticsDeferred
               classId={id}
               className={classRow.name}
-              actorUserId={actorUserId}
-              // Only pass preloads when those lists were actually fetched.
-              // An empty `sessions=[]` from a missing SESSIONS_VIEW grant must
-              // not be treated as "class has zero sessions".
+              actorUserId={pack.user?.id ?? null}
               sessions={canSessions ? sessions : undefined}
-              enrolledCount={canStudents ? students.length : undefined}
+              enrolledCount={canStudents ? studentsTotalCount : undefined}
+              tasks={canTasks ? tasks : undefined}
               enabled
             />
           ) : null

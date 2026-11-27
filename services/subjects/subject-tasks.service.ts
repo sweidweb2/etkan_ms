@@ -12,7 +12,10 @@ import {
   assertPermission,
   getUnauthorizedError,
 } from "@/services/auth/authorization.service";
-import { removeStorageAndRowsForTaskAttachments } from "@/services/classes/task-attachments.service";
+import {
+  collectTaskAttachmentStoragePaths,
+  removeTaskAttachmentStoragePaths,
+} from "@/services/classes/task-attachment-storage-cleanup.service";
 import { TASK_ATTACHMENT_ENTITIES } from "@/lib/constants/task-attachments";
 import {
   recordManagerAuditLog,
@@ -299,27 +302,31 @@ export async function deleteSubjectTaskForManager(
     return { success: false, error: "Subject task not found." };
   }
 
-  const attachmentCleanup = await removeStorageAndRowsForTaskAttachments(
+  const attachmentPaths = await collectTaskAttachmentStoragePaths(
     adminClient,
     TASK_ATTACHMENT_ENTITIES.SUBJECT_TASK,
     [taskId]
   );
-  if (attachmentCleanup.error) {
+  if (attachmentPaths.error) {
     return {
       success: false,
       error:
-        attachmentCleanup.error.message ||
-        "Unable to delete subject task attachments.",
+        attachmentPaths.error.message ||
+        "Unable to list subject task attachments.",
     };
   }
 
-  const { error } = await subjectTaskRepository.deleteSubjectTaskById(
-    adminClient,
-    taskId
-  );
+  // One DB transaction: attachments + subject_task.
+  const { error } =
+    await subjectTaskRepository.deleteSubjectTaskWithAttachments(
+      adminClient,
+      taskId
+    );
   if (error) {
     return { success: false, error: error.message };
   }
+
+  await removeTaskAttachmentStoragePaths(adminClient, attachmentPaths.paths);
 
   await recordManagerAuditLog(adminClient, actor, {
     action: "delete",

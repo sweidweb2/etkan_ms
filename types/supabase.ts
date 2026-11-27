@@ -3443,12 +3443,36 @@ export type Database = {
         Args: { p_ids: string[] }
         Returns: { id: string; email: string }[]
       }
+      count_student_profiles_by_status: {
+        Args: Record<string, never>
+        Returns: Json
+      }
+      count_classes_by_status: {
+        Args: Record<string, never>
+        Returns: Json
+      }
+      count_workshops_by_type: {
+        Args: { p_ids?: string[] | null }
+        Returns: Json
+      }
       count_classes_by_subject: {
         Args: never
         Returns: { subject_id: string; class_count: number }[]
       }
       update_semester_board_positions: {
         Args: { p_placements: Json }
+        Returns: undefined
+      }
+      delete_class_task_with_attachments: {
+        Args: { p_class_task_id: string }
+        Returns: undefined
+      }
+      delete_class_tasks_for_class_with_attachments: {
+        Args: { p_class_id: string }
+        Returns: undefined
+      }
+      delete_subject_task_with_attachments: {
+        Args: { p_subject_task_id: string }
         Returns: undefined
       }
       assign_semesters_to_team: {

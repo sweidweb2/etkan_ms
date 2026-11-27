@@ -12,6 +12,7 @@ import {
   getCachedTeachingClassesList,
   setCachedTeachingClassesList,
 } from "@/lib/teacher/teaching-classes-list-cache";
+import { resolveClassRosterOptions } from "@/lib/manager/class-roster-mode";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import * as attendeeRepository from "@/repositories/attendee.repository";
 import type { AttendeeRecord } from "@/repositories/attendee.repository";
@@ -268,18 +269,17 @@ export async function getTeachingClassPageBundleForSelf(
     tasksResult,
     students,
     gradeLock,
-    weekSkipState,
   ] = await Promise.all([
     classRepository.findClassDetailById(adminClient, classId),
     sessionRepository.listSessionsByClassId(adminClient, classId),
     classTaskRepository.listClassTasksByClassId(adminClient, classId),
     // Skip Auth Admin email fan-out; teacher roster uses the student name.
-    loadClassStudentRows(adminClient, classId, {
-      includeAuthEmails: false,
-      includeRemoveEligibility: false,
-    }),
+    loadClassStudentRows(
+      adminClient,
+      classId,
+      resolveClassRosterOptions({ mode: "teacher" })
+    ),
     getClassComputedGradeLockState(adminClient, classId),
-    getClassWeekSkipState(adminClient, { classId, actorRole: ROLES.TEACHER }),
   ]);
 
   if (classDetailResult.error) {
@@ -299,6 +299,19 @@ export async function getTeachingClassPageBundleForSelf(
   }
 
   const detail = classDetailResult.data as ClassDetailRecord;
+  const sessions = (sessionsResult.data ?? []).map(mapSessionRecord);
+  const weekSkipState = await getClassWeekSkipState(adminClient, {
+    classId,
+    actorRole: ROLES.TEACHER,
+    sessions,
+    classDetail: {
+      name: detail.name,
+      status: detail.status,
+      plannedSessions: detail.subjects?.nb_sessions ?? null,
+    },
+    hasComputedGrades: gradeLock.hasComputedGrades,
+  });
+
   const classRow: TeacherClassDetailRow = {
     id: detail.id,
     name: detail.name,
@@ -325,7 +338,7 @@ export async function getTeachingClassPageBundleForSelf(
 
   return {
     classRow,
-    sessions: (sessionsResult.data ?? []).map(mapSessionRecord),
+    sessions,
     weekSkipState,
     tasks,
     students: teacherStudents,

@@ -103,6 +103,7 @@ type ClassDetailsPanelProps = {
   initialTasks?: ManagerClassTaskRow[];
   canViewTasks?: boolean;
   initialStudents: ManagerClassStudentRow[];
+  initialStudentsTotalCount?: number;
   initialAvailableStudents: ManagerStudentRow[];
   transferClassOptions: ClassTransferOption[];
   initialFinalExam: ManagerClassFinalExamRow | null;
@@ -123,6 +124,7 @@ export function ClassDetailsPanel({
   initialTasks = [],
   canViewTasks = false,
   initialStudents,
+  initialStudentsTotalCount,
   initialAvailableStudents,
   transferClassOptions,
   initialFinalExam,
@@ -316,6 +318,9 @@ export function ClassDetailsPanel({
               className={classRow.name}
               semesterId={classRow.semester_id}
               initialStudents={students}
+              initialTotalCount={
+                initialStudentsTotalCount ?? students.length
+              }
               availableStudents={availableStudents}
               transferClassOptions={transferClassOptions}
               onStudentsChange={setStudents}

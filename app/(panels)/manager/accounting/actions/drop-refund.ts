@@ -30,6 +30,7 @@ export async function processDropRefundAction(
       processDropRefundForManager(adminClient, actor.userId, actor, data),
     revalidate: () => {
       revalidatePath(ROUTES.MANAGER_ACCOUNTING);
+      revalidatePath(ROUTES.MANAGER_STUDENTS_DROP);
       revalidatePath("/manager/income-statement");
     },
     mapSuccess: (result) => ({
@@ -51,6 +52,7 @@ export async function waiveDropRefundAction(
       waiveDropRefundForManager(adminClient, actor.userId, actor, data),
     revalidate: () => {
       revalidatePath(ROUTES.MANAGER_ACCOUNTING);
+      revalidatePath(ROUTES.MANAGER_STUDENTS_DROP);
       revalidatePath("/manager/income-statement");
     },
     mapSuccess: (result) => ({
@@ -74,6 +76,7 @@ export async function deleteDropRefundPaymentAction(
       }),
     revalidate: () => {
       revalidatePath(ROUTES.MANAGER_ACCOUNTING);
+      revalidatePath(ROUTES.MANAGER_STUDENTS_DROP);
       revalidatePath("/manager/income-statement");
     },
     mapSuccess: (result) => ({

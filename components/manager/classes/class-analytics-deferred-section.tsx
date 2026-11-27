@@ -9,12 +9,20 @@ type AnalyticsSessionInput = {
   group_grade_level: string | null;
 };
 
+type AnalyticsTaskInput = {
+  id: string;
+  max_grade: number | null;
+  started: boolean;
+  started_at: string | null;
+};
+
 type ClassAnalyticsDeferredSectionProps = {
   classId: string;
   className: string;
   actorUserId: string | null;
   sessions?: AnalyticsSessionInput[];
   enrolledCount?: number;
+  tasks?: AnalyticsTaskInput[];
 };
 
 export async function ClassAnalyticsDeferredSection({
@@ -23,6 +31,7 @@ export async function ClassAnalyticsDeferredSection({
   actorUserId,
   sessions,
   enrolledCount,
+  tasks,
 }: ClassAnalyticsDeferredSectionProps) {
   const analytics = await loadClassAnalyticsDeferredForManager(
     actorUserId,
@@ -30,6 +39,7 @@ export async function ClassAnalyticsDeferredSection({
     {
       sessions,
       enrolledCount,
+      tasks,
     }
   );
 
@@ -57,6 +67,7 @@ export function ClassAnalyticsDeferred({
   actorUserId,
   sessions,
   enrolledCount,
+  tasks,
   enabled,
 }: ClassAnalyticsDeferredSectionProps & { enabled: boolean }) {
   if (!enabled) {
@@ -71,6 +82,7 @@ export function ClassAnalyticsDeferred({
         actorUserId={actorUserId}
         sessions={sessions}
         enrolledCount={enrolledCount}
+        tasks={tasks}
       />
     </Suspense>
   );

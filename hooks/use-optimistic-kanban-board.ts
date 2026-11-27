@@ -60,6 +60,7 @@ export type UseOptimisticKanbanBoardOptions<
   onCardActivate?: (cardId: string) => void;
 };
 
+/** View-facing board session — no raw optimistic maps or pointer internals. */
 export type UseOptimisticKanbanBoardResult<
   TItem extends OptimisticKanbanItemBase,
   TGroup extends OptimisticKanbanGroupBase,
@@ -67,8 +68,6 @@ export type UseOptimisticKanbanBoardResult<
   isPending: boolean;
   mounted: boolean;
   itemsById: Map<string, TItem>;
-  optimisticColumns: BoardColumns;
-  optimisticColumnOrder: string[];
   orderedGroups: TGroup[];
   cardDrag: UsePointerKanbanBoardResult["cardDrag"];
   columnDrag: UsePointerKanbanBoardResult["columnDrag"];
@@ -142,6 +141,8 @@ export function useOptimisticKanbanBoard<
 
   const columnsRef = useRef(columns);
   const columnOrderRef = useRef(columnOrder);
+  const itemsRef = useRef(items);
+  const groupsRef = useRef(groups);
   const boardRollbackRef = useRef<{
     columns: BoardColumns;
     items: TItem[];
@@ -150,6 +151,10 @@ export function useOptimisticKanbanBoard<
     order: string[];
     groups: TGroup[];
   } | null>(null);
+  const boardSaveInFlightRef = useRef(false);
+  const groupsSaveInFlightRef = useRef(false);
+  const queuedColumnsRef = useRef<BoardColumns | null>(null);
+  const queuedGroupOrderRef = useRef<string[] | null>(null);
 
   const itemsById = useMemo(() => {
     const map = new Map<string, TItem>();
@@ -166,6 +171,14 @@ export function useOptimisticKanbanBoard<
   useEffect(() => {
     columnOrderRef.current = columnOrder;
   }, [columnOrder]);
+
+  useEffect(() => {
+    itemsRef.current = items;
+  }, [items]);
+
+  useEffect(() => {
+    groupsRef.current = groups;
+  }, [groups]);
 
   const [isBoardPending, startBoardTransition] = useTransition();
   const [isGroupsPending, startGroupsTransition] = useTransition();
@@ -187,17 +200,91 @@ export function useOptimisticKanbanBoard<
   useActionStateToast(boardState, isBoardPending || isBoardActionPending);
   useActionStateToast(groupsState, isGroupsPending || isGroupsActionPending);
 
+  const flushQueuedColumns = useCallback(() => {
+    const queued = queuedColumnsRef.current;
+    if (!queued || !sortingEnabled) {
+      queuedColumnsRef.current = null;
+      return;
+    }
+    queuedColumnsRef.current = null;
+
+    const currentItems = itemsRef.current;
+    const nextItems = applyItemColumns(currentItems, queued);
+    boardRollbackRef.current = {
+      columns: columnsRef.current,
+      items: currentItems,
+    };
+    boardSaveInFlightRef.current = true;
+
+    const formData = new FormData();
+    formData.set("columns", JSON.stringify(queued));
+
+    startBoardTransition(() => {
+      applyOptimisticColumns(queued);
+      setColumns(queued);
+      columnsRef.current = queued;
+      onItemsChange(nextItems);
+      boardAction(formData);
+    });
+  }, [
+    sortingEnabled,
+    applyItemColumns,
+    applyOptimisticColumns,
+    boardAction,
+    onItemsChange,
+    startBoardTransition,
+  ]);
+
+  const flushQueuedGroupOrder = useCallback(() => {
+    const queued = queuedGroupOrderRef.current;
+    if (!queued || !sortingEnabled) {
+      queuedGroupOrderRef.current = null;
+      return;
+    }
+    queuedGroupOrderRef.current = null;
+
+    const currentGroups = groupsRef.current;
+    const nextGroups = applyGroupOrder(currentGroups, queued);
+    groupsRollbackRef.current = {
+      order: columnOrderRef.current,
+      groups: currentGroups,
+    };
+    groupsSaveInFlightRef.current = true;
+
+    const formData = new FormData();
+    formData.set("ordered_ids", JSON.stringify(queued));
+
+    startGroupsTransition(() => {
+      applyOptimisticColumnOrder(queued);
+      setColumnOrder(queued);
+      columnOrderRef.current = queued;
+      onGroupsChange(nextGroups);
+      groupsAction(formData);
+    });
+  }, [
+    sortingEnabled,
+    applyGroupOrder,
+    applyOptimisticColumnOrder,
+    groupsAction,
+    onGroupsChange,
+    startGroupsTransition,
+  ]);
+
   useActionStateSuccess(
     boardState,
     isBoardPending || isBoardActionPending,
     () => {
       boardRollbackRef.current = null;
+      boardSaveInFlightRef.current = false;
+      flushQueuedColumns();
     }
   );
   useActionStateSuccess(
     boardState,
     isBoardPending || isBoardActionPending,
     () => {
+      queuedColumnsRef.current = null;
+      boardSaveInFlightRef.current = false;
       const rollback = boardRollbackRef.current;
       boardRollbackRef.current = null;
       if (!rollback) {
@@ -215,17 +302,21 @@ export function useOptimisticKanbanBoard<
     isGroupsPending || isGroupsActionPending,
     (state) => {
       groupsRollbackRef.current = null;
+      groupsSaveInFlightRef.current = false;
       const nextGroups = getGroupsFromReorderState(state);
       if (nextGroups) {
         onGroupsChange(nextGroups);
         setColumnOrder(sortedGroupIds(nextGroups));
       }
+      flushQueuedGroupOrder();
     }
   );
   useActionStateSuccess(
     groupsState,
     isGroupsPending || isGroupsActionPending,
     () => {
+      queuedGroupOrderRef.current = null;
+      groupsSaveInFlightRef.current = false;
       const rollback = groupsRollbackRef.current;
       groupsRollbackRef.current = null;
       if (!rollback) {
@@ -254,31 +345,40 @@ export function useOptimisticKanbanBoard<
         return;
       }
 
-      const nextItems = applyItemColumns(items, nextColumns);
+      const previousColumns = columnsRef.current;
+      const currentItems = itemsRef.current;
+      const nextItems = applyItemColumns(currentItems, nextColumns);
+
+      applyOptimisticColumns(nextColumns);
+      setColumns(nextColumns);
+      columnsRef.current = nextColumns;
+      onItemsChange(nextItems);
+
+      if (boardSaveInFlightRef.current) {
+        queuedColumnsRef.current = nextColumns;
+        return;
+      }
+
       boardRollbackRef.current = {
-        columns: columnsRef.current,
-        items,
+        columns: previousColumns,
+        items: currentItems,
       };
+      boardSaveInFlightRef.current = true;
 
       const formData = new FormData();
       formData.set("columns", JSON.stringify(nextColumns));
 
       startBoardTransition(() => {
-        applyOptimisticColumns(nextColumns);
-        setColumns(nextColumns);
-        columnsRef.current = nextColumns;
-        onItemsChange(nextItems);
         boardAction(formData);
       });
     },
     [
       sortingEnabled,
-      items,
-      onItemsChange,
       applyItemColumns,
-      boardAction,
-      startBoardTransition,
       applyOptimisticColumns,
+      boardAction,
+      onItemsChange,
+      startBoardTransition,
     ]
   );
 
@@ -288,31 +388,40 @@ export function useOptimisticKanbanBoard<
         return;
       }
 
-      const nextGroups = applyGroupOrder(groups, orderedIds);
+      const previousOrder = columnOrderRef.current;
+      const currentGroups = groupsRef.current;
+      const nextGroups = applyGroupOrder(currentGroups, orderedIds);
+
+      applyOptimisticColumnOrder(orderedIds);
+      setColumnOrder(orderedIds);
+      columnOrderRef.current = orderedIds;
+      onGroupsChange(nextGroups);
+
+      if (groupsSaveInFlightRef.current) {
+        queuedGroupOrderRef.current = orderedIds;
+        return;
+      }
+
       groupsRollbackRef.current = {
-        order: columnOrderRef.current,
-        groups,
+        order: previousOrder,
+        groups: currentGroups,
       };
+      groupsSaveInFlightRef.current = true;
 
       const formData = new FormData();
       formData.set("ordered_ids", JSON.stringify(orderedIds));
 
       startGroupsTransition(() => {
-        applyOptimisticColumnOrder(orderedIds);
-        setColumnOrder(orderedIds);
-        columnOrderRef.current = orderedIds;
-        onGroupsChange(nextGroups);
         groupsAction(formData);
       });
     },
     [
       sortingEnabled,
-      groups,
-      onGroupsChange,
       applyGroupOrder,
-      groupsAction,
-      startGroupsTransition,
       applyOptimisticColumnOrder,
+      groupsAction,
+      onGroupsChange,
+      startGroupsTransition,
     ]
   );
 
@@ -337,7 +446,8 @@ export function useOptimisticKanbanBoard<
     canDragCards,
     canReorderColumns,
     sortingEnabled,
-    isPending,
+    // Rapid moves are coalesced via the save queue — do not hard-block drag.
+    isPending: false,
     onPersistColumns: persistColumns,
     onPersistColumnOrder: persistGroupOrder,
     onCardActivate,
@@ -373,16 +483,22 @@ export function useOptimisticKanbanBoard<
     [optimisticColumns, itemsById]
   );
 
+  const groupsById = useMemo(() => {
+    const map = new Map<string, TGroup>();
+    for (const group of groups) {
+      map.set(group.id, group);
+    }
+    return map;
+  }, [groups]);
+
   const orderedGroups = optimisticColumnOrder
-    .map((id) => groups.find((group) => group.id === id))
+    .map((id) => groupsById.get(id))
     .filter((group): group is TGroup => Boolean(group));
 
   return {
     isPending,
     mounted,
     itemsById,
-    optimisticColumns,
-    optimisticColumnOrder,
     orderedGroups,
     cardDrag,
     columnDrag,

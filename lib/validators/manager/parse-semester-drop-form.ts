@@ -3,6 +3,7 @@ import {
   cancelSemesterDropSchema,
   createSemesterDropSchema,
   deleteDropRefundPaymentSchema,
+  dropAllSemestersSchema,
   processDropRefundSchema,
   waiveDropRefundSchema,
 } from "@/lib/validators/manager/create-semester-drop";
@@ -56,5 +57,22 @@ export function parseWaiveDropRefundFormData(formData: FormData) {
 export function parseDeleteDropRefundPaymentFormData(formData: FormData) {
   return safeParseFormData(deleteDropRefundPaymentSchema, {
     payment_id: formData.get("payment_id"),
+  });
+}
+
+export function parseDropAllSemestersFormData(formData: FormData) {
+  const rawMode = String(formData.get("restriction_mode") ?? "").trim();
+  const mode =
+    rawMode === SEMESTER_DROP_RESTRICTION_MODES.AMOUNT ||
+    rawMode === SEMESTER_DROP_RESTRICTION_MODES.NONE ||
+    rawMode === SEMESTER_DROP_RESTRICTION_MODES.PERCENT
+      ? rawMode
+      : SEMESTER_DROP_RESTRICTION_MODES.PERCENT;
+
+  return safeParseFormData(dropAllSemestersSchema, {
+    student_id: formData.get("student_id"),
+    restriction_mode: mode,
+    required_percent: formData.get("required_percent") || undefined,
+    required_amount: formData.get("required_amount") || undefined,
   });
 }

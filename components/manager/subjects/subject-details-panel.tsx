@@ -21,10 +21,10 @@ import { Can } from "@/components/auth/can";
 import { usePermissions } from "@/components/auth/permissions-provider";
 import { hasPermissionInSet } from "@/lib/auth/permission-checks";
 import { EditSubjectDialog } from "@/components/manager/subjects/edit-subject-dialog";
-import { SubjectCatalogLinksSection } from "@/components/manager/subjects/subject-catalog-links-section";
 import { SubjectClassesSection } from "@/components/manager/subjects/subject-classes-section";
 import { SubjectTasksSection } from "@/components/manager/subjects/subject-tasks-section";
 import { InlineSpinner } from "@/components/loaders/inline-spinner";
+import { EmptyState } from "@/components/ui/empty-state";
 import {
   Breadcrumb,
   BreadcrumbItem,
@@ -54,17 +54,11 @@ import type {
 } from "@/types/manager-subject";
 import type { ManagerSubjectClassRow } from "@/types/manager-subject-class";
 import type { ManagerSubjectTaskRow } from "@/types/manager-subject-task";
-import type { ManagerCategoryRow } from "@/types/manager-category";
-import type { ManagerExerciseRow } from "@/types/manager-exercise";
 import type { TaskAttachmentRow } from "@/types/task-attachment";
 
 type SubjectDetailsPanelProps = {
   subject: ManagerSubjectRow;
   classes: ManagerSubjectClassRow[];
-  categories: ManagerCategoryRow[];
-  exercises: ManagerExerciseRow[];
-  linkedCategoryIds: string[];
-  linkedExerciseIds: string[];
   tasks?: ManagerSubjectTaskRow[];
   taskAttachmentsByTaskId?: Record<string, TaskAttachmentRow[]>;
 };
@@ -106,10 +100,6 @@ function DetailLink({ href, label }: { href: string | null; label: string }) {
 export function SubjectDetailsPanel({
   subject: initialSubject,
   classes,
-  categories,
-  exercises,
-  linkedCategoryIds,
-  linkedExerciseIds,
   tasks = [],
   taskAttachmentsByTaskId = {},
 }: SubjectDetailsPanelProps) {
@@ -346,12 +336,10 @@ export function SubjectDetailsPanel({
           </TabsContentPrimitive>
 
           <TabsContentPrimitive value="catalog" className="outline-none">
-            <SubjectCatalogLinksSection
-              subjectId={subject.id}
-              categories={categories}
-              exercises={exercises}
-              initialCategoryIds={linkedCategoryIds}
-              initialExerciseIds={linkedExerciseIds}
+            <EmptyState
+              icon={LockIcon}
+              title="Coming soon"
+              description="Category and exercise linking for this subject is not available yet."
             />
           </TabsContentPrimitive>
         </TabsContentsPrimitive>

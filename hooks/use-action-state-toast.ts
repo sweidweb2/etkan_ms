@@ -4,6 +4,7 @@ import { useActionStateSettled } from "@/hooks/use-action-state-settled";
 import {
   showActionResultToast,
   showErrorToast,
+  showInfoToast,
   type ActionToastState,
 } from "@/lib/toast";
 
@@ -34,7 +35,8 @@ export function useActionStateToast(
     if (next.success === true) {
       showActionResultToast(next);
       if (next.warning) {
-        showErrorToast(next.warning);
+        // Soft-success side-effect notices are informational, not hard failures.
+        showInfoToast(next.warning);
       }
       return;
     }

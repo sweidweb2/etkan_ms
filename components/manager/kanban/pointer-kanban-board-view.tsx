@@ -1,8 +1,14 @@
 "use client";
 
 import type { ReactNode } from "react";
-import { GripVerticalIcon, LayersIcon, PlusIcon } from "lucide-react";
+import {
+  GripVerticalIcon,
+  LayersIcon,
+  PlusIcon,
+  SearchIcon,
+} from "lucide-react";
 import { Can } from "@/components/auth/can";
+import { InlineSpinner } from "@/components/loaders/inline-spinner";
 import { KanbanBoardScroll } from "@/components/manager/kanban/kanban-board-scroll";
 import { KanbanColumnDropIndicator } from "@/components/manager/kanban/kanban-drop-indicators";
 import { KanbanDragOverlay } from "@/components/manager/kanban/kanban-drag-overlay";
@@ -25,9 +31,14 @@ type PointerKanbanBoardViewProps<
   TItem extends OptimisticKanbanItemBase,
   TGroup extends BoardGroup,
 > = {
+  /** True when there are no items and no groups at all. */
   isEmpty: boolean;
   emptyTitle: string;
   emptyDescription: string;
+  /** True when a search/filter hid every card but groups still exist. */
+  isFilterEmpty?: boolean;
+  filterEmptyTitle?: string;
+  filterEmptyDescription?: string;
   board: UseOptimisticKanbanBoardResult<TItem, TGroup>;
   canDragCards: boolean;
   canReorderColumns: boolean;
@@ -54,6 +65,9 @@ export function PointerKanbanBoardView<
   isEmpty,
   emptyTitle,
   emptyDescription,
+  isFilterEmpty = false,
+  filterEmptyTitle = "No matching cards",
+  filterEmptyDescription = "Clear search to see the full board.",
   board,
   canDragCards,
   canReorderColumns,
@@ -99,9 +113,20 @@ export function PointerKanbanBoardView<
     );
   }
 
+  if (isFilterEmpty) {
+    return (
+      <EmptyState
+        icon={SearchIcon}
+        title={filterEmptyTitle}
+        description={filterEmptyDescription}
+      />
+    );
+  }
+
   const cardsDraggable = canDragCards && sortingEnabled && mounted;
   const columnsDraggable = canReorderColumns && sortingEnabled && mounted;
-  const dragDisabled = isPending || !sortingEnabled || columnDrag !== null;
+  // Pending saves are queued — keep dragging enabled; only search locks the board.
+  const dragDisabled = !sortingEnabled || columnDrag !== null;
 
   const draggingItem = cardDrag
     ? (itemsById.get(cardDrag.draggingCardId) ?? null)
@@ -121,6 +146,16 @@ export function PointerKanbanBoardView<
 
   return (
     <>
+      {isPending ? (
+        <p
+          className="mb-2 inline-flex items-center gap-2 text-xs text-muted-foreground"
+          aria-live="polite"
+        >
+          <InlineSpinner className="size-3.5" />
+          Saving board…
+        </p>
+      ) : null}
+
       <KanbanBoardScroll
         boardScrollRef={boardScrollRef}
         scrollProps={scrollProps}

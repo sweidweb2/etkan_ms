@@ -98,14 +98,6 @@ export async function listPaymentSppIdsBySppIds(
     .in("student_payment_phase_id", sppIds);
 }
 
-export async function listAllPayments(client: Supabase) {
-  return client
-    .from("student_payments")
-    .select(PAYMENT_COLUMNS)
-    .order("payment_date", { ascending: false })
-    .order("created_at", { ascending: false });
-}
-
 /** All-time SPP payment total via DB aggregate (avoids PostgREST max_rows). */
 export async function sumAllPaymentAmounts(client: Supabase) {
   const { data, error } = await client.rpc("sum_student_payment_amounts");
@@ -207,6 +199,8 @@ export async function listPaymentAmountsBetween(
       .select("payment_date, amount, type")
       .gte("payment_date", fromInclusive)
       .lt("payment_date", toExclusive)
+      .order("payment_date", { ascending: true })
+      .order("id", { ascending: true })
       .range(offset, offset + limit - 1)
   );
 }

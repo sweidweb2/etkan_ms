@@ -1,5 +1,6 @@
 export {
   loadClassesPageAction,
+  loadClassStudentsPageAction,
   loadAvailableStudentsForClassAction,
   loadSameSemesterClassesForCopyAction,
   loadActiveStudentDiffFromClassAction,

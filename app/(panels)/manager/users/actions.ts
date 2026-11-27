@@ -78,6 +78,7 @@ export async function updateUserAction(
       success: true,
       message: result.message,
       user: result.user,
+      warning: result.warning,
     }),
   });
 }

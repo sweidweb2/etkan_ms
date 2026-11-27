@@ -12,30 +12,6 @@ type CacheEntry = {
 
 const cache = new Map<string, CacheEntry>();
 
-export function getCachedAuthEmails(
-  userIds: string[]
-): Map<string, string> | null {
-  if (userIds.length === 0) {
-    return new Map();
-  }
-
-  const emails = new Map<string, string>();
-  const now = Date.now();
-
-  for (const id of userIds) {
-    const entry = cache.get(id);
-    if (!entry || now >= entry.expiresAt) {
-      if (entry) {
-        cache.delete(id);
-      }
-      return null;
-    }
-    emails.set(id, entry.email);
-  }
-
-  return emails;
-}
-
 /** Returns only the ids that are missing or expired in the per-id cache. */
 export function getMissingAuthEmailIds(userIds: string[]): string[] {
   const now = Date.now();
@@ -96,6 +72,23 @@ export function setCachedAuthEmails(
       email: emails.get(id) ?? "",
       expiresAt,
     });
+  }
+}
+
+/** Short negative cache so soft-fail misses do not stampede Auth Admin. */
+export const AUTH_EMAIL_MISS_TTL_MS = 15_000;
+
+export function setCachedAuthEmailMisses(
+  userIds: readonly string[],
+  ttlMs = AUTH_EMAIL_MISS_TTL_MS
+): void {
+  if (userIds.length === 0) {
+    return;
+  }
+
+  const expiresAt = Date.now() + ttlMs;
+  for (const id of userIds) {
+    cache.set(id, { email: "", expiresAt });
   }
 }
 

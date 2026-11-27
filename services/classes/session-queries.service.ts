@@ -51,7 +51,14 @@ export async function listClassTasksForManager(
   classId: string
 ): Promise<ManagerClassTaskRow[]> {
   await assertPermission(adminClient, actorUserId, PERMISSIONS.TASKS_VIEW);
+  return loadClassTasks(adminClient, classId);
+}
 
+/** Same as `listClassTasksForManager` without the permission check. */
+export async function loadClassTasks(
+  adminClient: Supabase,
+  classId: string
+): Promise<ManagerClassTaskRow[]> {
   if (!isUuid(classId)) {
     return [];
   }

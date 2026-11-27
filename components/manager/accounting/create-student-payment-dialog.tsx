@@ -46,7 +46,7 @@ type CreateStudentPaymentDialogProps = {
   maxAmount: number;
   onCreated: (
     payment: ManagerStudentPaymentRow,
-    spp: ManagerSppFinancialSnapshot
+    spp?: ManagerSppFinancialSnapshot
   ) => void;
 };
 
@@ -118,7 +118,7 @@ export function CreateStudentPaymentDialog({
 
   useActionStateSuccess(state, isPending, (nextState) => {
     onOpenChange(false);
-    if (nextState.payment && nextState.spp) {
+    if (nextState.payment) {
       onCreated(nextState.payment, nextState.spp);
     }
   });

@@ -206,7 +206,7 @@ describe("loadClassStudentRows", () => {
       paymentPhaseRepository.findCurrentSyncPhaseBySemesterId
     ).not.toHaveBeenCalled();
     expect(
-      studentPaymentPhaseRepository.listSppsByPaymentPhaseId
+      studentPaymentPhaseRepository.listSppsByPhaseAndStudentIds
     ).not.toHaveBeenCalled();
     expect(
       studentPaymentRepository.listPaymentSppIdsBySppIds
@@ -252,6 +252,40 @@ describe("loadClassStudentRows", () => {
     ).toHaveBeenCalled();
     expect(rows[0]?.full_name).toBe("Sara Ahmed");
     expect(rows[0]?.can_remove_student).toBe(true);
+  });
+
+  it("uses preloaded semesterId and skips findClassById", async () => {
+    vi.mocked(
+      studentProfileRepository.listStudentProfileDetailsByUserIds
+    ).mockResolvedValue({
+      data: [
+        {
+          id: "profile-1",
+          user_id: userId,
+          full_name: "Sara Ahmed",
+          phone: null,
+          status: "active",
+          birth_date: null,
+          created_at: "2026-01-01T00:00:00.000Z",
+        },
+      ],
+      error: null,
+    } as never);
+    vi.mocked(
+      semesterDropRequestRepository.listPendingDropsBySemesterId
+    ).mockResolvedValue({ data: [], error: null } as never);
+    vi.mocked(
+      paymentPhaseRepository.findCurrentSyncPhaseBySemesterId
+    ).mockResolvedValue({ data: null, error: null } as never);
+
+    await loadClassStudentRows(adminClient, classId, {
+      semesterId,
+    });
+
+    expect(classRepository.findClassById).not.toHaveBeenCalled();
+    expect(
+      semesterDropRequestRepository.listPendingDropsBySemesterId
+    ).toHaveBeenCalledWith(adminClient, semesterId);
   });
 
   it("skips Auth emails when includeAuthEmails is false", async () => {

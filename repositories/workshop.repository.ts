@@ -150,31 +150,18 @@ export async function countWorkshopsByTypes(
     };
   }
 
-  const results = await Promise.all(
-    types.map((type) => {
-      let query = client
-        .from("workshops")
-        .select("id", { count: "exact", head: true })
-        .eq("type", type);
+  const { data, error } = await client.rpc("count_workshops_by_type", {
+    p_ids: options.ids ?? null,
+  });
 
-      if (options.ids) {
-        query = query.in("id", options.ids);
-      }
+  if (error) {
+    return { data: null, error };
+  }
 
-      return query;
-    })
-  );
-
+  const byType = (data as Record<string, number> | null) ?? {};
   const counts: Record<string, number> = {};
-  for (let index = 0; index < types.length; index += 1) {
-    const result = results[index];
-    if (!result || result.error) {
-      return {
-        data: null,
-        error: result?.error ?? { message: "Unable to count workshops." },
-      };
-    }
-    counts[types[index]!] = result.count ?? 0;
+  for (const type of types) {
+    counts[type] = byType[type] ?? 0;
   }
 
   return { data: counts, error: null };

@@ -1,5 +1,6 @@
 import "server-only";
 
+import { assertCompleteIdPartition } from "@/lib/kanban/board-partition";
 import type { PermissionKey } from "@/lib/constants/permissions";
 import { getUnauthorizedError } from "@/services/auth/authorization.service";
 import {
@@ -29,7 +30,7 @@ type UpdateResult = {
 };
 
 export async function reorderKanbanColumnsForManager<
-  TRecord extends { id: string },
+  TRecord extends { id: string; sort_order: number },
   TRow,
 >(options: {
   adminClient: Supabase;
@@ -71,12 +72,14 @@ export async function reorderKanbanColumnsForManager<
     return { success: false, error: options.failMessage };
   }
 
-  const existingIds = new Set((existing.data ?? []).map((row) => row.id));
-  if (
-    orderedIds.length !== existingIds.size ||
-    orderedIds.some((id) => !existingIds.has(id))
-  ) {
-    return { success: false, error: options.outOfDateMessage };
+  const existingRows = existing.data ?? [];
+  const existingIds = new Set(existingRows.map((row) => row.id));
+  const partition = assertCompleteIdPartition(existingIds, orderedIds, {
+    outOfDate: options.outOfDateMessage,
+    notFound: options.outOfDateMessage,
+  });
+  if (!partition.ok) {
+    return { success: false, error: partition.error };
   }
 
   const { error } = await options.updateSortOrders(orderedIds);
@@ -84,10 +87,12 @@ export async function reorderKanbanColumnsForManager<
     return { success: false, error: options.failMessage };
   }
 
-  const refreshed = await options.listRows();
-  if (refreshed.error || !refreshed.data) {
-    return { success: false, error: options.failMessage };
-  }
+  // Rebuild rows from the pre-write list + new order (skips a second SELECT).
+  const byId = new Map(existingRows.map((row) => [row.id, row]));
+  const rows = orderedIds.map((id, index) => {
+    const record = byId.get(id)!;
+    return options.mapRow({ ...record, sort_order: index });
+  });
 
   await recordManagerAuditLog(options.adminClient, options.actor, {
     action: "update",
@@ -100,7 +105,7 @@ export async function reorderKanbanColumnsForManager<
 
   return {
     success: true,
-    rows: refreshed.data.map(options.mapRow),
+    rows,
     message: options.successMessage,
   };
 }

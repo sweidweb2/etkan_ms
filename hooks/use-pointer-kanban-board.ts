@@ -16,9 +16,13 @@ import {
   type BoardColumns,
 } from "@/lib/kanban/board-state";
 import {
+  applyPointerEdgeScroll,
+  isPointerOutsideElement,
+  measureCardDropTarget,
+  measureColumnDropTarget,
+} from "@/lib/kanban/pointer-board-geometry";
+import {
   CARD_DRAG_THRESHOLD_PX,
-  EDGE_SCROLL_MAX_SPEED,
-  EDGE_SCROLL_ZONE_PX,
   columnIndicatorDisplayIndex,
   type BoardDragState,
   type CardDragState,
@@ -26,11 +30,11 @@ import {
   type PendingPointer,
 } from "@/lib/kanban/pointer-drag-types";
 import {
-  findColumnInsertIndex,
-  findInsertIndex,
-  findTargetColumnId,
-  measureColumnRanges,
-} from "@/lib/kanban/pointer-hit-test";
+  buildCardDragFromPending,
+  buildColumnDragFromPending,
+  isSameCardDragTarget,
+  isSameColumnDragTarget,
+} from "@/lib/kanban/pointer-drag-updates";
 
 export type UsePointerKanbanBoardOptions = {
   columns: BoardColumns;
@@ -47,7 +51,6 @@ export type UsePointerKanbanBoardOptions = {
 
 export type UsePointerKanbanBoardResult = {
   mounted: boolean;
-  dragState: BoardDragState | null;
   cardDrag: CardDragState | null;
   columnDrag: ColumnDragState | null;
   columnIndicatorDisplayIndex: number | null;
@@ -55,7 +58,10 @@ export type UsePointerKanbanBoardResult = {
   boardScrollRef: RefObject<HTMLDivElement | null>;
   canPan: boolean;
   isPanning: boolean;
-  scrollProps: ReturnType<typeof useHorizontalDragScroll<HTMLDivElement>>["scrollProps"];
+  scrollProps: ReturnType<
+    typeof useHorizontalDragScroll<HTMLDivElement>
+  >["scrollProps"];
+  /** Used by optimistic wrapper when column/item counts change. */
   refreshOverflow: () => void;
   setColumnNode: (columnId: string, element: HTMLElement | null) => void;
   setListNode: (columnId: string, element: HTMLElement | null) => void;
@@ -169,43 +175,36 @@ export function usePointerKanbanBoard({
         return;
       }
 
-      const ranges = measureColumnRanges(columnElementsRef.current);
-      const targetColumnId = findTargetColumnId(pointerX, ranges);
-      if (!targetColumnId) {
+      const target = measureCardDropTarget(
+        pointerX,
+        pointerY,
+        columnElementsRef.current,
+        listElementsRef.current,
+        current.draggingCardId
+      );
+      if (!target) {
         return;
       }
-
-      const list = listElementsRef.current.get(targetColumnId);
-      const cardNodes = list
-        ? Array.from(
-            list.querySelectorAll<HTMLElement>("[data-kanban-card][data-card-id]")
-          ).filter((node) => node.dataset.cardId !== current.draggingCardId)
-        : [];
-
-      const insertIndex = findInsertIndex(
-        pointerY,
-        cardNodes.map((node) => {
-          const rect = node.getBoundingClientRect();
-          return { top: rect.top, height: rect.height };
-        })
-      );
 
       setDragState((prev) => {
         if (!prev || prev.dragType !== "card") {
           return prev;
         }
         if (
-          prev.targetColumnId === targetColumnId &&
-          prev.insertIndex === insertIndex &&
-          prev.pointerX === pointerX &&
-          prev.pointerY === pointerY
+          isSameCardDragTarget(
+            prev,
+            target.targetColumnId,
+            target.insertIndex,
+            pointerX,
+            pointerY
+          )
         ) {
           return prev;
         }
         const next: CardDragState = {
           ...prev,
-          targetColumnId,
-          insertIndex,
+          targetColumnId: target.targetColumnId,
+          insertIndex: target.insertIndex,
           pointerX,
           pointerY,
         };
@@ -216,49 +215,39 @@ export function usePointerKanbanBoard({
     []
   );
 
-  const recomputeColumnHitTest = useCallback((pointerX: number, pointerY: number) => {
-    const current = dragStateRef.current;
-    if (!current || current.dragType !== "column") {
-      return;
-    }
+  const recomputeColumnHitTest = useCallback(
+    (pointerX: number, pointerY: number) => {
+      const current = dragStateRef.current;
+      if (!current || current.dragType !== "column") {
+        return;
+      }
 
-    const order = columnOrderRef.current;
-    const rects: { left: number; width: number }[] = [];
-    for (const id of order) {
-      if (id === current.draggingColumnId) {
-        continue;
-      }
-      const element = columnElementsRef.current.get(id);
-      if (!element) {
-        continue;
-      }
-      const rect = element.getBoundingClientRect();
-      rects.push({ left: rect.left, width: rect.width });
-    }
-
-    const insertIndex = findColumnInsertIndex(pointerX, rects);
-
-    setDragState((prev) => {
-      if (!prev || prev.dragType !== "column") {
-        return prev;
-      }
-      if (
-        prev.insertIndex === insertIndex &&
-        prev.pointerX === pointerX &&
-        prev.pointerY === pointerY
-      ) {
-        return prev;
-      }
-      const next: ColumnDragState = {
-        ...prev,
-        insertIndex,
+      const { insertIndex } = measureColumnDropTarget(
         pointerX,
-        pointerY,
-      };
-      dragStateRef.current = next;
-      return next;
-    });
-  }, []);
+        columnOrderRef.current,
+        columnElementsRef.current,
+        current.draggingColumnId
+      );
+
+      setDragState((prev) => {
+        if (!prev || prev.dragType !== "column") {
+          return prev;
+        }
+        if (isSameColumnDragTarget(prev, insertIndex, pointerX, pointerY)) {
+          return prev;
+        }
+        const next: ColumnDragState = {
+          ...prev,
+          insertIndex,
+          pointerX,
+          pointerY,
+        };
+        dragStateRef.current = next;
+        return next;
+      });
+    },
+    []
+  );
 
   const stopAutoScroll = useCallback(() => {
     if (autoScrollRafRef.current !== null) {
@@ -276,38 +265,17 @@ export function usePointerKanbanBoard({
     }
 
     const { x, y } = latestPointerRef.current;
-    const boardRect = board.getBoundingClientRect();
-    let scrolled = false;
+    const list =
+      current.dragType === "card"
+        ? listElementsRef.current.get(current.targetColumnId)
+        : null;
 
-    const distLeft = x - boardRect.left;
-    const distRight = boardRect.right - x;
-    if (distLeft >= 0 && distLeft < EDGE_SCROLL_ZONE_PX) {
-      board.scrollLeft -=
-        EDGE_SCROLL_MAX_SPEED * (1 - distLeft / EDGE_SCROLL_ZONE_PX);
-      scrolled = true;
-    } else if (distRight >= 0 && distRight < EDGE_SCROLL_ZONE_PX) {
-      board.scrollLeft +=
-        EDGE_SCROLL_MAX_SPEED * (1 - distRight / EDGE_SCROLL_ZONE_PX);
-      scrolled = true;
-    }
-
-    if (current.dragType === "card") {
-      const list = listElementsRef.current.get(current.targetColumnId);
-      if (list && list.scrollHeight > list.clientHeight) {
-        const listRect = list.getBoundingClientRect();
-        const distTop = y - listRect.top;
-        const distBottom = listRect.bottom - y;
-        if (distTop >= 0 && distTop < EDGE_SCROLL_ZONE_PX) {
-          list.scrollTop -=
-            EDGE_SCROLL_MAX_SPEED * (1 - distTop / EDGE_SCROLL_ZONE_PX);
-          scrolled = true;
-        } else if (distBottom >= 0 && distBottom < EDGE_SCROLL_ZONE_PX) {
-          list.scrollTop +=
-            EDGE_SCROLL_MAX_SPEED * (1 - distBottom / EDGE_SCROLL_ZONE_PX);
-          scrolled = true;
-        }
-      }
-    }
+    const scrolled = applyPointerEdgeScroll({
+      pointerX: x,
+      pointerY: y,
+      board,
+      list,
+    });
 
     if (scrolled) {
       if (current.dragType === "card") {
@@ -363,41 +331,29 @@ export function usePointerKanbanBoard({
       }
 
       const board = boardScrollRef.current;
-      if (board) {
-        const boardRect = board.getBoundingClientRect();
-        const outside =
-          clientX < boardRect.left ||
-          clientX > boardRect.right ||
-          clientY < boardRect.top ||
-          clientY > boardRect.bottom;
-        if (outside) {
-          endGesture();
-          return;
-        }
+      if (board && isPointerOutsideElement(clientX, clientY, board)) {
+        endGesture();
+        return;
       }
 
-      const ranges = measureColumnRanges(columnElementsRef.current);
-      const targetColumnId =
-        findTargetColumnId(clientX, ranges) ?? current.targetColumnId;
-      const list = listElementsRef.current.get(targetColumnId);
-      const cardNodes = list
-        ? Array.from(
-            list.querySelectorAll<HTMLElement>("[data-kanban-card][data-card-id]")
-          ).filter((node) => node.dataset.cardId !== current.draggingCardId)
-        : [];
-      const insertIndex = findInsertIndex(
+      const target = measureCardDropTarget(
+        clientX,
         clientY,
-        cardNodes.map((node) => {
-          const rect = node.getBoundingClientRect();
-          return { top: rect.top, height: rect.height };
-        })
+        columnElementsRef.current,
+        listElementsRef.current,
+        current.draggingCardId,
+        current.targetColumnId
       );
+      if (!target) {
+        endGesture();
+        return;
+      }
 
       const next = commitCardMove(columnsRef.current, {
         sourceColumnId: current.sourceColumnId,
         sourceIndex: current.sourceIndex,
-        targetColumnId,
-        insertIndex,
+        targetColumnId: target.targetColumnId,
+        insertIndex: target.insertIndex,
       });
 
       endGesture();
@@ -420,33 +376,18 @@ export function usePointerKanbanBoard({
       }
 
       const board = boardScrollRef.current;
-      if (board) {
-        const boardRect = board.getBoundingClientRect();
-        const outside =
-          clientX < boardRect.left ||
-          clientX > boardRect.right ||
-          clientY < boardRect.top ||
-          clientY > boardRect.bottom;
-        if (outside) {
-          endGesture();
-          return;
-        }
+      if (board && isPointerOutsideElement(clientX, clientY, board)) {
+        endGesture();
+        return;
       }
 
       const order = columnOrderRef.current;
-      const rects: { left: number; width: number }[] = [];
-      for (const id of order) {
-        if (id === current.draggingColumnId) {
-          continue;
-        }
-        const element = columnElementsRef.current.get(id);
-        if (!element) {
-          continue;
-        }
-        const rect = element.getBoundingClientRect();
-        rects.push({ left: rect.left, width: rect.width });
-      }
-      const insertIndex = findColumnInsertIndex(clientX, rects);
+      const { insertIndex } = measureColumnDropTarget(
+        clientX,
+        order,
+        columnElementsRef.current,
+        current.draggingColumnId
+      );
 
       const next = commitColumnMove(order, {
         sourceIndex: current.sourceIndex,
@@ -481,36 +422,20 @@ export function usePointerKanbanBoard({
         }
 
         if (pending.dragType === "card") {
-          const nextState: CardDragState = {
-            dragType: "card",
-            draggingCardId: pending.cardId,
-            sourceColumnId: pending.columnId,
-            sourceIndex: pending.index,
-            targetColumnId: pending.columnId,
-            insertIndex: pending.index,
-            pointerX: event.clientX,
-            pointerY: event.clientY,
-            overlayWidth: pending.width,
-            overlayHeight: pending.height,
-            grabOffsetX: pending.grabOffsetX,
-            grabOffsetY: pending.grabOffsetY,
-          };
+          const nextState = buildCardDragFromPending(
+            pending,
+            event.clientX,
+            event.clientY
+          );
           pendingPointerRef.current = null;
           dragStateRef.current = nextState;
           setDragState(nextState);
         } else {
-          const nextState: ColumnDragState = {
-            dragType: "column",
-            draggingColumnId: pending.columnId,
-            sourceIndex: pending.sourceIndex,
-            insertIndex: pending.sourceIndex,
-            pointerX: event.clientX,
-            pointerY: event.clientY,
-            overlayWidth: pending.width,
-            overlayHeight: pending.height,
-            grabOffsetX: pending.grabOffsetX,
-            grabOffsetY: pending.grabOffsetY,
-          };
+          const nextState = buildColumnDragFromPending(
+            pending,
+            event.clientX,
+            event.clientY
+          );
           pendingPointerRef.current = null;
           dragStateRef.current = nextState;
           setDragState(nextState);
@@ -666,7 +591,6 @@ export function usePointerKanbanBoard({
       }
 
       const target = event.currentTarget;
-      // Capture the whole column shell for a better overlay size.
       const columnElement = columnElementsRef.current.get(columnId) ?? target;
       const rect = columnElement.getBoundingClientRect();
 
@@ -697,7 +621,6 @@ export function usePointerKanbanBoard({
 
   return {
     mounted,
-    dragState,
     cardDrag,
     columnDrag,
     columnIndicatorDisplayIndex: columnIndicatorDisplayIndex(columnDrag),

@@ -79,6 +79,12 @@ export function ResetPasswordsByRoleSection() {
     });
     setConfirmOpen(false);
     setRole("");
+    // Drop plaintext credentials from React action state after download.
+    startTransition(() => {
+      const ack = new FormData();
+      ack.set("ackDownload", "1");
+      formAction(ack);
+    });
   });
 
   const roleError = state.fieldErrors?.role?.[0];

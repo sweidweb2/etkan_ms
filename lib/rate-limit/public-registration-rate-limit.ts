@@ -1,9 +1,9 @@
-import { logOpsWarn } from "@/lib/ops/logger";
+import { getClientIp } from "@/lib/rate-limit/client-ip";
+import { logRateLimitBlocked } from "@/lib/rate-limit/log-blocked";
 import {
   consumeRateLimit,
   formatRetryAfter,
 } from "@/lib/rate-limit/memory-store";
-import { getClientIp } from "@/lib/rate-limit/client-ip";
 
 const PUBLIC_REGISTRATION_SUBMIT_LIMIT = {
   maxAttempts: 5,
@@ -31,11 +31,15 @@ export async function checkPublicRegistrationSubmitRateLimit(): Promise<
     return { allowed: true };
   }
 
-  logOpsWarn("public-registration-rate-limit", "Blocked submit attempts", {
-    kind: "submit",
-    ip,
-    retryAfterMs: result.retryAfterMs,
-  });
+  logRateLimitBlocked(
+    "public-registration-rate-limit",
+    "Blocked submit attempts",
+    {
+      kind: "submit",
+      ip,
+      retryAfterMs: result.retryAfterMs,
+    }
+  );
 
   return {
     allowed: false,
@@ -59,11 +63,15 @@ export async function checkPublicRegistrationUploadRateLimit(): Promise<
     return { allowed: true };
   }
 
-  logOpsWarn("public-registration-rate-limit", "Blocked upload attempts", {
-    kind: "upload",
-    ip,
-    retryAfterMs: result.retryAfterMs,
-  });
+  logRateLimitBlocked(
+    "public-registration-rate-limit",
+    "Blocked upload attempts",
+    {
+      kind: "upload",
+      ip,
+      retryAfterMs: result.retryAfterMs,
+    }
+  );
 
   return {
     allowed: false,

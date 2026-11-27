@@ -17,7 +17,6 @@ import * as studentClassRepository from "@/repositories/student-class.repository
 import type { StudentClassWithClassRecord } from "@/repositories/student-class.repository";
 import * as studentPaymentPhaseRepository from "@/repositories/student-payment-phase.repository";
 import type { StudentPaymentPhaseWithPhaseRecord } from "@/repositories/student-payment-phase.repository";
-import * as studentPaymentRepository from "@/repositories/student-payment.repository";
 import * as studentProfileRepository from "@/repositories/student-profile.repository";
 import {
   recordManagerAuditLog,
@@ -25,6 +24,7 @@ import {
 } from "@/services/ops/audit-log.service";
 import { getUnauthorizedError } from "@/services/auth/authorization.service";
 import { createImmediateSemesterDropForInactivate } from "@/services/classes/drop-semester.service";
+import { loadPaymentCountsBySppIds } from "@/services/students/student-payment-counts";
 import type {
   StudentStatusDroppableSemester,
   StudentStatusEligibleClass,
@@ -149,32 +149,6 @@ function buildDroppableSemesters(
   return droppable;
 }
 
-async function loadPaymentCountsBySppIds(
-  adminClient: Supabase,
-  sppIds: string[]
-): Promise<Map<string, number>> {
-  const counts = new Map<string, number>();
-  for (const id of sppIds) {
-    counts.set(id, 0);
-  }
-
-  const { data, error } =
-    await studentPaymentRepository.listPaymentSppIdsBySppIds(
-      adminClient,
-      sppIds
-    );
-
-  if (error) {
-    throw new Error(error.message);
-  }
-
-  for (const row of data ?? []) {
-    const sppId = row.student_payment_phase_id;
-    counts.set(sppId, (counts.get(sppId) ?? 0) + 1);
-  }
-
-  return counts;
-}
 
 async function loadSideEffectData(adminClient: Supabase, userId: string) {
   const [membershipsResult, sppsResult, pendingDropsResult] = await Promise.all([

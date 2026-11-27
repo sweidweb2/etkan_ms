@@ -5,6 +5,7 @@ import { runManagerAction } from "@/lib/actions/run-manager-action";
 import {
   getManagerClassDetailRoute,
   getStudentClassDetailRoute,
+  ROUTES,
 } from "@/lib/constants/routes";
 import { parseSetTeamLeaderFormData } from "@/lib/validators/manager/set-team-leader";
 import {
@@ -90,6 +91,9 @@ export async function removeStudentFromClassAction(
     parse: parseRemoveStudentFromClassFormData,
     mutate: ({ adminClient, actor, data }) =>
       removeStudentFromClassForManager(adminClient, actor.userId, actor, data),
+    revalidate: () => {
+      revalidatePath(ROUTES.MANAGER_STUDENTS_DROP);
+    },
     mapSuccess: (result) => ({
       success: true,
       message: result.message,

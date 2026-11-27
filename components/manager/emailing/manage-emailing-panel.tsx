@@ -180,6 +180,7 @@ export function ManageEmailingPanel({
   const [totalCount, setTotalCount] = useState(initialData.totalCount);
   const [stats, setStats] = useState(initialData.stats);
   const [isLoading, startTransition] = useTransition();
+  const [loadError, setLoadError] = useState(false);
   const [selectedUsersById, setSelectedUsersById] = useState<
     Map<string, ManagerUserRow>
   >(() => new Map());
@@ -294,15 +295,18 @@ export function ManageEmailingPanel({
 
   const loadPage = (query: ManagerEmailingRecipientsListQuery) => {
     const requestId = ++requestIdRef.current;
+    setLoadError(false);
     startTransition(async () => {
       const data = await loadEmailingRecipientsPageAction(query);
       if (requestId !== requestIdRef.current) {
         return;
       }
       if (!data) {
+        setLoadError(true);
         showErrorToast("Unable to load recipients.");
         return;
       }
+      setLoadError(false);
       applyListData(data);
       if (data.page !== query.page) {
         loadedKeyRef.current = listQueryKey({
@@ -733,6 +737,31 @@ export function ManageEmailingPanel({
                 </SelectContent>
               </Select>
             </div>
+
+            {loadError ? (
+              <div className="m-4 flex flex-col items-start gap-3 rounded-lg border border-destructive/30 bg-destructive/5 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+                <p className="text-sm text-destructive">
+                  Unable to load recipients. Check your connection and try again.
+                </p>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  disabled={isLoading}
+                  onClick={() =>
+                    loadPage(
+                      buildListQuery({
+                        page: safeCurrentPage,
+                        pageSize,
+                      })
+                    )
+                  }
+                >
+                  {isLoading ? <InlineSpinner /> : null}
+                  Retry
+                </Button>
+              </div>
+            ) : null}
 
             {isClassMembersPending ? (
               <div className="flex items-center justify-center gap-2 px-4 py-10 text-sm text-muted-foreground">

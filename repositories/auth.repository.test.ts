@@ -84,7 +84,7 @@ describe("listAuthEmailsByIds", () => {
     expect(getUserById).toHaveBeenCalledWith(userB);
   });
 
-  it("soft-fails Auth Admin errors without caching the miss", async () => {
+  it("soft-fails Auth Admin errors and negative-caches the miss", async () => {
     const rpc = vi.fn().mockResolvedValue({ data: [], error: null });
     const getUserById = vi.fn().mockResolvedValue({
       data: null,
@@ -98,7 +98,21 @@ describe("listAuthEmailsByIds", () => {
 
     const second = await listAuthEmailsByIds(client, [userA]);
     expect(second.data.get(userA)).toBe("");
-    expect(getUserById).toHaveBeenCalledTimes(2);
+    expect(getUserById).toHaveBeenCalledTimes(1);
+  });
+
+  it("soft-fails RPC errors without Auth Admin fan-out", async () => {
+    const rpc = vi.fn().mockResolvedValue({
+      data: null,
+      error: { message: "rpc down" },
+    });
+    const getUserById = vi.fn();
+    const client = createClient({ rpc, getUserById });
+
+    const result = await listAuthEmailsByIds(client, [userA, userB]);
+    expect(result.data.get(userA)).toBe("");
+    expect(result.data.get(userB)).toBe("");
+    expect(getUserById).not.toHaveBeenCalled();
   });
 
   it("soft-fails when Auth Admin hangs past the timeout", async () => {

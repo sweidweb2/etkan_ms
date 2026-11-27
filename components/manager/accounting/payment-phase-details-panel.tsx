@@ -582,9 +582,13 @@ export function PaymentPhaseDetailsPanel({
 
   const handlePaymentCreated = (
     _payment: ManagerStudentPaymentRow,
-    snapshot: ManagerSppFinancialSnapshot
+    snapshot?: ManagerSppFinancialSnapshot
   ) => {
     setRecordPaymentSppId(null);
+    if (!snapshot) {
+      router.refresh();
+      return;
+    }
     setSpps((current) =>
       current.map((spp) =>
         spp.id === snapshot.id ? applySppRowFinancials(spp, snapshot) : spp
@@ -704,7 +708,11 @@ export function PaymentPhaseDetailsPanel({
             }
           }}
           sppId={recordPaymentSppId ?? ""}
-          maxAmount={phase.amount}
+          maxAmount={Math.max(
+            spps.find((row) => row.id === recordPaymentSppId)?.remaining_amount ??
+              0,
+            0
+          )}
           onCreated={handlePaymentCreated}
         />
 
@@ -747,7 +755,6 @@ export function PaymentPhaseDetailsPanel({
                   : row
               )
             );
-            router.refresh();
           }}
         />
 

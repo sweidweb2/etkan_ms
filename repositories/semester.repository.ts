@@ -1,6 +1,7 @@
 import "server-only";
 
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { chunkedIn } from "@/repositories/_shared/chunked-in";
 import type { Database, Json } from "@/types/supabase";
 
 type Supabase = SupabaseClient<Database>;
@@ -40,6 +41,15 @@ export async function findSemesterById(client: Supabase, id: string) {
     .select(SEMESTER_COLUMNS)
     .eq("id", id)
     .maybeSingle();
+}
+
+export async function listSemestersByIds(client: Supabase, ids: string[]) {
+  if (ids.length === 0) {
+    return { data: [] as SemesterRecord[], error: null };
+  }
+  return chunkedIn(ids, (chunk) =>
+    client.from("semesters").select(SEMESTER_COLUMNS).in("id", chunk)
+  );
 }
 
 export type SemesterPaymentPhasePickerRecord = {

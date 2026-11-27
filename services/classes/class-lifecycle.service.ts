@@ -39,9 +39,8 @@ import {
 } from "@/services/classes/student-task-upload.service";
 import {
   collectTaskAttachmentStoragePaths,
-  deleteTaskAttachmentRowsForEntities,
   removeTaskAttachmentStoragePaths,
-} from "@/services/classes/task-attachments.service";
+} from "@/services/classes/task-attachment-storage-cleanup.service";
 import { TASK_ATTACHMENT_ENTITIES } from "@/lib/constants/task-attachments";
 import {
   assertAssignedTeacherForClassMutation,
@@ -555,28 +554,14 @@ export async function updateClassForManager(
       };
     }
 
-    // Class task delete cascades student_tasks → student_task_uploads rows.
-    const deleteTasks = await classTaskRepository.deleteClassTasksByClassId(
-      adminClient,
-      input.class_id
-    );
+    // One DB transaction: attachments + all class_tasks (student_tasks cascade).
+    const deleteTasks =
+      await classTaskRepository.deleteClassTasksForClassWithAttachments(
+        adminClient,
+        input.class_id
+      );
     if (deleteTasks.error) {
       return { success: false, error: deleteTasks.error.message };
-    }
-
-    // Attachments are not FK-cascaded; delete rows after parents are gone.
-    const attachmentDelete = await deleteTaskAttachmentRowsForEntities(
-      adminClient,
-      TASK_ATTACHMENT_ENTITIES.CLASS_TASK,
-      existingTaskIds
-    );
-    if (attachmentDelete.error) {
-      return {
-        success: false,
-        error:
-          attachmentDelete.error.message ||
-          "Unable to delete task attachments.",
-      };
     }
 
     await removeStudentTaskUploadStoragePaths(adminClient, studentUploadPaths);

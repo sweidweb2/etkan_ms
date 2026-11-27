@@ -2,7 +2,10 @@
 
 import { revalidatePath } from "next/cache";
 import { runManagerAction } from "@/lib/actions/run-manager-action";
-import { getManagerClassDetailRoute } from "@/lib/constants/routes";
+import {
+  getManagerClassDetailRoute,
+  ROUTES,
+} from "@/lib/constants/routes";
 import {
   parseCancelSemesterDropFormData,
   parseCreateSemesterDropFormData,
@@ -24,10 +27,17 @@ export async function createSemesterDropAction(
     formData,
     parse: parseCreateSemesterDropFormData,
     mutate: ({ adminClient, actor, data }) =>
-      createSemesterDropForManager(adminClient, actor.userId, actor, data),
+      createSemesterDropForManager(adminClient, actor.userId, actor, {
+        ...data,
+        auditSource:
+          formData.get("audit_source") === "drop_student_console"
+            ? "drop_student_console"
+            : undefined,
+      }),
     revalidate: (_result, data) => {
       revalidatePath(getManagerClassDetailRoute(data.class_id));
-      revalidatePath("/manager/accounting");
+      revalidatePath(ROUTES.MANAGER_ACCOUNTING);
+      revalidatePath(ROUTES.MANAGER_STUDENTS_DROP);
     },
     mapSuccess: (result, data) => ({
       success: true,
@@ -53,6 +63,7 @@ export async function cancelSemesterDropAction(
       cancelSemesterDropForManager(adminClient, actor.userId, actor, data),
     revalidate: (_result, data) => {
       revalidatePath(getManagerClassDetailRoute(data.class_id));
+      revalidatePath(ROUTES.MANAGER_STUDENTS_DROP);
     },
     mapSuccess: (result) => ({
       success: true,

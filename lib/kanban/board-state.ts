@@ -190,11 +190,34 @@ export function commitCardMove(
     index: insertIndex,
   });
 
-  if (JSON.stringify(next) === JSON.stringify(columns)) {
+  if (boardColumnsEqual(next, columns)) {
     return null;
   }
 
   return next;
+}
+
+function boardColumnsEqual(left: BoardColumns, right: BoardColumns): boolean {
+  const leftKeys = Object.keys(left);
+  const rightKeys = Object.keys(right);
+  if (leftKeys.length !== rightKeys.length) {
+    return false;
+  }
+
+  for (const key of leftKeys) {
+    const leftList = left[key];
+    const rightList = right[key];
+    if (!rightList || leftList.length !== rightList.length) {
+      return false;
+    }
+    for (let index = 0; index < leftList.length; index += 1) {
+      if (leftList[index] !== rightList[index]) {
+        return false;
+      }
+    }
+  }
+
+  return true;
 }
 
 /**

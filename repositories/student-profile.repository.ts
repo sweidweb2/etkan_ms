@@ -114,34 +114,28 @@ export async function listStudentProfilesPage(
   return query.range(options.offset, options.offset + options.limit - 1);
 }
 
-/** Global head counts for total + each requested status (no row data). */
+/** Global total + per-status counts in one RPC (no row data). */
 export async function countStudentProfilesByStatus(
   client: Supabase,
   statuses: readonly string[]
 ) {
-  const [totalResult, ...statusResults] = await Promise.all([
-    client
-      .from("student_profiles")
-      .select("id", { count: "exact", head: true }),
-    ...statuses.map((status) =>
-      client
-        .from("student_profiles")
-        .select("id", { count: "exact", head: true })
-        .eq("status", status)
-    ),
-  ]);
+  const { data, error } = await client.rpc("count_student_profiles_by_status");
 
-  const error =
-    totalResult.error ??
-    statusResults.find((result) => result.error)?.error ??
-    null;
+  const payload = data as {
+    total?: number;
+    by_status?: Record<string, number>;
+  } | null;
 
   const byStatus: Record<string, number> = {};
-  statuses.forEach((status, index) => {
-    byStatus[status] = statusResults[index]?.count ?? 0;
-  });
+  for (const status of statuses) {
+    byStatus[status] = payload?.by_status?.[status] ?? 0;
+  }
 
-  return { total: totalResult.count ?? 0, byStatus, error };
+  return {
+    total: payload?.total ?? 0,
+    byStatus,
+    error,
+  };
 }
 
 /** Students with no in-progress class membership (DB anti-join, slim columns). */
@@ -173,6 +167,30 @@ export async function listStudentProfileDetailsByUserIds(
     .from("student_profiles")
     .select("id, user_id, full_name, birth_date, phone, status, created_at")
     .in("user_id", userIds);
+}
+
+/** Profile user_ids among `userIds` whose name or phone matches `search`. */
+export async function listStudentProfileUserIdsMatchingSearch(
+  client: Supabase,
+  userIds: string[],
+  search: string
+) {
+  const sanitized = search
+    .replace(/[%_*,()\\]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+  if (!sanitized || userIds.length === 0) {
+    return { data: [] as Array<{ user_id: string }>, error: null };
+  }
+
+  const pattern = `%${sanitized}%`;
+  return chunkedIn(userIds, (chunk) =>
+    client
+      .from("student_profiles")
+      .select("user_id")
+      .in("user_id", chunk)
+      .or(`full_name.ilike.${pattern},phone.ilike.${pattern}`)
+  );
 }
 
 export async function createStudentProfile(

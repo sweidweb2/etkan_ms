@@ -197,6 +197,32 @@ export async function listDropRequestsByIds(client: Supabase, ids: string[]) {
   return client.from("semester_drop_requests").select(DROP_COLUMNS).in("id", ids);
 }
 
+/** All drop requests for one student (any status), newest first. */
+export async function listDropRequestsByStudentId(
+  client: Supabase,
+  studentId: string
+) {
+  return client
+    .from("semester_drop_requests")
+    .select(DROP_COLUMNS)
+    .eq("student_id", studentId)
+    .order("requested_at", { ascending: false });
+}
+
+export async function listNeedRefundDropRequestsByStudentId(
+  client: Supabase,
+  studentId: string
+) {
+  return client
+    .from("semester_drop_requests")
+    .select(DROP_COLUMNS)
+    .eq("student_id", studentId)
+    .eq("status", "completed")
+    .eq("refund_status", "owed")
+    .gt("refund_owed", 0)
+    .order("completed_at", { ascending: false });
+}
+
 export async function createSemesterDropRequest(
   client: Supabase,
   input: {

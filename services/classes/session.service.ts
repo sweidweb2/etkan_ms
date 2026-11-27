@@ -10,6 +10,7 @@ export {
 
 export {
   listClassTasksForManager,
+  loadClassTasks,
   getSessionDetailForManager,
   getSessionTaskDetailForManager,
   getClassTaskDetailForManager,

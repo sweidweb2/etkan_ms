@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useCallback } from "react";
 import {
   FolderPlusIcon,
   LayersIcon,
@@ -16,16 +16,14 @@ import { SubjectsKanbanBoard } from "@/components/manager/subjects/subjects-kanb
 import { PanelPageHeader } from "@/components/panels/panel-page-header";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { useManageKanbanPanel } from "@/hooks/use-manage-kanban-panel";
 import { hasPermissionInSet } from "@/lib/auth/permission-checks";
 import { PERMISSIONS } from "@/lib/constants/permissions";
-import {
-  mergeItemsById,
-  prependUniqueById,
-} from "@/lib/utils/prepend-unique-by-id";
+import { prependUniqueById } from "@/lib/utils/prepend-unique-by-id";
 import type { ManagerStageRow } from "@/types/manager-stage";
 import type { ManagerSubjectRow } from "@/types/manager-subject";
 
-function matchesSearch(subject: ManagerSubjectRow, query: string) {
+const matchesSearch = (subject: ManagerSubjectRow, query: string) => {
   const normalizedQuery = query.trim().toLowerCase();
   if (!normalizedQuery) {
     return true;
@@ -41,14 +39,14 @@ function matchesSearch(subject: ManagerSubjectRow, query: string) {
     .toLowerCase();
 
   return haystack.includes(normalizedQuery);
-}
+};
 
-function compareStages(left: ManagerStageRow, right: ManagerStageRow) {
+const compareStages = (left: ManagerStageRow, right: ManagerStageRow) => {
   if (left.sort_order !== right.sort_order) {
     return left.sort_order - right.sort_order;
   }
   return left.name.localeCompare(right.name);
-}
+};
 
 type ManageSubjectsPanelProps = {
   initialSubjects: ManagerSubjectRow[];
@@ -59,16 +57,30 @@ export function ManageSubjectsPanel({
   initialSubjects,
   initialStages,
 }: ManageSubjectsPanelProps) {
-  const [subjects, setSubjects] = useState(initialSubjects);
-  const [prevSubjects, setPrevSubjects] = useState(initialSubjects);
-  const [stages, setStages] = useState(() =>
-    [...initialStages].sort(compareStages)
-  );
-  const [prevStages, setPrevStages] = useState(initialStages);
-  const [isAddOpen, setIsAddOpen] = useState(false);
-  const [isCreateStageOpen, setIsCreateStageOpen] = useState(false);
-  const [isAssignOpen, setIsAssignOpen] = useState(false);
-  const [searchQuery, setSearchQuery] = useState("");
+  const {
+    items: subjects,
+    setItems: setSubjects,
+    groups: stages,
+    setGroups: setStages,
+    filteredItems: filteredSubjects,
+    searchQuery,
+    setSearchQuery,
+    sortingEnabled,
+    isAddOpen,
+    setIsAddOpen,
+    isCreateGroupOpen: isCreateStageOpen,
+    setIsCreateGroupOpen: setIsCreateStageOpen,
+    isAssignOpen,
+    setIsAssignOpen,
+    handleItemsBoardChange,
+    handleGroupCreated: handleStageCreated,
+  } = useManageKanbanPanel({
+    initialItems: initialSubjects,
+    initialGroups: initialStages,
+    matchesSearch,
+    compareGroups: compareStages,
+  });
+
   const permissions = usePermissions();
   const canUpdateSubjects = hasPermissionInSet(
     permissions,
@@ -79,62 +91,38 @@ export function ManageSubjectsPanel({
     PERMISSIONS.SUBJECTS_STAGES_UPDATE
   );
 
-  if (initialSubjects !== prevSubjects) {
-    setPrevSubjects(initialSubjects);
-    setSubjects(initialSubjects);
-  }
-
-  if (initialStages !== prevStages) {
-    setPrevStages(initialStages);
-    setStages([...initialStages].sort(compareStages));
-  }
-
-  const filteredSubjects = useMemo(() => {
-    return subjects.filter((subject) => matchesSearch(subject, searchQuery));
-  }, [subjects, searchQuery]);
-
-  const sortingEnabled = searchQuery.trim().length === 0;
-
-  const handleSubjectCreated = (subject: ManagerSubjectRow) => {
+  const handleSubjectCreated = useCallback((subject: ManagerSubjectRow) => {
     setSubjects((current) => prependUniqueById(current, subject));
-  };
+  }, [setSubjects]);
 
-  const handleStageCreated = (stage: ManagerStageRow) => {
-    setStages((current) =>
-      [...current.filter((row) => row.id !== stage.id), stage].sort(
-        compareStages
-      )
-    );
-  };
+  const handleSubjectsStageChange = useCallback(
+    (subjectIds: string[], stageId: string | null) => {
+      const idSet = new Set(subjectIds);
+      setSubjects((current) => {
+        const maxSort = current.reduce((max, subject) => {
+          if ((subject.stage_id ?? null) !== stageId) {
+            return max;
+          }
+          return Math.max(max, subject.sort_order);
+        }, -1);
 
-  const handleSubjectsStageChange = (
-    subjectIds: string[],
-    stageId: string | null
-  ) => {
-    const idSet = new Set(subjectIds);
-    setSubjects((current) => {
-      const maxSort = current.reduce((max, subject) => {
-        if ((subject.stage_id ?? null) !== stageId) {
-          return max;
-        }
-        return Math.max(max, subject.sort_order);
-      }, -1);
-
-      let cursor = maxSort + 1;
-      return current.map((subject) => {
-        if (!idSet.has(subject.id)) {
-          return subject;
-        }
-        const next = {
-          ...subject,
-          stage_id: stageId,
-          sort_order: cursor,
-        };
-        cursor += 1;
-        return next;
+        let cursor = maxSort + 1;
+        return current.map((subject) => {
+          if (!idSet.has(subject.id)) {
+            return subject;
+          }
+          const next = {
+            ...subject,
+            stage_id: stageId,
+            sort_order: cursor,
+          };
+          cursor += 1;
+          return next;
+        });
       });
-    });
-  };
+    },
+    [setSubjects]
+  );
 
   return (
     <div className="flex flex-col gap-6">
@@ -215,9 +203,7 @@ export function ManageSubjectsPanel({
           canDragCards={canUpdateSubjects}
           canReorderColumns={canReorderColumns}
           sortingEnabled={sortingEnabled}
-          onSubjectsChange={(next) => {
-            setSubjects((current) => mergeItemsById(current, next));
-          }}
+          onSubjectsChange={handleItemsBoardChange}
           onStagesChange={setStages}
           onRequestCreateStage={() => setIsCreateStageOpen(true)}
         />

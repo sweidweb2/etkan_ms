@@ -81,7 +81,7 @@ export function PointerKanbanColumn<TItem extends PointerKanbanColumnItem>({
         data-kanban-card=""
         data-card-id={item.id}
         className={cn(
-          "touch-none transition-[transform,opacity,margin] duration-150 ease-out",
+          "touch-none transition-[transform,opacity,margin] duration-150 ease-out [content-visibility:auto] [contain-intrinsic-size:auto_5rem]",
           canDragCards && !dragDisabled ? "cursor-grab" : "cursor-default",
           isDraggingCard && "opacity-35"
         )}

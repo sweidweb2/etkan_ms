@@ -36,9 +36,8 @@ import {
 } from "@/services/classes/student-task-upload.service";
 import {
   collectTaskAttachmentStoragePaths,
-  deleteTaskAttachmentRowsForEntities,
   removeTaskAttachmentStoragePaths,
-} from "@/services/classes/task-attachments.service";
+} from "@/services/classes/task-attachment-storage-cleanup.service";
 import { TASK_ATTACHMENT_ENTITIES } from "@/lib/constants/task-attachments";
 import { assertAssignedTeacherForClassMutation } from "@/services/classes/teacher-class-scope.service";
 import {
@@ -538,33 +537,13 @@ export async function deleteClassTaskForManager(
     };
   }
 
-  const studentTasksResult =
-    await studentTaskRepository.deleteStudentTasksByTaskId(
+  const deletedStudentTaskCount = studentTaskIds.length;
+  // One DB transaction: attachments + class_task (student_tasks cascade).
+  const { error: deleteError } =
+    await classTaskRepository.deleteClassTaskWithAttachments(
       adminClient,
       input.id
     );
-  if (studentTasksResult.error) {
-    return { success: false, error: studentTasksResult.error.message };
-  }
-
-  const attachmentDelete = await deleteTaskAttachmentRowsForEntities(
-    adminClient,
-    TASK_ATTACHMENT_ENTITIES.CLASS_TASK,
-    [input.id]
-  );
-  if (attachmentDelete.error) {
-    return {
-      success: false,
-      error:
-        attachmentDelete.error.message || "Unable to delete task attachments.",
-    };
-  }
-
-  const deletedStudentTaskCount = studentTasksResult.data?.length ?? 0;
-  const { error: deleteError } = await classTaskRepository.deleteClassTaskById(
-    adminClient,
-    input.id
-  );
   if (deleteError) {
     return {
       success: false,

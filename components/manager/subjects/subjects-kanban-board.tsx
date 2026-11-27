@@ -81,6 +81,11 @@ export function SubjectsKanbanBoard({
       isEmpty={subjects.length === 0 && stages.length === 0}
       emptyTitle="No subjects yet"
       emptyDescription="Create a subject or stage to get started."
+      isFilterEmpty={
+        !sortingEnabled && subjects.length === 0 && stages.length > 0
+      }
+      filterEmptyTitle="No matching subjects"
+      filterEmptyDescription="Clear search to drag columns and reorder cards."
       board={board}
       canDragCards={canDragCards}
       canReorderColumns={canReorderColumns}

@@ -1,5 +1,6 @@
 "use client";
 
+import { useRouter } from "next/navigation";
 import {
   deleteFinancialAdjustmentAction,
   deleteFinancialFormAction,
@@ -206,6 +207,7 @@ export function SppDetailsPanel({
   initialForms,
   initialInvites,
 }: SppDetailsPanelProps) {
+  const router = useRouter();
   const [spp, setSpp] = useState(initialSpp);
   const [prevSpp, setPrevSpp] = useState(initialSpp);
   const [payments, setPayments] = useState(initialPayments);
@@ -419,22 +421,30 @@ export function SppDetailsPanel({
 
   const handlePaymentCreated = (
     payment: ManagerStudentPaymentRow,
-    snapshot: ManagerSppFinancialSnapshot
+    snapshot?: ManagerSppFinancialSnapshot
   ) => {
     setPayments((current) =>
       sortPayments(appendUniqueById(current, payment))
     );
-    setSpp((current) => applySppFinancialSnapshot(current, snapshot));
+    if (snapshot) {
+      setSpp((current) => applySppFinancialSnapshot(current, snapshot));
+      return;
+    }
+    router.refresh();
   };
 
   const handlePaymentUpdated = (
     payment: ManagerStudentPaymentRow,
-    snapshot: ManagerSppFinancialSnapshot
+    snapshot?: ManagerSppFinancialSnapshot
   ) => {
     setPayments((current) =>
       sortPayments(current.map((row) => (row.id === payment.id ? payment : row)))
     );
-    setSpp((current) => applySppFinancialSnapshot(current, snapshot));
+    if (snapshot) {
+      setSpp((current) => applySppFinancialSnapshot(current, snapshot));
+      return;
+    }
+    router.refresh();
   };
 
   const handleAdjustmentCreated = (
@@ -624,7 +634,7 @@ export function SppDetailsPanel({
           open={isCreatePaymentOpen}
           onOpenChange={setIsCreatePaymentOpen}
           sppId={spp.id}
-          maxAmount={spp.phase_amount}
+          maxAmount={Math.max(spp.remaining_amount, 0)}
           onCreated={handlePaymentCreated}
         />
 

@@ -17,7 +17,10 @@ import { copyStudentsFromClassSchema } from "@/lib/validators/manager/copy-stude
 import { removeStudentFromClassSchema } from "@/lib/validators/manager/remove-student-from-class";
 import { transferStudentBetweenClassesSchema } from "@/lib/validators/manager/transfer-student-between-classes";
 import { createNavStepTimer } from "@/lib/debug/nav-timing";
-import { logOpsWarn } from "@/lib/ops/logger";
+import {
+  coalesceWarning,
+  warnSoftFailure,
+} from "@/lib/ops/soft-success";
 import * as authRepository from "@/repositories/auth.repository";
 import * as classRepository from "@/repositories/class.repository";
 import type { ClassDetailRecord } from "@/repositories/class.repository";
@@ -276,38 +279,36 @@ export async function addStudentToClassForManager(
     let warning: string | undefined;
 
     if (gradeResult.error) {
-      const seedWarning =
-        gradeResult.error.message ??
-        "Student enrolled, but final exam grade row could not be created.";
-      logOpsWarn("classEnrollment.seedFinalExamGrade", seedWarning, {
-        classId: input.class_id,
-        userId,
-      });
-      warning = seedWarning;
+      warning = warnSoftFailure(
+        "classEnrollment.seedFinalExamGrade",
+        gradeResult.error.message,
+        "Student enrolled, but final exam grade row could not be created.",
+        { classId: input.class_id, userId }
+      );
     }
 
     if (attendeesError) {
-      const seedWarning =
-        attendeesError instanceof Error
-          ? attendeesError.message
-          : "Student enrolled, but attendance rows could not be created.";
-      logOpsWarn("classEnrollment.seedAttendees", seedWarning, {
-        classId: input.class_id,
-        userId,
-      });
-      warning = warning ?? seedWarning;
+      warning = coalesceWarning(
+        warning,
+        warnSoftFailure(
+          "classEnrollment.seedAttendees",
+          attendeesError,
+          "Student enrolled, but attendance rows could not be created.",
+          { classId: input.class_id, userId }
+        )
+      );
     }
 
     if (tasksError) {
-      const seedWarning =
-        tasksError instanceof Error
-          ? tasksError.message
-          : "Student enrolled, but task grade rows could not be created.";
-      logOpsWarn("classEnrollment.seedTasks", seedWarning, {
-        classId: input.class_id,
-        userId,
-      });
-      warning = warning ?? seedWarning;
+      warning = coalesceWarning(
+        warning,
+        warnSoftFailure(
+          "classEnrollment.seedTasks",
+          tasksError,
+          "Student enrolled, but task grade rows could not be created.",
+          { classId: input.class_id, userId }
+        )
+      );
     }
 
     if (gradeResult.data) {
@@ -368,7 +369,7 @@ export async function addStudentToClassForManager(
           ),
         { timer }
       );
-      warning = warning ?? sync.warning;
+      warning = coalesceWarning(warning, sync.warning);
     }
 
     await reactivatePromise;
@@ -563,40 +564,42 @@ async function enrollStudentsInClassCore(
       );
 
     let warning: string | undefined;
+    const batchMeta = {
+      classId: input.class_id,
+      studentCount: insertedUserIds.length,
+    };
 
     if (gradeResult.error) {
-      const seedWarning =
-        gradeResult.error.message ??
-        "Student enrolled, but final exam grade row could not be created.";
-      logOpsWarn("classEnrollment.batchSeedFinalExamGrade", seedWarning, {
-        classId: input.class_id,
-        studentCount: insertedUserIds.length,
-      });
-      warning = seedWarning;
+      warning = warnSoftFailure(
+        "classEnrollment.batchSeedFinalExamGrade",
+        gradeResult.error.message,
+        "Student enrolled, but final exam grade row could not be created.",
+        batchMeta
+      );
     }
 
     if (attendeesError) {
-      const seedWarning =
-        attendeesError instanceof Error
-          ? attendeesError.message
-          : "Student enrolled, but attendance or task grade rows could not be created.";
-      logOpsWarn("classEnrollment.batchSeedAttendees", seedWarning, {
-        classId: input.class_id,
-        studentCount: insertedUserIds.length,
-      });
-      warning = warning ?? seedWarning;
+      warning = coalesceWarning(
+        warning,
+        warnSoftFailure(
+          "classEnrollment.batchSeedAttendees",
+          attendeesError,
+          "Student enrolled, but attendance or task grade rows could not be created.",
+          batchMeta
+        )
+      );
     }
 
     if (tasksError) {
-      const seedWarning =
-        tasksError instanceof Error
-          ? tasksError.message
-          : "Student enrolled, but attendance or task grade rows could not be created.";
-      logOpsWarn("classEnrollment.batchSeedTasks", seedWarning, {
-        classId: input.class_id,
-        studentCount: insertedUserIds.length,
-      });
-      warning = warning ?? seedWarning;
+      warning = coalesceWarning(
+        warning,
+        warnSoftFailure(
+          "classEnrollment.batchSeedTasks",
+          tasksError,
+          "Student enrolled, but attendance or task grade rows could not be created.",
+          batchMeta
+        )
+      );
     }
 
     if (emailsResult.error) {
@@ -704,7 +707,7 @@ async function enrollStudentsInClassCore(
             })
           )
         );
-        warning = warning ?? PAYMENT_SYNC_FAILURE_WARNING;
+        warning = coalesceWarning(warning, PAYMENT_SYNC_FAILURE_WARNING);
       }
     } catch (syncError) {
       await Promise.all(
@@ -717,7 +720,7 @@ async function enrollStudentsInClassCore(
           })
         )
       );
-      warning = warning ?? PAYMENT_SYNC_FAILURE_WARNING;
+      warning = coalesceWarning(warning, PAYMENT_SYNC_FAILURE_WARNING);
     }
 
     await reactivatePromise;
@@ -1216,38 +1219,88 @@ export async function removeStudentFromClassForManager(
     );
 
     let deletedSpp = false;
+    let warning = sync.warning;
     if (semesterId && sppIdToMaybeDelete) {
       const semesterClassesResult =
         await classRepository.listClassesBySemesterId(adminClient, semesterId);
       if (semesterClassesResult.error) {
-        return { success: false, error: semesterClassesResult.error.message };
-      }
-      const semesterClassIds = (semesterClassesResult.data ?? []).map(
-        (row) => row.id
-      );
-      const remainingMemberships =
-        semesterClassIds.length === 0
-          ? { data: [], error: null }
-          : await studentClassRepository.listMemberUserIdsByClassIds(
-              adminClient,
-              semesterClassIds
-            );
-      if (remainingMemberships.error) {
-        return { success: false, error: remainingMemberships.error.message };
-      }
-      const stillInSemester = (remainingMemberships.data ?? []).some(
-        (row) => row.user_id === deleted.user_id
-      );
-      if (!stillInSemester) {
-        const sppDelete =
-          await studentPaymentPhaseRepository.deleteStudentPaymentPhaseWithRecalc(
-            adminClient,
-            sppIdToMaybeDelete
+        warning = coalesceWarning(
+          warning,
+          warnSoftFailure(
+            "removeStudentFromClass.listSemesterClasses",
+            semesterClassesResult.error,
+            "Student removed, but unpaid semester billing cleanup could not run.",
+            {
+              classId: parsed.data.class_id,
+              studentId: deleted.user_id,
+            },
+            {
+              userMessage:
+                "Student removed, but unpaid semester billing cleanup could not run.",
+            }
+          )
+        );
+      } else {
+        const semesterClassIds = (semesterClassesResult.data ?? []).map(
+          (row) => row.id
+        );
+        const remainingMemberships =
+          semesterClassIds.length === 0
+            ? { data: [], error: null }
+            : await studentClassRepository.listMemberUserIdsByClassIds(
+                adminClient,
+                semesterClassIds
+              );
+        if (remainingMemberships.error) {
+          warning = coalesceWarning(
+            warning,
+            warnSoftFailure(
+              "removeStudentFromClass.remainingMemberships",
+              remainingMemberships.error,
+              "Student removed, but unpaid semester billing cleanup could not run.",
+              {
+                classId: parsed.data.class_id,
+                studentId: deleted.user_id,
+              },
+              {
+                userMessage:
+                  "Student removed, but unpaid semester billing cleanup could not run.",
+              }
+            )
           );
-        if (sppDelete.error) {
-          return { success: false, error: sppDelete.error.message };
+        } else {
+          const stillInSemester = (remainingMemberships.data ?? []).some(
+            (row) => row.user_id === deleted.user_id
+          );
+          if (!stillInSemester) {
+            const sppDelete =
+              await studentPaymentPhaseRepository.deleteStudentPaymentPhaseWithRecalc(
+                adminClient,
+                sppIdToMaybeDelete
+              );
+            if (sppDelete.error) {
+              warning = coalesceWarning(
+                warning,
+                warnSoftFailure(
+                  "removeStudentFromClass.deleteSpp",
+                  sppDelete.error,
+                  "Student removed, but unpaid semester SPP could not be deleted.",
+                  {
+                    classId: parsed.data.class_id,
+                    studentId: deleted.user_id,
+                    sppId: sppIdToMaybeDelete,
+                  },
+                  {
+                    userMessage:
+                      "Student removed, but unpaid semester SPP could not be deleted.",
+                  }
+                )
+              );
+            } else {
+              deletedSpp = true;
+            }
+          }
         }
-        deletedSpp = true;
       }
     }
 
@@ -1279,7 +1332,7 @@ export async function removeStudentFromClassForManager(
       message: deletedSpp
         ? "Student removed from class and unpaid semester SPP deleted."
         : "Student removed from class.",
-      warning: sync.warning,
+      warning,
     };
   } finally {
     timer.end();
@@ -1485,17 +1538,11 @@ export async function transferStudentBetweenClassesForManager(
         ),
       { timer, stepName: "leaveSync" }
     );
-    const warning = leaveSync.warning;
+    let warning = leaveSync.warning;
 
-    let authResult: Awaited<
-      ReturnType<typeof authRepository.getAuthUserById>
-    >;
-    let gradeResult: Awaited<
-      ReturnType<typeof finalExamRepository.ensureEnrollmentFinalExamGrade>
-    >;
-
+    let studentEmail = "";
     try {
-      [authResult, gradeResult] = await timer.step(
+      const [authResult, gradeResult] = await timer.step(
         "destHydrate",
         () =>
           Promise.all([
@@ -1513,23 +1560,41 @@ export async function transferStudentBetweenClassesForManager(
             ),
           ]).then(([auth, grade]) => [auth, grade] as const)
       );
+      studentEmail = authResult.data.user?.email ?? "";
+      if (gradeResult.error) {
+        warning = coalesceWarning(
+          warning,
+          warnSoftFailure(
+            "transferStudent.finalExamGrade",
+            gradeResult.error,
+            "Student transferred, but final exam grade row could not be created.",
+            { toClassId: to_class_id, studentId: userId },
+            {
+              userMessage:
+                "Student transferred, but final exam grade row could not be created.",
+            }
+          )
+        );
+      }
     } catch (err) {
-      return {
-        success: false,
-        error:
-          err instanceof Error
-            ? err.message
-            : "Student transferred, but destination attendance or task rows could not be created.",
-      };
-    }
-
-    if (gradeResult.error) {
-      return {
-        success: false,
-        error:
-          gradeResult.error.message ??
-          "Student transferred, but final exam grade row could not be created.",
-      };
+      warning = coalesceWarning(
+        warning,
+        warnSoftFailure(
+          "transferStudent.destHydrate",
+          err,
+          "Student transferred, but destination attendance or task rows could not be created.",
+          { fromClassId: from_class_id, toClassId: to_class_id, studentId: userId },
+          {
+            userMessage:
+              "Student transferred, but destination attendance or task rows could not be created.",
+          }
+        )
+      );
+      const authFallback = await authRepository.getAuthUserById(
+        adminClient,
+        userId
+      );
+      studentEmail = authFallback.data.user?.email ?? "";
     }
 
     const student: ManagerClassStudentRow = {
@@ -1537,7 +1602,7 @@ export async function transferStudentBetweenClassesForManager(
       student_profile_id: studentProfile.id,
       user_id: userId,
       full_name: studentProfile.full_name,
-      email: authResult.data.user?.email ?? "",
+      email: studentEmail,
       phone: studentProfile.phone,
       joined_at: destEnrollment.joined_at ?? new Date().toISOString(),
     };

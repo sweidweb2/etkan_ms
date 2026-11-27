@@ -355,30 +355,21 @@ export async function listClassDetailsPage(
   return query.range(input.offset, input.offset + input.limit - 1);
 }
 
-/** Head counts per status (global, unfiltered) for manage-classes stat cards. */
+/** Per-status counts (global, unfiltered) for manage-classes stat cards. */
 export async function countClassesByStatuses(
   client: Supabase,
   statuses: readonly string[]
 ) {
-  const results = await Promise.all(
-    statuses.map((status) =>
-      client
-        .from("classes")
-        .select("id", { count: "exact", head: true })
-        .eq("status", status)
-    )
-  );
+  const { data, error } = await client.rpc("count_classes_by_status");
 
+  if (error) {
+    return { data: null, error };
+  }
+
+  const byStatus = (data as Record<string, number> | null) ?? {};
   const counts: Record<string, number> = {};
-  for (let index = 0; index < statuses.length; index += 1) {
-    const result = results[index];
-    if (!result || result.error) {
-      return {
-        data: null,
-        error: result?.error ?? { message: "Unable to count classes." },
-      };
-    }
-    counts[statuses[index]!] = result.count ?? 0;
+  for (const status of statuses) {
+    counts[status] = byStatus[status] ?? 0;
   }
 
   return { data: counts, error: null };
