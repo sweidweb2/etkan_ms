@@ -2,4 +2,6 @@
 export type {
   ClassStudentRow,
   ManagerClassStudentRow,
+  ManagerClassStudentsListData,
+  ManagerClassStudentsListQuery,
 } from "@/types/class-student";
