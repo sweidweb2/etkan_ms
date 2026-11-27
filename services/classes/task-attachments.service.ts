@@ -26,7 +26,10 @@ import {
   hasPermission,
   UNAUTHORIZED_MESSAGE,
 } from "@/services/auth/authorization.service";
-import { assertTeamLeaderForClass } from "@/services/classes/class-team-leader.service";
+import {
+  assertTeamLeaderForClass,
+  assertTeamLeaderTaskAccessForClass,
+} from "@/services/classes/class-team-leader.service";
 import {
   getLatestCloneJobForClassTask,
   isCloneJobBlockingUploads,
@@ -127,11 +130,10 @@ async function assertCanViewEntity(
   }
 
   if (actorUserId) {
-    const teamLeader = await assertTeamLeaderForClass(
+    const teamLeader = await assertTeamLeaderTaskAccessForClass(
       adminClient,
       actorUserId,
-      task.data.class_id,
-      PERMISSIONS.TEAM_LEADER_TASKS_UPDATE
+      task.data.class_id
     );
     if (teamLeader.ok) {
       return { ok: true, classId: task.data.class_id };
@@ -204,34 +206,6 @@ async function assertCanMutateEntity(
   }
 
   return { ok: false, error: UNAUTHORIZED_MESSAGE };
-}
-
-export async function listTaskAttachmentsForActor(
-  adminClient: Supabase,
-  actorUserId: string | null,
-  entity: TaskAttachmentEntity,
-  entityId: string
-): Promise<TaskAttachmentRow[]> {
-  const gate = await assertCanViewEntity(
-    adminClient,
-    actorUserId,
-    entity,
-    entityId
-  );
-  if (!gate.ok) {
-    throw new Error(gate.error);
-  }
-
-  const result = await taskAttachmentRepository.listTaskAttachmentsByEntity(
-    adminClient,
-    entity,
-    entityId
-  );
-  if (result.error) {
-    throw new Error(result.error.message);
-  }
-
-  return ((result.data ?? []) as TaskAttachmentRecord[]).map(mapAttachment);
 }
 
 export async function listTaskAttachmentsUnchecked(
@@ -497,19 +471,6 @@ export async function deleteTaskAttachmentForActor(
     return { success: false, error: gate.error };
   }
 
-  const storageCleanup =
-    await taskAttachmentStorageRepository.removeTaskAttachmentStorageObjects(
-      adminClient,
-      [row.storage_path]
-    );
-  if (storageCleanup.error) {
-    return {
-      success: false,
-      error:
-        storageCleanup.error.message || "Unable to delete attachment file.",
-    };
-  }
-
   const deleted = await taskAttachmentRepository.deleteTaskAttachmentById(
     adminClient,
     row.id
@@ -520,6 +481,12 @@ export async function deleteTaskAttachmentForActor(
       error: deleted.error.message || "Unable to delete attachment.",
     };
   }
+
+  // Prefer orphaned storage over a DB row pointing at a missing object.
+  await taskAttachmentStorageRepository.removeTaskAttachmentStorageObjects(
+    adminClient,
+    [row.storage_path]
+  );
 
   const classId: string | null = gate.classId ?? null;
   let subjectId: string | null = null;
@@ -753,14 +720,6 @@ export async function removeStorageAndRowsForTaskAttachments(
   }
 
   const paths = (listed.data ?? []).map((row) => row.storage_path);
-  const storageCleanup =
-    await taskAttachmentStorageRepository.removeTaskAttachmentStorageObjects(
-      adminClient,
-      paths
-    );
-  if (storageCleanup.error) {
-    return { error: storageCleanup.error };
-  }
 
   for (const entityId of entityIds) {
     const deleted = await taskAttachmentRepository.deleteTaskAttachmentsByEntity(
@@ -772,6 +731,12 @@ export async function removeStorageAndRowsForTaskAttachments(
       return { error: { message: deleted.error.message } };
     }
   }
+
+  // Prefer orphaned storage over dangling DB rows after a cascade delete.
+  await taskAttachmentStorageRepository.removeTaskAttachmentStorageObjects(
+    adminClient,
+    paths
+  );
 
   return { error: null };
 }

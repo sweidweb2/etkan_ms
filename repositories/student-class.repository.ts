@@ -342,6 +342,63 @@ export async function deleteStudentClassMembership(
   return { data: asStudentClassRecord(data), error: null };
 }
 
+/** Leave scheduled/in_progress classes in a semester (semester drop). */
+export async function leaveStudentSemesterDropClasses(
+  client: Supabase,
+  studentId: string,
+  semesterId: string,
+  alsoClassId?: string | null
+) {
+  const { data, error } = await client.rpc(
+    "leave_student_semester_drop_classes",
+    {
+      p_student_id: studentId,
+      p_semester_id: semesterId,
+      p_also_class_id: alsoClassId ?? null,
+    }
+  );
+
+  if (error) {
+    return { data: null, error };
+  }
+
+  const row =
+    data && typeof data === "object" ? (data as Record<string, unknown>) : null;
+  const removedRaw = row?.removed;
+  const removed = Array.isArray(removedRaw)
+    ? removedRaw
+        .map((item) => {
+          if (!item || typeof item !== "object") {
+            return null;
+          }
+          const entry = item as Record<string, unknown>;
+          const classId =
+            typeof entry.classId === "string" ? entry.classId : null;
+          const membershipId =
+            typeof entry.membershipId === "string" ? entry.membershipId : null;
+          if (!classId || !membershipId) {
+            return null;
+          }
+          return { classId, membershipId };
+        })
+        .filter(
+          (item): item is { classId: string; membershipId: string } =>
+            item != null
+        )
+    : [];
+
+  return {
+    data: {
+      removed,
+      removedCount:
+        typeof row?.removedCount === "number"
+          ? row.removedCount
+          : removed.length,
+    },
+    error: null,
+  };
+}
+
 export async function transferStudentBetweenClasses(
   client: Supabase,
   userId: string,

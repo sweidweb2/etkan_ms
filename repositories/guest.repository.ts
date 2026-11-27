@@ -64,6 +64,77 @@ export async function listGuests(client: Supabase) {
     .order("created_at", { ascending: false });
 }
 
+const UUID_PATTERN =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/** Strips characters that would break PostgREST `or()` filters / ilike wildcards. */
+function sanitizeSearchTerm(search: string) {
+  return search.replace(/[%_*,()\\]/g, " ").replace(/\s+/g, " ").trim();
+}
+
+/**
+ * One page of guests (newest first) plus the exact filtered count.
+ * Search matches `full_name` / `phone` (and `id` when the term is a UUID).
+ */
+export async function listGuestsPage(
+  client: Supabase,
+  options: {
+    offset: number;
+    limit: number;
+    search?: string | null;
+    status?: string | null;
+    interestedService?: string | null;
+    excludeIds?: string[];
+    excludeStatuses?: string[];
+  }
+) {
+  let query = client
+    .from("guests")
+    .select(GUEST_COLUMNS, { count: "exact" })
+    .order("created_at", { ascending: false })
+    .order("id", { ascending: false });
+
+  if (options.status) {
+    query = query.eq("status", options.status);
+  } else if (options.excludeStatuses?.length) {
+    query = query.not(
+      "status",
+      "in",
+      `(${options.excludeStatuses.join(",")})`
+    );
+  }
+
+  if (options.interestedService) {
+    query = query.eq("interested_service", options.interestedService);
+  }
+
+  if (options.excludeIds?.length) {
+    query = query.not("id", "in", `(${options.excludeIds.join(",")})`);
+  }
+
+  const search = options.search ? sanitizeSearchTerm(options.search) : "";
+  if (search) {
+    const filters = [
+      `full_name.ilike.%${search}%`,
+      `phone.ilike.%${search}%`,
+    ];
+    if (UUID_PATTERN.test(search)) {
+      filters.push(`id.eq.${search}`);
+    }
+    query = query.or(filters.join(","));
+  }
+
+  return query.range(options.offset, options.offset + options.limit - 1);
+}
+
+export async function listGuestsByIds(client: Supabase, ids: string[]) {
+  if (ids.length === 0) {
+    return { data: [], error: null };
+  }
+
+  return client.from("guests").select(GUEST_COLUMNS).in("id", ids);
+}
+
 export async function findGuestById(client: Supabase, id: string) {
   return client
     .from("guests")

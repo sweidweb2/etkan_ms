@@ -1,4 +1,8 @@
-import { describe, expect, it, beforeEach } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import {
+  clearClaimsRoleOverride,
+  markClaimsRoleOverride,
+} from "@/lib/auth/claims-role-override-cache";
 import {
   clearCachedMaintenanceMode,
   getCachedMaintenanceMode,
@@ -11,7 +15,6 @@ import {
 } from "@/services/auth/role.service";
 import { ROLES } from "@/lib/constants/roles";
 import * as profileRepository from "@/repositories/profile.repository";
-import { vi } from "vitest";
 
 vi.mock("@/repositories/profile.repository");
 
@@ -60,6 +63,11 @@ describe("roleFromJwtClaims / roleFromAuthMetadata", () => {
 describe("resolveUserRoleForMiddleware", () => {
   beforeEach(() => {
     vi.resetAllMocks();
+    clearClaimsRoleOverride();
+  });
+
+  afterEach(() => {
+    clearClaimsRoleOverride();
   });
 
   it("returns claims role without hitting the database", async () => {
@@ -68,6 +76,16 @@ describe("resolveUserRoleForMiddleware", () => {
       claimsRole: ROLES.MANAGER,
     });
     expect(role).toBe(ROLES.MANAGER);
+    expect(profileRepository.findRoleById).not.toHaveBeenCalled();
+  });
+
+  it("forces demoted override over stale elevated JWT claims", async () => {
+    markClaimsRoleOverride("u1", ROLES.STUDENT);
+    const role = await resolveUserRoleForMiddleware({} as never, {
+      userId: "u1",
+      claimsRole: ROLES.MANAGER,
+    });
+    expect(role).toBe(ROLES.STUDENT);
     expect(profileRepository.findRoleById).not.toHaveBeenCalled();
   });
 

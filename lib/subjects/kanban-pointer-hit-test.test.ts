@@ -4,7 +4,7 @@ import {
   findInsertIndex,
   findTargetColumnId,
   type ColumnHitRange,
-} from "@/lib/subjects/kanban-pointer-hit-test";
+} from "@/lib/kanban/pointer-hit-test";
 import {
   commitStageColumnMove,
   commitSubjectCardMove,

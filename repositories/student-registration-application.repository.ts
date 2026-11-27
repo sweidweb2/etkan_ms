@@ -170,6 +170,54 @@ export async function listStudentRegistrationApplicationsForList(
     .limit(limit);
 }
 
+const UUID_PATTERN =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/** Strips characters that would break PostgREST `or()` filters / ilike wildcards. */
+function sanitizeSearchTerm(search: string) {
+  return search.replace(/[%_*,()\\]/g, " ").replace(/\s+/g, " ").trim();
+}
+
+/**
+ * One page of registration applications for the manager list (newest first).
+ * Search matches full_name / email / phone / city (and id when term is a UUID).
+ */
+export async function listStudentRegistrationApplicationsPage(
+  client: Supabase,
+  options: {
+    offset: number;
+    limit: number;
+    status?: string | null;
+    search?: string | null;
+  }
+) {
+  let query = client
+    .from("student_registration_applications")
+    .select(APPLICATION_LIST_COLUMNS, { count: "exact" })
+    .order("created_at", { ascending: false })
+    .order("id", { ascending: false });
+
+  if (options.status) {
+    query = query.eq("status", options.status);
+  }
+
+  const search = options.search ? sanitizeSearchTerm(options.search) : "";
+  if (search) {
+    const filters = [
+      `full_name.ilike.%${search}%`,
+      `email.ilike.%${search}%`,
+      `phone.ilike.%${search}%`,
+      `city.ilike.%${search}%`,
+    ];
+    if (UUID_PATTERN.test(search)) {
+      filters.push(`id.eq.${search}`);
+    }
+    query = query.or(filters.join(","));
+  }
+
+  return query.range(options.offset, options.offset + options.limit - 1);
+}
+
 export async function findStudentRegistrationApplicationById(
   client: Supabase,
   id: string

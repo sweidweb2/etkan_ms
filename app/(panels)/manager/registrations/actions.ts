@@ -8,13 +8,36 @@ import {
 } from "@/lib/validators/public/registration";
 import {
   getRegistrationDocumentSignedUrlsForManager,
+  listRegistrationApplicationsPageForManager,
   updateRegistrationApplicationForManager,
   updateRegistrationApplicationStatusForManager,
 } from "@/services/students/student-registration.service";
 import type {
   GetRegistrationDocumentSignedUrlsActionState,
+  ManagerRegistrationsListData,
+  ManagerRegistrationsListQuery,
   UpdateRegistrationStatusActionState,
 } from "@/types/public-registration";
+
+export async function loadRegistrationsPageAction(
+  query: ManagerRegistrationsListQuery
+): Promise<ManagerRegistrationsListData | null> {
+  const actor = await getSessionAuditActor();
+  if (!actor.userId) {
+    return null;
+  }
+
+  const adminClient = createSupabaseAdminClient();
+  try {
+    return await listRegistrationApplicationsPageForManager(
+      adminClient,
+      actor.userId,
+      query
+    );
+  } catch {
+    return null;
+  }
+}
 
 export async function updateRegistrationStatusAction(
   _prevState: UpdateRegistrationStatusActionState,

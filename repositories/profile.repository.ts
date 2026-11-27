@@ -109,7 +109,16 @@ export async function updateProfileInstructorFlag(
 export type ListProfilesOptions = {
   roles?: RoleValue[];
   search?: string;
+  excludeRoles?: RoleValue[];
 };
+
+const UUID_PATTERN =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/** Strips characters that would break PostgREST `or()` filters / ilike wildcards. */
+function sanitizeSearchTerm(search: string) {
+  return search.replace(/[%_*,()\\]/g, " ").replace(/\s+/g, " ").trim();
+}
 
 export async function listProfiles(
   client: Supabase,
@@ -124,12 +133,70 @@ export async function listProfiles(
     query = query.in("role", options.roles);
   }
 
+  if (options?.excludeRoles?.length) {
+    query = query.not(
+      "role",
+      "in",
+      `(${options.excludeRoles.join(",")})`
+    );
+  }
+
   const search = options?.search?.trim();
   if (search) {
     query = query.ilike("full_name", `%${search}%`);
   }
 
   return query;
+}
+
+/**
+ * One page of profiles (newest first) plus the exact filtered count.
+ * Search matches `full_name` (and `id` when the term is a UUID).
+ * Optional `ids` restricts to that set (caller should keep lists PostgREST-safe).
+ */
+export async function listProfilesPage(
+  client: Supabase,
+  options: {
+    offset: number;
+    limit: number;
+    roles?: RoleValue[];
+    search?: string | null;
+    excludeRoles?: RoleValue[];
+    ids?: string[];
+  }
+) {
+  let query = client
+    .from("profiles")
+    .select(PROFILE_COLUMNS, { count: "exact" })
+    .order("created_at", { ascending: false })
+    .order("id", { ascending: false });
+
+  if (options.ids?.length) {
+    query = query.in("id", options.ids);
+  }
+
+  if (options.roles?.length) {
+    query = query.in("role", options.roles);
+  }
+
+  if (options.excludeRoles?.length) {
+    query = query.not(
+      "role",
+      "in",
+      `(${options.excludeRoles.join(",")})`
+    );
+  }
+
+  const search = options.search ? sanitizeSearchTerm(options.search) : "";
+  if (search) {
+    const filters = [`full_name.ilike.%${search}%`];
+    if (UUID_PATTERN.test(search)) {
+      filters.push(`id.eq.${search}`);
+    }
+    query = query.or(filters.join(","));
+  }
+
+  return query.range(options.offset, options.offset + options.limit - 1);
 }
 
 export async function listInstructorProfiles(client: Supabase) {
@@ -187,7 +254,7 @@ export async function setProfilesInstructorFlag(
 
 export async function countProfiles(
   client: Supabase,
-  options?: Pick<ListProfilesOptions, "roles">
+  options?: Pick<ListProfilesOptions, "roles" | "excludeRoles">
 ) {
   let query = client
     .from("profiles")
@@ -195,6 +262,14 @@ export async function countProfiles(
 
   if (options?.roles?.length) {
     query = query.in("role", options.roles);
+  }
+
+  if (options?.excludeRoles?.length) {
+    query = query.not(
+      "role",
+      "in",
+      `(${options.excludeRoles.join(",")})`
+    );
   }
 
   return query;

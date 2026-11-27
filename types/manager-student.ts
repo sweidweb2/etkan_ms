@@ -42,6 +42,20 @@ export type ManagerStudentsListData = {
   stats: ManagerStudentsListStats;
 };
 
+/** Paged candidates for class/semester add-student pickers. */
+export type ManagerAvailableStudentsQuery = {
+  page?: number;
+  pageSize?: number;
+  search?: string;
+};
+
+export type ManagerAvailableStudentsData = {
+  students: ManagerStudentRow[];
+  totalCount: number;
+  page: number;
+  pageSize: number;
+};
+
 /** Student with no enrolled membership on any in_progress class. */
 export interface ManagerStudentWithoutActiveClassRow {
   user_id: string;

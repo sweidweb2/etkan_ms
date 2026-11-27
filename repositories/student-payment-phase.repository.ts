@@ -123,15 +123,37 @@ export async function countSppsByPaymentPhaseIds(
   return { data: counts, error: null };
 }
 
+/** All SPPs for one phase, paged past PostgREST `max_rows`. */
 export async function listSppsByPaymentPhaseId(
   client: Supabase,
   paymentPhaseId: string
 ) {
-  return client
-    .from("student_payment_phases")
-    .select(SPP_COLUMNS)
-    .eq("payment_phase_id", paymentPhaseId)
-    .order("created_at", { ascending: false });
+  const rows: StudentPaymentPhaseRecord[] = [];
+  let offset = 0;
+
+  while (true) {
+    const { data, error } = await client
+      .from("student_payment_phases")
+      .select(SPP_COLUMNS)
+      .eq("payment_phase_id", paymentPhaseId)
+      .order("created_at", { ascending: false })
+      .order("id", { ascending: true })
+      .range(offset, offset + SPP_BY_PHASE_PAGE_SIZE - 1);
+
+    if (error) {
+      return { data: null as StudentPaymentPhaseRecord[] | null, error };
+    }
+
+    const page = (data ?? []) as StudentPaymentPhaseRecord[];
+    rows.push(...page);
+
+    if (page.length < SPP_BY_PHASE_PAGE_SIZE) {
+      break;
+    }
+    offset += SPP_BY_PHASE_PAGE_SIZE;
+  }
+
+  return { data: rows, error: null };
 }
 
 export async function findSppByStudentAndPhase(

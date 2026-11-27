@@ -67,6 +67,11 @@ export async function listClassSubjectIds(client: Supabase) {
   return client.from("classes").select("subject_id");
 }
 
+/** Per-subject class counts via SQL aggregate (no full class row load). */
+export async function countClassesBySubject(client: Supabase) {
+  return client.rpc("count_classes_by_subject");
+}
+
 export async function listClassesBySubjectId(client: Supabase, subjectId: string) {
   return client
     .from("classes")

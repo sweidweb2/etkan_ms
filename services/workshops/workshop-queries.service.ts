@@ -112,10 +112,9 @@ export async function listWorkshopsForManager(
     return emptyWorkshopsList(requestedPage, pageSize);
   }
 
+  // `null` pack role must fall back to DB — same rule as actorCanAccessWorkshop.
   const role =
-    actorRole !== undefined
-      ? actorRole
-      : await resolveActorRole(adminClient, actorUserId);
+    actorRole ?? (await resolveActorRole(adminClient, actorUserId));
 
   let ids: string[] | undefined;
   if (!roleCanViewAllWorkshops(role)) {
@@ -191,7 +190,8 @@ export async function listWorkshopsForManager(
 export async function getWorkshopRowForManager(
   adminClient: Supabase,
   actorUserId: string | null,
-  workshopId: string
+  workshopId: string,
+  actorRole?: RoleValue | null
 ): Promise<ManagerWorkshopRow | null> {
   await assertPermission(adminClient, actorUserId, PERMISSIONS.WORKSHOPS_VIEW);
 
@@ -202,7 +202,8 @@ export async function getWorkshopRowForManager(
   const canAccess = await actorCanAccessWorkshop(
     adminClient,
     actorUserId,
-    workshopId
+    workshopId,
+    actorRole
   );
   if (!canAccess) {
     return null;
@@ -330,7 +331,8 @@ export async function getWorkshopPaymentsOverviewForManager(
 export async function getWorkshopForManager(
   adminClient: Supabase,
   actorUserId: string | null,
-  workshopId: string
+  workshopId: string,
+  actorRole?: RoleValue | null
 ): Promise<ManagerWorkshopDetailPageData | null> {
   const timer = createNavStepTimer("getWorkshop");
   try {
@@ -343,7 +345,7 @@ export async function getWorkshopForManager(
     }
 
     const canAccess = await timer.step("canAccess", () =>
-      actorCanAccessWorkshop(adminClient, actorUserId, workshopId)
+      actorCanAccessWorkshop(adminClient, actorUserId, workshopId, actorRole)
     );
     if (!canAccess) {
       return null;
@@ -427,7 +429,8 @@ export async function getWorkshopForManager(
 export async function listWorkshopPaymentsForManager(
   adminClient: Supabase,
   actorUserId: string | null,
-  workshopId: string
+  workshopId: string,
+  actorRole?: RoleValue | null
 ): Promise<{
   payments: ManagerWorkshopPaymentRow[];
   summary: ManagerWorkshopPaymentSummary;
@@ -445,7 +448,8 @@ export async function listWorkshopPaymentsForManager(
   const canAccess = await actorCanAccessWorkshop(
     adminClient,
     actorUserId,
-    workshopId
+    workshopId,
+    actorRole
   );
   if (!canAccess) {
     return null;
@@ -483,7 +487,8 @@ export async function listWorkshopPaymentsForManager(
 export async function listWorkshopInstructorCandidatesForManager(
   adminClient: Supabase,
   actorUserId: string | null,
-  workshopId: string
+  workshopId: string,
+  actorRole?: RoleValue | null
 ): Promise<ManagerWorkshopInstructorCandidate[]> {
   await assertPermission(
     adminClient,
@@ -498,7 +503,8 @@ export async function listWorkshopInstructorCandidatesForManager(
   const canAccess = await actorCanAccessWorkshop(
     adminClient,
     actorUserId,
-    workshopId
+    workshopId,
+    actorRole
   );
   if (!canAccess) {
     return [];
@@ -537,7 +543,8 @@ export async function listWorkshopInstructorCandidatesForManager(
 export async function listWorkshopScheduleSlotsForManager(
   adminClient: Supabase,
   actorUserId: string | null,
-  workshopId: string
+  workshopId: string,
+  actorRole?: RoleValue | null
 ) {
   await assertPermission(
     adminClient,
@@ -552,7 +559,8 @@ export async function listWorkshopScheduleSlotsForManager(
   const canAccess = await actorCanAccessWorkshop(
     adminClient,
     actorUserId,
-    workshopId
+    workshopId,
+    actorRole
   );
   if (!canAccess) {
     return [];

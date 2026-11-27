@@ -3,9 +3,21 @@
 import { getSessionAuditActor } from "@/lib/auth/session";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { parseSendEmailFormData } from "@/lib/validators/manager/send-email";
-import { sendEmailsForManager, listEmailingClassMemberUserIdsForManager } from "@/services/communications/email.service";
-import { listUsersForManager } from "@/services/auth/user.service";
-import type { SendManagerEmailActionState } from "@/types/manager-emailing";
+import {
+  sendEmailsForManager,
+  listEmailingClassMemberUserIdsForManager,
+} from "@/services/communications/email.service";
+import {
+  findEmailingRecipientByEmailForManager,
+  listEmailingRecipientsForBulkForManager,
+  listEmailingRecipientsPageForManager,
+} from "@/services/auth/user.service";
+import type { RoleValue } from "@/lib/constants/roles";
+import type {
+  ManagerEmailingRecipientsListData,
+  ManagerEmailingRecipientsListQuery,
+  SendManagerEmailActionState,
+} from "@/types/manager-emailing";
 import type { ManagerUserRow } from "@/types/manager-user";
 
 export async function sendManagerEmailAction(
@@ -52,13 +64,101 @@ export async function sendManagerEmailAction(
 }
 
 /**
- * Recipient picker data for the compose route. Loaded on first interaction
- * instead of on every compose visit (tag-cached list; authz checked per call).
+ * Server-paged recipients for the emailing table and compose search.
  */
-export async function loadEmailingRecipientsAction(): Promise<ManagerUserRow[]> {
+export async function loadEmailingRecipientsPageAction(
+  query: ManagerEmailingRecipientsListQuery
+): Promise<ManagerEmailingRecipientsListData | null> {
   const actor = await getSessionAuditActor();
+  if (!actor.userId) {
+    return null;
+  }
+
   const adminClient = createSupabaseAdminClient();
-  return listUsersForManager(adminClient, actor.userId);
+  try {
+    return await listEmailingRecipientsPageForManager(
+      adminClient,
+      actor.userId,
+      query
+    );
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Suggestion search for compose/resend recipient pickers (first page only).
+ */
+export async function searchEmailingRecipientsAction(
+  search: string
+): Promise<ManagerUserRow[]> {
+  const actor = await getSessionAuditActor();
+  if (!actor.userId) {
+    return [];
+  }
+
+  const adminClient = createSupabaseAdminClient();
+  try {
+    const data = await listEmailingRecipientsPageForManager(
+      adminClient,
+      actor.userId,
+      {
+        page: 1,
+        pageSize: 10,
+        search,
+      }
+    );
+    return data.users.filter((user) => Boolean(user.email?.trim()));
+  } catch {
+    return [];
+  }
+}
+
+/**
+ * Bulk role shortcuts for compose/resend — loads matching roster on demand.
+ */
+export async function loadEmailingRecipientsByRoleAction(
+  roles?: RoleValue[]
+): Promise<ManagerUserRow[]> {
+  const actor = await getSessionAuditActor();
+  if (!actor.userId) {
+    return [];
+  }
+
+  const adminClient = createSupabaseAdminClient();
+  try {
+    const users = await listEmailingRecipientsForBulkForManager(
+      adminClient,
+      actor.userId,
+      roles?.length ? roles : null
+    );
+    return users.filter((user) => Boolean(user.email?.trim()));
+  } catch {
+    return [];
+  }
+}
+
+/**
+ * Resolve a typed email to an existing user when possible.
+ */
+export async function findEmailingRecipientByEmailAction(
+  email: string
+): Promise<ManagerUserRow | null> {
+  const actor = await getSessionAuditActor();
+  if (!actor.userId) {
+    return null;
+  }
+
+  const adminClient = createSupabaseAdminClient();
+  try {
+    return await findEmailingRecipientByEmailForManager(
+      adminClient,
+      actor.userId,
+      email
+    );
+  } catch {
+    return null;
+  }
 }
 
 export async function listEmailingClassMemberUserIdsAction(

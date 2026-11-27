@@ -68,6 +68,8 @@ export async function listStudentProfilesPage(
     limit: number;
     status?: string | null;
     search?: string | null;
+    /** Exclude these auth user ids (e.g. already enrolled in a class). */
+    excludeUserIds?: string[];
   }
 ) {
   let query = client
@@ -80,6 +82,14 @@ export async function listStudentProfilesPage(
 
   if (options.status) {
     query = query.eq("status", options.status);
+  }
+
+  if (options.excludeUserIds?.length) {
+    query = query.not(
+      "user_id",
+      "in",
+      `(${options.excludeUserIds.join(",")})`
+    );
   }
 
   const search = options.search ? sanitizeSearchTerm(options.search) : "";

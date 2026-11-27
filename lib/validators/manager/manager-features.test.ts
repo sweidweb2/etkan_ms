@@ -1,5 +1,4 @@
 import { describe, expect, it } from "vitest";
-import { parseAddStudentToSemesterFormData } from "@/lib/validators/manager/add-student-to-semester";
 import { parseConnectSemesterClassFormData } from "@/lib/validators/manager/connect-semester-class";
 import { parseCreatePhaseFormData } from "@/lib/validators/manager/create-phase";
 import { parseCreateSessionTaskFormData } from "@/lib/validators/manager/create-session-task";
@@ -117,23 +116,6 @@ describe("parseCreatePhaseFormData", () => {
     expect(result.success).toBe(false);
     if (!result.success) {
       expect(result.fieldErrors?.name).toBeDefined();
-    }
-  });
-});
-
-describe("parseAddStudentToSemesterFormData", () => {
-  it("parses valid enrollment form data", () => {
-    const formData = new FormData();
-    formData.set("semester_id", sampleId);
-    formData.set("student_profile_id", sampleId);
-    formData.set("status", "pending");
-
-    const result = parseAddStudentToSemesterFormData(formData);
-
-    expect(result.success).toBe(true);
-    if (result.success) {
-      expect(result.data.status).toBe("pending");
-      expect(result.data.semester_id).toBe(sampleId);
     }
   });
 });

@@ -288,6 +288,7 @@ describe("listTeamsForManager", () => {
       knownGuest,
     ]);
 
+    expect(guestRepository.listGuestsByIds).not.toHaveBeenCalled();
     expect(guestRepository.listGuests).not.toHaveBeenCalled();
     expect(registrationRepository.listActiveEmailsByGuestIds).not.toHaveBeenCalled();
     expect(teams).toHaveLength(1);
@@ -301,12 +302,13 @@ describe("listTeamsForManager", () => {
       Promise.resolve([knownGuest])
     );
 
+    expect(guestRepository.listGuestsByIds).not.toHaveBeenCalled();
     expect(guestRepository.listGuests).not.toHaveBeenCalled();
     expect(teams[0]?.guests[0]?.email).toBe("ada@example.com");
   });
 
-  it("loads guests when the caller does not supply them", async () => {
-    vi.mocked(guestRepository.listGuests).mockResolvedValue({
+  it("loads only assigned guests when the caller does not supply them", async () => {
+    vi.mocked(guestRepository.listGuestsByIds).mockResolvedValue({
       data: [guestRecord],
       ...okResult,
     });
@@ -317,7 +319,10 @@ describe("listTeamsForManager", () => {
 
     const teams = await listTeamsForManager(adminClient, actor.userId);
 
-    expect(guestRepository.listGuests).toHaveBeenCalledOnce();
+    expect(guestRepository.listGuestsByIds).toHaveBeenCalledWith(adminClient, [
+      guestId,
+    ]);
+    expect(guestRepository.listGuests).not.toHaveBeenCalled();
     expect(teams[0]?.guests[0]?.email).toBe("ada@example.com");
   });
 });

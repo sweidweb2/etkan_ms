@@ -3397,6 +3397,14 @@ export type Database = {
         Args: { p_request_id: string }
         Returns: Json
       }
+      leave_student_semester_drop_classes: {
+        Args: {
+          p_student_id: string
+          p_semester_id: string
+          p_also_class_id?: string | null
+        }
+        Returns: Json
+      }
       try_complete_semester_drop_for_spp: {
         Args: { p_spp_id: string }
         Returns: Json
@@ -3412,6 +3420,14 @@ export type Database = {
           p_notes?: string | null
         }
         Returns: Json
+      }
+      find_auth_user_id_by_email: {
+        Args: { p_email: string }
+        Returns: string | null
+      }
+      count_classes_by_subject: {
+        Args: never
+        Returns: { subject_id: string; class_count: number }[]
       }
       sum_student_payment_amounts: { Args: never; Returns: number }
       sum_student_payment_amounts_between: {

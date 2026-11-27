@@ -37,7 +37,7 @@ import {
   CLASS_GRADES_LOCKED_ERROR,
   isClassGradesUnlocked,
 } from "@/lib/manager/class-grades-access";
-import { listStudentsForManager } from "@/services/students/student.service";
+import { hydrateStudentRows } from "@/services/students/student.service";
 import type { ManagerClassAnalyticsPreview } from "@/types/manager-class-analytics";
 import type {
   ManagerClassFinalExamRow,
@@ -62,15 +62,18 @@ import type {
   ManagerClassTeacherOption,
   ManagerClassTeacherSelectOption,
 } from "@/types/manager-class-detail";
-import type { ManagerStudentRow } from "@/types/manager-student";
+import type {
+  ManagerAvailableStudentsData,
+  ManagerAvailableStudentsQuery,
+  ManagerStudentRow,
+} from "@/types/manager-student";
 import {
   buildFullNameByUserId,
   isInvalidUuidError,
   isUuid,
-  loadClassDetailCounts,
-  mapClassDetailRecordToRow,
   mapClassDetailRecordsToRows,
   mapClassDetailToRow,
+  mapClassDetailToRowWithCounts,
   mapFinalExamRecord,
   mapSessionRecord,
   mapStudentFinalExamGradeRecord,
@@ -230,7 +233,8 @@ export async function getClassCreateDialogDataForManager(
 export async function getClassForManager(
   adminClient: Supabase,
   actorUserId: string | null,
-  classId: string
+  classId: string,
+  options?: { includeCounts?: boolean }
 ): Promise<ManagerClassRow | null> {
   await assertPermission(adminClient, actorUserId, PERMISSIONS.CLASSES_VIEW);
 
@@ -253,6 +257,15 @@ export async function getClassForManager(
 
   if (!data) {
     return null;
+  }
+
+  // Callers that already load roster/teachers/sessions can derive counts.
+  if (options?.includeCounts === false) {
+    return mapClassDetailToRowWithCounts(data as ClassDetailRecord, {
+      enrollment_count: 0,
+      teacher_count: 0,
+      completed_sessions: 0,
+    });
   }
 
   return mapClassDetailToRow(adminClient, data as ClassDetailRecord);
@@ -281,10 +294,10 @@ export async function assertClassGradesUnlockedForManager(
     return { ok: true, classRow: options.classRow };
   }
 
-  const [classResult, counts] = await Promise.all([
-    classRepository.findClassDetailById(adminClient, classId),
-    loadClassDetailCounts(adminClient, classId),
-  ]);
+  const classResult = await classRepository.findClassDetailById(
+    adminClient,
+    classId
+  );
 
   if (classResult.error) {
     if (isInvalidUuidError(classResult.error.message)) {
@@ -298,9 +311,14 @@ export async function assertClassGradesUnlockedForManager(
     return { ok: false, error: "Class not found." };
   }
 
-  const classRow = mapClassDetailRecordToRow(
+  // Counts are unused for the lock check; skip the three count round-trips.
+  const classRow = mapClassDetailToRowWithCounts(
     classResult.data as ClassDetailRecord,
-    counts
+    {
+      enrollment_count: 0,
+      teacher_count: 0,
+      completed_sessions: 0,
+    }
   );
 
   if (!isClassGradesUnlocked(classRow.status)) {
@@ -654,39 +672,87 @@ export async function fetchClassStudentRowForManager(
   };
 }
 
+const AVAILABLE_STUDENTS_PAGE_SIZE_OPTIONS = [10, 25, 50] as const;
+const AVAILABLE_STUDENTS_PAGE_SIZE_DEFAULT = 25;
+
+function clampAvailableStudentsPageSize(pageSize: number | undefined): number {
+  if (
+    pageSize !== undefined &&
+    (AVAILABLE_STUDENTS_PAGE_SIZE_OPTIONS as readonly number[]).includes(
+      pageSize
+    )
+  ) {
+    return pageSize;
+  }
+  return AVAILABLE_STUDENTS_PAGE_SIZE_DEFAULT;
+}
+
+/**
+ * Server-paged students available to enroll in a class (excludes current members).
+ * Does not load the full student roster.
+ */
 export async function listAvailableStudentsForClass(
   adminClient: Supabase,
   actorUserId: string | null,
-  classId: string
-): Promise<ManagerStudentRow[]> {
+  classId: string,
+  query: ManagerAvailableStudentsQuery = {}
+): Promise<ManagerAvailableStudentsData> {
   const timer = createNavStepTimer("loadAvailableStudents");
   try {
     await timer.step("auth", () =>
       assertPermission(adminClient, actorUserId, PERMISSIONS.CLASSES_ADD_STUDENT)
     );
 
-    const [membershipResult, students] = await Promise.all([
-      timer.step("members", () =>
-        studentClassRepository.listStudentUserIdsByClassId(adminClient, classId)
-      ),
-      timer.step("students", () =>
-        listStudentsForManager(adminClient, actorUserId)
-      ),
-    ]);
+    const pageSize = clampAvailableStudentsPageSize(query.pageSize);
+    const requestedPage = Math.max(1, Math.floor(query.page ?? 1));
+    const search = query.search?.trim() ?? "";
+
+    const membershipResult = await timer.step("members", () =>
+      studentClassRepository.listStudentUserIdsByClassId(adminClient, classId)
+    );
 
     if (membershipResult.error) {
       throw new Error(membershipResult.error.message);
     }
 
-    const memberIds = new Set(
-      (membershipResult.data ?? []).map((row) => row.user_id)
+    const excludeUserIds = (membershipResult.data ?? []).map(
+      (row) => row.user_id
     );
 
-    return students.filter(
-      (student) =>
-        !memberIds.has(student.user_id) &&
-        student.status !== STUDENT_STATUSES.INACTIVE
+    const fetchPage = (page: number) =>
+      studentProfileRepository.listStudentProfilesPage(adminClient, {
+        offset: (page - 1) * pageSize,
+        limit: pageSize,
+        status: STUDENT_STATUSES.ACTIVE,
+        search,
+        excludeUserIds,
+      });
+
+    let pageResult = await timer.step("students", () =>
+      fetchPage(requestedPage)
     );
+    let page = requestedPage;
+
+    if (pageResult.error) {
+      throw new Error(pageResult.error.message);
+    }
+
+    const totalCount = pageResult.count ?? 0;
+
+    if (totalCount > 0 && (pageResult.data ?? []).length === 0) {
+      page = Math.max(1, Math.ceil(totalCount / pageSize));
+      pageResult = await fetchPage(page);
+      if (pageResult.error) {
+        throw new Error(pageResult.error.message);
+      }
+    }
+
+    const students = await hydrateStudentRows(
+      adminClient,
+      pageResult.data ?? []
+    );
+
+    return { students, totalCount, page, pageSize };
   } finally {
     timer.end();
   }
@@ -832,24 +898,50 @@ export async function getClassFinalExamForManager(
 export async function getClassAnalyticsForManager(
   adminClient: Supabase,
   actorUserId: string | null,
-  classId: string
+  classId: string,
+  options?: {
+    sessions?: Array<{
+      id: string;
+      nb_order: number;
+      starts_at: string;
+      group_grade_level: string | null;
+    }>;
+    enrolledCount?: number;
+  }
 ): Promise<ManagerClassAnalyticsPreview> {
   await assertPermission(adminClient, actorUserId, PERMISSIONS.CLASSES_VIEW_ANALYTICS);
 
-  const [sessionsResult, enrollmentResult] = await Promise.all([
-    sessionRepository.listSessionsByClassId(adminClient, classId),
-    studentClassRepository.countStudentClassesByClassId(adminClient, classId),
+  const hasPreloadedSessions = options?.sessions !== undefined;
+  const hasPreloadedEnrollment = typeof options?.enrolledCount === "number";
+
+  const [sessionsResult, enrollmentResult, tasksResult] = await Promise.all([
+    hasPreloadedSessions
+      ? Promise.resolve({ data: options.sessions!, error: null })
+      : sessionRepository.listSessionsByClassId(adminClient, classId),
+    hasPreloadedEnrollment
+      ? Promise.resolve({ count: options.enrolledCount!, error: null })
+      : studentClassRepository.countStudentClassesByClassId(adminClient, classId),
+    classTaskRepository.listClassTasksByClassId(adminClient, classId),
   ]);
 
-  if (sessionsResult.error) {
+  if (!hasPreloadedSessions && sessionsResult.error) {
     throw new Error(sessionsResult.error.message);
   }
 
-  if (enrollmentResult.error) {
+  if (!hasPreloadedEnrollment && enrollmentResult.error) {
     throw new Error(enrollmentResult.error.message);
   }
 
-  const sessions = (sessionsResult.data ?? []) as SessionRecord[];
+  if (tasksResult.error) {
+    throw new Error(tasksResult.error.message);
+  }
+
+  const sessions = (sessionsResult.data ?? []) as Array<{
+    id: string;
+    nb_order: number;
+    starts_at: string;
+    group_grade_level: string | null;
+  }>;
   const enrolledCount = enrollmentResult.count ?? 0;
 
   if (sessions.length === 0) {
@@ -863,26 +955,17 @@ export async function getClassAnalyticsForManager(
   }
 
   const sessionIds = sessions.map((session) => session.id);
+  const tasks = tasksResult.data ?? [];
+  const taskIds = tasks.map((task) => task.id);
 
-  const [tasksResult, attendeesResult] = await Promise.all([
-    classTaskRepository.listClassTasksByClassId(adminClient, classId),
+  const [attendeesResult, studentTasksResult] = await Promise.all([
     attendeeRepository.listAttendeesBySessionIds(adminClient, sessionIds),
+    studentTaskRepository.listStudentTasksByTaskIds(adminClient, taskIds),
   ]);
-
-  if (tasksResult.error) {
-    throw new Error(tasksResult.error.message);
-  }
 
   if (attendeesResult.error) {
     throw new Error(attendeesResult.error.message);
   }
-
-  const tasks = tasksResult.data ?? [];
-  const taskIds = tasks.map((task) => task.id);
-  const studentTasksResult = await studentTaskRepository.listStudentTasksByTaskIds(
-    adminClient,
-    taskIds
-  );
 
   if (studentTasksResult.error) {
     throw new Error(studentTasksResult.error.message);

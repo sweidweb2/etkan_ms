@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useId, useRef, useState, type FormEvent } from "react";
+import { useEffect, useId, useState, type FormEvent } from "react";
 import { format } from "date-fns";
 import { FileIcon } from "lucide-react";
 import {
@@ -26,6 +26,7 @@ import { useActionStateToast } from "@/hooks/use-action-state-toast";
 import { useFormActionState } from "@/hooks/use-form-action-state";
 import { usePendingAwareOpenChange } from "@/hooks/use-pending-aware-open-change";
 import { useSimulatedProgressPercent } from "@/hooks/use-simulated-progress-percent";
+import { useTaskFileUploadSelection } from "@/hooks/use-task-file-upload-selection";
 import { formatUploadFileSize } from "@/lib/classes/student-task-upload-format";
 import {
   STUDENT_TASK_UPLOAD_ACCEPT,
@@ -43,9 +44,6 @@ import type {
 const initialUploadState: StudentTaskUploadActionState = {};
 const initialDeleteState: DeleteStudentTaskUploadActionState = {};
 
-const MAX_MB = Math.round(STUDENT_TASK_UPLOAD_MAX_BYTES / (1024 * 1024));
-const DROPZONE_HINT = `PDF, DOCX, XLSX, PNG, JPG · up to ${MAX_MB} MB each`;
-
 type StudentTaskFilesProps = {
   studentTaskId: string | null;
   uploads: StudentTaskUploadForSelf[];
@@ -59,16 +57,21 @@ export function StudentTaskFiles({
   started = true,
 }: StudentTaskFilesProps) {
   const inputId = useId();
-  const fileInputKeyRef = useRef(0);
-  const [fileInputKey, setFileInputKey] = useState(0);
+  const {
+    maxMb,
+    fileInputKey,
+    selectedFileName,
+    clientError,
+    resetSelection,
+    beginFile,
+  } = useTaskFileUploadSelection(STUDENT_TASK_UPLOAD_MAX_BYTES);
+  const DROPZONE_HINT = `PDF, DOCX, XLSX, PNG, JPG · up to ${maxMb} MB each`;
   const [uploads, setUploads] = useState(initialUploads);
   const [prevUploads, setPrevUploads] = useState(initialUploads);
   const [pendingDelete, setPendingDelete] =
     useState<StudentTaskUploadForSelf | null>(null);
   const [deleteComplete, setDeleteComplete] = useState(false);
   const [openingId, setOpeningId] = useState<string | null>(null);
-  const [selectedFileName, setSelectedFileName] = useState<string | null>(null);
-  const [clientError, setClientError] = useState<string | null>(null);
 
   if (initialUploads !== prevUploads) {
     setPrevUploads(initialUploads);
@@ -110,10 +113,7 @@ export function StudentTaskFiles({
           : [nextState.upload!, ...current]
       );
     }
-    setSelectedFileName(null);
-    setClientError(null);
-    fileInputKeyRef.current += 1;
-    setFileInputKey(fileInputKeyRef.current);
+    resetSelection();
   });
 
   useActionStateSuccess(deleteState, isDeletePending, () => {
@@ -162,15 +162,9 @@ export function StudentTaskFiles({
     if (uploads.length >= STUDENT_TASK_UPLOAD_MAX_FILES) {
       return;
     }
-    setClientError(null);
-    if (file.size > STUDENT_TASK_UPLOAD_MAX_BYTES) {
-      setSelectedFileName(file.name);
-      setClientError(
-        `This file is ${formatUploadFileSize(file.size)}. Files must be under ${MAX_MB} MB.`
-      );
+    if (beginFile(file) === "too_large") {
       return;
     }
-    setSelectedFileName(file.name);
     const formData = new FormData();
     formData.set("student_task_id", studentTaskId);
     formData.set("file", file);
@@ -197,7 +191,7 @@ export function StudentTaskFiles({
 
   const atMaxFiles = uploads.length >= STUDENT_TASK_UPLOAD_MAX_FILES;
   const showUploadPane = started && !atMaxFiles;
-  const fieldError = uploadState.error ?? null;
+  const fieldError = uploadState.fieldErrors?.file?.[0] ?? null;
   const showUploadRow = isUploadPending && selectedFileName && !clientError;
   const showErrorRow = Boolean(clientError || fieldError) && selectedFileName;
 
@@ -216,10 +210,7 @@ export function StudentTaskFiles({
         <TaskFileListRow
           fileName={selectedFileName!}
           errorMessage={clientError ?? fieldError}
-          onDismissError={() => {
-            setClientError(null);
-            setSelectedFileName(null);
-          }}
+          onDismissError={resetSelection}
           className={cn(!showUploadRow && "border-t-0")}
         />
       ) : null}

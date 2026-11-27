@@ -1,13 +1,23 @@
 "use client";
 
-import { useActionState, useMemo, useState, useTransition } from "react";
+import { useActionState, useEffect, useRef, useState, useTransition } from "react";
 import Link from "next/link";
 import { format } from "date-fns";
-import { ClipboardListIcon, EyeIcon, SearchIcon } from "lucide-react";
-import { updateRegistrationStatusAction } from "@/app/(panels)/manager/registrations/actions";
+import {
+  ChevronLeftIcon,
+  ChevronRightIcon,
+  ClipboardListIcon,
+  EyeIcon,
+  SearchIcon,
+} from "lucide-react";
+import {
+  loadRegistrationsPageAction,
+  updateRegistrationStatusAction,
+} from "@/app/(panels)/manager/registrations/actions";
 import { usePermissions } from "@/components/auth/permissions-provider";
 import { InlineSpinner } from "@/components/loaders/inline-spinner";
 import { PanelPageHeader } from "@/components/panels/panel-page-header";
+import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Input } from "@/components/ui/input";
 import {
@@ -31,17 +41,24 @@ import {
   getManagerGuestDetailRoute,
   getManagerRegistrationDetailRoute,
 } from "@/lib/constants/routes";
+import { showErrorToast } from "@/lib/toast";
 import { cn } from "@/lib/utils";
 import type {
   ManagerRegistrationApplicationRow,
+  ManagerRegistrationsListData,
+  ManagerRegistrationsListQuery,
   UpdateRegistrationStatusActionState,
 } from "@/types/public-registration";
 
 const STATUS_ALL = "all";
+const PAGE_SIZE_OPTIONS = [10, 25, 50] as const;
+const DEFAULT_PAGE_SIZE = 25;
 const initialStatusState: UpdateRegistrationStatusActionState = {};
 
+type PageSizeOption = (typeof PAGE_SIZE_OPTIONS)[number];
+
 type ManageRegistrationsPanelProps = {
-  initialApplications: ManagerRegistrationApplicationRow[];
+  initialData: ManagerRegistrationsListData;
 };
 
 function statusClassName(status: RegistrationApplicationStatus) {
@@ -60,18 +77,69 @@ function statusClassName(status: RegistrationApplicationStatus) {
   return "bg-amber-500/15 text-amber-800 dark:text-amber-300";
 }
 
+function listQueryKey(query: {
+  status: string;
+  search: string;
+  page: number;
+  pageSize: number;
+}) {
+  return `${query.status}|${query.search}|${query.page}|${query.pageSize}`;
+}
+
+function getPageNumbers(currentPage: number, totalPages: number) {
+  if (totalPages <= 7) {
+    return Array.from({ length: totalPages }, (_, index) => index + 1);
+  }
+
+  const pages = new Set<number>([1, totalPages, currentPage]);
+  for (let offset = -1; offset <= 1; offset += 1) {
+    const page = currentPage + offset;
+    if (page > 1 && page < totalPages) {
+      pages.add(page);
+    }
+  }
+
+  const sortedPages = [...pages].sort((a, b) => a - b);
+  const result: Array<number | "ellipsis"> = [];
+  sortedPages.forEach((page, index) => {
+    const previousPage = sortedPages[index - 1];
+    if (previousPage !== undefined && page - previousPage > 1) {
+      result.push("ellipsis");
+    }
+    result.push(page);
+  });
+  return result;
+}
+
 export function ManageRegistrationsPanel({
-  initialApplications,
+  initialData,
 }: ManageRegistrationsPanelProps) {
   const permissions = usePermissions();
-  const [applications, setApplications] = useState(initialApplications);
-  const [prevApplications, setPrevApplications] = useState(initialApplications);
+  const [applications, setApplications] = useState(initialData.applications);
+  const [totalCount, setTotalCount] = useState(initialData.totalCount);
+  const [isLoading, startTransition] = useTransition();
   const canUpdateStatus = hasPermissionInSet(
     permissions,
     PERMISSIONS.REGISTRATIONS_UPDATE_STATUS
   );
-  const [search, setSearch] = useState("");
+  const [searchQuery, setSearchQuery] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState(STATUS_ALL);
+  const [pageSize, setPageSize] = useState<PageSizeOption>(
+    (PAGE_SIZE_OPTIONS as readonly number[]).includes(initialData.pageSize)
+      ? (initialData.pageSize as PageSizeOption)
+      : DEFAULT_PAGE_SIZE
+  );
+  const [currentPage, setCurrentPage] = useState(initialData.page);
+  const loadedKeyRef = useRef(
+    listQueryKey({
+      status: STATUS_ALL,
+      search: "",
+      page: initialData.page,
+      pageSize: initialData.pageSize,
+    })
+  );
+  const requestIdRef = useRef(0);
   const [updatingId, setUpdatingId] = useState<string | null>(null);
   const [pendingStatus, setPendingStatus] = useState<{
     id: string;
@@ -99,24 +167,70 @@ export function ManageRegistrationsPanel({
     setUpdatingId(null);
   });
 
-  if (initialApplications !== prevApplications) {
-    setPrevApplications(initialApplications);
-    setApplications(initialApplications);
-  }
+  const totalPages = Math.max(1, Math.ceil(totalCount / pageSize));
+  const safeCurrentPage = Math.min(currentPage, totalPages);
+  const pageNumbers = getPageNumbers(safeCurrentPage, totalPages);
+  const rangeStart = totalCount === 0 ? 0 : (safeCurrentPage - 1) * pageSize + 1;
+  const rangeEnd = Math.min(safeCurrentPage * pageSize, totalCount);
 
-  const filtered = useMemo(() => {
-    const q = search.trim().toLowerCase();
-    return applications.filter((row) => {
-      if (statusFilter !== STATUS_ALL && row.status !== statusFilter) {
-        return false;
+  const loadPage = (query: ManagerRegistrationsListQuery) => {
+    const requestId = ++requestIdRef.current;
+    startTransition(async () => {
+      const data = await loadRegistrationsPageAction(query);
+      if (requestId !== requestIdRef.current) {
+        return;
       }
-      if (!q) return true;
-      const haystack = [row.full_name, row.email, row.phone, row.city]
-        .join(" ")
-        .toLowerCase();
-      return haystack.includes(q);
+      if (!data) {
+        showErrorToast("Unable to load registrations.");
+        return;
+      }
+      setApplications(data.applications);
+      setTotalCount(data.totalCount);
+      if (data.page !== query.page) {
+        loadedKeyRef.current = listQueryKey({
+          status: query.status ?? STATUS_ALL,
+          search: query.search ?? "",
+          page: data.page,
+          pageSize: data.pageSize,
+        });
+        setCurrentPage(data.page);
+      }
     });
-  }, [applications, search, statusFilter]);
+  };
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      const next = searchQuery.trim();
+      if (next !== debouncedSearch) {
+        setDebouncedSearch(next);
+        setCurrentPage(1);
+      }
+    }, 300);
+    return () => window.clearTimeout(timer);
+  }, [debouncedSearch, searchQuery]);
+
+  useEffect(() => {
+    const key = listQueryKey({
+      status: statusFilter,
+      search: debouncedSearch,
+      page: currentPage,
+      pageSize,
+    });
+    if (key === loadedKeyRef.current) {
+      return;
+    }
+    loadedKeyRef.current = key;
+    loadPage({
+      page: currentPage,
+      pageSize,
+      status:
+        statusFilter === STATUS_ALL
+          ? null
+          : (statusFilter as RegistrationApplicationStatus),
+      search: debouncedSearch,
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentPage, debouncedSearch, pageSize, statusFilter]);
 
   function changeStatus(
     row: ManagerRegistrationApplicationRow,
@@ -141,15 +255,18 @@ export function ManageRegistrationsPanel({
         <div className="relative min-w-0 flex-1">
           <SearchIcon className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
           <Input
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
             placeholder="Search name, email, phone…"
             className="pl-9"
           />
         </div>
         <Select
           value={statusFilter}
-          onValueChange={(value) => setStatusFilter(value ?? STATUS_ALL)}
+          onValueChange={(value) => {
+            setStatusFilter(value ?? STATUS_ALL);
+            setCurrentPage(1);
+          }}
         >
           <SelectTrigger className="w-full @lg/panel:w-44">
             <SelectValue placeholder="Status" />
@@ -165,23 +282,29 @@ export function ManageRegistrationsPanel({
         </Select>
       </div>
 
-      {filtered.length === 0 ? (
+      {applications.length === 0 ? (
         <EmptyState
           size="sm"
-          icon={applications.length === 0 ? ClipboardListIcon : SearchIcon}
+          className={cn(isLoading && "opacity-60")}
+          icon={totalCount === 0 ? ClipboardListIcon : SearchIcon}
           title={
-            applications.length === 0
+            totalCount === 0
               ? "No applications yet"
               : "No applications match your filters"
           }
           description={
-            applications.length === 0
+            totalCount === 0
               ? "Registration applications will appear here."
               : "Try a different search or status filter."
           }
         />
       ) : (
-        <div className="overflow-hidden rounded-xl ring-1 ring-foreground/10">
+        <div
+          className={cn(
+            "overflow-hidden rounded-xl ring-1 ring-foreground/10",
+            isLoading && "opacity-60"
+          )}
+        >
           <div className="overflow-x-auto">
             <table className="w-full min-w-[52rem] border-collapse text-sm">
               <thead>
@@ -197,7 +320,7 @@ export function ManageRegistrationsPanel({
                 </tr>
               </thead>
               <tbody>
-                {filtered.map((row) => {
+                {applications.map((row) => {
                   const rowBusy = isStatusBusy && updatingId === row.id;
                   return (
                     <tr
@@ -286,6 +409,84 @@ export function ManageRegistrationsPanel({
                 })}
               </tbody>
             </table>
+          </div>
+
+          <div className="flex flex-col gap-3 border-t px-4 py-3 @lg/panel:flex-row @lg/panel:items-center @lg/panel:justify-between">
+            <div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
+              <span className="inline-flex items-center gap-2">
+                Showing {rangeStart}–{rangeEnd} of {totalCount}
+                {isLoading ? <InlineSpinner /> : null}
+              </span>
+              <span aria-hidden="true">·</span>
+              <div className="flex items-center gap-2">
+                <span>Rows</span>
+                <Select
+                  value={String(pageSize)}
+                  onValueChange={(value) => {
+                    if (!value) return;
+                    setPageSize(Number(value) as PageSizeOption);
+                    setCurrentPage(1);
+                  }}
+                >
+                  <SelectTrigger size="sm" className="w-16" aria-label="Rows per page">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent align="start">
+                    {PAGE_SIZE_OPTIONS.map((option) => (
+                      <SelectItem key={option} value={String(option)}>
+                        {option}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-1">
+              <Button
+                type="button"
+                variant="outline"
+                size="icon-sm"
+                disabled={safeCurrentPage <= 1}
+                onClick={() => setCurrentPage((page) => page - 1)}
+                aria-label="Previous page"
+              >
+                <ChevronLeftIcon />
+              </Button>
+              {pageNumbers.map((page, index) =>
+                page === "ellipsis" ? (
+                  <span
+                    key={`ellipsis-${index}`}
+                    className="px-1 text-sm text-muted-foreground"
+                  >
+                    …
+                  </span>
+                ) : (
+                  <Button
+                    key={page}
+                    type="button"
+                    variant={page === safeCurrentPage ? "default" : "outline"}
+                    size="icon-sm"
+                    className="min-w-7"
+                    onClick={() => setCurrentPage(page)}
+                    aria-label={`Page ${page}`}
+                    aria-current={page === safeCurrentPage ? "page" : undefined}
+                  >
+                    {page}
+                  </Button>
+                )
+              )}
+              <Button
+                type="button"
+                variant="outline"
+                size="icon-sm"
+                disabled={safeCurrentPage >= totalPages}
+                onClick={() => setCurrentPage((page) => page + 1)}
+                aria-label="Next page"
+              >
+                <ChevronRightIcon />
+              </Button>
+            </div>
           </div>
         </div>
       )}

@@ -174,28 +174,21 @@ export async function loadClassGradeContext(
   adminClient: Supabase,
   classId: string
 ): Promise<ClassGradeContext> {
-  const sessionsResult = await sessionRepository.listSessionsByClassId(
-    adminClient,
-    classId
-  );
-
-  if (sessionsResult.error) {
-    throw new Error(sessionsResult.error.message);
-  }
-
-  const sessions = (sessionsResult.data ?? []) as SessionRecord[];
-  const sessionIds = sessions.map((session) => session.id);
-
-  const [tasksResult, finalExamResult, storedGradesResult, attendeesResult] =
+  // Sessions are only required for attendees; tasks/exam/stored grades are independent.
+  const [sessionsResult, tasksResult, finalExamResult, storedGradesResult] =
     await Promise.all([
+      sessionRepository.listSessionsByClassId(adminClient, classId),
       classTaskRepository.listClassTasksForGradesByClassId(adminClient, classId),
       finalExamRepository.findFinalExamByClassId(adminClient, classId),
       studentCourseGradeRepository.listStudentCourseGradesByClassId(
         adminClient,
         classId
       ),
-      attendeeRepository.listAttendeesBySessionIds(adminClient, sessionIds),
     ]);
+
+  if (sessionsResult.error) {
+    throw new Error(sessionsResult.error.message);
+  }
 
   if (tasksResult.error) {
     throw new Error(tasksResult.error.message);
@@ -209,9 +202,8 @@ export async function loadClassGradeContext(
     throw new Error(storedGradesResult.error.message);
   }
 
-  if (attendeesResult.error) {
-    throw new Error(attendeesResult.error.message);
-  }
+  const sessions = (sessionsResult.data ?? []) as SessionRecord[];
+  const sessionIds = sessions.map((session) => session.id);
 
   const classTasks = buildClassTaskRows(
     (tasksResult.data ?? []).map((task) => ({
@@ -228,18 +220,24 @@ export async function loadClassGradeContext(
   const taskIds = classTasks.map((task) => task.id);
   const finalExam = (finalExamResult.data as FinalExamRecord | null) ?? null;
 
-  const [studentTasksResult, examGradesResult] = await Promise.all([
-    studentTaskRepository.listStudentTasksForGradesByTaskIds(
-      adminClient,
-      taskIds
-    ),
-    finalExam
-      ? finalExamRepository.listStudentFinalExamGradesByFinalExamId(
-          adminClient,
-          finalExam.id
-        )
-      : Promise.resolve({ data: [], error: null }),
-  ]);
+  const [attendeesResult, studentTasksResult, examGradesResult] =
+    await Promise.all([
+      attendeeRepository.listAttendeesBySessionIds(adminClient, sessionIds),
+      studentTaskRepository.listStudentTasksForGradesByTaskIds(
+        adminClient,
+        taskIds
+      ),
+      finalExam
+        ? finalExamRepository.listStudentFinalExamGradesByFinalExamId(
+            adminClient,
+            finalExam.id
+          )
+        : Promise.resolve({ data: [], error: null }),
+    ]);
+
+  if (attendeesResult.error) {
+    throw new Error(attendeesResult.error.message);
+  }
 
   if (studentTasksResult.error) {
     throw new Error(studentTasksResult.error.message);

@@ -47,6 +47,8 @@ import type {
   ManagerRegistrationApplicationRow,
   ManagerRegistrationDocumentRow,
   ManagerRegistrationDocumentSignedRow,
+  ManagerRegistrationsListData,
+  ManagerRegistrationsListQuery,
 } from "@/types/public-registration";
 import type { RegistrationDetailFrom } from "@/lib/constants/registration-detail-from";
 import {
@@ -524,6 +526,74 @@ export async function listRegistrationApplicationsForManager(
 
   // List UI only needs thin fields; detail route loads full app + documents.
   return applications.map((record) => mapApplicationListRecord(record));
+}
+
+const REGISTRATIONS_PAGE_SIZE_OPTIONS = [10, 25, 50] as const;
+const REGISTRATIONS_PAGE_SIZE_DEFAULT = 25;
+
+function clampRegistrationsPageSize(pageSize: number | undefined): number {
+  if (
+    pageSize !== undefined &&
+    (REGISTRATIONS_PAGE_SIZE_OPTIONS as readonly number[]).includes(pageSize)
+  ) {
+    return pageSize;
+  }
+  return REGISTRATIONS_PAGE_SIZE_DEFAULT;
+}
+
+/**
+ * Server-paged registrations list for the manager panel (no soft 500 cap).
+ */
+export async function listRegistrationApplicationsPageForManager(
+  adminClient: Supabase,
+  actorUserId: string | null,
+  query: ManagerRegistrationsListQuery = {}
+): Promise<ManagerRegistrationsListData> {
+  await assertPermission(
+    adminClient,
+    actorUserId,
+    PERMISSIONS.REGISTRATIONS_VIEW
+  );
+
+  const pageSize = clampRegistrationsPageSize(query.pageSize);
+  const requestedPage = Math.max(1, Math.floor(query.page ?? 1));
+  const search = query.search?.trim() ?? "";
+  const status = query.status ?? null;
+
+  const fetchPage = (page: number) =>
+    registrationRepository.listStudentRegistrationApplicationsPage(
+      adminClient,
+      {
+        offset: (page - 1) * pageSize,
+        limit: pageSize,
+        status,
+        search,
+      }
+    );
+
+  let pageResult = await fetchPage(requestedPage);
+  let page = requestedPage;
+
+  if (pageResult.error) {
+    throw new Error(pageResult.error.message);
+  }
+
+  const totalCount = pageResult.count ?? 0;
+
+  if (totalCount > 0 && (pageResult.data ?? []).length === 0) {
+    page = Math.max(1, Math.ceil(totalCount / pageSize));
+    pageResult = await fetchPage(page);
+    if (pageResult.error) {
+      throw new Error(pageResult.error.message);
+    }
+  }
+
+  const applications = (
+    (pageResult.data ??
+      []) as registrationRepository.StudentRegistrationApplicationListRecord[]
+  ).map((record) => mapApplicationListRecord(record));
+
+  return { applications, totalCount, page, pageSize };
 }
 
 export async function getRegistrationApplicationDetailForManager(

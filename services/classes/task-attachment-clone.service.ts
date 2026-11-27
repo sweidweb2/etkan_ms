@@ -172,6 +172,8 @@ async function processOneCloneJob(
     }
 
     const sources = (sourceAttachments.data ?? []).slice(0, remaining);
+    let copiedCount = 0;
+    let lastError: string | null = null;
 
     for (const source of sources) {
       const downloaded =
@@ -181,12 +183,9 @@ async function processOneCloneJob(
         );
 
       if (downloaded.error || !downloaded.data) {
-        await cloneJobRepository.failCloneJob(
-          adminClient,
-          job.id,
-          downloaded.error?.message ?? "Unable to download source attachment."
-        );
-        return;
+        lastError =
+          downloaded.error?.message ?? "Unable to download source attachment.";
+        break;
       }
 
       const bytes = Buffer.from(await downloaded.data.arrayBuffer());
@@ -205,12 +204,8 @@ async function processOneCloneJob(
         );
 
       if (uploaded.error) {
-        await cloneJobRepository.failCloneJob(
-          adminClient,
-          job.id,
-          uploaded.error.message
-        );
-        return;
+        lastError = uploaded.error.message;
+        break;
       }
 
       const created = await taskAttachmentRepository.createTaskAttachment(
@@ -232,18 +227,27 @@ async function processOneCloneJob(
           adminClient,
           [destPath]
         );
-        await cloneJobRepository.failCloneJob(
-          adminClient,
-          job.id,
-          created.error.message
-        );
-        return;
+        lastError = created.error.message;
+        break;
       }
 
+      copiedCount += 1;
       remaining -= 1;
       if (remaining <= 0) {
         break;
       }
+    }
+
+    if (lastError) {
+      // Keep successful copies; surface failure so the UI can refresh/retry leftovers.
+      await cloneJobRepository.failCloneJob(
+        adminClient,
+        job.id,
+        copiedCount > 0
+          ? `Copied ${copiedCount} file(s), then failed: ${lastError}`
+          : lastError
+      );
+      return;
     }
 
     await cloneJobRepository.completeCloneJob(adminClient, job.id);
@@ -252,20 +256,6 @@ async function processOneCloneJob(
       error instanceof Error ? error.message : "Attachment clone failed.";
     await cloneJobRepository.failCloneJob(adminClient, job.id, message);
   }
-}
-
-export async function getOpenCloneJobStatusForClassTask(
-  adminClient: Supabase,
-  classTaskId: string
-): Promise<TaskAttachmentCloneJobRecord | null> {
-  const result = await cloneJobRepository.findOpenCloneJobByClassTaskId(
-    adminClient,
-    classTaskId
-  );
-  if (result.error || !result.data) {
-    return null;
-  }
-  return result.data as TaskAttachmentCloneJobRecord;
 }
 
 export async function getLatestCloneJobForClassTask(

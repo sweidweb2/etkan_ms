@@ -1,4 +1,5 @@
 import type { FieldErrors } from "@/types/auth";
+import type { ManagerSemesterRow } from "@/types/manager-phase";
 
 export interface ManagerSemesterTeamRow {
   id: string;
@@ -20,6 +21,7 @@ export type AssignSemestersToTeamActionState = {
   error?: string;
   message?: string;
   fieldErrors?: FieldErrors;
+  semesters?: ManagerSemesterRow[];
   semesterIds?: string[];
   teamId?: string | null;
 };

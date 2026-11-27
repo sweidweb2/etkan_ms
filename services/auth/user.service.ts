@@ -1,6 +1,7 @@
 import "server-only";
 
 import { unstable_cache } from "next/cache";
+import { markClaimsRoleOverride } from "@/lib/auth/claims-role-override-cache";
 import { clearCachedSessionShell } from "@/lib/auth/session-shell-cache";
 import {
   STUDENT_STATUSES,
@@ -30,7 +31,17 @@ import {
 } from "@/services/ops/audit-log.service";
 import { syncAuthUserRole } from "@/services/auth/role.service";
 import type { FieldErrors } from "@/types/auth";
-import type { ManagerUserRow } from "@/types/manager-user";
+import type {
+  ManagerEmailingRecipientsListData,
+  ManagerEmailingRecipientsListQuery,
+  ManagerEmailingRecipientsListStats,
+} from "@/types/manager-emailing";
+import type {
+  ManagerUserRow,
+  ManagerUsersListData,
+  ManagerUsersListQuery,
+  ManagerUsersListStats,
+} from "@/types/manager-user";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/types/supabase";
 
@@ -210,6 +221,9 @@ const listUsersForManagerCached = unstable_cache(
  * Auth is checked outside the cache; the list body is shared-server-cached.
  * The `adminClient` argument is kept for call-site compatibility; the cached
  * path creates its own admin client inside `unstable_cache`.
+ *
+ * Prefer `listUsersPageForManager` for the users table UI and
+ * `listEmailingRecipientsPageForManager` for emailing recipient pickers.
  */
 export async function listUsersForManager(
   adminClient: Supabase,
@@ -219,16 +233,449 @@ export async function listUsersForManager(
   return listUsersForManagerCached();
 }
 
+const USERS_PAGE_SIZE_OPTIONS = [5, 10, 25] as const;
+const USERS_PAGE_SIZE_DEFAULT = 10;
+
+const STAFF_ROLES_FOR_STATS = [
+  ROLES.MANAGER,
+  ROLES.CO_MANAGER,
+  ROLES.ADMIN,
+  ROLES.CEO,
+  ROLES.SUPERVISOR,
+  ROLES.CRM,
+] as const;
+
+function clampUsersPageSize(pageSize: number | undefined): number {
+  if (
+    pageSize !== undefined &&
+    (USERS_PAGE_SIZE_OPTIONS as readonly number[]).includes(pageSize)
+  ) {
+    return pageSize;
+  }
+  return USERS_PAGE_SIZE_DEFAULT;
+}
+
+async function fetchUsersListStats(
+  adminClient: Supabase
+): Promise<ManagerUsersListStats> {
+  const [totalResult, teachersResult, staffResult] = await Promise.all([
+    profileRepository.countProfiles(adminClient, {
+      excludeRoles: [ROLES.STUDENT],
+    }),
+    profileRepository.countProfiles(adminClient, {
+      roles: [ROLES.TEACHER],
+    }),
+    profileRepository.countProfiles(adminClient, {
+      roles: [...STAFF_ROLES_FOR_STATS],
+    }),
+  ]);
+
+  const error =
+    totalResult.error ?? teachersResult.error ?? staffResult.error ?? null;
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  return {
+    total: totalResult.count ?? 0,
+    teachers: teachersResult.count ?? 0,
+    staff: staffResult.count ?? 0,
+  };
+}
+
 /**
- * Single user for manager detail. Uses the same cached list as the users table.
+ * Server-paged staff users list for the manager panel (excludes students).
+ * Search matches profiles.full_name (and id for a pasted UUID).
+ * Email is not searchable here: auth emails live outside Postgres tables.
+ */
+export async function listUsersPageForManager(
+  adminClient: Supabase,
+  actorUserId: string | null,
+  query: ManagerUsersListQuery = {}
+): Promise<ManagerUsersListData> {
+  await assertPermission(adminClient, actorUserId, PERMISSIONS.USERS_VIEW);
+
+  const pageSize = clampUsersPageSize(query.pageSize);
+  const requestedPage = Math.max(1, Math.floor(query.page ?? 1));
+  const search = query.search?.trim() ?? "";
+  const roleFilter =
+    query.role && query.role !== ROLES.STUDENT ? query.role : null;
+
+  const fetchPage = (page: number) =>
+    profileRepository.listProfilesPage(adminClient, {
+      offset: (page - 1) * pageSize,
+      limit: pageSize,
+      roles: roleFilter ? [roleFilter] : undefined,
+      excludeRoles: roleFilter ? undefined : [ROLES.STUDENT],
+      search,
+    });
+
+  const [initialPageResult, stats] = await Promise.all([
+    fetchPage(requestedPage),
+    fetchUsersListStats(adminClient),
+  ]);
+
+  let pageResult = initialPageResult;
+  let page = requestedPage;
+
+  if (pageResult.error) {
+    throw new Error(pageResult.error.message);
+  }
+
+  const totalCount = pageResult.count ?? 0;
+
+  if (totalCount > 0 && (pageResult.data ?? []).length === 0) {
+    page = Math.max(1, Math.ceil(totalCount / pageSize));
+    pageResult = await fetchPage(page);
+    if (pageResult.error) {
+      throw new Error(pageResult.error.message);
+    }
+  }
+
+  const profiles = pageResult.data ?? [];
+  if (profiles.length === 0) {
+    return { users: [], totalCount, page, pageSize, stats };
+  }
+
+  const pageIds = profiles.map((profile) => profile.id);
+  const emailsResult = await authRepository.listAuthEmailsByIds(
+    adminClient,
+    pageIds
+  );
+
+  if (emailsResult.error) {
+    throw new Error(emailsResult.error.message);
+  }
+
+  const emailById = emailsResult.data;
+  const users: ManagerUserRow[] = profiles.map((profile) => ({
+    id: profile.id,
+    full_name: profile.full_name,
+    role: profile.role as RoleValue,
+    is_instructor: profile.is_instructor,
+    created_at: profile.created_at ?? "",
+    email: emailById.get(profile.id) ?? "",
+  }));
+
+  return { users, totalCount, page, pageSize, stats };
+}
+
+const EMAILING_RECIPIENTS_PAGE_SIZE_OPTIONS = [5, 10, 25] as const;
+const EMAILING_RECIPIENTS_PAGE_SIZE_DEFAULT = 10;
+/** PostgREST `.in()` URL safety for class-member id filters. */
+const EMAILING_RECIPIENTS_IDS_IN_LIMIT = 150;
+const EMAILING_RECIPIENT_UUID_PATTERN =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+function clampEmailingRecipientsPageSize(pageSize: number | undefined): number {
+  if (
+    pageSize !== undefined &&
+    (EMAILING_RECIPIENTS_PAGE_SIZE_OPTIONS as readonly number[]).includes(
+      pageSize
+    )
+  ) {
+    return pageSize;
+  }
+  return EMAILING_RECIPIENTS_PAGE_SIZE_DEFAULT;
+}
+
+async function fetchEmailingRecipientsListStats(
+  adminClient: Supabase
+): Promise<ManagerEmailingRecipientsListStats> {
+  const [totalResult, studentsResult] = await Promise.all([
+    profileRepository.countProfiles(adminClient),
+    profileRepository.countProfiles(adminClient, {
+      roles: [ROLES.STUDENT],
+    }),
+  ]);
+
+  const error = totalResult.error ?? studentsResult.error ?? null;
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  return {
+    total: totalResult.count ?? 0,
+    students: studentsResult.count ?? 0,
+  };
+}
+
+async function hydrateEmailingRecipientRows(
+  adminClient: Supabase,
+  profiles: Array<{
+    id: string;
+    full_name: string;
+    role: string;
+    is_instructor: boolean;
+    created_at: string | null;
+  }>
+): Promise<ManagerUserRow[]> {
+  if (profiles.length === 0) {
+    return [];
+  }
+
+  const pageIds = profiles.map((profile) => profile.id);
+  const emailsResult = await authRepository.listAuthEmailsByIds(
+    adminClient,
+    pageIds
+  );
+
+  if (emailsResult.error) {
+    throw new Error(emailsResult.error.message);
+  }
+
+  const emailById = emailsResult.data;
+  return profiles.map((profile) => ({
+    id: profile.id,
+    full_name: profile.full_name,
+    role: profile.role as RoleValue,
+    is_instructor: profile.is_instructor,
+    created_at: profile.created_at ?? "",
+    email: emailById.get(profile.id) ?? "",
+  }));
+}
+
+/**
+ * Server-paged emailing recipients (all roles, including students).
+ * Search matches profiles.full_name (and id for a pasted UUID).
+ * Email is not searchable here: auth emails live outside Postgres tables.
+ * Optional `userIds` restricts to a set (e.g. class members).
+ */
+export async function listEmailingRecipientsPageForManager(
+  adminClient: Supabase,
+  actorUserId: string | null,
+  query: ManagerEmailingRecipientsListQuery = {}
+): Promise<ManagerEmailingRecipientsListData> {
+  await assertPermission(adminClient, actorUserId, PERMISSIONS.EMAILING_VIEW);
+
+  const pageSize = clampEmailingRecipientsPageSize(query.pageSize);
+  const requestedPage = Math.max(1, Math.floor(query.page ?? 1));
+  const search = query.search?.trim() ?? "";
+  const roleFilter = query.role ?? null;
+  const userIds = query.userIds ? [...new Set(query.userIds.filter(Boolean))] : null;
+
+  if (userIds && userIds.length === 0) {
+    const stats = await fetchEmailingRecipientsListStats(adminClient);
+    return {
+      users: [],
+      totalCount: 0,
+      page: 1,
+      pageSize,
+      stats,
+    };
+  }
+
+  const roles = roleFilter ? [roleFilter] : undefined;
+
+  const fetchPage = (page: number) => {
+    if (userIds && userIds.length > EMAILING_RECIPIENTS_IDS_IN_LIMIT) {
+      return null;
+    }
+
+    return profileRepository.listProfilesPage(adminClient, {
+      offset: (page - 1) * pageSize,
+      limit: pageSize,
+      roles,
+      search,
+      ids: userIds ?? undefined,
+    });
+  };
+
+  // Large class / id sets: load matching profiles via chunked `.in()`, then page in memory.
+  if (userIds && userIds.length > EMAILING_RECIPIENTS_IDS_IN_LIMIT) {
+    const [profilesResult, stats] = await Promise.all([
+      profileRepository.listProfilesByIds(adminClient, userIds),
+      fetchEmailingRecipientsListStats(adminClient),
+    ]);
+
+    if (profilesResult.error) {
+      throw new Error(profilesResult.error.message);
+    }
+
+    const normalizedSearch = search.toLowerCase();
+    let profiles = profilesResult.data ?? [];
+    if (roleFilter) {
+      profiles = profiles.filter((profile) => profile.role === roleFilter);
+    }
+    if (normalizedSearch) {
+      profiles = profiles.filter((profile) => {
+        if (profile.full_name.toLowerCase().includes(normalizedSearch)) {
+          return true;
+        }
+        return EMAILING_RECIPIENT_UUID_PATTERN.test(normalizedSearch)
+          ? profile.id.toLowerCase() === normalizedSearch
+          : false;
+      });
+    }
+
+    profiles = [...profiles].sort((a, b) => {
+      const createdDiff = (b.created_at ?? "").localeCompare(a.created_at ?? "");
+      if (createdDiff !== 0) {
+        return createdDiff;
+      }
+      return b.id.localeCompare(a.id);
+    });
+
+    const totalCount = profiles.length;
+    const totalPages = Math.max(1, Math.ceil(totalCount / pageSize));
+    const page = Math.min(requestedPage, totalPages);
+    const pageProfiles = profiles.slice((page - 1) * pageSize, page * pageSize);
+    const users = await hydrateEmailingRecipientRows(adminClient, pageProfiles);
+
+    return { users, totalCount, page, pageSize, stats };
+  }
+
+  const [initialPageResult, stats] = await Promise.all([
+    fetchPage(requestedPage)!,
+    fetchEmailingRecipientsListStats(adminClient),
+  ]);
+
+  let pageResult = initialPageResult;
+  let page = requestedPage;
+
+  if (pageResult.error) {
+    throw new Error(pageResult.error.message);
+  }
+
+  const totalCount = pageResult.count ?? 0;
+
+  if (totalCount > 0 && (pageResult.data ?? []).length === 0) {
+    page = Math.max(1, Math.ceil(totalCount / pageSize));
+    pageResult = await fetchPage(page)!;
+    if (pageResult.error) {
+      throw new Error(pageResult.error.message);
+    }
+  }
+
+  const users = await hydrateEmailingRecipientRows(
+    adminClient,
+    pageResult.data ?? []
+  );
+
+  return { users, totalCount, page, pageSize, stats };
+}
+
+/**
+ * On-demand bulk roster for compose/resend role shortcuts.
+ * Loads matching profiles (optionally by role) and hydrates emails.
+ * Prefer `listEmailingRecipientsPageForManager` for table/search UIs.
+ */
+export async function listEmailingRecipientsForBulkForManager(
+  adminClient: Supabase,
+  actorUserId: string | null,
+  roles?: RoleValue[] | null
+): Promise<ManagerUserRow[]> {
+  await assertPermission(adminClient, actorUserId, PERMISSIONS.EMAILING_VIEW);
+
+  const { data: profiles, error } = await profileRepository.listProfiles(
+    adminClient,
+    roles?.length ? { roles } : undefined
+  );
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  return hydrateEmailingRecipientRows(adminClient, profiles ?? []);
+}
+
+/**
+ * Resolve a single emailing recipient by email (compose external → user match).
+ */
+export async function findEmailingRecipientByEmailForManager(
+  adminClient: Supabase,
+  actorUserId: string | null,
+  email: string
+): Promise<ManagerUserRow | null> {
+  await assertPermission(adminClient, actorUserId, PERMISSIONS.EMAILING_VIEW);
+
+  const { data: authUser, error } = await authRepository.findAuthUserByEmail(
+    adminClient,
+    email
+  );
+
+  if (error) {
+    throw new Error(error.message);
+  }
+  if (!authUser?.user) {
+    return null;
+  }
+
+  const userId = authUser.user.id;
+  const { data: profile, error: profileError } =
+    await profileRepository.findProfileById(adminClient, userId);
+
+  if (profileError) {
+    throw new Error(profileError.message);
+  }
+  if (!profile) {
+    return null;
+  }
+
+  const [row] = await hydrateEmailingRecipientRows(adminClient, [profile]);
+  return row ?? null;
+}
+
+/**
+ * Single user for manager detail — targeted fetch (not the full roster).
  */
 export async function getUserForManagerById(
   adminClient: Supabase,
   actorUserId: string | null,
   userId: string
 ): Promise<ManagerUserRow | null> {
-  const users = await listUsersForManager(adminClient, actorUserId);
-  return users.find((user) => user.id === userId) ?? null;
+  await assertPermission(adminClient, actorUserId, PERMISSIONS.USERS_VIEW);
+
+  const { data: profile, error } = await profileRepository.findProfileById(
+    adminClient,
+    userId
+  );
+
+  if (error) {
+    throw new Error(error.message);
+  }
+  if (!profile) {
+    return null;
+  }
+
+  const [emailsResult, studentProfilesResult] = await Promise.all([
+    authRepository.listAuthEmailsByIds(adminClient, [userId]),
+    studentProfileRepository.listStudentProfileDetailsByUserIds(adminClient, [
+      userId,
+    ]),
+  ]);
+
+  if (emailsResult.error) {
+    throw new Error(emailsResult.error.message);
+  }
+  if (studentProfilesResult.error) {
+    throw new Error(studentProfilesResult.error.message);
+  }
+
+  const studentProfile = (studentProfilesResult.data ?? [])[0];
+  const user: ManagerUserRow = {
+    id: profile.id,
+    full_name: profile.full_name,
+    role: profile.role as RoleValue,
+    is_instructor: profile.is_instructor,
+    created_at: profile.created_at ?? "",
+    email: emailsResult.data.get(userId) ?? "",
+  };
+
+  if (!studentProfile) {
+    return user.role === ROLES.STUDENT
+      ? { ...user, student_profile_id: null }
+      : user;
+  }
+
+  return {
+    ...user,
+    student_profile_id: studentProfile.id,
+    student_full_name: studentProfile.full_name,
+    student_birth_date: studentProfile.birth_date,
+    student_phone: studentProfile.phone,
+    student_status: mapStudentStatus(studentProfile.status),
+  };
 }
 
 export async function createStaffUser(
@@ -559,6 +1006,8 @@ export async function updateManagerUser(
   if (previousRole !== role) {
     try {
       await syncAuthUserRole(adminClient, userId, role);
+      // JWT may still carry previousRole until refresh — force panel gates now.
+      markClaimsRoleOverride(userId, role);
     } catch (err) {
       return {
         success: false,

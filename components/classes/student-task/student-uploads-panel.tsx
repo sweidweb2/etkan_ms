@@ -1,6 +1,6 @@
 ﻿"use client";
 
-import { useId, useRef, useState } from "react";
+import { useId, useState } from "react";
 import { format } from "date-fns";
 import { FileIcon } from "lucide-react";
 import {
@@ -27,6 +27,7 @@ import { useFormActionState } from "@/hooks/use-form-action-state";
 import { usePendingAwareOpenChange } from "@/hooks/use-pending-aware-open-change";
 import { usePermissions } from "@/components/auth/permissions-provider";
 import { useSimulatedProgressPercent } from "@/hooks/use-simulated-progress-percent";
+import { useTaskFileUploadSelection } from "@/hooks/use-task-file-upload-selection";
 import { hasPermissionInSet } from "@/lib/auth/permission-checks";
 import { formatUploadFileSize } from "@/lib/classes/student-task-upload-format";
 import {
@@ -44,9 +45,6 @@ import type {
 
 const initialUploadState: UploadStudentTaskFileActionState = {};
 const initialDeleteState: DeleteStudentTaskUploadActionState = {};
-
-const MAX_MB = Math.round(STUDENT_TASK_UPLOAD_MAX_BYTES / (1024 * 1024));
-const DROPZONE_HINT = `PDF, DOCX, XLSX, PNG, JPG · up to ${MAX_MB} MB each`;
 
 export type StudentUploadsPanelProps = {
   studentTaskId: string;
@@ -69,10 +67,15 @@ export function StudentUploadsPanel({
     PERMISSIONS.TASKS_UPDATE_STUDENT
   );
   const inputId = useId();
-  const fileInputKeyRef = useRef(0);
-  const [fileInputKey, setFileInputKey] = useState(0);
-  const [selectedFileName, setSelectedFileName] = useState<string | null>(null);
-  const [clientError, setClientError] = useState<string | null>(null);
+  const {
+    maxMb,
+    fileInputKey,
+    selectedFileName,
+    clientError,
+    resetSelection,
+    beginFile,
+  } = useTaskFileUploadSelection(STUDENT_TASK_UPLOAD_MAX_BYTES);
+  const DROPZONE_HINT = `PDF, DOCX, XLSX, PNG, JPG · up to ${maxMb} MB each`;
   const [busyUpload, setBusyUpload] = useState<{
     id: string;
     mode: "open" | "download";
@@ -115,10 +118,7 @@ export function StudentUploadsPanel({
           : [nextState.upload!, ...current]
       );
     }
-    setSelectedFileName(null);
-    setClientError(null);
-    fileInputKeyRef.current += 1;
-    setFileInputKey(fileInputKeyRef.current);
+    resetSelection();
   });
 
   useActionStateSuccess(deleteState, isDeletePending, () => {
@@ -134,15 +134,9 @@ export function StudentUploadsPanel({
     if (!canMutate || locked || atMaxFiles || isUploadPending) {
       return;
     }
-    setClientError(null);
-    if (file.size > STUDENT_TASK_UPLOAD_MAX_BYTES) {
-      setSelectedFileName(file.name);
-      setClientError(
-        `This file is ${formatUploadFileSize(file.size)}. Files must be under ${MAX_MB} MB.`
-      );
+    if (beginFile(file) === "too_large") {
       return;
     }
-    setSelectedFileName(file.name);
     const formData = new FormData();
     formData.set("student_task_id", studentTaskId);
     formData.set("file", file);
@@ -210,8 +204,7 @@ export function StudentUploadsPanel({
     }
   }
 
-  const fieldError =
-    uploadState.fieldErrors?.file?.[0] ?? uploadState.error ?? null;
+  const fieldError = uploadState.fieldErrors?.file?.[0] ?? null;
   const showUploadRow = isUploadPending && selectedFileName && !clientError;
   const showErrorRow = Boolean(clientError || fieldError) && selectedFileName;
 
@@ -311,10 +304,7 @@ export function StudentUploadsPanel({
           <TaskFileListRow
             fileName={selectedFileName!}
             errorMessage={clientError ?? fieldError}
-            onDismissError={() => {
-              setClientError(null);
-              setSelectedFileName(null);
-            }}
+            onDismissError={resetSelection}
             className="rounded-b-xl"
           />
         ) : null}

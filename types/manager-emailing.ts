@@ -1,11 +1,37 @@
 import type { EmailLocale } from "@/lib/email/templates";
+import type { RoleValue } from "@/lib/constants/roles";
 import type { FieldErrors } from "@/types/auth";
+import type { ManagerUserRow } from "@/types/manager-user";
 
 export type EmailDeliveryStatus = "pending" | "sent" | "failed" | "skipped";
 
 export type EmailingClassOption = {
   id: string;
   name: string;
+};
+
+export type ManagerEmailingRecipientsListQuery = {
+  page?: number;
+  pageSize?: number;
+  /** When set, only this role (includes students). */
+  role?: RoleValue | null;
+  search?: string;
+  /** Restrict to these user IDs (e.g. class members). */
+  userIds?: string[] | null;
+};
+
+export type ManagerEmailingRecipientsListStats = {
+  total: number;
+  students: number;
+};
+
+export type ManagerEmailingRecipientsListData = {
+  users: ManagerUserRow[];
+  totalCount: number;
+  page: number;
+  pageSize: number;
+  /** Global counts (not filtered by the current query). */
+  stats: ManagerEmailingRecipientsListStats;
 };
 
 export type SendManagerEmailActionState = {

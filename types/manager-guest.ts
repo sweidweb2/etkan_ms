@@ -26,6 +26,25 @@ export interface ManagerGuestRow {
   updated_at: string;
 }
 
+export type ManagerGuestsListQuery = {
+  page?: number;
+  pageSize?: number;
+  search?: string;
+  status?: GuestCurrentStatus | null;
+  interestedService?: GuestInterestedService | null;
+  /** When true (default for panel), exclude guests already assigned to a team. */
+  unassignedOnly?: boolean;
+  /** Include rejected/cancelled/finished guests (default false). */
+  includeClosed?: boolean;
+};
+
+export type ManagerGuestsListData = {
+  guests: ManagerGuestRow[];
+  totalCount: number;
+  page: number;
+  pageSize: number;
+};
+
 export type CreateGuestActionState = {
   success?: boolean;
   error?: string;

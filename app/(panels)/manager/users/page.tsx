@@ -1,19 +1,18 @@
 import { ManageUsersPanel } from "@/components/manager/users/manage-users-panel";
 import { getSessionPack } from "@/lib/auth/session";
-import { ROLES } from "@/lib/constants/roles";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
-import { listUsersForManager } from "@/services/auth/user.service";
+import { listUsersPageForManager } from "@/services/auth/user.service";
 
 export default async function ManagerUsersPage() {
   const adminClient = createSupabaseAdminClient();
   const pack = await getSessionPack();
-  const users = await listUsersForManager(adminClient, pack.user?.id ?? null);
-  // Students are managed under Manage students — exclude them here.
-  const staffUsers = users.filter((user) => user.role !== ROLES.STUDENT);
+  const data = await listUsersPageForManager(adminClient, pack.user?.id ?? null, {
+    page: 1,
+  });
 
   return (
     <ManageUsersPanel
-      initialUsers={staffUsers}
+      initialData={data}
       currentUserId={pack.user?.id ?? null}
     />
   );

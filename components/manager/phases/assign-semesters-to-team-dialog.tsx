@@ -35,7 +35,7 @@ type AssignSemestersToTeamDialogProps = {
   onOpenChange: (open: boolean) => void;
   teams: ManagerSemesterTeamRow[];
   semesters: ManagerSemesterRow[];
-  onAssigned: (semesterIds: string[], teamId: string | null) => void;
+  onAssigned: (semesters: ManagerSemesterRow[]) => void;
 };
 
 export function AssignSemestersToTeamDialog({
@@ -62,8 +62,8 @@ export function AssignSemestersToTeamDialog({
       onSuccess: (nextState) => {
         resetLocalState();
         onOpenChange(false);
-        if (nextState.semesterIds) {
-          onAssigned(nextState.semesterIds, nextState.teamId ?? null);
+        if (nextState.semesters && nextState.semesters.length > 0) {
+          onAssigned(nextState.semesters);
         }
       },
     });

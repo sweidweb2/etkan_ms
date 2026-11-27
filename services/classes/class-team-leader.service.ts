@@ -81,6 +81,40 @@ export async function assertTeamLeaderForClass(
     return { ok: false, error: unauthorized ?? UNAUTHORIZED_MESSAGE };
   }
 
+  return assertTeamLeaderMembership(adminClient, actorUserId, classId);
+}
+
+const TEAM_LEADER_TASK_ACCESS: readonly PermissionKey[] = [
+  PERMISSIONS.TEAM_LEADER_TASKS_CREATE,
+  PERMISSIONS.TEAM_LEADER_TASKS_UPDATE,
+  PERMISSIONS.TEAM_LEADER_TASKS_START,
+];
+
+/** View/list gate: any team-leader task permission + membership. */
+export async function assertTeamLeaderTaskAccessForClass(
+  adminClient: Supabase,
+  actorUserId: string | null,
+  classId: string
+): Promise<GateResult> {
+  if (!actorUserId) {
+    return { ok: false, error: UNAUTHORIZED_MESSAGE };
+  }
+  const allowed = await hasAnyPermission(
+    adminClient,
+    actorUserId,
+    TEAM_LEADER_TASK_ACCESS
+  );
+  if (!allowed) {
+    return { ok: false, error: UNAUTHORIZED_MESSAGE };
+  }
+  return assertTeamLeaderMembership(adminClient, actorUserId, classId);
+}
+
+async function assertTeamLeaderMembership(
+  adminClient: Supabase,
+  actorUserId: string,
+  classId: string
+): Promise<GateResult> {
   try {
     await assertStudentSelfAccess(adminClient, actorUserId);
   } catch {

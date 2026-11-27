@@ -1,21 +1,16 @@
 /**
- * Short-lived process cache for Auth Admin email maps.
- * Keyed by sorted user ids so shared callers (users / instructors / students)
- * can reuse a warm map within the TTL without a schema migration.
+ * Short-lived process cache for Auth Admin emails, keyed per user id.
+ * Overlapping roster/list calls reuse warm entries and only fetch misses.
  */
 
 const AUTH_EMAILS_TTL_MS = 60_000;
 
 type CacheEntry = {
-  emails: Map<string, string>;
+  email: string;
   expiresAt: number;
 };
 
 const cache = new Map<string, CacheEntry>();
-
-function cacheKey(userIds: string[]): string {
-  return [...userIds].sort().join(",");
-}
 
 export function getCachedAuthEmails(
   userIds: string[]
@@ -23,16 +18,60 @@ export function getCachedAuthEmails(
   if (userIds.length === 0) {
     return new Map();
   }
-  const key = cacheKey(userIds);
-  const entry = cache.get(key);
-  if (!entry) {
-    return null;
+
+  const emails = new Map<string, string>();
+  const now = Date.now();
+
+  for (const id of userIds) {
+    const entry = cache.get(id);
+    if (!entry || now >= entry.expiresAt) {
+      if (entry) {
+        cache.delete(id);
+      }
+      return null;
+    }
+    emails.set(id, entry.email);
   }
-  if (Date.now() >= entry.expiresAt) {
-    cache.delete(key);
-    return null;
+
+  return emails;
+}
+
+/** Returns only the ids that are missing or expired in the per-id cache. */
+export function getMissingAuthEmailIds(userIds: string[]): string[] {
+  const now = Date.now();
+  const missing: string[] = [];
+
+  for (const id of userIds) {
+    const entry = cache.get(id);
+    if (!entry || now >= entry.expiresAt) {
+      if (entry) {
+        cache.delete(id);
+      }
+      missing.push(id);
+    }
   }
-  return new Map(entry.emails);
+
+  return missing;
+}
+
+export function collectCachedAuthEmails(
+  userIds: string[]
+): Map<string, string> {
+  const emails = new Map<string, string>();
+  const now = Date.now();
+
+  for (const id of userIds) {
+    const entry = cache.get(id);
+    if (!entry || now >= entry.expiresAt) {
+      if (entry) {
+        cache.delete(id);
+      }
+      continue;
+    }
+    emails.set(id, entry.email);
+  }
+
+  return emails;
 }
 
 export function setCachedAuthEmails(
@@ -43,10 +82,14 @@ export function setCachedAuthEmails(
   if (userIds.length === 0) {
     return;
   }
-  cache.set(cacheKey(userIds), {
-    emails: new Map(emails),
-    expiresAt: Date.now() + ttlMs,
-  });
+
+  const expiresAt = Date.now() + ttlMs;
+  for (const id of userIds) {
+    cache.set(id, {
+      email: emails.get(id) ?? "",
+      expiresAt,
+    });
+  }
 }
 
 export function clearCachedAuthEmails(): void {

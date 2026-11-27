@@ -79,6 +79,8 @@ export async function updateSemesterTeamSortOrders(
   client: Supabase,
   orderedIds: string[]
 ) {
+  // N+1 updates: no batch RPC sibling exists (same pattern as stages /
+  // semesters). Partial failure can leave earlier rows committed.
   const results = await Promise.all(
     orderedIds.map((id, index) =>
       client.from("semester_teams").update({ sort_order: index }).eq("id", id)

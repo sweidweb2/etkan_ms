@@ -37,6 +37,7 @@ export async function uploadStudentTaskFileForSelfAction(
     return {
       success: false,
       error: parsed.error,
+      fieldErrors: parsed.fieldErrors,
     };
   }
 
@@ -50,7 +51,11 @@ export async function uploadStudentTaskFileForSelfAction(
   );
 
   if (!result.success) {
-    return { success: false, error: result.error };
+    return {
+      success: false,
+      error: result.error,
+      fieldErrors: result.fieldErrors,
+    };
   }
 
   revalidateStudentTaskSurfaces(result.classId, result.taskId);

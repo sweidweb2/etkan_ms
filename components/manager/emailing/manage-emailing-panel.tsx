@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState, type MouseEvent } from "react";
+import { useEffect, useMemo, useRef, useState, useTransition, type MouseEvent } from "react";
 import Link from "next/link";
 import { format } from "date-fns";
 import {
@@ -17,13 +17,18 @@ import {
   SparklesIcon,
   UserPlusIcon,
   UsersIcon,
+  XIcon,
 } from "lucide-react";
 import {
   ComposeEmailDialog,
   type ComposeEmailTarget,
 } from "@/components/manager/emailing/compose-email-dialog";
-import { listEmailingClassMemberUserIdsAction } from "@/app/manager/emailing/actions";
+import {
+  listEmailingClassMemberUserIdsAction,
+  loadEmailingRecipientsPageAction,
+} from "@/app/manager/emailing/actions";
 import { Can } from "@/components/auth/can";
+import { InlineSpinner } from "@/components/loaders/inline-spinner";
 import { UserRoleBadge } from "@/components/manager/users/user-role-badge";
 import { UserStatCard } from "@/components/manager/users/user-stat-card";
 import { PanelPageHeader } from "@/components/panels/panel-page-header";
@@ -54,16 +59,20 @@ import { PERMISSIONS } from "@/lib/constants/permissions";
 import { ROUTES } from "@/lib/constants/routes";
 import { MANAGER_USER_ROLE_LABELS } from "@/lib/constants/manager-user-display";
 import { EMAIL_REGEX } from "@/lib/validators/auth/fields";
-import { ROLE_VALUES, ROLES } from "@/lib/constants/roles";
+import { ROLE_VALUES, type RoleValue } from "@/lib/constants/roles";
 import { cn } from "@/lib/utils";
 import { showErrorToast } from "@/lib/toast";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import type { EmailingClassOption } from "@/types/manager-emailing";
+import type {
+  EmailingClassOption,
+  ManagerEmailingRecipientsListData,
+  ManagerEmailingRecipientsListQuery,
+} from "@/types/manager-emailing";
 import type { ManagerUserRow } from "@/types/manager-user";
 
 type ManageEmailingPanelProps = {
-  initialUsers: ManagerUserRow[];
+  initialData: ManagerEmailingRecipientsListData;
   classes: EmailingClassOption[];
 };
 
@@ -74,10 +83,12 @@ type ReadyAction = {
   icon: typeof SendIcon;
 };
 
-const PAGE_SIZE = 30;
-const MAX_PAGES = 1000;
+const PAGE_SIZE_OPTIONS = [5, 10, 25] as const;
+const DEFAULT_PAGE_SIZE = 10;
 const ROLE_FILTER_ALL = "all";
 const CLASS_FILTER_ALL = "all";
+
+type PageSizeOption = (typeof PAGE_SIZE_OPTIONS)[number];
 
 const READY_ACTION_ICONS: Record<EmailTemplateId, typeof SendIcon> = {
   welcome: UserPlusIcon,
@@ -122,24 +133,6 @@ function getUserDisplayName(user: ManagerUserRow) {
   return user.full_name || "—";
 }
 
-function matchesNameFilter(user: ManagerUserRow, query: string) {
-  const normalized = query.trim().toLowerCase();
-  if (!normalized) {
-    return true;
-  }
-
-  return user.full_name.toLowerCase().includes(normalized);
-}
-
-function matchesEmailFilter(user: ManagerUserRow, query: string) {
-  const normalized = query.trim().toLowerCase();
-  if (!normalized) {
-    return true;
-  }
-
-  return user.email.toLowerCase().includes(normalized);
-}
-
 function getPageNumbers(currentPage: number, totalPages: number) {
   if (totalPages <= 7) {
     return Array.from({ length: totalPages }, (_, index) => index + 1);
@@ -168,13 +161,28 @@ function getPageNumbers(currentPage: number, totalPages: number) {
   return result;
 }
 
+function listQueryKey(query: {
+  role: string;
+  search: string;
+  classFilter: string;
+  classMemberKey: string;
+  page: number;
+  pageSize: number;
+}) {
+  return `${query.role}|${query.search}|${query.classFilter}|${query.classMemberKey}|${query.page}|${query.pageSize}`;
+}
+
 export function ManageEmailingPanel({
-  initialUsers,
+  initialData,
   classes,
 }: ManageEmailingPanelProps) {
-  const [selectedUserIds, setSelectedUserIds] = useState<Set<string>>(
-    () => new Set()
-  );
+  const [users, setUsers] = useState(initialData.users);
+  const [totalCount, setTotalCount] = useState(initialData.totalCount);
+  const [stats, setStats] = useState(initialData.stats);
+  const [isLoading, startTransition] = useTransition();
+  const [selectedUsersById, setSelectedUsersById] = useState<
+    Map<string, ManagerUserRow>
+  >(() => new Map());
   const [composeTarget, setComposeTarget] = useState<ComposeEmailTarget | null>(
     null
   );
@@ -184,16 +192,33 @@ export function ManageEmailingPanel({
   const [customToEmailError, setCustomToEmailError] = useState<string | null>(
     null
   );
-  const [nameFilter, setNameFilter] = useState("");
-  const [emailFilter, setEmailFilter] = useState("");
+  const [searchQuery, setSearchQuery] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
   const [roleFilter, setRoleFilter] = useState(ROLE_FILTER_ALL);
   const [classFilter, setClassFilter] = useState(CLASS_FILTER_ALL);
-  const [classMemberUserIds, setClassMemberUserIds] = useState<Set<string> | null>(
+  const [classMemberUserIds, setClassMemberUserIds] = useState<string[] | null>(
     null
   );
   const [isClassMembersPending, setIsClassMembersPending] = useState(false);
   const [prevClassFilter, setPrevClassFilter] = useState(classFilter);
-  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState<PageSizeOption>(
+    (PAGE_SIZE_OPTIONS as readonly number[]).includes(initialData.pageSize)
+      ? (initialData.pageSize as PageSizeOption)
+      : DEFAULT_PAGE_SIZE
+  );
+  const [currentPage, setCurrentPage] = useState(initialData.page);
+
+  const loadedKeyRef = useRef(
+    listQueryKey({
+      role: ROLE_FILTER_ALL,
+      search: "",
+      classFilter: CLASS_FILTER_ALL,
+      classMemberKey: "all",
+      page: initialData.page,
+      pageSize: initialData.pageSize,
+    })
+  );
+  const requestIdRef = useRef(0);
 
   if (classFilter !== prevClassFilter) {
     setPrevClassFilter(classFilter);
@@ -206,31 +231,92 @@ export function ManageEmailingPanel({
     }
   }
 
-  const stats = useMemo(() => {
-    const students = initialUsers.filter(
-      (user) => user.role === ROLES.STUDENT
-    ).length;
-    const withEmail = initialUsers.filter((user) => Boolean(user.email)).length;
-
-    return {
-      total: initialUsers.length,
-      selected: selectedUserIds.size,
-      students,
-      withEmail,
-    };
-  }, [initialUsers, selectedUserIds]);
-
-  const selectedUsers = useMemo(
-    () => initialUsers.filter((user) => selectedUserIds.has(user.id)),
-    [initialUsers, selectedUserIds]
+  const selectedUserIds = useMemo(
+    () => new Set(selectedUsersById.keys()),
+    [selectedUsersById]
   );
-
+  const selectedUsers = useMemo(
+    () => [...selectedUsersById.values()],
+    [selectedUsersById]
+  );
   const selectedWithEmail = useMemo(
     () => selectedUsers.filter((user) => Boolean(user.email)),
     [selectedUsers]
   );
-
   const canUseReadyActions = selectedWithEmail.length > 0;
+
+  const classMemberKey =
+    classFilter === CLASS_FILTER_ALL
+      ? "all"
+      : isClassMembersPending
+        ? "pending"
+        : classMemberUserIds
+          ? [...classMemberUserIds].sort().join(",")
+          : "empty";
+
+  const totalPages = Math.max(1, Math.ceil(totalCount / pageSize));
+  const safeCurrentPage = Math.min(currentPage, totalPages);
+  const pageNumbers = getPageNumbers(safeCurrentPage, totalPages);
+  const rangeStart = totalCount === 0 ? 0 : (safeCurrentPage - 1) * pageSize + 1;
+  const rangeEnd = Math.min(safeCurrentPage * pageSize, totalCount);
+
+  const buildListQuery = (
+    overrides: Partial<{
+      role: string;
+      search: string;
+      page: number;
+      pageSize: number;
+      userIds: string[] | null;
+    }> = {}
+  ): ManagerEmailingRecipientsListQuery => {
+    const role = overrides.role ?? roleFilter;
+    const userIds =
+      overrides.userIds !== undefined
+        ? overrides.userIds
+        : classFilter === CLASS_FILTER_ALL
+          ? null
+          : (classMemberUserIds ?? []);
+
+    return {
+      page: overrides.page ?? currentPage,
+      pageSize: overrides.pageSize ?? pageSize,
+      role: role === ROLE_FILTER_ALL ? null : (role as RoleValue),
+      search: overrides.search ?? debouncedSearch,
+      userIds,
+    };
+  };
+
+  const applyListData = (data: ManagerEmailingRecipientsListData) => {
+    setUsers(data.users);
+    setTotalCount(data.totalCount);
+    setStats(data.stats);
+  };
+
+  const loadPage = (query: ManagerEmailingRecipientsListQuery) => {
+    const requestId = ++requestIdRef.current;
+    startTransition(async () => {
+      const data = await loadEmailingRecipientsPageAction(query);
+      if (requestId !== requestIdRef.current) {
+        return;
+      }
+      if (!data) {
+        showErrorToast("Unable to load recipients.");
+        return;
+      }
+      applyListData(data);
+      if (data.page !== query.page) {
+        loadedKeyRef.current = listQueryKey({
+          role: query.role ?? ROLE_FILTER_ALL,
+          search: query.search ?? "",
+          classFilter,
+          classMemberKey,
+          page: data.page,
+          pageSize: data.pageSize,
+        });
+        setCurrentPage(data.page);
+      }
+    });
+  };
 
   useEffect(() => {
     if (classFilter === CLASS_FILTER_ALL) {
@@ -244,13 +330,13 @@ export function ManageEmailingPanel({
         if (cancelled) {
           return;
         }
-        setClassMemberUserIds(new Set(ids));
+        setClassMemberUserIds(ids);
       })
       .catch(() => {
         if (cancelled) {
           return;
         }
-        setClassMemberUserIds(new Set());
+        setClassMemberUserIds([]);
         showErrorToast("Unable to load class members.");
       })
       .finally(() => {
@@ -264,61 +350,58 @@ export function ManageEmailingPanel({
     };
   }, [classFilter]);
 
-  const filteredUsers = useMemo(() => {
-    return initialUsers.filter((user) => {
-      const matchesRole =
-        roleFilter === ROLE_FILTER_ALL || user.role === roleFilter;
-      const matchesClass =
-        classFilter === CLASS_FILTER_ALL ||
-        (classMemberUserIds?.has(user.id) ?? false);
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      const next = searchQuery.trim();
+      if (next !== debouncedSearch) {
+        setDebouncedSearch(next);
+        setCurrentPage(1);
+      }
+    }, 300);
+    return () => window.clearTimeout(timer);
+  }, [debouncedSearch, searchQuery]);
 
-      return (
-        matchesNameFilter(user, nameFilter) &&
-        matchesEmailFilter(user, emailFilter) &&
-        matchesRole &&
-        matchesClass
-      );
+  useEffect(() => {
+    if (classFilter !== CLASS_FILTER_ALL && isClassMembersPending) {
+      return;
+    }
+
+    const key = listQueryKey({
+      role: roleFilter,
+      search: debouncedSearch,
+      classFilter,
+      classMemberKey,
+      page: currentPage,
+      pageSize,
     });
+    if (key === loadedKeyRef.current) {
+      return;
+    }
+    loadedKeyRef.current = key;
+    loadPage(buildListQuery());
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
     classFilter,
-    classMemberUserIds,
-    emailFilter,
-    initialUsers,
-    nameFilter,
+    classMemberKey,
+    currentPage,
+    debouncedSearch,
+    isClassMembersPending,
+    pageSize,
     roleFilter,
   ]);
-
-  const totalPages = Math.min(
-    Math.max(1, Math.ceil(filteredUsers.length / PAGE_SIZE)),
-    MAX_PAGES
-  );
-  const safeCurrentPage = Math.min(currentPage, totalPages);
-  const pageNumbers = getPageNumbers(safeCurrentPage, totalPages);
-
-  const paginatedUsers = useMemo(() => {
-    const startIndex = (safeCurrentPage - 1) * PAGE_SIZE;
-    return filteredUsers.slice(startIndex, startIndex + PAGE_SIZE);
-  }, [filteredUsers, safeCurrentPage]);
-
-  const rangeStart =
-    filteredUsers.length === 0 ? 0 : (safeCurrentPage - 1) * PAGE_SIZE + 1;
-  const rangeEnd = Math.min(safeCurrentPage * PAGE_SIZE, filteredUsers.length);
-
-  const resetToFirstPage = () => setCurrentPage(1);
 
   const isBulkSelection = selectedUserIds.size > 1;
   const rowSendDisabled = isBulkSelection;
 
   const allPageSelected =
-    paginatedUsers.length > 0 &&
-    paginatedUsers.every((user) => selectedUserIds.has(user.id));
+    users.length > 0 && users.every((user) => selectedUserIds.has(user.id));
 
   const handleToggleAllOnPage = (checked: boolean) => {
-    setSelectedUserIds((current) => {
-      const next = new Set(current);
-      for (const user of paginatedUsers) {
+    setSelectedUsersById((current) => {
+      const next = new Map(current);
+      for (const user of users) {
         if (checked) {
-          next.add(user.id);
+          next.set(user.id, user);
         } else {
           next.delete(user.id);
         }
@@ -327,13 +410,13 @@ export function ManageEmailingPanel({
     });
   };
 
-  const handleToggleUser = (userId: string, checked: boolean) => {
-    setSelectedUserIds((current) => {
-      const next = new Set(current);
+  const handleToggleUser = (user: ManagerUserRow, checked: boolean) => {
+    setSelectedUsersById((current) => {
+      const next = new Map(current);
       if (checked) {
-        next.add(userId);
+        next.set(user.id, user);
       } else {
-        next.delete(userId);
+        next.delete(user.id);
       }
       return next;
     });
@@ -449,7 +532,7 @@ export function ManageEmailingPanel({
           </CardContent>
         </Card>
 
-        <div className="grid gap-4 @lg/panel:grid-cols-2 @4xl/panel:grid-cols-4">
+        <div className="grid gap-4 @lg/panel:grid-cols-2 @4xl/panel:grid-cols-3">
           <UserStatCard
             label="Total users"
             value={stats.total}
@@ -457,18 +540,13 @@ export function ManageEmailingPanel({
           />
           <UserStatCard
             label="Selected"
-            value={stats.selected}
+            value={selectedUserIds.size}
             accentClassName="border-l-emerald-500"
           />
           <UserStatCard
             label="Students"
             value={stats.students}
             accentClassName="border-l-violet-500"
-          />
-          <UserStatCard
-            label="With email"
-            value={stats.withEmail}
-            accentClassName="border-l-amber-500"
           />
         </div>
 
@@ -527,7 +605,7 @@ export function ManageEmailingPanel({
             <div className="min-w-0">
               <CardTitle>Users</CardTitle>
               <p className="text-sm text-muted-foreground">
-                {stats.selected} of {stats.total} selected
+                {selectedUserIds.size} of {stats.total} selected
                 {selectedUsers.length > 0
                   ? ` · ${selectedWithEmail.length} with email`
                   : ""}
@@ -554,44 +632,38 @@ export function ManageEmailingPanel({
             ) : null}
           </CardHeader>
           <CardContent className="px-0 pb-0">
-            <div className="grid gap-3 border-b px-4 pt-2 pb-3 @lg/panel:grid-cols-2 @2xl/panel:grid-cols-4">
-              <div className="relative min-w-0">
+            <div className="flex flex-col gap-3 border-b px-4 pt-2 pb-3 @lg/panel:flex-row @lg/panel:items-center">
+              <div className="relative min-w-0 flex-1">
                 <SearchIcon className="pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-muted-foreground" />
                 <Input
-                  type="text"
-                  value={nameFilter}
-                  onChange={(event) => {
-                    setNameFilter(event.target.value);
-                    resetToFirstPage();
-                  }}
-                  placeholder="Filter by name…"
-                  className="pl-8"
-                  aria-label="Filter by name"
+                  value={searchQuery}
+                  onChange={(event) => setSearchQuery(event.target.value)}
+                  placeholder="Search name…"
+                  className="pr-8 pl-8"
+                  aria-label="Search recipients"
                 />
-              </div>
-              <div className="relative min-w-0">
-                <SearchIcon className="pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-muted-foreground" />
-                <Input
-                  type="email"
-                  inputMode="email"
-                  value={emailFilter}
-                  onChange={(event) => {
-                    setEmailFilter(event.target.value);
-                    resetToFirstPage();
-                  }}
-                  placeholder="Filter by email…"
-                  className="pl-8"
-                  aria-label="Filter by email"
-                />
+                {searchQuery ? (
+                  <button
+                    type="button"
+                    onClick={() => setSearchQuery("")}
+                    className="absolute top-1/2 right-2.5 -translate-y-1/2 text-muted-foreground transition-colors hover:text-foreground"
+                    aria-label="Clear search"
+                  >
+                    <XIcon className="size-4" />
+                  </button>
+                ) : null}
               </div>
               <Select
                 value={roleFilter}
                 onValueChange={(value) => {
                   setRoleFilter(value ?? ROLE_FILTER_ALL);
-                  resetToFirstPage();
+                  setCurrentPage(1);
                 }}
               >
-                <SelectTrigger className="w-full" aria-label="Filter by role">
+                <SelectTrigger
+                  className="w-full @lg/panel:w-44"
+                  aria-label="Filter by role"
+                >
                   <SelectValue placeholder="All roles" />
                 </SelectTrigger>
                 <SelectContent>
@@ -607,11 +679,11 @@ export function ManageEmailingPanel({
                 value={classFilter}
                 onValueChange={(value) => {
                   setClassFilter(value ?? CLASS_FILTER_ALL);
-                  resetToFirstPage();
+                  setCurrentPage(1);
                 }}
               >
                 <SelectTrigger
-                  className="w-full"
+                  className="w-full @lg/panel:w-44"
                   aria-label="Filter by class"
                   disabled={isClassMembersPending}
                 >
@@ -636,26 +708,60 @@ export function ManageEmailingPanel({
                   ))}
                 </SelectContent>
               </Select>
+              <Select
+                value={String(pageSize)}
+                onValueChange={(value) => {
+                  if (!value) {
+                    return;
+                  }
+                  setPageSize(Number(value) as PageSizeOption);
+                  setCurrentPage(1);
+                }}
+              >
+                <SelectTrigger
+                  className="w-full @lg/panel:w-36"
+                  aria-label="Rows per page"
+                >
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {PAGE_SIZE_OPTIONS.map((size) => (
+                    <SelectItem key={size} value={String(size)}>
+                      {size} / page
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
 
-            {paginatedUsers.length === 0 ? (
+            {isClassMembersPending ? (
+              <div className="flex items-center justify-center gap-2 px-4 py-10 text-sm text-muted-foreground">
+                <InlineSpinner />
+                Loading class members…
+              </div>
+            ) : users.length === 0 ? (
               <EmptyState
                 size="sm"
-                className="m-4"
-                icon={initialUsers.length === 0 ? UsersIcon : SearchIcon}
+                className={cn("m-4", isLoading && "opacity-60")}
+                icon={stats.total === 0 ? UsersIcon : SearchIcon}
                 title={
-                  initialUsers.length === 0
+                  stats.total === 0
                     ? "No users available"
                     : "No users match your filters"
                 }
                 description={
-                  initialUsers.length === 0
+                  stats.total === 0
                     ? "There are no users to email yet."
                     : "Try a different search or filter."
                 }
               />
             ) : (
-              <div className="overflow-x-auto">
+              <div
+                className={cn(
+                  "overflow-x-auto",
+                  isLoading && "opacity-60 transition-opacity"
+                )}
+              >
                 <table className="w-full min-w-[720px] text-sm">
                   <thead className="border-b bg-muted/40 text-left text-muted-foreground">
                     <tr>
@@ -676,7 +782,7 @@ export function ManageEmailingPanel({
                     </tr>
                   </thead>
                   <tbody>
-                    {paginatedUsers.map((user) => {
+                    {users.map((user) => {
                       const isSelected = selectedUserIds.has(user.id);
                       const displayName = getUserDisplayName(user);
                       const hasEmail = Boolean(user.email);
@@ -692,13 +798,11 @@ export function ManageEmailingPanel({
                             "cursor-pointer border-b last:border-b-0 transition-colors",
                             isSelected ? "bg-primary/5" : "hover:bg-muted/40"
                           )}
-                          onClick={() =>
-                            handleToggleUser(user.id, !isSelected)
-                          }
+                          onClick={() => handleToggleUser(user, !isSelected)}
                           onKeyDown={(event) => {
                             if (event.key === "Enter" || event.key === " ") {
                               event.preventDefault();
-                              handleToggleUser(user.id, !isSelected);
+                              handleToggleUser(user, !isSelected);
                             }
                           }}
                         >
@@ -706,7 +810,7 @@ export function ManageEmailingPanel({
                             <SelectionCheckbox
                               checked={isSelected}
                               onCheckedChange={(checked) =>
-                                handleToggleUser(user.id, checked)
+                                handleToggleUser(user, checked)
                               }
                               onClick={(event) => event.stopPropagation()}
                               ariaLabel={`Select ${displayName}`}
@@ -769,12 +873,9 @@ export function ManageEmailingPanel({
 
             <div className="flex flex-col gap-3 border-t px-4 pt-2 pb-3 @lg/panel:flex-row @lg/panel:items-center @lg/panel:justify-between">
               <p className="text-sm text-muted-foreground">
-                Showing {rangeStart}–{rangeEnd} of {filteredUsers.length}
-                {filteredUsers.length !== initialUsers.length
-                  ? ` (filtered from ${initialUsers.length})`
-                  : ""}
+                Showing {rangeStart}–{rangeEnd} of {totalCount}
                 <span aria-hidden="true"> · </span>
-                {PAGE_SIZE} rows per page
+                {pageSize} rows per page
               </p>
 
               <div className="flex items-center gap-1">
@@ -782,7 +883,7 @@ export function ManageEmailingPanel({
                   type="button"
                   variant="outline"
                   size="icon-sm"
-                  disabled={safeCurrentPage <= 1}
+                  disabled={safeCurrentPage <= 1 || isLoading}
                   onClick={() => setCurrentPage((page) => Math.max(1, page - 1))}
                   aria-label="Previous page"
                 >
@@ -804,6 +905,7 @@ export function ManageEmailingPanel({
                       variant={page === safeCurrentPage ? "default" : "outline"}
                       size="icon-sm"
                       className="min-w-7"
+                      disabled={isLoading}
                       onClick={() => setCurrentPage(page)}
                       aria-label={`Page ${page}`}
                       aria-current={
@@ -819,7 +921,7 @@ export function ManageEmailingPanel({
                   type="button"
                   variant="outline"
                   size="icon-sm"
-                  disabled={safeCurrentPage >= totalPages}
+                  disabled={safeCurrentPage >= totalPages || isLoading}
                   onClick={() =>
                     setCurrentPage((page) => Math.min(totalPages, page + 1))
                   }

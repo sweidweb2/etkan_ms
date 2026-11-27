@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useTransition } from "react";
+import { useCallback, useEffect, useRef, useState, useTransition } from "react";
 import { useFormActionState as useActionState } from "@/hooks/use-form-action-state";
 import {
   addStudentToClassAction,
@@ -30,6 +30,7 @@ import {
   addStudentsToClassSchema,
   type AddStudentsToClassInput,
 } from "@/lib/validators/manager/add-student-to-class";
+import { showErrorToast } from "@/lib/toast";
 import type { AddStudentToClassActionState } from "@/types/manager-class-detail";
 import type { ManagerClassRow } from "@/types/manager-class-list";
 import type { ManagerClassStudentRow } from "@/types/manager-class-student";
@@ -37,6 +38,7 @@ import type { ManagerStudentFinalExamGradeRow } from "@/types/manager-class-fina
 import type { ManagerStudentRow } from "@/types/manager-student";
 
 const initialState: AddStudentToClassActionState = {};
+const PICKER_PAGE_SIZE = 25;
 
 type OptionalEnrollFollowUp = {
   studentId: string;
@@ -75,17 +77,24 @@ export function AddStudentToClassDialog({
   const [selectedStudents, setSelectedStudents] = useState<ManagerStudentRow[]>(
     []
   );
-  const [fetchedStudents, setFetchedStudents] = useState<
-    ManagerStudentRow[] | null
-  >(null);
+  const [fetchedStudents, setFetchedStudents] = useState<ManagerStudentRow[]>(
+    []
+  );
+  const [totalCount, setTotalCount] = useState(0);
+  const [page, setPage] = useState(1);
+  const [search, setSearch] = useState("");
+  const [isOptionsLoading, setIsOptionsLoading] = useState(false);
+  const [hasLoadedOnce, setHasLoadedOnce] = useState(false);
   const [optionalFollowUp, setOptionalFollowUp] =
     useState<OptionalEnrollFollowUp | null>(null);
+  const requestIdRef = useRef(0);
 
   const needsFetch = availableStudentsProp.length === 0;
   const availableStudents = needsFetch
-    ? (fetchedStudents ?? [])
+    ? fetchedStudents
     : availableStudentsProp;
-  const isLoadingOptions = open && needsFetch && fetchedStudents === null;
+  const hasMore =
+    needsFetch && fetchedStudents.length < totalCount && totalCount > 0;
 
   const {
     handleSubmit,
@@ -103,33 +112,88 @@ export function AddStudentToClassDialog({
   const handleOpenChange = usePendingAwareOpenChange(isPending, (nextOpen) => {
     if (!nextOpen) {
       setSelectedStudents([]);
-      setFetchedStudents(null);
+      setFetchedStudents([]);
+      setTotalCount(0);
+      setPage(1);
+      setSearch("");
+      setHasLoadedOnce(false);
       reset({ studentProfileIds: [] });
     }
     onOpenChange(nextOpen);
   });
+
+  const loadCandidates = useCallback(
+    async (nextSearch: string, nextPage: number, append: boolean) => {
+      const requestId = ++requestIdRef.current;
+      setIsOptionsLoading(true);
+      try {
+        const data = await loadAvailableStudentsForClassAction(classId, {
+          search: nextSearch,
+          page: nextPage,
+          pageSize: PICKER_PAGE_SIZE,
+        });
+        if (requestId !== requestIdRef.current) {
+          return;
+        }
+        if (!data) {
+          showErrorToast("Unable to load students.");
+          return;
+        }
+        setTotalCount(data.totalCount);
+        setPage(data.page);
+        setFetchedStudents((current) =>
+          append
+            ? [
+                ...current,
+                ...data.students.filter(
+                  (student) =>
+                    !current.some(
+                      (row) =>
+                        row.student_profile_id === student.student_profile_id
+                    )
+                ),
+              ]
+            : data.students
+        );
+        setHasLoadedOnce(true);
+      } finally {
+        if (requestId === requestIdRef.current) {
+          setIsOptionsLoading(false);
+        }
+      }
+    },
+    [classId]
+  );
 
   useEffect(() => {
     if (!open || !needsFetch) {
       return;
     }
 
-    let cancelled = false;
-    void loadAvailableStudentsForClassAction(classId).then((rows) => {
-      if (!cancelled) {
-        setFetchedStudents(rows);
-      }
-    });
+    void loadCandidates("", 1, false);
+  }, [open, classId, needsFetch, loadCandidates]);
 
-    return () => {
-      cancelled = true;
-    };
-  }, [open, classId, needsFetch]);
+  const handleSearchChange = useCallback(
+    (nextSearch: string) => {
+      const trimmed = nextSearch.trim();
+      if (trimmed === search) {
+        return;
+      }
+      setSearch(trimmed);
+      void loadCandidates(trimmed, 1, false);
+    },
+    [loadCandidates, search]
+  );
+
+  const handleLoadMore = useCallback(() => {
+    void loadCandidates(search, page + 1, true);
+  }, [loadCandidates, page, search]);
 
   useActionStateToast(state, isPending);
 
-  const hasAvailableStudents = availableStudents.length > 0;
+  const hasAvailableStudents = availableStudents.length > 0 || totalCount > 0;
   const selectedCount = selectedStudents.length;
+  const isLoadingOptions = open && needsFetch && !hasLoadedOnce;
 
   useActionStateSuccess(
     state,
@@ -226,7 +290,7 @@ export function AddStudentToClassDialog({
                   <InlineSpinner />
                   Loading students…
                 </div>
-              ) : hasAvailableStudents ? (
+              ) : hasAvailableStudents || needsFetch ? (
                 <StudentMultiSelectField
                   inputId="add-student-to-class-id"
                   students={availableStudents}
@@ -234,6 +298,11 @@ export function AddStudentToClassDialog({
                   onChange={handleSelectionChange}
                   disabled={isPending}
                   invalid={!!studentError}
+                  onSearchChange={needsFetch ? handleSearchChange : undefined}
+                  isLoading={isOptionsLoading}
+                  hasMore={hasMore}
+                  onLoadMore={needsFetch ? handleLoadMore : undefined}
+                  totalCount={needsFetch ? totalCount : undefined}
                 />
               ) : (
                 <p className="rounded-lg border border-dashed px-3 py-4 text-sm text-muted-foreground">
@@ -261,7 +330,7 @@ export function AddStudentToClassDialog({
               disabled={
                 isPending ||
                 isLoadingOptions ||
-                !hasAvailableStudents ||
+                (!hasAvailableStudents && !needsFetch) ||
                 selectedCount === 0
               }
             >

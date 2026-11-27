@@ -529,9 +529,14 @@ export async function resolveActorRole(
 export async function actorCanAccessWorkshop(
   adminClient: Supabase,
   actorUserId: string,
-  workshopId: string
+  workshopId: string,
+  actorRole?: RoleValue | null
 ): Promise<boolean> {
-  const role = await resolveActorRole(adminClient, actorUserId);
+  // Only skip the DB role lookup when a concrete role is provided.
+  // `null` from session pack must fall through — otherwise managers with a
+  // missing pack role lose all-workshop access.
+  const role =
+    actorRole ?? (await resolveActorRole(adminClient, actorUserId));
   if (roleCanViewAllWorkshops(role)) {
     return true;
   }

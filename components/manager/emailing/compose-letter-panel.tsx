@@ -10,7 +10,9 @@ import {
 } from "react";
 import { ArrowLeftIcon, SendIcon } from "lucide-react";
 import {
-  loadEmailingRecipientsAction,
+  findEmailingRecipientByEmailAction,
+  loadEmailingRecipientsByRoleAction,
+  searchEmailingRecipientsAction,
   sendManagerEmailAction,
 } from "@/app/manager/emailing/actions";
 import { Can } from "@/components/auth/can";
@@ -237,7 +239,9 @@ export function ComposeLetterPanel() {
             <div className="flex flex-col gap-2">
               <FieldLabel htmlFor="compose-to" label="To" hint="Required" />
               <RecipientToField
-                loadUsers={loadEmailingRecipientsAction}
+                searchUsers={searchEmailingRecipientsAction}
+                loadUsersByRole={loadEmailingRecipientsByRoleAction}
+                resolveUserByEmail={findEmailingRecipientByEmailAction}
                 recipients={recipients}
                 onChange={onRecipientsChange}
                 disabled={isPending}

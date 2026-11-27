@@ -1,11 +1,17 @@
 import "server-only";
 
+import { PERMISSIONS } from "@/lib/constants/permissions";
 import * as backupHistoryRepository from "@/repositories/backup-history.repository";
+import { assertPermission } from "@/services/auth/authorization.service";
 import type { BackupHistoryEntry, BackupHistoryScope } from "@/types/backup-history";
+import type { SupabaseClient } from "@supabase/supabase-js";
+import type { Database } from "@/types/supabase";
 
 type BackupHistoryClient = Parameters<
   typeof backupHistoryRepository.createBackupHistoryEntry
 >[0];
+
+type AuthClient = SupabaseClient<Database>;
 
 type CreateBackupHistoryInput = {
   createdBy: string | null;
@@ -41,8 +47,15 @@ export const BACKUP_HISTORY_PAGE_LIMIT = 100;
 
 export async function getRecentBackupHistory(
   client: BackupHistoryClient,
+  actorUserId: string | null,
   limit = BACKUP_HISTORY_PAGE_LIMIT
 ): Promise<BackupHistoryEntry[]> {
+  await assertPermission(
+    client as AuthClient,
+    actorUserId,
+    PERMISSIONS.BACKUP_VIEW
+  );
+
   const { data, error } = await backupHistoryRepository.listRecentBackupHistory(
     client,
     limit

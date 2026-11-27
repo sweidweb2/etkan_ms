@@ -1,3 +1,4 @@
+import type { FieldErrors } from "@/types/auth";
 import type { ManagerClassSessionRow } from "@/types/manager-class-session";
 import type { ManagerStudentClassRow } from "@/types/manager-student-class";
 import type {
@@ -64,6 +65,7 @@ export type StudentTaskUploadActionState = {
   success?: boolean;
   error?: string;
   message?: string;
+  fieldErrors?: FieldErrors;
   upload?: StudentTaskUploadForSelf;
 };
 

@@ -1,7 +1,8 @@
 import "server-only";
 
 import {
-  getCachedAuthEmails,
+  collectCachedAuthEmails,
+  getMissingAuthEmailIds,
   setCachedAuthEmails,
 } from "@/lib/auth/auth-emails-cache";
 import { getClaimsWithSharedJwks } from "@/lib/auth/get-claims";
@@ -172,33 +173,39 @@ export async function getAuthUserById(client: Supabase, id: string) {
   return client.auth.admin.getUserById(id);
 }
 
+/** Parallel `getUserById` chunk size — never scan the full Auth directory. */
+const AUTH_EMAIL_GET_BY_ID_CHUNK = 40;
+
 /**
- * Resolve emails for many auth user IDs.
- * Small batches use parallel `getUserById` (targeted).
- * Large batches fall back to paginated `listUsers`.
+ * Resolve emails for many auth user IDs via targeted `getUserById` chunks.
+ * Never falls back to paginated `listUsers` (O(directory) and cold-cache costly).
  */
 export async function listAuthEmailsByIds(
   client: Supabase,
   userIds: readonly string[]
 ): Promise<{ data: Map<string, string>; error: Error | null }> {
   const uniqueIds = [...new Set(userIds.filter(Boolean))];
-  const emailById = new Map<string, string>();
+  const emailById = collectCachedAuthEmails(uniqueIds);
 
   if (uniqueIds.length === 0) {
     return { data: emailById, error: null };
   }
 
-  const cached = getCachedAuthEmails(uniqueIds);
-  if (cached) {
-    return { data: cached, error: null };
+  const missingIds = getMissingAuthEmailIds(uniqueIds);
+  if (missingIds.length === 0) {
+    return { data: emailById, error: null };
   }
 
-  /** Auth Admin getUserById is cheaper than scanning all users for typical list pages. */
-  const GET_BY_ID_MAX = 50;
+  const fetched = new Map<string, string>();
 
-  if (uniqueIds.length <= GET_BY_ID_MAX) {
+  for (
+    let index = 0;
+    index < missingIds.length;
+    index += AUTH_EMAIL_GET_BY_ID_CHUNK
+  ) {
+    const chunk = missingIds.slice(index, index + AUTH_EMAIL_GET_BY_ID_CHUNK);
     const results = await Promise.all(
-      uniqueIds.map(async (id) => {
+      chunk.map(async (id) => {
         const { data, error } = await client.auth.admin.getUserById(id);
         return { id, data, error };
       })
@@ -206,76 +213,43 @@ export async function listAuthEmailsByIds(
 
     for (const row of results) {
       if (row.error) {
-        emailById.set(row.id, "");
+        fetched.set(row.id, "");
         continue;
       }
-      emailById.set(row.id, row.data.user?.email ?? "");
-    }
-
-    setCachedAuthEmails(uniqueIds, emailById);
-    return { data: emailById, error: null };
-  }
-
-  const needed = new Set(uniqueIds);
-  let page = 1;
-  const perPage = 1000;
-
-  while (needed.size > 0) {
-    const { data, error } = await client.auth.admin.listUsers({ page, perPage });
-
-    if (error) {
-      return { data: emailById, error };
-    }
-
-    for (const user of data.users) {
-      if (needed.has(user.id)) {
-        emailById.set(user.id, user.email ?? "");
-        needed.delete(user.id);
-      }
-    }
-
-    if (data.users.length < perPage) {
-      break;
-    }
-
-    page += 1;
-  }
-
-  for (const id of uniqueIds) {
-    if (!emailById.has(id)) {
-      emailById.set(id, "");
+      fetched.set(row.id, row.data.user?.email ?? "");
     }
   }
 
-  setCachedAuthEmails(uniqueIds, emailById);
+  setCachedAuthEmails(missingIds, fetched);
+  for (const [id, email] of fetched) {
+    emailById.set(id, email);
+  }
+
   return { data: emailById, error: null };
 }
 
-/** Paginates auth users until a matching email is found or pages are exhausted. */
+/**
+ * Resolve an auth user by email via DB lookup (no Auth Admin directory scan).
+ * Returns the same shape as `getUserById` when found.
+ */
 export async function findAuthUserByEmail(client: Supabase, email: string) {
   const normalizedEmail = email.trim().toLowerCase();
-  let page = 1;
-  const perPage = 1000;
-
-  while (true) {
-    const { data, error } = await client.auth.admin.listUsers({ page, perPage });
-
-    if (error) {
-      return { data: null, error };
-    }
-
-    const match = data.users.find(
-      (user) => user.email?.trim().toLowerCase() === normalizedEmail
-    );
-
-    if (match) {
-      return { data: { user: match }, error: null };
-    }
-
-    if (data.users.length < perPage) {
-      return { data: null, error: null };
-    }
-
-    page += 1;
+  if (!normalizedEmail) {
+    return { data: null, error: null };
   }
+
+  const { data: userId, error: lookupError } = await client.rpc(
+    "find_auth_user_id_by_email",
+    { p_email: normalizedEmail }
+  );
+
+  if (lookupError) {
+    return { data: null, error: lookupError };
+  }
+
+  if (!userId) {
+    return { data: null, error: null };
+  }
+
+  return client.auth.admin.getUserById(userId);
 }

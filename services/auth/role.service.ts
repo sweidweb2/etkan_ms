@@ -1,5 +1,6 @@
 import "server-only";
 
+import { resolveEffectiveClaimsRole } from "@/lib/auth/claims-role-override-cache";
 import { ROLES, type RoleValue } from "@/lib/constants/roles";
 import { roleSchema } from "@/lib/validators/role";
 import * as authRepository from "@/repositories/auth.repository";
@@ -53,13 +54,21 @@ export async function resolveUserRole(
 /**
  * Middleware-fast role: prefer verified JWT claims, else profiles.role by id.
  * Skips Auth-server getUser when claims already carry the role.
+ *
+ * After an admin role write, a process-local override may force the new role
+ * until the access token refreshes (JWT app_metadata does not invalidate).
  */
 export async function resolveUserRoleForMiddleware(
   client: Supabase,
   input: { userId: string; claimsRole: RoleValue | null }
 ): Promise<RoleValue> {
-  if (input.claimsRole) {
-    return input.claimsRole;
+  const effectiveClaimsRole = resolveEffectiveClaimsRole(
+    input.userId,
+    input.claimsRole
+  );
+
+  if (effectiveClaimsRole) {
+    return effectiveClaimsRole;
   }
 
   const { data, error } = await profileRepository.findRoleById(

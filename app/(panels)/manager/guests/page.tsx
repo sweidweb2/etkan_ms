@@ -2,7 +2,7 @@ import { ManageGuestsPanel } from "@/components/manager/guests/manage-guests-pan
 import { getSessionUser } from "@/lib/auth/session";
 import { createNavStepTimer } from "@/lib/debug/nav-timing";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
-import { listGuestsForManager } from "@/services/guests/guest.service";
+import { listGuestsPageForManager } from "@/services/guests/guest.service";
 import { listTeamsForManager } from "@/services/teams/team.service";
 
 export default async function ManagerGuestsPage() {
@@ -11,21 +11,21 @@ export default async function ManagerGuestsPage() {
   const user = await timer.step("session", () => getSessionUser());
   const actorUserId = user?.id ?? null;
 
-  const guestsPromise = timer.step("guests", () =>
-    listGuestsForManager(adminClient, actorUserId)
-  );
-
-  const [guests, teams] = await Promise.all([
-    guestsPromise,
-    // Roles without teams.view still get the guests table.
-    // Pass the in-flight guest list so teams skip a second guests + email load.
+  const [guestsData, teams] = await Promise.all([
+    timer.step("guests", () =>
+      listGuestsPageForManager(adminClient, actorUserId, {
+        page: 1,
+        unassignedOnly: true,
+      })
+    ),
+    // Team memberships load only assigned guest rows (not the full roster).
     timer.step("teams", () =>
-      listTeamsForManager(adminClient, actorUserId, guestsPromise).catch(
-        () => []
-      )
+      listTeamsForManager(adminClient, actorUserId).catch(() => [])
     ),
   ]);
   timer.end();
 
-  return <ManageGuestsPanel initialGuests={guests} initialTeams={teams} />;
+  return (
+    <ManageGuestsPanel initialData={guestsData} initialTeams={teams} />
+  );
 }

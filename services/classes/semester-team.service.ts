@@ -378,6 +378,21 @@ export async function saveSemesterBoardForManager(
     return { success: true, message: "Board unchanged." };
   }
 
+  const listed = await semesterRepository.listSemesters(adminClient);
+  if (listed.error) {
+    return {
+      success: false,
+      error: "Unable to save board. Please try again.",
+    };
+  }
+  const knownSemesterIds = new Set((listed.data ?? []).map((row) => row.id));
+  if (placements.some((placement) => !knownSemesterIds.has(placement.id))) {
+    return {
+      success: false,
+      error: "One or more semesters were not found.",
+    };
+  }
+
   const { error } = await semesterRepository.updateSemesterBoardPositions(
     adminClient,
     placements
@@ -495,15 +510,12 @@ export async function assignSemestersToTeamForManager(
   }
 
   const byId = new Map((listed.data ?? []).map((row) => [row.id, row]));
-  const semesters = uniqueSemesterIds.map((id) => {
+  const semesters = uniqueSemesterIds.flatMap((id) => {
     const row = byId.get(id);
-    if (!row) {
-      return null;
-    }
-    return mapSemesterPlacementRow(row);
+    return row ? [mapSemesterPlacementRow(row)] : [];
   });
 
-  if (semesters.some((row) => row === null)) {
+  if (semesters.length !== uniqueSemesterIds.length) {
     return {
       success: false,
       error: "One or more semesters were not found.",
@@ -524,7 +536,7 @@ export async function assignSemestersToTeamForManager(
 
   return {
     success: true,
-    semesters: semesters as ManagerSemesterRow[],
+    semesters,
     teamId,
     message:
       uniqueSemesterIds.length === 1

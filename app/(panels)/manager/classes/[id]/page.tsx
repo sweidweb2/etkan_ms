@@ -52,7 +52,7 @@ export default async function ManagerClassDetailPage({
 
   const timer = createNavStepTimer("class_detail");
   const [
-    classRow,
+    classRowBase,
     sessions,
     students,
     finalExamBundle,
@@ -62,7 +62,9 @@ export default async function ManagerClassDetailPage({
     weekSkipState,
   ] = await Promise.all([
     timer.step("class", () =>
-      getClassForManager(adminClient, actorUserId, id)
+      getClassForManager(adminClient, actorUserId, id, {
+        includeCounts: false,
+      })
     ),
     timer.step("sessions", () =>
       canSessions
@@ -94,15 +96,30 @@ export default async function ManagerClassDetailPage({
     ),
     timer.step("weekSkips", () =>
       canSessions
-        ? getClassWeekSkipState(adminClient, { classId: id, actorRole: pack.role })
+        ? getClassWeekSkipState(adminClient, {
+            classId: id,
+            actorRole: pack.role,
+          })
         : Promise.resolve(EMPTY_CLASS_WEEK_SKIP_STATE)
     ),
   ]);
   timer.end();
 
-  if (!classRow) {
+  if (!classRowBase) {
     notFound();
   }
+
+  // Derive counts from already-loaded lists (avoids 3 extra count queries).
+  const classRow = {
+    ...classRowBase,
+    enrollment_count: canStudents
+      ? students.length
+      : classRowBase.enrollment_count,
+    teacher_count: teachers.length,
+    completed_sessions: canSessions
+      ? sessions.length
+      : classRowBase.completed_sessions,
+  };
 
   return (
     <div className="flex flex-col gap-6">
@@ -128,6 +145,11 @@ export default async function ManagerClassDetailPage({
               classId={id}
               className={classRow.name}
               actorUserId={actorUserId}
+              // Only pass preloads when those lists were actually fetched.
+              // An empty `sessions=[]` from a missing SESSIONS_VIEW grant must
+              // not be treated as "class has zero sessions".
+              sessions={canSessions ? sessions : undefined}
+              enrolledCount={canStudents ? students.length : undefined}
               enabled
             />
           ) : null

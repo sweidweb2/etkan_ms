@@ -143,10 +143,6 @@ export function StudentClassTaskDetailsPanel({
                 canMutate={false}
                 collapsible={false}
                 title="Task files"
-                getSignedUrlAction={async () => ({
-                  success: false,
-                  error: "Unavailable.",
-                })}
                 getSignedUrlById={getStudentTaskAttachmentSignedUrlForSelfAction}
               />
             ) : null}

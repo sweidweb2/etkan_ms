@@ -1,6 +1,7 @@
 import "server-only";
 
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { collectAllPages } from "@/repositories/_shared/collect-all-pages";
 import {
   asSppRecord,
   type StudentPaymentPhaseRecord,
@@ -83,13 +84,16 @@ export async function listFinancialAdjustmentsBetween(
   fromInclusive: string,
   toExclusive: string
 ) {
-  return client
-    .from("student_financial_adjustments")
-    .select(ADJUSTMENT_COLUMNS)
-    .gte("effective_date", fromInclusive)
-    .lt("effective_date", toExclusive)
-    .order("effective_date", { ascending: false })
-    .order("created_at", { ascending: false });
+  return collectAllPages((offset, limit) =>
+    client
+      .from("student_financial_adjustments")
+      .select(ADJUSTMENT_COLUMNS)
+      .gte("effective_date", fromInclusive)
+      .lt("effective_date", toExclusive)
+      .order("effective_date", { ascending: false })
+      .order("created_at", { ascending: false })
+      .range(offset, offset + limit - 1)
+  );
 }
 
 /** Slim rows for analytics chart totals. */
@@ -98,11 +102,14 @@ export async function listFinancialAdjustmentAmountsBetween(
   fromInclusive: string,
   toExclusive: string
 ) {
-  return client
-    .from("student_financial_adjustments")
-    .select("effective_date, value, value_type, student_payment_phase_id")
-    .gte("effective_date", fromInclusive)
-    .lt("effective_date", toExclusive);
+  return collectAllPages((offset, limit) =>
+    client
+      .from("student_financial_adjustments")
+      .select("effective_date, value, value_type, student_payment_phase_id")
+      .gte("effective_date", fromInclusive)
+      .lt("effective_date", toExclusive)
+      .range(offset, offset + limit - 1)
+  );
 }
 
 export async function findFinancialAdjustmentDateBounds(client: Supabase) {

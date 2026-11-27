@@ -356,19 +356,6 @@ export async function deleteStudentTaskUploadForManager(
     }
   }
 
-  const storageResult =
-    await studentTaskStorageRepository.removeStudentTaskStorageObjects(
-      adminClient,
-      [existing.data.storage_path]
-    );
-
-  if (storageResult.error) {
-    return {
-      success: false,
-      error: storageResult.error.message || "Unable to delete upload file.",
-    };
-  }
-
   const { error } =
     await studentTaskUploadRepository.deleteStudentTaskUploadById(
       adminClient,
@@ -381,6 +368,12 @@ export async function deleteStudentTaskUploadForManager(
       error: error.message || "Unable to delete upload.",
     };
   }
+
+  // Prefer orphaned storage over a DB row pointing at a missing object.
+  await studentTaskStorageRepository.removeStudentTaskStorageObjects(
+    adminClient,
+    [existing.data.storage_path]
+  );
 
   await recordManagerAuditLog(adminClient, actor, {
     action: "delete",

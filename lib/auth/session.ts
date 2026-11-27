@@ -8,6 +8,7 @@ import {
   type PermissionKey,
 } from "@/lib/constants/permissions";
 import { ROLES, type RoleValue } from "@/lib/constants/roles";
+import { resolveEffectiveClaimsRole } from "@/lib/auth/claims-role-override-cache";
 import {
   getCachedSessionShell,
   getOrCreateSessionShellInflight,
@@ -214,7 +215,9 @@ export async function loadSessionPack(): Promise<SessionPack> {
     return EMPTY_SESSION_PACK;
   }
 
-  const { user, claimsRole } = identity;
+  const { user, claimsRole: jwtClaimsRole } = identity;
+  // Prefer process override after admin role writes (JWT may still be elevated).
+  const claimsRole = resolveEffectiveClaimsRole(user.id, jwtClaimsRole);
 
   const cached = getCachedSessionShell(user.id);
   if (cached && isSessionShellCompatibleWithClaims(cached, claimsRole)) {

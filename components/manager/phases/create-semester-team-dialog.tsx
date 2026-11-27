@@ -103,10 +103,6 @@ export function CreateSemesterTeamDialog({
             ) : null}
           </div>
 
-          {state.error && !state.fieldErrors ? (
-            <p className="text-sm text-destructive">{state.error}</p>
-          ) : null}
-
           <DialogFooter className="sm:justify-end">
             <Button
               type="button"

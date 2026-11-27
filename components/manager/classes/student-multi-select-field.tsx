@@ -1,7 +1,8 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { XIcon } from "lucide-react";
+import { InlineSpinner } from "@/components/loaders/inline-spinner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -20,6 +21,12 @@ type StudentMultiSelectFieldProps = {
   disabled?: boolean;
   invalid?: boolean;
   inputId?: string;
+  /** When set, search is delegated to the parent (server-paged candidates). */
+  onSearchChange?: (query: string) => void;
+  isLoading?: boolean;
+  hasMore?: boolean;
+  onLoadMore?: () => void;
+  totalCount?: number;
 };
 
 function studentKey(student: ManagerStudentRow) {
@@ -37,9 +44,25 @@ export function StudentMultiSelectField({
   disabled = false,
   invalid = false,
   inputId = "student-multi-select",
+  onSearchChange,
+  isLoading = false,
+  hasMore = false,
+  onLoadMore,
+  totalCount,
 }: StudentMultiSelectFieldProps) {
   const [query, setQuery] = useState("");
   const [isFocused, setIsFocused] = useState(false);
+  const isServerSearch = typeof onSearchChange === "function";
+
+  useEffect(() => {
+    if (!isServerSearch) {
+      return;
+    }
+    const timer = window.setTimeout(() => {
+      onSearchChange(query);
+    }, 250);
+    return () => window.clearTimeout(timer);
+  }, [isServerSearch, onSearchChange, query]);
 
   const selectedKeys = useMemo(
     () => new Set(selected.map(studentKey)),
@@ -47,11 +70,15 @@ export function StudentMultiSelectField({
   );
 
   const suggestions = useMemo(() => {
-    const q = query.trim().toLowerCase();
     const unselected = students.filter(
       (student) => !selectedKeys.has(studentKey(student))
     );
 
+    if (isServerSearch) {
+      return unselected.slice(0, 12);
+    }
+
+    const q = query.trim().toLowerCase();
     if (!q) {
       return unselected.slice(0, 8);
     }
@@ -68,7 +95,7 @@ export function StudentMultiSelectField({
         return haystack.includes(q);
       })
       .slice(0, 8);
-  }, [query, selectedKeys, students]);
+  }, [isServerSearch, query, selectedKeys, students]);
 
   const addStudent = (student: ManagerStudentRow) => {
     if (selectedKeys.has(studentKey(student))) {
@@ -87,8 +114,16 @@ export function StudentMultiSelectField({
     setQuery("");
   };
 
-  const selectAll = () => {
-    onChange(students);
+  const selectAllLoaded = () => {
+    const merged = [...selected];
+    const keys = new Set(selected.map(studentKey));
+    for (const student of students) {
+      if (!keys.has(studentKey(student))) {
+        merged.push(student);
+        keys.add(studentKey(student));
+      }
+    }
+    onChange(merged);
     setQuery("");
   };
 
@@ -133,7 +168,7 @@ export function StudentMultiSelectField({
             disabled={disabled}
             placeholder={
               selected.length === 0
-                ? "Type a name or email…"
+                ? "Type a name or phone…"
                 : "Add another…"
             }
             className="h-8 min-w-[10rem] flex-1 border-0 bg-transparent px-1 shadow-none focus-visible:ring-0"
@@ -183,7 +218,7 @@ export function StudentMultiSelectField({
         ) : null}
       </div>
 
-      {isFocused && suggestions.length > 0 ? (
+      {isFocused && (suggestions.length > 0 || isLoading || hasMore) ? (
         <div className="max-h-56 overflow-y-auto rounded-lg border border-border bg-popover p-1 shadow-md">
           {suggestions.map((student) => (
             <button
@@ -201,6 +236,27 @@ export function StudentMultiSelectField({
               </span>
             </button>
           ))}
+          {isLoading ? (
+            <div className="flex items-center gap-2 px-2 py-1.5 text-xs text-muted-foreground">
+              <InlineSpinner />
+              Searching…
+            </div>
+          ) : null}
+          {hasMore && onLoadMore ? (
+            <button
+              type="button"
+              className="flex w-full items-center justify-center gap-2 rounded-md px-2 py-1.5 text-xs text-muted-foreground hover:bg-muted"
+              onMouseDown={(event) => {
+                event.preventDefault();
+                onLoadMore();
+              }}
+            >
+              Load more
+              {typeof totalCount === "number"
+                ? ` (${students.length} of ${totalCount})`
+                : ""}
+            </button>
+          ) : null}
         </div>
       ) : null}
 
@@ -211,9 +267,9 @@ export function StudentMultiSelectField({
             size="sm"
             variant="outline"
             disabled={disabled || selected.length === students.length}
-            onClick={selectAll}
+            onClick={selectAllLoaded}
           >
-            Select all
+            Select all loaded
           </Button>
         </div>
       ) : null}

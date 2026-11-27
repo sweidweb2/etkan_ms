@@ -30,13 +30,11 @@ import {
 } from "@/lib/constants/routes";
 import { cn } from "@/lib/utils";
 import type { ManagerEmailSentListRow } from "@/types/manager-emailing";
-import type { ManagerUserRow } from "@/types/manager-user";
 
 const PAGE_SIZE = 20;
 
 type ManageSentEmailsPanelProps = {
   initialEmails: ManagerEmailSentListRow[];
-  initialUsers: ManagerUserRow[];
   totalCount: number;
 };
 
@@ -70,7 +68,6 @@ function getPageNumbers(currentPage: number, totalPages: number) {
 
 export function ManageSentEmailsPanel({
   initialEmails,
-  initialUsers,
   totalCount,
 }: ManageSentEmailsPanelProps) {
   const router = useRouter();
@@ -352,7 +349,6 @@ export function ManageSentEmailsPanel({
           }
         }}
         email={resendTarget}
-        users={initialUsers}
       />
     </div>
   );

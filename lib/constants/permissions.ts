@@ -179,10 +179,8 @@ export const PERMISSIONS = {
   SEMESTERS_VIEW: "semesters.view",
   SEMESTERS_CREATE: "semesters.create",
   SEMESTERS_UPDATE: "semesters.update",
-  SEMESTERS_TEAMS_VIEW: "semesters.teams.view",
   SEMESTERS_TEAMS_CREATE: "semesters.teams.create",
   SEMESTERS_TEAMS_UPDATE: "semesters.teams.update",
-  SEMESTERS_TEAMS_DELETE: "semesters.teams.delete",
 
   GALLERY_VIEW: "gallery.view",
   GALLERY_CREATE: "gallery.create",
@@ -820,12 +818,6 @@ export const PERMISSION_DEFINITIONS: readonly PermissionDefinition[] = [
     access: PERMISSION_ACCESS.WRITE,
   },
   {
-    key: PERMISSIONS.SEMESTERS_TEAMS_VIEW,
-    feature: "semesters",
-    label: "View semester teams",
-    access: PERMISSION_ACCESS.READ,
-  },
-  {
     key: PERMISSIONS.SEMESTERS_TEAMS_CREATE,
     feature: "semesters",
     label: "Create semester team",
@@ -835,12 +827,6 @@ export const PERMISSION_DEFINITIONS: readonly PermissionDefinition[] = [
     key: PERMISSIONS.SEMESTERS_TEAMS_UPDATE,
     feature: "semesters",
     label: "Edit semester team",
-    access: PERMISSION_ACCESS.WRITE,
-  },
-  {
-    key: PERMISSIONS.SEMESTERS_TEAMS_DELETE,
-    feature: "semesters",
-    label: "Delete semester team",
     access: PERMISSION_ACCESS.WRITE,
   },
 

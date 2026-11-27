@@ -95,33 +95,21 @@ export function ManagePhasesPanel({
     );
   };
 
-  const handleSemestersTeamChange = (
-    semesterIds: string[],
-    teamId: string | null
-  ) => {
-    const idSet = new Set(semesterIds);
-    setSemesters((current) => {
-      const maxSort = current.reduce((max, semester) => {
-        if ((semester.team_id ?? null) !== teamId) {
-          return max;
-        }
-        return Math.max(max, semester.sort_order);
-      }, -1);
-
-      let cursor = maxSort + 1;
-      return current.map((semester) => {
-        if (!idSet.has(semester.id)) {
+  const handleSemestersTeamChange = (assigned: ManagerSemesterRow[]) => {
+    const byId = new Map(assigned.map((semester) => [semester.id, semester]));
+    setSemesters((current) =>
+      current.map((semester) => {
+        const next = byId.get(semester.id);
+        if (!next) {
           return semester;
         }
-        const next = {
+        return {
           ...semester,
-          team_id: teamId,
-          sort_order: cursor,
+          team_id: next.team_id,
+          sort_order: next.sort_order,
         };
-        cursor += 1;
-        return next;
-      });
-    });
+      })
+    );
   };
 
   return (

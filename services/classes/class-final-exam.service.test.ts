@@ -31,7 +31,6 @@ vi.mock("@/repositories/student-class.repository");
 vi.mock("@/repositories/student-course-grade.repository");
 vi.mock("@/repositories/student-profile.repository");
 vi.mock("@/repositories/student-task.repository");
-vi.mock("@/repositories/task.repository");
 vi.mock("@/services/students/student.service", () => ({
   listStudentsForManager: vi.fn(),
 }));

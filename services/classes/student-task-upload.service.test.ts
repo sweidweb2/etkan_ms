@@ -290,7 +290,21 @@ describe("deleteStudentTaskUploadForManager", () => {
     ).mockResolvedValue({ error: null } as never);
   });
 
-  it("deletes storage then the DB row", async () => {
+  it("deletes the DB row then storage", async () => {
+    const callOrder: string[] = [];
+    vi.mocked(
+      studentTaskUploadRepository.deleteStudentTaskUploadById
+    ).mockImplementation(async () => {
+      callOrder.push("db");
+      return { error: null } as never;
+    });
+    vi.mocked(
+      studentTaskStorageRepository.removeStudentTaskStorageObjects
+    ).mockImplementation(async () => {
+      callOrder.push("storage");
+      return { error: null };
+    });
+
     const result = await deleteStudentTaskUploadForManager(
       adminClient,
       actor.userId,
@@ -299,11 +313,12 @@ describe("deleteStudentTaskUploadForManager", () => {
     );
 
     expect(
-      studentTaskStorageRepository.removeStudentTaskStorageObjects
-    ).toHaveBeenCalledWith(adminClient, [uploadRecord.storage_path]);
-    expect(
       studentTaskUploadRepository.deleteStudentTaskUploadById
     ).toHaveBeenCalledWith(adminClient, uploadId);
+    expect(
+      studentTaskStorageRepository.removeStudentTaskStorageObjects
+    ).toHaveBeenCalledWith(adminClient, [uploadRecord.storage_path]);
+    expect(callOrder).toEqual(["db", "storage"]);
     expect(result.success).toBe(true);
   });
 });

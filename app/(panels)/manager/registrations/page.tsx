@@ -1,15 +1,16 @@
 import { ManageRegistrationsPanel } from "@/components/manager/registrations/manage-registrations-panel";
 import { getSessionUser } from "@/lib/auth/session";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
-import { listRegistrationApplicationsForManager } from "@/services/students/student-registration.service";
+import { listRegistrationApplicationsPageForManager } from "@/services/students/student-registration.service";
 
 export default async function ManagerRegistrationsPage() {
   const adminClient = createSupabaseAdminClient();
   const user = await getSessionUser();
-  const applications = await listRegistrationApplicationsForManager(
+  const data = await listRegistrationApplicationsPageForManager(
     adminClient,
-    user?.id ?? null
+    user?.id ?? null,
+    { page: 1 }
   );
 
-  return <ManageRegistrationsPanel initialApplications={applications} />;
+  return <ManageRegistrationsPanel initialData={data} />;
 }

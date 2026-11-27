@@ -101,7 +101,7 @@ export async function loadWorkshopsPageAction(
     return await listWorkshopsForManager(
       adminClient,
       actor.userId,
-      undefined,
+      actor.role,
       query
     );
   } catch {
@@ -122,7 +122,8 @@ export async function loadWorkshopRowAction(
     return await getWorkshopRowForManager(
       adminClient,
       actor.userId,
-      workshopId
+      workshopId,
+      actor.role
     );
   } catch {
     return null;
@@ -145,7 +146,8 @@ export async function loadWorkshopPaymentsAction(
     return await listWorkshopPaymentsForManager(
       adminClient,
       actor.userId,
-      workshopId
+      workshopId,
+      actor.role
     );
   } catch {
     return null;
@@ -165,7 +167,8 @@ export async function loadWorkshopInstructorCandidatesAction(
     return await listWorkshopInstructorCandidatesForManager(
       adminClient,
       actor.userId,
-      workshopId
+      workshopId,
+      actor.role
     );
   } catch {
     return [];
@@ -185,7 +188,8 @@ export async function loadWorkshopScheduleSlotsAction(
     return await listWorkshopScheduleSlotsForManager(
       adminClient,
       actor.userId,
-      workshopId
+      workshopId,
+      actor.role
     );
   } catch {
     return [];

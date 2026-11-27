@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useMemo, useState } from "react";
+import { useEffect, useRef, useState, useTransition } from "react";
 import { format } from "date-fns";
 import {
   ChevronLeftIcon,
@@ -14,7 +14,9 @@ import {
   UsersIcon,
   XIcon,
 } from "lucide-react";
+import { loadUsersPageAction } from "@/app/manager/users/actions";
 import { Can } from "@/components/auth/can";
+import { InlineSpinner } from "@/components/loaders/inline-spinner";
 import { AddUserDialog } from "@/components/manager/users/add-user-dialog";
 import { EditUserDialog } from "@/components/manager/users/edit-user-dialog";
 import { UserRoleBadge } from "@/components/manager/users/user-role-badge";
@@ -42,11 +44,15 @@ import {
 import { MANAGER_USER_ROLE_LABELS } from "@/lib/constants/manager-user-display";
 import { PERMISSIONS } from "@/lib/constants/permissions";
 import { getManagerUserDetailRoute } from "@/lib/constants/routes";
-import { ROLE_VALUES, ROLES } from "@/lib/constants/roles";
+import { ROLE_VALUES, ROLES, type RoleValue } from "@/lib/constants/roles";
+import { showErrorToast } from "@/lib/toast";
 import { cn } from "@/lib/utils";
-import { prependUniqueById } from "@/lib/utils/prepend-unique-by-id";
 import { truncateText } from "@/lib/utils/truncate-text";
-import type { ManagerUserRow } from "@/types/manager-user";
+import type {
+  ManagerUserRow,
+  ManagerUsersListData,
+  ManagerUsersListQuery,
+} from "@/types/manager-user";
 
 const PAGE_SIZE_OPTIONS = [5, 10, 25] as const;
 const COLUMN_LIMITS = {
@@ -56,11 +62,14 @@ const COLUMN_LIMITS = {
 
 const ROLE_FILTER_ALL = "all";
 const STAFF_ROLE_VALUES = ROLE_VALUES.filter((role) => role !== ROLES.STUDENT);
+const DEFAULT_PAGE_SIZE = 10;
 
 const USER_ROW_CLASS =
   "cursor-pointer border-b last:border-b-0 transition-all duration-150 hover:bg-primary/10 hover:shadow-[inset_4px_0_0_0_var(--primary)] active:bg-primary/15 focus-visible:bg-primary/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset";
 
 const ROLE_LABELS = MANAGER_USER_ROLE_LABELS;
+
+type PageSizeOption = (typeof PAGE_SIZE_OPTIONS)[number];
 
 function TruncatedCell({
   value,
@@ -122,16 +131,13 @@ function getPageNumbers(currentPage: number, totalPages: number) {
   return result;
 }
 
-function matchesSearch(user: ManagerUserRow, query: string) {
-  const normalizedQuery = query.trim().toLowerCase();
-  if (!normalizedQuery) {
-    return true;
-  }
-
-  const fullName = user.full_name.toLowerCase();
-  const email = user.email.toLowerCase();
-
-  return fullName.includes(normalizedQuery) || email.includes(normalizedQuery);
+function listQueryKey(query: {
+  role: string;
+  search: string;
+  page: number;
+  pageSize: number;
+}) {
+  return `${query.role}|${query.search}|${query.page}|${query.pageSize}`;
 }
 
 function CurrentUserBadge() {
@@ -158,71 +164,130 @@ function UserDetailsLink({ user }: { user: ManagerUserRow }) {
 }
 
 export function ManageUsersPanel({
-  initialUsers,
+  initialData,
   currentUserId,
 }: {
-  initialUsers: ManagerUserRow[];
+  initialData: ManagerUsersListData;
   currentUserId: string | null;
 }) {
   const router = useRouter();
+  const [users, setUsers] = useState(initialData.users);
+  const [totalCount, setTotalCount] = useState(initialData.totalCount);
+  const [stats, setStats] = useState(initialData.stats);
+  const [isLoading, startTransition] = useTransition();
   const [isAddUserOpen, setIsAddUserOpen] = useState(false);
   const [editingUser, setEditingUser] = useState<ManagerUserRow | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
   const [roleFilter, setRoleFilter] = useState<string>(ROLE_FILTER_ALL);
-  const [pageSize, setPageSize] = useState<(typeof PAGE_SIZE_OPTIONS)[number]>(
-    10
+  const [pageSize, setPageSize] = useState<PageSizeOption>(
+    (PAGE_SIZE_OPTIONS as readonly number[]).includes(initialData.pageSize)
+      ? (initialData.pageSize as PageSizeOption)
+      : DEFAULT_PAGE_SIZE
   );
-  const [currentPage, setCurrentPage] = useState(1);
+  const [currentPage, setCurrentPage] = useState(initialData.page);
 
-  const [users, setUsers] = useState(initialUsers);
-  const [prevUsers, setPrevUsers] = useState(initialUsers);
-
-  if (initialUsers !== prevUsers) {
-    setPrevUsers(initialUsers);
-    setUsers(initialUsers);
-  }
-
-  const stats = useMemo(
-    () => ({
-      total: users.length,
-      teachers: users.filter((user) => user.role === ROLES.TEACHER).length,
-      staff: users.filter(
-        (user) =>
-          user.role === ROLES.MANAGER ||
-          user.role === ROLES.CO_MANAGER ||
-          user.role === ROLES.ADMIN ||
-          user.role === ROLES.CEO ||
-          user.role === ROLES.SUPERVISOR ||
-          user.role === ROLES.CRM
-      ).length,
-    }),
-    [users]
+  const loadedKeyRef = useRef(
+    listQueryKey({
+      role: ROLE_FILTER_ALL,
+      search: "",
+      page: initialData.page,
+      pageSize: initialData.pageSize,
+    })
   );
+  const requestIdRef = useRef(0);
 
-  const filteredUsers = useMemo(() => {
-    return users.filter((user) => {
-      const matchesRole =
-        roleFilter === ROLE_FILTER_ALL || user.role === roleFilter;
-      return matchesRole && matchesSearch(user, searchQuery);
-    });
-  }, [roleFilter, searchQuery, users]);
-
-  const totalPages = Math.max(1, Math.ceil(filteredUsers.length / pageSize));
+  const totalPages = Math.max(1, Math.ceil(totalCount / pageSize));
   const safeCurrentPage = Math.min(currentPage, totalPages);
-
-  const paginatedUsers = useMemo(() => {
-    const startIndex = (safeCurrentPage - 1) * pageSize;
-    return filteredUsers.slice(startIndex, startIndex + pageSize);
-  }, [filteredUsers, pageSize, safeCurrentPage]);
-
   const pageNumbers = getPageNumbers(safeCurrentPage, totalPages);
-  const rangeStart =
-    filteredUsers.length === 0 ? 0 : (safeCurrentPage - 1) * pageSize + 1;
-  const rangeEnd = Math.min(safeCurrentPage * pageSize, filteredUsers.length);
+  const rangeStart = totalCount === 0 ? 0 : (safeCurrentPage - 1) * pageSize + 1;
+  const rangeEnd = Math.min(safeCurrentPage * pageSize, totalCount);
+
+  const buildListQuery = (
+    overrides: Partial<{
+      role: string;
+      search: string;
+      page: number;
+      pageSize: number;
+    }> = {}
+  ): ManagerUsersListQuery => {
+    const role = overrides.role ?? roleFilter;
+    return {
+      page: overrides.page ?? currentPage,
+      pageSize: overrides.pageSize ?? pageSize,
+      role: role === ROLE_FILTER_ALL ? null : (role as RoleValue),
+      search: overrides.search ?? debouncedSearch,
+    };
+  };
+
+  const applyListData = (data: ManagerUsersListData) => {
+    setUsers(data.users);
+    setTotalCount(data.totalCount);
+    setStats(data.stats);
+  };
+
+  const loadPage = (query: ManagerUsersListQuery) => {
+    const requestId = ++requestIdRef.current;
+    startTransition(async () => {
+      const data = await loadUsersPageAction(query);
+      if (requestId !== requestIdRef.current) {
+        return;
+      }
+      if (!data) {
+        showErrorToast("Unable to load users.");
+        return;
+      }
+      applyListData(data);
+      if (data.page !== query.page) {
+        loadedKeyRef.current = listQueryKey({
+          role: query.role ?? ROLE_FILTER_ALL,
+          search: query.search ?? "",
+          page: data.page,
+          pageSize: data.pageSize,
+        });
+        setCurrentPage(data.page);
+      }
+    });
+  };
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      const next = searchQuery.trim();
+      if (next !== debouncedSearch) {
+        setDebouncedSearch(next);
+        setCurrentPage(1);
+      }
+    }, 300);
+    return () => window.clearTimeout(timer);
+  }, [debouncedSearch, searchQuery]);
+
+  useEffect(() => {
+    const key = listQueryKey({
+      role: roleFilter,
+      search: debouncedSearch,
+      page: currentPage,
+      pageSize,
+    });
+    if (key === loadedKeyRef.current) {
+      return;
+    }
+    loadedKeyRef.current = key;
+    loadPage({
+      page: currentPage,
+      pageSize,
+      role:
+        roleFilter === ROLE_FILTER_ALL ? null : (roleFilter as RoleValue),
+      search: debouncedSearch,
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentPage, debouncedSearch, pageSize, roleFilter]);
+
+  const reloadCurrentPage = () => {
+    loadPage(buildListQuery());
+  };
 
   const handleSearchChange = (value: string) => {
     setSearchQuery(value);
-    setCurrentPage(1);
   };
 
   const handleRoleFilterChange = (value: string | null) => {
@@ -235,22 +300,35 @@ export function ManageUsersPanel({
       return;
     }
 
-    setPageSize(Number(value) as (typeof PAGE_SIZE_OPTIONS)[number]);
+    setPageSize(Number(value) as PageSizeOption);
     setCurrentPage(1);
   };
 
-  const handleUserCreated = (user: ManagerUserRow) => {
-    setUsers((current) => prependUniqueById(current, user));
+  const handleUserCreated = (_user: ManagerUserRow) => {
+    setSearchQuery("");
+    setDebouncedSearch("");
+    setRoleFilter(ROLE_FILTER_ALL);
     setCurrentPage(1);
+    loadedKeyRef.current = listQueryKey({
+      role: ROLE_FILTER_ALL,
+      search: "",
+      page: 1,
+      pageSize,
+    });
+    loadPage({ page: 1, pageSize, role: null, search: "" });
   };
 
   const handleUserUpdated = (user: ManagerUserRow) => {
-    setUsers((current) => {
-      if (user.role === ROLES.STUDENT) {
-        return current.filter((row) => row.id !== user.id);
-      }
-      return current.map((row) => (row.id === user.id ? user : row));
-    });
+    if (user.role === ROLES.STUDENT) {
+      setUsers((current) => current.filter((row) => row.id !== user.id));
+      setTotalCount((count) => Math.max(0, count - 1));
+      reloadCurrentPage();
+    } else {
+      setUsers((current) =>
+        current.map((row) => (row.id === user.id ? user : row))
+      );
+      reloadCurrentPage();
+    }
     setEditingUser(null);
   };
 
@@ -329,7 +407,7 @@ export function ManageUsersPanel({
                 <Input
                   value={searchQuery}
                   onChange={(event) => handleSearchChange(event.target.value)}
-                  placeholder="Search name or email…"
+                  placeholder="Search name…"
                   className="pr-8 pl-8"
                   aria-label="Search users"
                 />
@@ -359,18 +437,18 @@ export function ManageUsersPanel({
               </Select>
             </div>
 
-            {paginatedUsers.length === 0 ? (
+            {users.length === 0 ? (
               <EmptyState
                 size="sm"
-                className="m-4"
-                icon={users.length === 0 ? UsersIcon : SearchIcon}
+                className={cn("m-4", isLoading && "opacity-60")}
+                icon={stats.total === 0 ? UsersIcon : SearchIcon}
                 title={
-                  users.length === 0
+                  stats.total === 0
                     ? "No users yet"
                     : "No users match your filters"
                 }
                 description={
-                  users.length === 0
+                  stats.total === 0
                     ? "Add a user to get started."
                     : "Try a different search or role filter."
                 }
@@ -388,8 +466,8 @@ export function ManageUsersPanel({
                       <th className="px-4 py-3 text-center font-medium">Actions</th>
                     </tr>
                   </thead>
-                  <tbody>
-                    {paginatedUsers.map((user, index) => {
+                  <tbody className={cn(isLoading && "opacity-60")}>
+                    {users.map((user, index) => {
                       const isCurrentUser =
                         currentUserId !== null && user.id === currentUserId;
 
@@ -476,8 +554,9 @@ export function ManageUsersPanel({
 
             <div className="flex flex-col gap-3 border-t px-4 pt-2 pb-3 @lg/panel:flex-row @lg/panel:items-center @lg/panel:justify-between">
               <div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
-                <span>
-                  Showing {rangeStart}–{rangeEnd} of {filteredUsers.length}
+                <span className="inline-flex items-center gap-2">
+                  Showing {rangeStart}–{rangeEnd} of {totalCount}
+                  {isLoading ? <InlineSpinner /> : null}
                 </span>
                 <span aria-hidden="true">·</span>
                 <div className="flex items-center gap-2">

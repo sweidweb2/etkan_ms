@@ -112,9 +112,11 @@ export function DropSemesterDialog({
         <DialogHeader>
           <DialogTitle>Drop semester</DialogTitle>
           <DialogDescription>
-            Mark {student?.full_name ?? "this student"} as dropping from{" "}
-            {className}. They stay on the roster as pending until the required
-            share of the phase amount is paid (default 50%).
+            Mark {student?.full_name ?? "this student"} as dropping this
+            semester (from {className}). When the drop completes, they leave
+            every scheduled or in-progress class in the semester. Until then
+            they stay on the roster as pending until the required share of the
+            phase amount is paid (default 50%).
           </DialogDescription>
         </DialogHeader>
 

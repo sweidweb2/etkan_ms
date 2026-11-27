@@ -1,6 +1,6 @@
 import { notFound } from "next/navigation";
 import { WorkshopDetailsPanel } from "@/components/manager/workshops/workshop-details-panel";
-import { getSessionUser } from "@/lib/auth/session";
+import { getSessionPack } from "@/lib/auth/session";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { getWorkshopForManager } from "@/services/workshops/workshop.service";
 
@@ -13,11 +13,12 @@ export default async function ManagerWorkshopDetailPage({
 }: ManagerWorkshopDetailPageProps) {
   const { id } = await params;
   const adminClient = createSupabaseAdminClient();
-  const user = await getSessionUser();
+  const pack = await getSessionPack();
   const detail = await getWorkshopForManager(
     adminClient,
-    user?.id ?? null,
-    id
+    pack.user?.id ?? null,
+    id,
+    pack.role
   );
 
   if (!detail) {

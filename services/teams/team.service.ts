@@ -188,13 +188,21 @@ type KnownTeamGuests =
 
 async function resolveGuestsForTeams(
   adminClient: Supabase,
+  membershipGuestIds: string[],
   knownGuests?: KnownTeamGuests
 ): Promise<readonly ManagerGuestRow[]> {
   if (knownGuests !== undefined) {
     return knownGuests;
   }
 
-  const guestsResult = await guestRepository.listGuests(adminClient);
+  if (membershipGuestIds.length === 0) {
+    return [];
+  }
+
+  const guestsResult = await guestRepository.listGuestsByIds(
+    adminClient,
+    membershipGuestIds
+  );
   if (guestsResult.error) {
     throw new Error(guestsResult.error.message);
   }
@@ -213,10 +221,9 @@ export async function listTeamsForManager(
 ): Promise<ManagerTeamRow[]> {
   await assertPermission(adminClient, actorUserId, PERMISSIONS.TEAMS_VIEW);
 
-  const [teamsResult, membershipResult, guests] = await Promise.all([
+  const [teamsResult, membershipResult] = await Promise.all([
     teamRepository.listTeams(adminClient),
     teamRepository.listTeamGuests(adminClient),
-    resolveGuestsForTeams(adminClient, knownGuests),
   ]);
 
   if (teamsResult.error) {
@@ -225,6 +232,15 @@ export async function listTeamsForManager(
   if (membershipResult.error) {
     throw new Error(membershipResult.error.message);
   }
+
+  const membershipGuestIds = [
+    ...new Set((membershipResult.data ?? []).map((row) => row.guest_id)),
+  ];
+  const guests = await resolveGuestsForTeams(
+    adminClient,
+    membershipGuestIds,
+    knownGuests
+  );
 
   const guestsById = new Map(guests.map((guest) => [guest.id, guest]));
 
@@ -532,31 +548,33 @@ async function listTeamMembers(
   adminClient: Supabase,
   teamId: string
 ): Promise<ManagerGuestRow[]> {
-  const [membershipResult, guestsResult] = await Promise.all([
-    teamRepository.listTeamGuests(adminClient),
-    guestRepository.listGuests(adminClient),
-  ]);
+  const membershipResult = await teamRepository.listTeamGuests(adminClient);
 
-  if (membershipResult.error || guestsResult.error) {
+  if (membershipResult.error) {
     return [];
   }
 
-  const guestsById = new Map(
-    (guestsResult.data ?? []).map((record) => [record.id, record])
-  );
+  const memberGuestIds = (membershipResult.data ?? [])
+    .filter((membership) => membership.team_id === teamId)
+    .map((membership) => membership.guest_id);
 
-  const members: ManagerGuestRow[] = [];
-  for (const membership of membershipResult.data ?? []) {
-    if (membership.team_id !== teamId) {
-      continue;
-    }
-    const record = guestsById.get(membership.guest_id);
-    if (record) {
-      members.push(mapGuestRecordToRow(record));
-    }
+  if (memberGuestIds.length === 0) {
+    return [];
   }
 
-  return attachGuestRegistrationEmails(adminClient, members);
+  const guestsResult = await guestRepository.listGuestsByIds(
+    adminClient,
+    memberGuestIds
+  );
+
+  if (guestsResult.error) {
+    return [];
+  }
+
+  return attachGuestRegistrationEmails(
+    adminClient,
+    (guestsResult.data ?? []).map(mapGuestRecordToRow)
+  );
 }
 
 function isUniqueNameViolation(message: string | undefined): boolean {

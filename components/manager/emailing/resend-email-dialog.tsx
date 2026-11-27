@@ -4,6 +4,11 @@ import { useEffect, useState, useTransition } from "react";
 import { useFormActionState as useActionState } from "@/hooks/use-form-action-state";
 import { useRouter } from "next/navigation";
 import { RotateCcwIcon, SendIcon } from "lucide-react";
+import {
+  findEmailingRecipientByEmailAction,
+  loadEmailingRecipientsByRoleAction,
+  searchEmailingRecipientsAction,
+} from "@/app/manager/emailing/actions";
 import { resendManagerEmailAction } from "@/app/manager/sent/actions";
 import {
   RecipientToField,
@@ -32,7 +37,6 @@ import type {
   ManagerEmailSentListRow,
   SendManagerEmailActionState,
 } from "@/types/manager-emailing";
-import type { ManagerUserRow } from "@/types/manager-user";
 
 const initialState: SendManagerEmailActionState = {};
 
@@ -40,14 +44,12 @@ type ResendEmailDialogProps = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   email: ManagerEmailSentListRow | null;
-  users: ManagerUserRow[];
 };
 
 export function ResendEmailDialog({
   open,
   onOpenChange,
   email,
-  users,
 }: ResendEmailDialogProps) {
   const router = useRouter();
   const [recipients, setRecipients] = useState<ComposeRecipient[]>([]);
@@ -176,7 +178,9 @@ export function ResendEmailDialog({
           <div className="flex flex-col gap-2">
             <FieldLabel htmlFor="resend-to" label="To" hint="Required" />
             <RecipientToField
-              users={users}
+              searchUsers={searchEmailingRecipientsAction}
+              loadUsersByRole={loadEmailingRecipientsByRoleAction}
+              resolveUserByEmail={findEmailingRecipientByEmailAction}
               recipients={recipients}
               onChange={setRecipients}
               disabled={isPending}

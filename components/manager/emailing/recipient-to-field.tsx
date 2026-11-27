@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Loader2Icon, XIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -21,10 +21,14 @@ export type ComposeRecipient =
   | { kind: "external"; email: string };
 
 type RecipientToFieldProps = {
-  /** Pre-loaded users. Omit and pass `loadUsers` to fetch on first interaction. */
+  /** Pre-loaded users (static). Prefer `searchUsers` for large directories. */
   users?: ManagerUserRow[];
-  /** Lazy loader — called once on first focus / bulk click. */
-  loadUsers?: () => Promise<ManagerUserRow[]>;
+  /** Server search for typeahead suggestions. */
+  searchUsers?: (query: string) => Promise<ManagerUserRow[]>;
+  /** On-demand bulk roster for role shortcuts. */
+  loadUsersByRole?: (roles?: RoleValue[]) => Promise<ManagerUserRow[]>;
+  /** Resolve a typed email to an existing user when possible. */
+  resolveUserByEmail?: (email: string) => Promise<ManagerUserRow | null>;
   recipients: ComposeRecipient[];
   onChange: (recipients: ComposeRecipient[]) => void;
   disabled?: boolean;
@@ -66,78 +70,96 @@ function recipientKey(recipient: ComposeRecipient) {
 
 export function RecipientToField({
   users: usersProp,
-  loadUsers,
+  searchUsers,
+  loadUsersByRole,
+  resolveUserByEmail,
   recipients,
   onChange,
   disabled = false,
   invalid = false,
 }: RecipientToFieldProps) {
   const [query, setQuery] = useState("");
+  const [debouncedQuery, setDebouncedQuery] = useState("");
   const [isFocused, setIsFocused] = useState(false);
-  const [lazyUsers, setLazyUsers] = useState<ManagerUserRow[] | null>(null);
-  const [isLoadingUsers, setIsLoadingUsers] = useState(false);
-  const loadPromiseRef = useRef<Promise<ManagerUserRow[]> | null>(null);
-  const users = usersProp ?? lazyUsers ?? EMPTY_USERS;
-
-  const ensureUsersLoaded = useCallback((): Promise<ManagerUserRow[]> => {
-    if (usersProp) {
-      return Promise.resolve(usersProp);
-    }
-    if (!loadUsers) {
-      return Promise.resolve(EMPTY_USERS);
-    }
-    if (!loadPromiseRef.current) {
-      setIsLoadingUsers(true);
-      loadPromiseRef.current = loadUsers()
-        .then((loaded) => {
-          setLazyUsers(loaded);
-          return loaded;
-        })
-        .catch(() => {
-          // Allow a retry on the next interaction.
-          loadPromiseRef.current = null;
-          showErrorToast("Unable to load recipients.");
-          return EMPTY_USERS;
-        })
-        .finally(() => setIsLoadingUsers(false));
-    }
-    return loadPromiseRef.current;
-  }, [loadUsers, usersProp]);
+  const [suggestions, setSuggestions] = useState<ManagerUserRow[]>([]);
+  const [isSearching, setIsSearching] = useState(false);
+  const [isLoadingBulk, setIsLoadingBulk] = useState(false);
+  const searchRequestIdRef = useRef(0);
+  const hasSearchedRef = useRef(false);
 
   const selectedKeys = useMemo(
     () => new Set(recipients.map(recipientKey)),
     [recipients]
   );
 
-  const usersWithEmail = useMemo(
-    () => users.filter((user) => Boolean(user.email?.trim())),
-    [users]
+  const staticUsersWithEmail = useMemo(
+    () => (usersProp ?? EMPTY_USERS).filter((user) => Boolean(user.email?.trim())),
+    [usersProp]
   );
 
-  const suggestions = useMemo(() => {
-    const q = query.trim().toLowerCase();
-    if (!q) {
-      return usersWithEmail
-        .filter((user) => !selectedKeys.has(`user:${user.id}`))
-        .slice(0, 8);
-    }
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      setDebouncedQuery(query.trim());
+    }, 250);
+    return () => window.clearTimeout(timer);
+  }, [query]);
 
-    return usersWithEmail
-      .filter((user) => {
-        if (selectedKeys.has(`user:${user.id}`)) {
-          return false;
+  const runSearch = useCallback(
+    async (search: string) => {
+      if (!searchUsers) {
+        const q = search.toLowerCase();
+        const next = staticUsersWithEmail
+          .filter((user) => {
+            if (selectedKeys.has(`user:${user.id}`)) {
+              return false;
+            }
+            if (!q) {
+              return true;
+            }
+            const haystack = [user.email, user.full_name, user.role]
+              .join(" ")
+              .toLowerCase();
+            return haystack.includes(q);
+          })
+          .slice(0, 8);
+        setSuggestions(next);
+        return;
+      }
+
+      const requestId = ++searchRequestIdRef.current;
+      setIsSearching(true);
+      try {
+        const loaded = await searchUsers(search);
+        if (requestId !== searchRequestIdRef.current) {
+          return;
         }
-        const haystack = [
-          user.email,
-          user.full_name,
-          user.role,
-        ]
-          .join(" ")
-          .toLowerCase();
-        return haystack.includes(q);
-      })
-      .slice(0, 8);
-  }, [query, selectedKeys, usersWithEmail]);
+        setSuggestions(
+          loaded
+            .filter((user) => !selectedKeys.has(`user:${user.id}`))
+            .slice(0, 8)
+        );
+      } catch {
+        if (requestId !== searchRequestIdRef.current) {
+          return;
+        }
+        showErrorToast("Unable to search recipients.");
+        setSuggestions([]);
+      } finally {
+        if (requestId === searchRequestIdRef.current) {
+          setIsSearching(false);
+        }
+      }
+    },
+    [searchUsers, selectedKeys, staticUsersWithEmail]
+  );
+
+  useEffect(() => {
+    if (!isFocused && !hasSearchedRef.current) {
+      return;
+    }
+    hasSearchedRef.current = true;
+    void runSearch(debouncedQuery);
+  }, [debouncedQuery, isFocused, runSearch]);
 
   const addUser = (user: ManagerUserRow) => {
     if (!user.email?.trim() || selectedKeys.has(`user:${user.id}`)) {
@@ -147,7 +169,7 @@ export function RecipientToField({
     setQuery("");
   };
 
-  const addExternal = (email: string) => {
+  const addExternal = async (email: string) => {
     const normalized = email.trim().toLowerCase();
     if (!EMAIL_REGEX.test(normalized)) {
       return;
@@ -156,13 +178,27 @@ export function RecipientToField({
       setQuery("");
       return;
     }
-    const matchedUser = usersWithEmail.find(
+
+    const localMatch = [...suggestions, ...staticUsersWithEmail].find(
       (user) => user.email.toLowerCase() === normalized
     );
-    if (matchedUser) {
-      addUser(matchedUser);
+    if (localMatch) {
+      addUser(localMatch);
       return;
     }
+
+    if (resolveUserByEmail) {
+      try {
+        const resolved = await resolveUserByEmail(normalized);
+        if (resolved?.email?.trim()) {
+          addUser(resolved);
+          return;
+        }
+      } catch {
+        // Fall through to external recipient.
+      }
+    }
+
     onChange([...recipients, { kind: "external", email: normalized }]);
     setQuery("");
   };
@@ -177,26 +213,50 @@ export function RecipientToField({
   };
 
   const applyBulk = async (roles?: RoleValue[]) => {
-    const loaded = await ensureUsersLoaded();
-    const loadedWithEmail = loaded.filter((user) => Boolean(user.email?.trim()));
-    const pool = roles
-      ? loadedWithEmail.filter((user) => roles.includes(user.role))
-      : loadedWithEmail;
-
-    const next = [...recipients];
-    const keys = new Set(next.map(recipientKey));
-
-    for (const user of pool) {
-      const key = `user:${user.id}`;
-      if (keys.has(key)) {
-        continue;
-      }
-      next.push({ kind: "user", user });
-      keys.add(key);
+    if (!loadUsersByRole && !usersProp) {
+      showErrorToast("Unable to load recipients.");
+      return;
     }
 
-    onChange(next);
+    setIsLoadingBulk(true);
+    try {
+      const loaded = loadUsersByRole
+        ? await loadUsersByRole(roles)
+        : staticUsersWithEmail.filter((user) =>
+            roles ? roles.includes(user.role) : true
+          );
+      const loadedWithEmail = loaded.filter((user) =>
+        Boolean(user.email?.trim())
+      );
+      const pool = roles
+        ? loadedWithEmail.filter((user) => roles.includes(user.role))
+        : loadedWithEmail;
+
+      const next = [...recipients];
+      const keys = new Set(next.map(recipientKey));
+
+      for (const user of pool) {
+        const key = `user:${user.id}`;
+        if (keys.has(key)) {
+          continue;
+        }
+        next.push({ kind: "user", user });
+        keys.add(key);
+      }
+
+      onChange(next);
+    } catch {
+      showErrorToast("Unable to load recipients.");
+    } finally {
+      setIsLoadingBulk(false);
+    }
   };
+
+  const showSuggestions =
+    isFocused &&
+    (suggestions.length > 0 ||
+      isSearching ||
+      EMAIL_REGEX.test(query.trim()));
 
   return (
     <div className="flex flex-col gap-2">
@@ -249,7 +309,10 @@ export function RecipientToField({
             className="h-8 min-w-[10rem] flex-1 border-0 bg-transparent px-1 shadow-none focus-visible:ring-0"
             onFocus={() => {
               setIsFocused(true);
-              void ensureUsersLoaded();
+              if (!hasSearchedRef.current) {
+                void runSearch(query.trim());
+                hasSearchedRef.current = true;
+              }
             }}
             onBlur={() => {
               window.setTimeout(() => setIsFocused(false), 150);
@@ -265,7 +328,7 @@ export function RecipientToField({
                 if (suggestions[0]) {
                   addUser(suggestions[0]);
                 } else {
-                  addExternal(query);
+                  void addExternal(query);
                 }
               }
               if (
@@ -302,8 +365,14 @@ export function RecipientToField({
         ) : null}
       </div>
 
-      {isFocused && (suggestions.length > 0 || EMAIL_REGEX.test(query.trim())) ? (
+      {showSuggestions ? (
         <div className="rounded-lg border border-border bg-popover p-1 shadow-md">
+          {isSearching && suggestions.length === 0 ? (
+            <p className="flex items-center gap-1.5 px-2 py-1.5 text-xs text-muted-foreground">
+              <Loader2Icon className="size-3 animate-spin" aria-hidden />
+              Searching…
+            </p>
+          ) : null}
           {suggestions.map((user) => (
             <button
               key={user.id}
@@ -320,13 +389,15 @@ export function RecipientToField({
               </span>
             </button>
           ))}
-          {suggestions.length === 0 && EMAIL_REGEX.test(query.trim()) ? (
+          {suggestions.length === 0 &&
+          !isSearching &&
+          EMAIL_REGEX.test(query.trim()) ? (
             <button
               type="button"
               className="flex w-full rounded-md px-2 py-1.5 text-left text-sm hover:bg-muted"
               onMouseDown={(event) => {
                 event.preventDefault();
-                addExternal(query);
+                void addExternal(query);
               }}
             >
               Add {query.trim().toLowerCase()}
@@ -336,7 +407,7 @@ export function RecipientToField({
       ) : null}
 
       <div className="flex flex-wrap items-center gap-2">
-        {isLoadingUsers ? (
+        {isLoadingBulk ? (
           <span className="inline-flex items-center gap-1 text-xs text-muted-foreground">
             <Loader2Icon className="size-3 animate-spin" aria-hidden />
             Loading recipients…
@@ -348,7 +419,7 @@ export function RecipientToField({
             type="button"
             size="sm"
             variant="outline"
-            disabled={disabled || isLoadingUsers}
+            disabled={disabled || isLoadingBulk}
             onClick={() => void applyBulk(option.roles)}
           >
             {option.label}

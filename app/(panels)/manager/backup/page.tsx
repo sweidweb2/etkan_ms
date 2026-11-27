@@ -11,7 +11,7 @@ export default async function ManagerBackupPage() {
 
   if (user) {
     const adminClient = createSupabaseAdminClient();
-    history = await getRecentBackupHistory(adminClient);
+    history = await getRecentBackupHistory(adminClient, user.id);
   }
 
   return <BackupExportPanel initialHistory={history} />;

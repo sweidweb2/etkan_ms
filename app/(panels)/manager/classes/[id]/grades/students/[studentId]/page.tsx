@@ -32,7 +32,9 @@ export default async function ManagerClassStudentGradesDetailPage({
   const user = await getSessionUser();
   const actorUserId = user?.id ?? null;
 
-  const classRow = await getClassForManager(adminClient, actorUserId, id);
+  const classRow = await getClassForManager(adminClient, actorUserId, id, {
+    includeCounts: false,
+  });
 
   if (!classRow) {
     notFound();

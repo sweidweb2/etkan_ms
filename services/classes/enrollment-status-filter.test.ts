@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { ROLES } from "@/lib/constants/roles";
 import * as studentClassRepository from "@/repositories/student-class.repository";
+import * as studentProfileRepository from "@/repositories/student-profile.repository";
 import type { AuditActor } from "@/services/ops/audit-log.service";
 import { listAvailableStudentsForClass } from "@/services/classes/class.service";
 import { computeAllStudentCourseGradesForManager } from "@/services/classes/student-course-grade.service";
@@ -8,14 +9,14 @@ import * as classService from "@/services/classes/class.service";
 import * as studentService from "@/services/students/student.service";
 
 vi.mock("@/repositories/student-class.repository");
+vi.mock("@/repositories/student-profile.repository");
 vi.mock("@/repositories/student-course-grade.repository");
 vi.mock("@/repositories/attendee.repository");
 vi.mock("@/repositories/final-exam.repository");
 vi.mock("@/repositories/session.repository");
 vi.mock("@/repositories/student-task.repository");
-vi.mock("@/repositories/task.repository");
 vi.mock("@/services/students/student.service", () => ({
-  listStudentsForManager: vi.fn(),
+  hydrateStudentRows: vi.fn(),
 }));
 vi.mock("@/services/ops/audit-log.service", () => ({
   recordManagerAuditLog: vi.fn().mockResolvedValue(null),
@@ -68,27 +69,33 @@ describe("listAvailableStudentsForClass enrollment membership", () => {
       data: [{ user_id: enrolledUserId }, { user_id: pausedUserId }],
       error: null,
     } as never);
-    vi.mocked(studentService.listStudentsForManager).mockResolvedValue([
+    vi.mocked(
+      studentProfileRepository.listStudentProfilesPage
+    ).mockResolvedValue({
+      data: [
+        {
+          id: "sp-3",
+          user_id: outsideUserId,
+          full_name: "Outside",
+          birth_date: null,
+          phone: null,
+          status: "active",
+          created_at: "2026-01-01T00:00:00.000Z",
+        },
+      ],
+      count: 1,
+      error: null,
+    } as never);
+    vi.mocked(studentService.hydrateStudentRows).mockResolvedValue([
       {
-        id: "sp-1",
-        user_id: enrolledUserId,
-        full_name: "Enrolled",
-        email: "e@example.com",
-        phone: null,
-      },
-      {
-        id: "sp-2",
-        user_id: pausedUserId,
-        full_name: "Also member",
-        email: "p@example.com",
-        phone: null,
-      },
-      {
-        id: "sp-3",
+        student_profile_id: "sp-3",
         user_id: outsideUserId,
         full_name: "Outside",
         email: "o@example.com",
         phone: null,
+        birth_date: null,
+        status: "active",
+        created_at: "2026-01-01T00:00:00.000Z",
       },
     ] as never);
 
@@ -104,7 +111,15 @@ describe("listAvailableStudentsForClass enrollment membership", () => {
     expect(
       studentClassRepository.listMemberUserIdsByClassId
     ).not.toHaveBeenCalled();
-    expect(result.map((row) => row.user_id)).toEqual([outsideUserId]);
+    expect(studentProfileRepository.listStudentProfilesPage).toHaveBeenCalledWith(
+      adminClient,
+      expect.objectContaining({
+        excludeUserIds: [enrolledUserId, pausedUserId],
+        status: "active",
+      })
+    );
+    expect(result.students.map((row) => row.user_id)).toEqual([outsideUserId]);
+    expect(result.totalCount).toBe(1);
   });
 });
 

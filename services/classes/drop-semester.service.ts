@@ -17,15 +17,11 @@ import * as studentProfileRepository from "@/repositories/student-profile.reposi
 import * as studentSemesterRepository from "@/repositories/student-semester.repository";
 import { getUnauthorizedError } from "@/services/auth/authorization.service";
 import {
-  onStudentLeftClass,
-} from "@/services/accounting/accounting-sync.service";
-import {
   recordManagerAuditLog,
   type AuditActor,
 } from "@/services/ops/audit-log.service";
 import type { ManagerSemesterDropRequestRow } from "@/types/manager-semester-drop";
 import type { MutationFailure, Supabase } from "@/services/classes/class-shared";
-import { withPaymentSync } from "@/services/classes/class-shared";
 import { assertAssignedTeacherForClassMutation } from "@/services/classes/teacher-class-scope.service";
 
 export type CreateSemesterDropResult =
@@ -54,48 +50,39 @@ async function leaveClassWithoutSppDrop(
   classId: string,
   studentId: string
 ): Promise<CreateSemesterDropResult> {
-  const { data: deleted, error: deleteError } =
-    await studentClassRepository.deleteStudentClassMembership(
+  const classResult = await classRepository.findClassById(adminClient, classId);
+  const semesterId = classResult.data?.semester_id ?? null;
+  if (!semesterId) {
+    return { success: false, error: "Class has no semester." };
+  }
+
+  const { data: leaveResult, error: leaveError } =
+    await studentClassRepository.leaveStudentSemesterDropClasses(
       adminClient,
-      membershipId,
+      studentId,
+      semesterId,
       classId
     );
 
-  if (deleteError) {
-    return { success: false, error: deleteError.message };
+  if (leaveError) {
+    return { success: false, error: leaveError.message };
   }
-  if (!deleted) {
+  if (!leaveResult || leaveResult.removedCount < 1) {
     return { success: false, error: "Student is not a member of this class." };
   }
 
-  const sync = await withPaymentSync(
-    adminClient,
-    actor,
-    {
-      studentId,
-      classId,
-      operation: "drop_semester_leave_sync",
-    },
-    () => onStudentLeftClass(adminClient, { studentId, classId }, actor)
-  );
-  const warning = sync.warning;
-
-  const classResult = await classRepository.findClassById(adminClient, classId);
-  const semesterId = classResult.data?.semester_id ?? null;
-  if (semesterId) {
-    const profileResult =
-      await studentProfileRepository.findStudentProfileByUserId(
-        adminClient,
-        studentId
-      );
-    if (profileResult.data?.id) {
-      await studentSemesterRepository.updateEnrollmentStatus(
-        adminClient,
-        profileResult.data.id,
-        semesterId,
-        STUDENT_SEMESTER_STATUSES.WITHDRAWN
-      );
-    }
+  const profileResult =
+    await studentProfileRepository.findStudentProfileByUserId(
+      adminClient,
+      studentId
+    );
+  if (profileResult.data?.id) {
+    await studentSemesterRepository.updateEnrollmentStatus(
+      adminClient,
+      profileResult.data.id,
+      semesterId,
+      STUDENT_SEMESTER_STATUSES.WITHDRAWN
+    );
   }
 
   await recordManagerAuditLog(adminClient, actor, {
@@ -104,9 +91,11 @@ async function leaveClassWithoutSppDrop(
     table_name: "student_class",
     record_id: membershipId,
     metadata: {
-      note: "Semester drop with no SPP; membership removed immediately.",
+      note: "Semester drop with no SPP; left scheduled/in_progress semester classes.",
       class_id: classId,
       student_id: studentId,
+      semester_id: semesterId,
+      removed_class_ids: leaveResult.removed.map((row) => row.classId),
     },
   });
 
@@ -115,8 +104,8 @@ async function leaveClassWithoutSppDrop(
     request: null,
     completedImmediately: true,
     removedFromClass: true,
-    message: "Student dropped from class (no payment phase assignment).",
-    warning,
+    message:
+      "Student dropped from scheduled/in-progress semester classes (no payment phase assignment).",
   };
 }
 
@@ -238,7 +227,7 @@ export async function createSemesterDropForManager(
       completedImmediately: data.completedImmediately,
       removedFromClass: data.completedImmediately,
       message: data.completedImmediately
-        ? "Semester drop completed. Student left the class."
+        ? "Semester drop completed. Student left all scheduled/in-progress classes in the semester."
         : "Semester drop pending until the required payment is met.",
     };
   } finally {

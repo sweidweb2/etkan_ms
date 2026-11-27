@@ -10,7 +10,18 @@ export type ActionToastState = {
   note?: string;
   /** Non-fatal notice after a successful mutation (e.g. payment sync failed). */
   warning?: string;
+  /** Field-level validation — keep inline; do not toast. */
+  fieldErrors?: Record<string, string[] | undefined>;
 };
+
+function hasFieldErrors(state: ActionToastState) {
+  if (!state.fieldErrors) {
+    return false;
+  }
+  return Object.values(state.fieldErrors).some(
+    (messages) => Array.isArray(messages) && messages.length > 0
+  );
+}
 
 export function showSuccessToast(message: string, description?: string) {
   toast.success(message, { description });
@@ -68,7 +79,7 @@ export function showActionResultToast(state: ActionToastState) {
     return;
   }
 
-  if (state.error) {
+  if (state.error && !hasFieldErrors(state)) {
     showErrorToast(state.error);
   }
 }

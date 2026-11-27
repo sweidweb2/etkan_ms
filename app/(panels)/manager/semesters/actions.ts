@@ -148,10 +148,11 @@ export async function assignSemestersToTeamAction(
     revalidate: () => {
       revalidatePath(ROUTES.MANAGER_SEMESTERS);
     },
-    mapSuccess: (result, data) => ({
+    mapSuccess: (result) => ({
       success: true,
       message: result.message,
-      semesterIds: data.semester_ids,
+      semesters: result.semesters,
+      semesterIds: result.semesters.map((semester) => semester.id),
       teamId: result.teamId,
     }),
   });

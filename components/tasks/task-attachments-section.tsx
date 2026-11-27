@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useId, useRef, useState, useTransition } from "react";
+import { useEffect, useId, useState } from "react";
 import { useRouter } from "next/navigation";
 import { format } from "date-fns";
 import { FileTextIcon } from "lucide-react";
@@ -12,6 +12,7 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { useActionStateSuccess } from "@/hooks/use-action-state-success";
 import { useActionStateToast } from "@/hooks/use-action-state-toast";
 import { useSimulatedProgressPercent } from "@/hooks/use-simulated-progress-percent";
+import { useTaskFileUploadSelection } from "@/hooks/use-task-file-upload-selection";
 import { formatUploadFileSize } from "@/lib/classes/student-task-upload-format";
 import {
   TASK_ATTACHMENT_ACCEPT,
@@ -20,6 +21,7 @@ import {
   TASK_ATTACHMENT_MAX_FILES,
   type TaskAttachmentEntity,
 } from "@/lib/constants/task-attachments";
+import { showErrorToast } from "@/lib/toast";
 import { cn } from "@/lib/utils";
 import type {
   DeleteTaskAttachmentActionState,
@@ -32,10 +34,7 @@ import type {
 const initialUploadState: UploadTaskAttachmentActionState = {};
 const initialDeleteState: DeleteTaskAttachmentActionState = {};
 
-const MAX_MB = Math.round(TASK_ATTACHMENT_MAX_BYTES / (1024 * 1024));
-const DROPZONE_HINT = `PDF, DOCX, XLSX, PNG, JPG · up to ${MAX_MB} MB each`;
-
-type TaskAttachmentsSectionProps = {
+type TaskAttachmentsSectionBaseProps = {
   entity: TaskAttachmentEntity;
   entityId: string;
   attachments: TaskAttachmentRow[];
@@ -53,14 +52,28 @@ type TaskAttachmentsSectionProps = {
     prevState: DeleteTaskAttachmentActionState,
     formData: FormData
   ) => Promise<DeleteTaskAttachmentActionState>;
-  getSignedUrlAction: (
-    formData: FormData
-  ) => Promise<TaskAttachmentSignedUrlActionState>;
-  getSignedUrlById?: (
-    id: string
-  ) => Promise<TaskAttachmentSignedUrlActionState>;
   onAttachmentsChange?: (rows: TaskAttachmentRow[]) => void;
 };
+
+type TaskAttachmentsSectionProps = TaskAttachmentsSectionBaseProps &
+  (
+    | {
+        getSignedUrlAction: (
+          formData: FormData
+        ) => Promise<TaskAttachmentSignedUrlActionState>;
+        getSignedUrlById?: (
+          id: string
+        ) => Promise<TaskAttachmentSignedUrlActionState>;
+      }
+    | {
+        getSignedUrlAction?: (
+          formData: FormData
+        ) => Promise<TaskAttachmentSignedUrlActionState>;
+        getSignedUrlById: (
+          id: string
+        ) => Promise<TaskAttachmentSignedUrlActionState>;
+      }
+  );
 
 export function TaskAttachmentsSection({
   entity,
@@ -80,28 +93,29 @@ export function TaskAttachmentsSection({
 }: TaskAttachmentsSectionProps) {
   const router = useRouter();
   const inputId = useId();
-  const fileInputKeyRef = useRef(0);
-  const [fileInputKey, setFileInputKey] = useState(0);
+  const {
+    maxMb,
+    fileInputKey,
+    selectedFileName,
+    clientError,
+    resetSelection,
+    beginFile,
+  } = useTaskFileUploadSelection(TASK_ATTACHMENT_MAX_BYTES);
+  const DROPZONE_HINT = `PDF, DOCX, XLSX, PNG, JPG · up to ${maxMb} MB each`;
   const [attachments, setAttachments] = useState(initialAttachments);
   const [prevAttachments, setPrevAttachments] = useState(initialAttachments);
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
   const [openingId, setOpeningId] = useState<string | null>(null);
-  const [selectedFileName, setSelectedFileName] = useState<string | null>(null);
-  const [clientError, setClientError] = useState<string | null>(null);
-  const [isUploadTransitionPending, startUploadTransition] = useTransition();
-  const [isDeleteTransitionPending, startDeleteTransition] = useTransition();
 
-  const [uploadState, uploadFormAction, isUploadActionPending] = useActionState(
+  const [uploadState, uploadFormAction, isUploadPending] = useActionState(
     uploadAction ?? (async () => initialUploadState),
     initialUploadState
   );
-  const [deleteState, deleteFormAction, isDeleteActionPending] = useActionState(
+  const [deleteState, deleteFormAction, isDeletePending] = useActionState(
     deleteAction ?? (async () => initialDeleteState),
     initialDeleteState
   );
 
-  const isUploadPending = isUploadActionPending || isUploadTransitionPending;
-  const isDeletePending = isDeleteActionPending || isDeleteTransitionPending;
   const uploadProgress = useSimulatedProgressPercent(isUploadPending);
 
   const isCloning =
@@ -148,10 +162,7 @@ export function TaskAttachmentsSection({
       queueMicrotask(() => onAttachmentsChange?.(next));
       return next;
     });
-    setSelectedFileName(null);
-    setClientError(null);
-    fileInputKeyRef.current += 1;
-    setFileInputKey(fileInputKeyRef.current);
+    resetSelection();
   });
 
   useActionStateSuccess(deleteState, isDeletePending, () => {
@@ -171,22 +182,14 @@ export function TaskAttachmentsSection({
     if (!uploadAction || isCloning || atCap || isUploadPending) {
       return;
     }
-    setClientError(null);
-    if (file.size > TASK_ATTACHMENT_MAX_BYTES) {
-      setSelectedFileName(file.name);
-      setClientError(
-        `This file is ${formatUploadFileSize(file.size)}. Files must be under ${MAX_MB} MB.`
-      );
+    if (beginFile(file) === "too_large") {
       return;
     }
-    setSelectedFileName(file.name);
     const formData = new FormData();
     formData.set("entity", entity);
     formData.set("entity_id", entityId);
     formData.set("file", file);
-    startUploadTransition(() => {
-      uploadFormAction(formData);
-    });
+    uploadFormAction(formData);
   }
 
   function handleDelete(attachmentId: string) {
@@ -199,9 +202,7 @@ export function TaskAttachmentsSection({
     }
     const formData = new FormData();
     formData.set("id", attachmentId);
-    startDeleteTransition(() => {
-      deleteFormAction(formData);
-    });
+    deleteFormAction(formData);
   }
 
   async function openAttachment(attachment: TaskAttachmentRow) {
@@ -210,15 +211,21 @@ export function TaskAttachmentsSection({
       let result: TaskAttachmentSignedUrlActionState;
       if (getSignedUrlById) {
         result = await getSignedUrlById(attachment.id);
-      } else {
+      } else if (getSignedUrlAction) {
         const formData = new FormData();
         formData.set("id", attachment.id);
         result = await getSignedUrlAction(formData);
+      } else {
+        showErrorToast("Unable to open file.");
+        return;
       }
       if (!result.success || !result.signedUrl) {
+        showErrorToast(result.error ?? "Unable to open file.");
         return;
       }
       window.open(result.signedUrl, "_blank", "noopener,noreferrer");
+    } catch {
+      showErrorToast("Unable to open file.");
     } finally {
       setOpeningId(null);
     }
@@ -234,8 +241,7 @@ export function TaskAttachmentsSection({
     </span>
   ) : null;
 
-  const fieldError =
-    uploadState.fieldErrors?.file?.[0] ?? uploadState.error ?? null;
+  const fieldError = uploadState.fieldErrors?.file?.[0] ?? null;
   const showUploadRow = isUploadPending && selectedFileName && !clientError;
   const showErrorRow = Boolean(clientError || fieldError) && selectedFileName;
   const showUploadPane = showMutations && !isCloning && !atCap;
@@ -255,10 +261,7 @@ export function TaskAttachmentsSection({
         <TaskFileListRow
           fileName={selectedFileName!}
           errorMessage={clientError ?? fieldError}
-          onDismissError={() => {
-            setClientError(null);
-            setSelectedFileName(null);
-          }}
+          onDismissError={resetSelection}
           className={cn(!showUploadRow && "border-t-0")}
         />
       ) : null}

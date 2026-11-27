@@ -28,6 +28,8 @@ import type {
   ManagerClassesListQuery,
 } from "@/types/manager-class-list";
 import type {
+  ManagerAvailableStudentsData,
+  ManagerAvailableStudentsQuery,
   ManagerStudentRow,
   ManagerStudentWithoutActiveClassRow,
 } from "@/types/manager-student";
@@ -49,11 +51,12 @@ export async function loadClassesPageAction(
 }
 
 export async function loadAvailableStudentsForClassAction(
-  classId: string
-): Promise<ManagerStudentRow[]> {
+  classId: string,
+  query: ManagerAvailableStudentsQuery = {}
+): Promise<ManagerAvailableStudentsData | null> {
   const actor = await getSessionAuditActor();
   if (!actor.userId) {
-    return [];
+    return null;
   }
 
   const adminClient = createSupabaseAdminClient();
@@ -61,10 +64,11 @@ export async function loadAvailableStudentsForClassAction(
     return await listAvailableStudentsForClass(
       adminClient,
       actor.userId,
-      classId
+      classId,
+      query
     );
   } catch {
-    return [];
+    return null;
   }
 }
 

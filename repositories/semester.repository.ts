@@ -102,35 +102,6 @@ export async function updateSemester(
     .single();
 }
 
-export async function updateSemesterTeamById(
-  client: Supabase,
-  id: string,
-  teamId: string | null,
-  sortOrder?: number
-) {
-  return client
-    .from("semesters")
-    .update({
-      team_id: teamId,
-      ...(typeof sortOrder === "number" ? { sort_order: sortOrder } : {}),
-    })
-    .eq("id", id)
-    .select(SEMESTER_COLUMNS)
-    .single();
-}
-
-export async function updateSemestersTeamByIds(
-  client: Supabase,
-  ids: string[],
-  teamId: string | null
-) {
-  return client
-    .from("semesters")
-    .update({ team_id: teamId })
-    .in("id", ids)
-    .select(SEMESTER_COLUMNS);
-}
-
 export async function updateSemesterBoardPositions(
   client: Supabase,
   placements: Array<{
@@ -139,6 +110,8 @@ export async function updateSemesterBoardPositions(
     sort_order: number;
   }>
 ) {
+  // N+1 updates: no batch RPC sibling exists (same pattern as stages /
+  // semester_teams). Partial failure can leave earlier rows committed.
   const results = await Promise.all(
     placements.map((placement) =>
       client

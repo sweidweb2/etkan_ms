@@ -1,6 +1,7 @@
 import "server-only";
 
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { collectAllPages } from "@/repositories/_shared/collect-all-pages";
 import {
   asSppRecord,
   type StudentPaymentPhaseRecord,
@@ -164,13 +165,16 @@ export async function listPaymentsBetween(
   fromInclusive: string,
   toExclusive: string
 ) {
-  return client
-    .from("student_payments")
-    .select(PAYMENT_COLUMNS)
-    .gte("payment_date", fromInclusive)
-    .lt("payment_date", toExclusive)
-    .order("payment_date", { ascending: false })
-    .order("created_at", { ascending: false });
+  return collectAllPages((offset, limit) =>
+    client
+      .from("student_payments")
+      .select(PAYMENT_COLUMNS)
+      .gte("payment_date", fromInclusive)
+      .lt("payment_date", toExclusive)
+      .order("payment_date", { ascending: false })
+      .order("created_at", { ascending: false })
+      .range(offset, offset + limit - 1)
+  );
 }
 
 /** Net (credits - debits) payment total in `[fromInclusive, toExclusive)` via DB aggregate. */
@@ -197,11 +201,14 @@ export async function listPaymentAmountsBetween(
   fromInclusive: string,
   toExclusive: string
 ) {
-  return client
-    .from("student_payments")
-    .select("payment_date, amount, type")
-    .gte("payment_date", fromInclusive)
-    .lt("payment_date", toExclusive);
+  return collectAllPages((offset, limit) =>
+    client
+      .from("student_payments")
+      .select("payment_date, amount, type")
+      .gte("payment_date", fromInclusive)
+      .lt("payment_date", toExclusive)
+      .range(offset, offset + limit - 1)
+  );
 }
 
 export async function findPaymentDateBounds(client: Supabase) {

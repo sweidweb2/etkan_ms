@@ -1,6 +1,7 @@
 import "server-only";
 
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { collectAllPages } from "@/repositories/_shared/collect-all-pages";
 import type { Database } from "@/types/supabase";
 
 type Supabase = SupabaseClient<Database>;
@@ -47,13 +48,16 @@ export async function listTransactionsBetween(
   fromInclusive: string,
   toExclusive: string
 ) {
-  return client
-    .from("transactions")
-    .select(TRANSACTION_COLUMNS)
-    .gte("transaction_date", fromInclusive)
-    .lt("transaction_date", toExclusive)
-    .order("transaction_date", { ascending: false })
-    .order("created_at", { ascending: false });
+  return collectAllPages((offset, limit) =>
+    client
+      .from("transactions")
+      .select(TRANSACTION_COLUMNS)
+      .gte("transaction_date", fromInclusive)
+      .lt("transaction_date", toExclusive)
+      .order("transaction_date", { ascending: false })
+      .order("created_at", { ascending: false })
+      .range(offset, offset + limit - 1)
+  );
 }
 
 /** Slim rows for analytics chart totals. */
@@ -62,11 +66,14 @@ export async function listTransactionAmountsBetween(
   fromInclusive: string,
   toExclusive: string
 ) {
-  return client
-    .from("transactions")
-    .select("transaction_date, type, amount, payment_method")
-    .gte("transaction_date", fromInclusive)
-    .lt("transaction_date", toExclusive);
+  return collectAllPages((offset, limit) =>
+    client
+      .from("transactions")
+      .select("transaction_date, type, amount, payment_method")
+      .gte("transaction_date", fromInclusive)
+      .lt("transaction_date", toExclusive)
+      .range(offset, offset + limit - 1)
+  );
 }
 
 export async function findTransactionDateBounds(client: Supabase) {

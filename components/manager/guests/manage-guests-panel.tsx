@@ -22,6 +22,7 @@ import { BellIcon, PlusIcon, SearchIcon } from "lucide-react";
 import {
   assignGuestToTeamAction,
   deleteTeamAction,
+  loadGuestsPageAction,
 } from "@/app/manager/guests/actions";
 import { loadNotificationsPageAction } from "@/app/manager/notifications/actions";
 import { Can } from "@/components/auth/can";
@@ -66,6 +67,7 @@ import {
   GUEST_INTERESTED_SERVICE_LABELS,
   GUEST_INTERESTED_SERVICE_VALUES,
   type GuestCurrentStatus,
+  type GuestInterestedService,
 } from "@/lib/constants/guest";
 import { useActionStateSuccess } from "@/hooks/use-action-state-success";
 import { useActionStateToast } from "@/hooks/use-action-state-toast";
@@ -74,15 +76,19 @@ import { hasPermissionInSet } from "@/lib/auth/permission-checks";
 import { PERMISSIONS } from "@/lib/constants/permissions";
 import { showErrorToast } from "@/lib/toast";
 import { cn } from "@/lib/utils";
-import type { ManagerGuestRow } from "@/types/manager-guest";
+import type {
+  ManagerGuestRow,
+  ManagerGuestsListData,
+  ManagerGuestsListQuery,
+} from "@/types/manager-guest";
 import type {
   AssignGuestToTeamActionState,
   DeleteTeamActionState,
   ManagerTeamRow,
 } from "@/types/manager-team";
 
-const GUEST_LIST_BATCH_SIZE = 15;
-const GUEST_LIST_MAX_ROWS = 100;
+const GUEST_PAGE_SIZE_OPTIONS = [10, 15, 25] as const;
+const GUEST_PAGE_SIZE_DEFAULT = 15;
 
 const FILTER_ALL = "all";
 /** Guest list filters are hidden for now; flip to bring them back. */
@@ -99,26 +105,21 @@ function uniqueGuestsById(rows: ManagerGuestRow[]) {
   });
 }
 
-function matchesSearch(guest: ManagerGuestRow, query: string) {
-  const normalizedQuery = query.trim().toLowerCase();
-  if (!normalizedQuery) {
-    return true;
-  }
-
-  const haystack = [
-    guest.full_name,
-    guest.phone ?? "",
-    guest.email ?? "",
-    guest.school_or_university ?? "",
-  ]
-    .join(" ")
-    .toLowerCase();
-
-  return haystack.includes(normalizedQuery);
+function listQueryKey(query: {
+  search: string;
+  status: string;
+  service: string;
+  showClosed: boolean;
+  page: number;
+  pageSize: number;
+}) {
+  return `${query.search}|${query.status}|${query.service}|${query.showClosed}|${query.page}|${query.pageSize}`;
 }
 
 const initialAssignState: AssignGuestToTeamActionState = {};
 const initialDeleteTeamState: DeleteTeamActionState = {};
+
+type GuestPageSizeOption = (typeof GUEST_PAGE_SIZE_OPTIONS)[number];
 
 type GuestMove = {
   guest: ManagerGuestRow;
@@ -257,27 +258,42 @@ function UnassignedDropZone({ children }: { children: React.ReactNode }) {
 }
 
 type ManageGuestsPanelProps = {
-  initialGuests: ManagerGuestRow[];
+  initialData: ManagerGuestsListData;
   initialTeams: ManagerTeamRow[];
 };
 
 export function ManageGuestsPanel({
-  initialGuests,
+  initialData,
   initialTeams,
 }: ManageGuestsPanelProps) {
-  const [guests, setGuests] = useState(() => uniqueGuestsById(initialGuests));
-  const [prevInitialGuests, setPrevInitialGuests] = useState(initialGuests);
+  const [guests, setGuests] = useState(() =>
+    uniqueGuestsById(initialData.guests)
+  );
+  const [totalCount, setTotalCount] = useState(initialData.totalCount);
   const [teams, setTeams] = useState(initialTeams);
-
-  if (initialGuests !== prevInitialGuests) {
-    setPrevInitialGuests(initialGuests);
-    setGuests(uniqueGuestsById(initialGuests));
-  }
+  const [isListLoading, startListTransition] = useTransition();
   const [searchQuery, setSearchQuery] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState(FILTER_ALL);
   const [serviceFilter, setServiceFilter] = useState(FILTER_ALL);
   const [showClosedStatuses, setShowClosedStatuses] = useState(false);
-  const [visibleCount, setVisibleCount] = useState(GUEST_LIST_BATCH_SIZE);
+  const [pageSize, setPageSize] = useState<GuestPageSizeOption>(
+    (GUEST_PAGE_SIZE_OPTIONS as readonly number[]).includes(initialData.pageSize)
+      ? (initialData.pageSize as GuestPageSizeOption)
+      : GUEST_PAGE_SIZE_DEFAULT
+  );
+  const [currentPage, setCurrentPage] = useState(initialData.page);
+  const loadedKeyRef = useRef(
+    listQueryKey({
+      search: "",
+      status: FILTER_ALL,
+      service: FILTER_ALL,
+      showClosed: false,
+      page: initialData.page,
+      pageSize: initialData.pageSize,
+    })
+  );
+  const requestIdRef = useRef(0);
   const [isAddOpen, setIsAddOpen] = useState(false);
   const [isRegistrationNotifsOpen, setIsRegistrationNotifsOpen] =
     useState(false);
@@ -359,16 +375,26 @@ export function ManageGuestsPanel({
     if (!guestId) {
       return;
     }
-    const guest = guests.find((row) => row.id === guestId);
+    const guest =
+      guests.find((row) => row.id === guestId) ??
+      teams.flatMap((team) => team.guests).find((row) => row.id === guestId);
     if (!guest) {
       return;
     }
+    const targetGroup = teamId ?? UNASSIGNED_GROUP;
     setTeams((current) =>
       applyGuestMove(current, {
         guest,
-        targetGroup: teamId ?? UNASSIGNED_GROUP,
+        targetGroup,
       }),
     );
+    if (targetGroup === UNASSIGNED_GROUP) {
+      setGuests((current) => uniqueGuestsById([guest, ...current]));
+      setTotalCount((count) => count + 1);
+    } else {
+      setGuests((current) => current.filter((row) => row.id !== guestId));
+      setTotalCount((count) => Math.max(0, count - 1));
+    }
   });
 
   useActionStateSuccess(
@@ -384,7 +410,14 @@ export function ManageGuestsPanel({
     if (!nextState.teamId) {
       return;
     }
+    const deleted = teams.find((team) => team.id === nextState.teamId);
     setTeams((current) => current.filter((row) => row.id !== nextState.teamId));
+    if (deleted?.guests.length) {
+      setGuests((current) =>
+        uniqueGuestsById([...deleted.guests, ...current])
+      );
+      setTotalCount((count) => count + deleted.guests.length);
+    }
     setDeleteTeamTarget(null);
   });
 
@@ -397,54 +430,101 @@ export function ManageGuestsPanel({
     },
   );
 
-  const teamIdByGuestId = useMemo(() => {
-    const map = new Map<string, string>();
-    for (const team of optimisticTeams) {
-      for (const guest of team.guests) {
-        map.set(guest.id, team.id);
-      }
-    }
-    return map;
-  }, [optimisticTeams]);
+  const buildListQuery = (
+    overrides: Partial<{
+      search: string;
+      status: string;
+      service: string;
+      showClosed: boolean;
+      page: number;
+      pageSize: number;
+    }> = {}
+  ): ManagerGuestsListQuery => {
+    const status = overrides.status ?? statusFilter;
+    const service = overrides.service ?? serviceFilter;
+    const showClosed = overrides.showClosed ?? showClosedStatuses;
+    return {
+      page: overrides.page ?? currentPage,
+      pageSize: overrides.pageSize ?? pageSize,
+      search: overrides.search ?? debouncedSearch,
+      status:
+        status === FILTER_ALL ? null : (status as GuestCurrentStatus),
+      interestedService:
+        service === FILTER_ALL
+          ? null
+          : (service as GuestInterestedService),
+      unassignedOnly: true,
+      includeClosed: showClosed,
+    };
+  };
 
-  const allGuests = useMemo(() => uniqueGuestsById(guests), [guests]);
-
-  /** The main table only lists guests that are not in a team. */
-  const guestsById = useMemo(
-    () => allGuests.filter((row) => !teamIdByGuestId.has(row.id)),
-    [allGuests, teamIdByGuestId],
-  );
-
-  const filteredGuests = useMemo(() => {
-    return guestsById.filter((guest) => {
-      if (!matchesSearch(guest, searchQuery)) {
-        return false;
+  const loadPage = (query: ManagerGuestsListQuery) => {
+    const requestId = ++requestIdRef.current;
+    startListTransition(async () => {
+      const data = await loadGuestsPageAction(query);
+      if (requestId !== requestIdRef.current) {
+        return;
       }
-      if (!showClosedStatuses && isClosedStatus(guest.status)) {
-        return false;
+      if (!data) {
+        showErrorToast("Unable to load guests.");
+        return;
       }
-      if (statusFilter !== FILTER_ALL && guest.status !== statusFilter) {
-        return false;
+      setGuests(uniqueGuestsById(data.guests));
+      setTotalCount(data.totalCount);
+      if (data.page !== query.page) {
+        loadedKeyRef.current = listQueryKey({
+          search: query.search ?? "",
+          status: query.status ?? FILTER_ALL,
+          service: query.interestedService ?? FILTER_ALL,
+          showClosed: showClosedStatuses,
+          page: data.page,
+          pageSize: data.pageSize,
+        });
+        setCurrentPage(data.page);
       }
-      if (
-        serviceFilter !== FILTER_ALL &&
-        guest.interested_service !== serviceFilter
-      ) {
-        return false;
-      }
-      return true;
     });
+  };
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      const next = searchQuery.trim();
+      if (next !== debouncedSearch) {
+        setDebouncedSearch(next);
+        setCurrentPage(1);
+      }
+    }, 300);
+    return () => window.clearTimeout(timer);
+  }, [debouncedSearch, searchQuery]);
+
+  useEffect(() => {
+    const key = listQueryKey({
+      search: debouncedSearch,
+      status: statusFilter,
+      service: serviceFilter,
+      showClosed: showClosedStatuses,
+      page: currentPage,
+      pageSize,
+    });
+    if (key === loadedKeyRef.current) {
+      return;
+    }
+    loadedKeyRef.current = key;
+    loadPage(buildListQuery());
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
-    guestsById,
-    searchQuery,
+    currentPage,
+    debouncedSearch,
+    pageSize,
     statusFilter,
     serviceFilter,
     showClosedStatuses,
   ]);
 
-  const pageRows = filteredGuests.slice(0, visibleCount);
-  const canShowMore =
-    visibleCount < GUEST_LIST_MAX_ROWS && filteredGuests.length > visibleCount;
+  const pageRows = guests;
+
+  const totalPages = Math.max(1, Math.ceil(totalCount / pageSize));
+  const safeCurrentPage = Math.min(currentPage, totalPages);
+  const canShowMore = safeCurrentPage < totalPages;
 
   const dropTargetContext = useMemo<DropTargetContext>(() => {
     const teamIds = new Set(optimisticTeams.map((team) => team.id));
@@ -454,19 +534,17 @@ export function ManageGuestsPanel({
         guestTeamById.set(guest.id, team.id);
       }
     }
-    const unassignedGuestIds = new Set(
-      allGuests
-        .filter((row) => !guestTeamById.has(row.id))
-        .map((row) => row.id),
-    );
+    const unassignedGuestIds = new Set(guests.map((row) => row.id));
     return { teamIds, guestTeamById, unassignedGuestIds };
-  }, [optimisticTeams, allGuests]);
+  }, [optimisticTeams, guests]);
 
   const pendingDropTargetRef = useRef<string | null>(null);
 
   const moveGuest = useCallback(
     (guestId: string, targetGroup: string) => {
-      const guest = allGuests.find((row) => row.id === guestId);
+      const guest =
+        guests.find((row) => row.id === guestId) ??
+        teams.flatMap((team) => team.guests).find((row) => row.id === guestId);
       if (!guest) {
         showErrorToast("Guest not found.");
         return;
@@ -483,10 +561,21 @@ export function ManageGuestsPanel({
         const move = { guest, targetGroup };
         applyOptimisticMove(move);
         setTeams((current) => applyGuestMove(current, move));
+        if (targetGroup === UNASSIGNED_GROUP) {
+          setGuests((current) => uniqueGuestsById([guest, ...current]));
+        } else {
+          setGuests((current) => current.filter((row) => row.id !== guestId));
+        }
         assignFormAction(formData);
       });
     },
-    [allGuests, applyOptimisticMove, assignFormAction, startAssignTransition],
+    [
+      guests,
+      teams,
+      applyOptimisticMove,
+      assignFormAction,
+      startAssignTransition,
+    ],
   );
 
   const handleGuestDragOver = useCallback(
@@ -609,117 +698,141 @@ export function ManageGuestsPanel({
             onUnreadCountChange={setRegistrationUnreadCount}
           />
 
-          {SHOW_GUEST_FILTERS ? (
-            <div className="flex w-full flex-col gap-3 @lg/panel:flex-row @lg/panel:flex-wrap @lg/panel:items-center">
-              <div className="relative w-full @lg/panel:w-56">
-                <SearchIcon className="pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-muted-foreground" />
-                <Input
-                  id="guest-filter-search"
-                  value={searchQuery}
-                  onChange={(event) => {
-                    setSearchQuery(event.target.value);
-                    setVisibleCount(GUEST_LIST_BATCH_SIZE);
-                  }}
-                  placeholder="Search name or phone…"
-                  aria-label="Search guests"
-                  className="pl-8"
-                />
-              </div>
-              <div className="w-full @lg/panel:w-44">
-                <Select
-                  value={statusFilter}
-                  onValueChange={(value) => {
-                    if (!value) return;
-                    setStatusFilter(value);
-                    setVisibleCount(GUEST_LIST_BATCH_SIZE);
-                  }}
-                >
-                  <SelectTrigger
-                    id="guest-filter-status"
-                    aria-label="Filter by status"
-                    className="w-full"
-                  >
-                    <SelectValue placeholder="Status">
-                      {(value) =>
-                        !value || value === FILTER_ALL
-                          ? "Status"
-                          : (GUEST_CURRENT_STATUS_LABELS[
-                              value as GuestCurrentStatus
-                            ] ?? String(value))
-                      }
-                    </SelectValue>
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value={FILTER_ALL}>All statuses</SelectItem>
-                    {GUEST_CURRENT_STATUS_VALUES.filter(
-                      (value) => showClosedStatuses || !isClosedStatus(value),
-                    ).map((value) => (
-                      <SelectItem key={value} value={value}>
-                        {GUEST_CURRENT_STATUS_LABELS[value]}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="w-full @lg/panel:w-44">
-                <Select
-                  value={serviceFilter}
-                  onValueChange={(value) => {
-                    if (!value) return;
-                    setServiceFilter(value);
-                    setVisibleCount(GUEST_LIST_BATCH_SIZE);
-                  }}
-                >
-                  <SelectTrigger
-                    id="guest-filter-service"
-                    aria-label="Filter by service"
-                    className="w-full"
-                  >
-                    <SelectValue placeholder="Service">
-                      {(value) =>
-                        !value || value === FILTER_ALL
-                          ? "Service"
-                          : (GUEST_INTERESTED_SERVICE_LABELS[
-                              value as keyof typeof GUEST_INTERESTED_SERVICE_LABELS
-                            ] ?? String(value))
-                      }
-                    </SelectValue>
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value={FILTER_ALL}>All services</SelectItem>
-                    {GUEST_INTERESTED_SERVICE_VALUES.map((value) => (
-                      <SelectItem key={value} value={value}>
-                        {GUEST_INTERESTED_SERVICE_LABELS[value]}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="flex items-center gap-2 sm:h-9">
-                <Checkbox
-                  id="guest-filter-show-closed"
-                  checked={showClosedStatuses}
-                  onCheckedChange={(checked) => {
-                    setShowClosedStatuses(checked);
-                    if (
-                      !checked &&
-                      statusFilter !== FILTER_ALL &&
-                      isClosedStatus(statusFilter as GuestCurrentStatus)
-                    ) {
-                      setStatusFilter(FILTER_ALL);
-                    }
-                    setVisibleCount(GUEST_LIST_BATCH_SIZE);
-                  }}
-                />
-                <Label
-                  htmlFor="guest-filter-show-closed"
-                  className="cursor-pointer font-normal"
-                >
-                  Show rejected, cancelled &amp; finished
-                </Label>
-              </div>
+          <div className="flex w-full flex-col gap-3 @lg/panel:flex-row @lg/panel:flex-wrap @lg/panel:items-center">
+            <div className="relative min-w-0 flex-1">
+              <SearchIcon className="pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                id="guest-filter-search"
+                value={searchQuery}
+                onChange={(event) => setSearchQuery(event.target.value)}
+                placeholder="Search name or phone…"
+                aria-label="Search guests"
+                className="pl-8"
+              />
             </div>
-          ) : null}
+            {SHOW_GUEST_FILTERS ? (
+              <>
+                <div className="w-full @lg/panel:w-44">
+                  <Select
+                    value={statusFilter}
+                    onValueChange={(value) => {
+                      if (!value) return;
+                      setStatusFilter(value);
+                      setCurrentPage(1);
+                    }}
+                  >
+                    <SelectTrigger
+                      id="guest-filter-status"
+                      aria-label="Filter by status"
+                      className="w-full"
+                    >
+                      <SelectValue placeholder="Status">
+                        {(value) =>
+                          !value || value === FILTER_ALL
+                            ? "Status"
+                            : (GUEST_CURRENT_STATUS_LABELS[
+                                value as GuestCurrentStatus
+                              ] ?? String(value))
+                        }
+                      </SelectValue>
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value={FILTER_ALL}>All statuses</SelectItem>
+                      {GUEST_CURRENT_STATUS_VALUES.filter(
+                        (value) => showClosedStatuses || !isClosedStatus(value),
+                      ).map((value) => (
+                        <SelectItem key={value} value={value}>
+                          {GUEST_CURRENT_STATUS_LABELS[value]}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="w-full @lg/panel:w-44">
+                  <Select
+                    value={serviceFilter}
+                    onValueChange={(value) => {
+                      if (!value) return;
+                      setServiceFilter(value);
+                      setCurrentPage(1);
+                    }}
+                  >
+                    <SelectTrigger
+                      id="guest-filter-service"
+                      aria-label="Filter by service"
+                      className="w-full"
+                    >
+                      <SelectValue placeholder="Service">
+                        {(value) =>
+                          !value || value === FILTER_ALL
+                            ? "Service"
+                            : (GUEST_INTERESTED_SERVICE_LABELS[
+                                value as keyof typeof GUEST_INTERESTED_SERVICE_LABELS
+                              ] ?? String(value))
+                        }
+                      </SelectValue>
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value={FILTER_ALL}>All services</SelectItem>
+                      {GUEST_INTERESTED_SERVICE_VALUES.map((value) => (
+                        <SelectItem key={value} value={value}>
+                          {GUEST_INTERESTED_SERVICE_LABELS[value]}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="flex items-center gap-2 sm:h-9">
+                  <Checkbox
+                    id="guest-filter-show-closed"
+                    checked={showClosedStatuses}
+                    onCheckedChange={(checked) => {
+                      setShowClosedStatuses(checked);
+                      if (
+                        !checked &&
+                        statusFilter !== FILTER_ALL &&
+                        isClosedStatus(statusFilter as GuestCurrentStatus)
+                      ) {
+                        setStatusFilter(FILTER_ALL);
+                      }
+                      setCurrentPage(1);
+                    }}
+                  />
+                  <Label
+                    htmlFor="guest-filter-show-closed"
+                    className="cursor-pointer font-normal"
+                  >
+                    Show rejected, cancelled &amp; finished
+                  </Label>
+                </div>
+              </>
+            ) : null}
+            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+              <span className="inline-flex items-center gap-2">
+                {totalCount} unassigned
+                {isListLoading ? <InlineSpinner /> : null}
+              </span>
+              <Select
+                value={String(pageSize)}
+                onValueChange={(value) => {
+                  if (!value) return;
+                  setPageSize(Number(value) as GuestPageSizeOption);
+                  setCurrentPage(1);
+                }}
+              >
+                <SelectTrigger size="sm" className="w-16" aria-label="Rows per page">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent align="start">
+                  {GUEST_PAGE_SIZE_OPTIONS.map((option) => (
+                    <SelectItem key={option} value={String(option)}>
+                      {option}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
 
           <Card className="gap-0 py-0">
             <CardContent className="p-0">
@@ -748,7 +861,7 @@ export function ManageGuestsPanel({
                       : undefined
                   }
                   emptyState={
-                    guestsById.length === 0 ? (
+                    totalCount === 0 ? (
                       <div className="mx-auto flex max-w-sm flex-col items-center gap-3">
                         <p>
                           No guests yet. Create the first intake card to start
@@ -771,25 +884,31 @@ export function ManageGuestsPanel({
                 />
               </UnassignedDropZone>
 
-              {canShowMore ? (
-                <div className="flex justify-center border-t px-4 py-2">
+              <div className="flex items-center justify-between gap-3 border-t px-4 py-2">
+                <span className="text-sm text-muted-foreground">
+                  Page {safeCurrentPage} of {totalPages}
+                </span>
+                <div className="flex items-center gap-1">
                   <Button
                     type="button"
-                    variant="ghost"
+                    variant="outline"
                     size="sm"
-                    onClick={() =>
-                      setVisibleCount((count) =>
-                        Math.min(
-                          count + GUEST_LIST_BATCH_SIZE,
-                          GUEST_LIST_MAX_ROWS,
-                        ),
-                      )
-                    }
+                    disabled={safeCurrentPage <= 1 || isListLoading}
+                    onClick={() => setCurrentPage((page) => page - 1)}
                   >
-                    Show more
+                    Previous
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    disabled={!canShowMore || isListLoading}
+                    onClick={() => setCurrentPage((page) => page + 1)}
+                  >
+                    Next
                   </Button>
                 </div>
-              ) : null}
+              </div>
             </CardContent>
           </Card>
 
@@ -887,14 +1006,34 @@ export function ManageGuestsPanel({
             open={isAddOpen}
             onOpenChange={setIsAddOpen}
             onGuestCreated={(guest) => {
-              setGuests((current) => {
-                if (current.some((row) => row.id === guest.id)) {
-                  return current;
-                }
-
-                return [guest, ...current];
+              setGuests((current) => uniqueGuestsById([guest, ...current]));
+              setTotalCount((count) => count + 1);
+              setSearchQuery("");
+              setDebouncedSearch("");
+              setCurrentPage(1);
+              loadedKeyRef.current = listQueryKey({
+                search: "",
+                status: statusFilter,
+                service: serviceFilter,
+                showClosed: showClosedStatuses,
+                page: 1,
+                pageSize,
               });
-              setVisibleCount(GUEST_LIST_BATCH_SIZE);
+              loadPage({
+                page: 1,
+                pageSize,
+                search: "",
+                status:
+                  statusFilter === FILTER_ALL
+                    ? null
+                    : (statusFilter as GuestCurrentStatus),
+                interestedService:
+                  serviceFilter === FILTER_ALL
+                    ? null
+                    : (serviceFilter as GuestInterestedService),
+                unassignedOnly: true,
+                includeClosed: showClosedStatuses,
+              });
             }}
           />
 

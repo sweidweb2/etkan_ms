@@ -126,7 +126,8 @@ function mapSubjectRecordToRow(
 async function buildClassCountBySubjectId(
   adminClient: Supabase
 ): Promise<Map<string, number>> {
-  const { data, error } = await classRepository.listClassSubjectIds(adminClient);
+  const { data, error } =
+    await classRepository.countClassesBySubject(adminClient);
 
   if (error) {
     throw new Error(error.message);
@@ -139,7 +140,7 @@ async function buildClassCountBySubjectId(
       continue;
     }
 
-    counts.set(row.subject_id, (counts.get(row.subject_id) ?? 0) + 1);
+    counts.set(row.subject_id, Math.max(0, Number(row.class_count) || 0));
   }
 
   return counts;

@@ -7,14 +7,23 @@ import {
   type ActionToastState,
 } from "@/lib/toast";
 
-function hasToastPayload(state: ActionToastState) {
-  return (
-    state.success === true ||
-    state.success === false ||
-    Boolean(state.error) ||
-    Boolean(state.message) ||
-    Boolean(state.warning)
+function hasFieldErrors(state: ActionToastState) {
+  if (!state.fieldErrors) {
+    return false;
+  }
+  return Object.values(state.fieldErrors).some(
+    (messages) => Array.isArray(messages) && messages.length > 0
   );
+}
+
+function hasToastPayload(state: ActionToastState) {
+  if (state.success === true || Boolean(state.message) || Boolean(state.warning)) {
+    return true;
+  }
+  if (state.success === false || Boolean(state.error)) {
+    return !hasFieldErrors(state);
+  }
+  return false;
 }
 
 export function useActionStateToast(
@@ -30,7 +39,7 @@ export function useActionStateToast(
       return;
     }
 
-    if (next.error) {
+    if (next.error && !hasFieldErrors(next)) {
       showErrorToast(next.error);
     }
   });

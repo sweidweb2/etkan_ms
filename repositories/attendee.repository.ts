@@ -2,6 +2,7 @@ import "server-only";
 
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { AttendeeStatusValue } from "@/lib/constants/manager-attendee-status";
+import { chunkedIn } from "@/repositories/_shared/chunked-in";
 import type { Database } from "@/types/supabase";
 
 type Supabase = SupabaseClient<Database>;
@@ -38,10 +39,12 @@ export async function listAttendeesBySessionIds(
     return { data: [], error: null };
   }
 
-  return client
-    .from("attendee")
-    .select("session_id, student_id, status")
-    .in("session_id", sessionIds);
+  return chunkedIn(sessionIds, (chunk) =>
+    client
+      .from("attendee")
+      .select("session_id, student_id, status")
+      .in("session_id", chunk)
+  );
 }
 
 export async function listAttendeesBySessionIdsAndStudentId(

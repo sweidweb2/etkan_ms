@@ -87,16 +87,12 @@ const validStudentInput = {
 };
 
 function mockStudentLookups() {
-  vi.mocked(profileRepository.findProfileAvatarUrlById).mockResolvedValue({
-    data: { id: "user-1", avatar_url: null },
-    error: null,
-  } as never);
-
   vi.mocked(profileRepository.findProfileById).mockResolvedValue({
     data: {
       id: "user-1",
       full_name: "Jane Doe",
       role: ROLES.STUDENT,
+      avatar_url: null,
       created_at: "2026-01-01T00:00:00.000Z",
     },
     error: null,

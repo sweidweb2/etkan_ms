@@ -78,6 +78,20 @@ export type ManagerRegistrationDetail = {
   signedDocuments: ManagerRegistrationDocumentSignedRow[];
 };
 
+export type ManagerRegistrationsListQuery = {
+  page?: number;
+  pageSize?: number;
+  status?: RegistrationApplicationStatus | null;
+  search?: string;
+};
+
+export type ManagerRegistrationsListData = {
+  applications: ManagerRegistrationApplicationRow[];
+  totalCount: number;
+  page: number;
+  pageSize: number;
+};
+
 export type SubmitPublicRegistrationActionState = {
   success?: boolean;
   error?: string;

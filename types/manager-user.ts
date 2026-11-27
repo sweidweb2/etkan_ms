@@ -18,6 +18,29 @@ export interface ManagerUserRow {
   student_status?: StudentStatusValue | null;
 }
 
+export type ManagerUsersListQuery = {
+  page?: number;
+  pageSize?: number;
+  /** When set, only this staff role. Students are always excluded. */
+  role?: RoleValue | null;
+  search?: string;
+};
+
+export type ManagerUsersListStats = {
+  total: number;
+  teachers: number;
+  staff: number;
+};
+
+export type ManagerUsersListData = {
+  users: ManagerUserRow[];
+  totalCount: number;
+  page: number;
+  pageSize: number;
+  /** Global staff counts (not filtered by the current query). */
+  stats: ManagerUsersListStats;
+};
+
 export type CreateStaffUserActionState = {
   success?: boolean;
   error?: string;

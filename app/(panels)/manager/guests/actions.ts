@@ -33,6 +33,7 @@ import {
 import {
   createGuestForManager,
   deleteGuestForManager,
+  listGuestsPageForManager,
   listGuestStatusEventsForManager,
   removeGuestStatusForManager,
   setGuestProfileStatusForManager,
@@ -65,6 +66,8 @@ import type {
   CreateGuestActionState,
   DeleteGuestActionState,
   DeleteGuestRegistrationApplicationActionState,
+  ManagerGuestsListData,
+  ManagerGuestsListQuery,
   ManagerGuestStatusEventRow,
   OpenGuestRegistrationInviteActionState,
   RecordGuestStatusesActionState,
@@ -86,6 +89,25 @@ import type {
   RemoveTempRegistrationDocumentActionState,
   TempUploadRegistrationDocumentActionState,
 } from "@/types/public-registration";
+
+export async function loadGuestsPageAction(
+  query: ManagerGuestsListQuery
+): Promise<ManagerGuestsListData | null> {
+  const actor = await getSessionAuditActor();
+  if (!actor.userId) {
+    return null;
+  }
+
+  const adminClient = createSupabaseAdminClient();
+  try {
+    return await listGuestsPageForManager(adminClient, actor.userId, {
+      ...query,
+      unassignedOnly: query.unassignedOnly ?? true,
+    });
+  } catch {
+    return null;
+  }
+}
 
 export async function createGuestAction(
   _prevState: CreateGuestActionState,

@@ -45,8 +45,11 @@ import { releaseGuestFromTeamIfBecameClosed } from "@/services/teams/team.servic
 import { attachGuestRegistrationEmails } from "@/services/guests/attach-guest-registration-emails";
 import { getGuestRegistrationInviteBundleForManager } from "@/services/guests/guest-registration.service";
 import type { FieldErrors } from "@/types/auth";
+import * as teamRepository from "@/repositories/team.repository";
 import type {
   ManagerGuestDetail,
+  ManagerGuestsListData,
+  ManagerGuestsListQuery,
   ManagerGuestRow,
   ManagerGuestStatusEventRow,
 } from "@/types/manager-guest";
@@ -253,6 +256,92 @@ export async function listGuestsForManager(
     adminClient,
     (data ?? []).map(mapGuestRecordToRow)
   );
+}
+
+const GUESTS_PAGE_SIZE_OPTIONS = [10, 15, 25] as const;
+const GUESTS_PAGE_SIZE_DEFAULT = 15;
+
+function clampGuestsPageSize(pageSize: number | undefined): number {
+  if (
+    pageSize !== undefined &&
+    (GUESTS_PAGE_SIZE_OPTIONS as readonly number[]).includes(pageSize)
+  ) {
+    return pageSize;
+  }
+  return GUESTS_PAGE_SIZE_DEFAULT;
+}
+
+/**
+ * Server-paged guests list for the manager panel.
+ * Registration emails are attached only for the returned page ids.
+ */
+export async function listGuestsPageForManager(
+  adminClient: Supabase,
+  actorUserId: string | null,
+  query: ManagerGuestsListQuery = {}
+): Promise<ManagerGuestsListData> {
+  await assertPermission(adminClient, actorUserId, PERMISSIONS.GUESTS_VIEW);
+
+  const pageSize = clampGuestsPageSize(query.pageSize);
+  const requestedPage = Math.max(1, Math.floor(query.page ?? 1));
+  const search = query.search?.trim() ?? "";
+  const status = query.status ?? null;
+  const interestedService = query.interestedService ?? null;
+  const unassignedOnly = query.unassignedOnly !== false;
+  const includeClosed = query.includeClosed === true;
+
+  let excludeIds: string[] | undefined;
+  if (unassignedOnly) {
+    const membershipResult = await teamRepository.listTeamGuests(adminClient);
+    if (membershipResult.error) {
+      throw new Error(membershipResult.error.message);
+    }
+    excludeIds = (membershipResult.data ?? []).map((row) => row.guest_id);
+  }
+
+  const excludeStatuses =
+    !status && !includeClosed
+      ? [
+          GUEST_CURRENT_STATUSES.CANCELLED,
+          GUEST_CURRENT_STATUSES.REJECTED,
+          GUEST_CURRENT_STATUSES.FINISHED,
+        ]
+      : undefined;
+
+  const fetchPage = (page: number) =>
+    guestRepository.listGuestsPage(adminClient, {
+      offset: (page - 1) * pageSize,
+      limit: pageSize,
+      search,
+      status,
+      interestedService,
+      excludeIds,
+      excludeStatuses,
+    });
+
+  let pageResult = await fetchPage(requestedPage);
+  let page = requestedPage;
+
+  if (pageResult.error) {
+    throw new Error(pageResult.error.message);
+  }
+
+  const totalCount = pageResult.count ?? 0;
+
+  if (totalCount > 0 && (pageResult.data ?? []).length === 0) {
+    page = Math.max(1, Math.ceil(totalCount / pageSize));
+    pageResult = await fetchPage(page);
+    if (pageResult.error) {
+      throw new Error(pageResult.error.message);
+    }
+  }
+
+  const guests = await attachGuestRegistrationEmails(
+    adminClient,
+    (pageResult.data ?? []).map(mapGuestRecordToRow)
+  );
+
+  return { guests, totalCount, page, pageSize };
 }
 
 export async function getGuestForManager(
