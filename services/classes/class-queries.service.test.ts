@@ -240,6 +240,9 @@ describe("loadClassStudentRows", () => {
     vi.mocked(
       paymentPhaseRepository.findCurrentSyncPhaseBySemesterId
     ).mockResolvedValue({ data: null, error: null } as never);
+    vi.mocked(
+      paymentPhaseRepository.listOpenedPaymentPhasesBySemesterId
+    ).mockResolvedValue({ data: [], error: null } as never);
 
     const rows = await loadClassStudentRows(adminClient, classId);
 
@@ -277,6 +280,9 @@ describe("loadClassStudentRows", () => {
     vi.mocked(
       paymentPhaseRepository.findCurrentSyncPhaseBySemesterId
     ).mockResolvedValue({ data: null, error: null } as never);
+    vi.mocked(
+      paymentPhaseRepository.listOpenedPaymentPhasesBySemesterId
+    ).mockResolvedValue({ data: [], error: null } as never);
 
     await loadClassStudentRows(adminClient, classId, {
       semesterId,

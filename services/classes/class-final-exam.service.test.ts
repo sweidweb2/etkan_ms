@@ -11,6 +11,7 @@ import * as sessionRepository from "@/repositories/session.repository";
 import * as studentClassRepository from "@/repositories/student-class.repository";
 import * as studentCourseGradeRepository from "@/repositories/student-course-grade.repository";
 import * as studentProfileRepository from "@/repositories/student-profile.repository";
+import * as studentSemesterRepository from "@/repositories/student-semester.repository";
 import * as studentTaskRepository from "@/repositories/student-task.repository";
 import * as auditLogService from "@/services/ops/audit-log.service";
 import type { AuditActor } from "@/services/ops/audit-log.service";
@@ -30,7 +31,11 @@ vi.mock("@/repositories/session.repository");
 vi.mock("@/repositories/student-class.repository");
 vi.mock("@/repositories/student-course-grade.repository");
 vi.mock("@/repositories/student-profile.repository");
+vi.mock("@/repositories/student-semester.repository");
 vi.mock("@/repositories/student-task.repository");
+vi.mock("@/services/accounting/accounting-sync.service", () => ({
+  onStudentJoinedClass: vi.fn().mockResolvedValue(undefined),
+}));
 vi.mock("@/services/students/student.service", () => ({
   listStudentsForManager: vi.fn(),
 }));
@@ -315,10 +320,17 @@ describe("addStudentToClassForManager final exam grade", () => {
           user_id: studentA,
           full_name: "Alice",
           phone: null,
+          status: "active",
         },
         error: null,
       } as never
     );
+    vi.mocked(
+      studentSemesterRepository.findEnrollmentByStudentAndSemester
+    ).mockResolvedValue({
+      data: null,
+      error: null,
+    } as never);
     vi.mocked(studentClassRepository.enrollStudentInClass).mockResolvedValue({
       data: {
         ok: true,
