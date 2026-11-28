@@ -1,7 +1,7 @@
 "use client";
 
 import { useRef, useState } from "react";
-import { dropAllSemestersAction } from "@/app/manager/students/actions";
+import { dropAllSemestersAction } from "@/app/manager/students/actions/drop-student-console";
 import { InlineSpinner } from "@/components/loaders/inline-spinner";
 import { Button } from "@/components/ui/button";
 import {

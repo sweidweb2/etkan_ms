@@ -222,8 +222,3 @@ export async function loadStudentStatusSideEffectsPreviewAction(
     };
   }
 }
-
-export {
-  loadDropStudentConsoleSnapshotAction,
-  dropAllSemestersAction,
-} from "./actions/drop-student-console";
