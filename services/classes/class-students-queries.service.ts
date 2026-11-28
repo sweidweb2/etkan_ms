@@ -14,6 +14,7 @@ import * as studentClassRepository from "@/repositories/student-class.repository
 import * as studentPaymentPhaseRepository from "@/repositories/student-payment-phase.repository";
 import * as studentPaymentRepository from "@/repositories/student-payment.repository";
 import * as studentProfileRepository from "@/repositories/student-profile.repository";
+import * as studentSemesterRepository from "@/repositories/student-semester.repository";
 import { hydrateStudentRows } from "@/services/students/student.service";
 import {
   CLASS_STATUS_VALUES,
@@ -169,34 +170,51 @@ async function hydrateClassStudentEnrollments(
         throw new Error(phaseResult.error.message);
       }
 
-      if (phaseResult.data?.id) {
-        const sppsResult =
-          await studentPaymentPhaseRepository.listSppsByPhaseAndStudentIds(
+      if (semesterId) {
+        const openedPhasesResult =
+          await paymentPhaseRepository.listOpenedPaymentPhasesBySemesterId(
             adminClient,
-            phaseResult.data.id,
-            userIds
+            semesterId
           );
-        if (sppsResult.error) {
-          throw new Error(sppsResult.error.message);
+        if (openedPhasesResult.error) {
+          throw new Error(openedPhasesResult.error.message);
         }
-        const sppsForRoster = sppsResult.data ?? [];
-        const sppIds = sppsForRoster.map((row) => row.id);
-        const paymentsResult =
-          await studentPaymentRepository.listPaymentSppIdsBySppIds(
-            adminClient,
-            sppIds
+        let phases = openedPhasesResult.data ?? [];
+        if (phases.length === 0 && phaseResult.data) {
+          phases = [phaseResult.data];
+        }
+        for (const phase of phases) {
+          const sppsResult =
+            await studentPaymentPhaseRepository.listSppsByPhaseAndStudentIds(
+              adminClient,
+              phase.id,
+              userIds
+            );
+          if (sppsResult.error) {
+            throw new Error(sppsResult.error.message);
+          }
+          const sppsForRoster = sppsResult.data ?? [];
+          const sppIds = sppsForRoster.map((row) => row.id);
+          if (sppIds.length === 0) {
+            continue;
+          }
+          const paymentsResult =
+            await studentPaymentRepository.listPaymentSppIdsBySppIds(
+              adminClient,
+              sppIds
+            );
+          if (paymentsResult.error) {
+            throw new Error(paymentsResult.error.message);
+          }
+          const paidSppIds = new Set(
+            (paymentsResult.data ?? []).map(
+              (row) => row.student_payment_phase_id
+            )
           );
-        if (paymentsResult.error) {
-          throw new Error(paymentsResult.error.message);
-        }
-        const paidSppIds = new Set(
-          (paymentsResult.data ?? []).map(
-            (row) => row.student_payment_phase_id
-          )
-        );
-        for (const spp of sppsForRoster) {
-          if (paidSppIds.has(spp.id)) {
-            studentsWithSppPayments.add(spp.student_id);
+          for (const spp of sppsForRoster) {
+            if (paidSppIds.has(spp.id)) {
+              studentsWithSppPayments.add(spp.student_id);
+            }
           }
         }
       }
@@ -477,17 +495,29 @@ export async function listAvailableStudentsForClass(
     const requestedPage = Math.max(1, Math.floor(query.page ?? 1));
     const search = query.search?.trim() ?? "";
 
-    const membershipResult = await timer.step("members", () =>
-      studentClassRepository.listStudentUserIdsByClassId(adminClient, classId)
+    const [membershipResult, classResult] = await timer.step(
+      "members+class",
+      () =>
+        Promise.all([
+          studentClassRepository.listStudentUserIdsByClassId(
+            adminClient,
+            classId
+          ),
+          classRepository.findClassById(adminClient, classId),
+        ])
     );
 
     if (membershipResult.error) {
       throw new Error(membershipResult.error.message);
     }
+    if (classResult.error) {
+      throw new Error(classResult.error.message);
+    }
 
     const excludeUserIds = (membershipResult.data ?? []).map(
       (row) => row.user_id
     );
+    const semesterId = classResult.data?.semester_id ?? null;
 
     const fetchPage = (page: number) =>
       studentProfileRepository.listStudentProfilesPage(adminClient, {
@@ -517,10 +547,28 @@ export async function listAvailableStudentsForClass(
       }
     }
 
-    const students = await hydrateStudentRows(
+    let students = await hydrateStudentRows(
       adminClient,
       pageResult.data ?? []
     );
+
+    if (semesterId && students.length > 0) {
+      const withdrawnResult =
+        await studentSemesterRepository.listWithdrawnStudentProfileIdsBySemester(
+          adminClient,
+          semesterId,
+          students.map((student) => student.student_profile_id)
+        );
+      if (withdrawnResult.error) {
+        throw new Error(withdrawnResult.error.message);
+      }
+      const withdrawnIds = new Set(withdrawnResult.data ?? []);
+      students = students.map((student) =>
+        withdrawnIds.has(student.student_profile_id)
+          ? { ...student, semester_dropped: true }
+          : student
+      );
+    }
 
     return { students, totalCount, page, pageSize };
   } finally {

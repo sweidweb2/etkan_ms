@@ -31,10 +31,25 @@ export type CreateSemesterDropResult =
       request: ManagerSemesterDropRequestRow | null;
       completedImmediately: boolean;
       removedFromClass: boolean;
+      removedMembershipIds: string[];
+      removedClassIds: string[];
       message: string;
       warning?: string;
     }
   | MutationFailure;
+
+function mapAmountDueFieldError(message: string): MutationFailure | null {
+  if (!/cannot exceed the amount due/i.test(message)) {
+    return null;
+  }
+  return {
+    success: false,
+    error: "Please fix the errors below.",
+    fieldErrors: {
+      required_amount: [message],
+    },
+  };
+}
 
 export type CancelSemesterDropResult =
   | {
@@ -58,7 +73,7 @@ async function leaveClassWithoutSppDrop(
   }
 
   const { data: leaveResult, error: leaveError } =
-    await studentClassRepository.leaveStudentSemesterDropClasses(
+    await studentClassRepository.leaveAndWithdrawSemesterNoSpp(
       adminClient,
       studentId,
       semesterId,
@@ -72,19 +87,10 @@ async function leaveClassWithoutSppDrop(
     return { success: false, error: "Student is not a member of this class." };
   }
 
-  const profileResult =
-    await studentProfileRepository.findStudentProfileByUserId(
-      adminClient,
-      studentId
-    );
-  if (profileResult.data?.id) {
-    await studentSemesterRepository.updateEnrollmentStatus(
-      adminClient,
-      profileResult.data.id,
-      semesterId,
-      STUDENT_SEMESTER_STATUSES.WITHDRAWN
-    );
-  }
+  const removedClassIds = leaveResult.removed.map((row) => row.classId);
+  const removedMembershipIds = leaveResult.removed.map(
+    (row) => row.membershipId
+  );
 
   await recordManagerAuditLog(adminClient, actor, {
     action: "delete",
@@ -92,11 +98,11 @@ async function leaveClassWithoutSppDrop(
     table_name: "student_class",
     record_id: membershipId,
     metadata: {
-      note: "Semester drop with no SPP; left scheduled/in_progress semester classes.",
+      note: "Semester drop with no SPP; left scheduled/in-progress/paused semester classes and withdrew enrollment.",
       class_id: classId,
       student_id: studentId,
       semester_id: semesterId,
-      removed_class_ids: leaveResult.removed.map((row) => row.classId),
+      removed_class_ids: removedClassIds,
     },
   });
 
@@ -105,8 +111,10 @@ async function leaveClassWithoutSppDrop(
     request: null,
     completedImmediately: true,
     removedFromClass: true,
+    removedMembershipIds,
+    removedClassIds,
     message:
-      "Student dropped from scheduled/in-progress semester classes (no payment phase assignment).",
+      "Student dropped from scheduled/in-progress/paused semester classes (no payment phase assignment).",
   };
 }
 
@@ -143,6 +151,10 @@ async function executeCreateSemesterDrop(
 
   if (error) {
     const message = error.message ?? "";
+    const amountError = mapAmountDueFieldError(message);
+    if (amountError) {
+      return amountError;
+    }
     if (isNoSppDropFallbackMessage(message)) {
       let membershipId = parsed.membership_id;
       if (!membershipId) {
@@ -176,6 +188,9 @@ async function executeCreateSemesterDrop(
   }
 
   const request = data.request ? toManagerSemesterDropRow(data.request) : null;
+  const removedClasses = data.removedClasses ?? [];
+  const removedMembershipIds = removedClasses.map((row) => row.membershipId);
+  const removedClassIds = removedClasses.map((row) => row.classId);
 
   await recordManagerAuditLog(adminClient, actor, {
     action: data.completedImmediately ? "update" : "insert",
@@ -190,6 +205,7 @@ async function executeCreateSemesterDrop(
       completedImmediately: data.completedImmediately,
       restriction_mode: parsed.restriction_mode,
       source: options?.auditSource ?? "class_drop",
+      removed_class_ids: removedClassIds,
     },
   });
 
@@ -198,10 +214,12 @@ async function executeCreateSemesterDrop(
     request,
     completedImmediately: data.completedImmediately,
     removedFromClass: data.completedImmediately,
+    removedMembershipIds,
+    removedClassIds,
     message: data.completedImmediately
       ? parsed.restriction_mode === SEMESTER_DROP_RESTRICTION_MODES.NONE
         ? "Semester drop completed with no payment restriction. Payments kept; no refund."
-        : "Semester drop completed. Student left all scheduled/in-progress classes in the semester."
+        : "Semester drop completed. Student left all scheduled/in-progress/paused classes in the semester."
       : "Semester drop pending until the required payment is met.",
   };
 }
@@ -388,7 +406,43 @@ export type DropAllSemestersTarget = {
   semester_name?: string;
   origin_class_id: string;
   origin_membership_id?: string;
+  /** When known from preview, used to reject amount above due before RPC. */
+  final_amount_due?: number;
 };
+
+/**
+ * Preflight absolute amount against settleable semester dues only.
+ * Omit / undefined dues for NO_SPP targets — those paths ignore amount in SQL.
+ * Do not pass `0` as a stand-in for “no SPP”.
+ */
+function amountExceedsAnySemesterDue(
+  requiredAmount: number | null | undefined,
+  dues: Array<number | null | undefined>
+): MutationFailure | null {
+  if (requiredAmount == null || requiredAmount <= 0) {
+    return null;
+  }
+  const knownDues = dues.filter(
+    (due): due is number =>
+      typeof due === "number" && Number.isFinite(due) && due >= 0
+  );
+  if (knownDues.length === 0) {
+    return null;
+  }
+  const minDue = Math.min(...knownDues);
+  if (requiredAmount <= minDue) {
+    return null;
+  }
+  return {
+    success: false,
+    error: "Please fix the errors below.",
+    fieldErrors: {
+      required_amount: [
+        `Amount cannot exceed the amount due (${minDue}).`,
+      ],
+    },
+  };
+}
 
 export type DropAllSemestersResult =
   | {
@@ -403,7 +457,7 @@ export type DropAllSemestersResult =
 
 /**
  * Drop every listed semester immediately with the same restriction.
- * Fail-fast: stops on the first semester that cannot complete immediately.
+ * Atomic: one RPC; any failure rolls back all drops.
  */
 export async function dropAllSemestersForManager(
   adminClient: Supabase,
@@ -435,50 +489,276 @@ export async function dropAllSemestersForManager(
     };
   }
 
-  let completedCount = 0;
   for (const target of input.targets) {
-    const result = await createSemesterDropForManager(
+    const scope = await assertAssignedTeacherForClassMutation(
       adminClient,
-      actorUserId,
       actor,
+      target.origin_class_id
+    );
+    if (!scope.ok) {
+      return {
+        success: false,
+        error: scope.error,
+        completedCount: 0,
+        failedSemesterId: target.semester_id,
+      };
+    }
+  }
+
+  const parsed = createSemesterDropSchema.safeParse({
+    student_id: input.student_id,
+    class_id: input.targets[0].origin_class_id,
+    restriction_mode:
+      input.restriction_mode ?? SEMESTER_DROP_RESTRICTION_MODES.PERCENT,
+    required_percent: input.required_percent,
+    required_amount: input.required_amount,
+    require_immediate: true,
+  });
+
+  if (!parsed.success) {
+    return {
+      success: false,
+      error: "Please fix the errors below.",
+      fieldErrors: parsed.error.flatten().fieldErrors,
+      completedCount: 0,
+    };
+  }
+
+  const amountDueError = amountExceedsAnySemesterDue(
+    parsed.data.required_amount,
+    input.targets.map((target) => target.final_amount_due)
+  );
+  if (amountDueError) {
+    return { ...amountDueError, completedCount: 0 };
+  }
+
+  const { data, error } =
+    await semesterDropRequestRepository.createImmediateSemesterDropsBatch(
+      adminClient,
       {
         student_id: input.student_id,
-        class_id: target.origin_class_id,
-        membership_id: target.origin_membership_id,
-        restriction_mode: input.restriction_mode,
-        required_percent: input.required_percent,
-        required_amount: input.required_amount,
-        require_immediate: true,
+        class_ids: input.targets.map((target) => target.origin_class_id),
+        restriction_mode: parsed.data.restriction_mode,
+        required_percent: parsed.data.required_percent,
+        required_amount: parsed.data.required_amount,
+        requested_by: actorUserId,
         notes:
           input.notes ??
-          `Drop all semesters from console (${target.semester_name ?? target.semester_id}).`,
-        auditSource: "drop_student_console",
+          `Drop all semesters from console (${input.targets.length}).`,
       }
     );
 
-    if (!result.success) {
+  if (error) {
+    const message = error.message ?? "";
+    const amountError = mapAmountDueFieldError(message);
+    if (amountError) {
+      return { ...amountError, completedCount: 0 };
+    }
+    if (isNoSppDropFallbackMessage(message) && input.targets.length === 1) {
+      const target = input.targets[0];
+      let membershipId = target.origin_membership_id;
+      if (!membershipId) {
+        const membershipResult =
+          await studentClassRepository.findStudentClassByUserAndClass(
+            adminClient,
+            input.student_id,
+            target.origin_class_id
+          );
+        membershipId = membershipResult.data?.id;
+      }
+      if (!membershipId) {
+        return {
+          success: false,
+          error: "Student is not a member of this class.",
+          completedCount: 0,
+        };
+      }
+      const single = await leaveClassWithoutSppDrop(
+        adminClient,
+        actor,
+        membershipId,
+        target.origin_class_id,
+        input.student_id
+      );
+      if (!single.success) {
+        return { ...single, completedCount: 0 };
+      }
       return {
-        success: false,
-        error:
-          result.error ||
-          `Unable to drop ${target.semester_name ?? "semester"}.`,
-        fieldErrors: result.fieldErrors,
-        completedCount,
-        failedSemesterId: target.semester_id,
+        success: true,
+        completedCount: 1,
+        message: "Dropped 1 semester immediately.",
       };
     }
-
-    if (!result.completedImmediately) {
-      return {
-        success: false,
-        error: `Drop for ${target.semester_name ?? "semester"} cannot complete immediately. Lower the requirement, choose no restriction (empty/0), or finish pending drops first.`,
-        completedCount,
-        failedSemesterId: target.semester_id,
-      };
-    }
-
-    completedCount += 1;
+    return {
+      success: false,
+      error: message || "Unable to drop semesters.",
+      completedCount: 0,
+    };
   }
+
+  const completedCount = data?.completedCount ?? 0;
+  if (!data || completedCount < 1) {
+    return {
+      success: false,
+      error: "Unable to drop semesters.",
+      completedCount: 0,
+    };
+  }
+
+  await recordManagerAuditLog(adminClient, actor, {
+    action: "update",
+    severity: "info",
+    table_name: "semester_drop_requests",
+    record_id: null,
+    metadata: {
+      note: "Atomic drop-all semesters completed.",
+      student_id: input.student_id,
+      completed_count: completedCount,
+      class_ids: input.targets.map((target) => target.origin_class_id),
+      source: "drop_student_console",
+    },
+  });
+
+  return {
+    success: true,
+    completedCount,
+    message:
+      completedCount === 1
+        ? "Dropped 1 semester immediately."
+        : `Dropped ${completedCount} semesters immediately.`,
+  };
+}
+
+/**
+ * Immediate drops for inactivate — atomic batch when multiple semesters.
+ */
+export async function createImmediateSemesterDropsBatchForInactivate(
+  adminClient: Supabase,
+  actorUserId: string | null,
+  actor: AuditActor,
+  input: {
+    student_id: string;
+    targets: Array<{
+      class_id: string;
+      semester_id?: string;
+      final_amount_due?: number;
+    }>;
+    restriction_mode?: string;
+    required_percent?: number | null;
+    required_amount?: number | null;
+    notes?: string | null;
+  }
+): Promise<DropAllSemestersResult> {
+  if (!input.targets.length) {
+    return { success: true, completedCount: 0, message: "No semesters to drop." };
+  }
+
+  const parsed = createSemesterDropSchema.safeParse({
+    student_id: input.student_id,
+    class_id: input.targets[0].class_id,
+    restriction_mode:
+      input.restriction_mode ?? SEMESTER_DROP_RESTRICTION_MODES.NONE,
+    required_percent: input.required_percent,
+    required_amount: input.required_amount,
+    require_immediate: true,
+  });
+
+  if (!parsed.success) {
+    return {
+      success: false,
+      error: "Please fix the errors below.",
+      fieldErrors: parsed.error.flatten().fieldErrors,
+      completedCount: 0,
+    };
+  }
+
+  const amountDueError = amountExceedsAnySemesterDue(
+    parsed.data.required_amount,
+    input.targets.map((target) => target.final_amount_due)
+  );
+  if (amountDueError) {
+    return { ...amountDueError, completedCount: 0 };
+  }
+
+  const { data, error } =
+    await semesterDropRequestRepository.createImmediateSemesterDropsBatch(
+      adminClient,
+      {
+        student_id: input.student_id,
+        class_ids: input.targets.map((target) => target.class_id),
+        restriction_mode: parsed.data.restriction_mode,
+        required_percent: parsed.data.required_percent,
+        required_amount: parsed.data.required_amount,
+        requested_by: actorUserId,
+        notes: input.notes ?? "Drop from student inactivate.",
+      }
+    );
+
+  if (error) {
+    const message = error.message ?? "";
+    const amountError = mapAmountDueFieldError(message);
+    if (amountError) {
+      return { ...amountError, completedCount: 0 };
+    }
+    if (isNoSppDropFallbackMessage(message) && input.targets.length === 1) {
+      const membershipResult =
+        await studentClassRepository.findStudentClassByUserAndClass(
+          adminClient,
+          input.student_id,
+          input.targets[0].class_id
+        );
+      const membershipId = membershipResult.data?.id;
+      if (!membershipId) {
+        return {
+          success: false,
+          error: "Student is not a member of this class.",
+          completedCount: 0,
+        };
+      }
+      const single = await leaveClassWithoutSppDrop(
+        adminClient,
+        actor,
+        membershipId,
+        input.targets[0].class_id,
+        input.student_id
+      );
+      if (!single.success) {
+        return { ...single, completedCount: 0 };
+      }
+      return {
+        success: true,
+        completedCount: 1,
+        message: "Dropped 1 semester immediately.",
+      };
+    }
+    return {
+      success: false,
+      error: message || "Unable to drop semesters for inactivate.",
+      completedCount: 0,
+    };
+  }
+
+  const completedCount = data?.completedCount ?? 0;
+  if (!data || completedCount < input.targets.length) {
+    return {
+      success: false,
+      error: "Unable to drop all required semesters.",
+      completedCount: 0,
+    };
+  }
+
+  await recordManagerAuditLog(adminClient, actor, {
+    action: "update",
+    severity: "info",
+    table_name: "semester_drop_requests",
+    record_id: null,
+    metadata: {
+      note: "Atomic inactivate semester drops completed.",
+      student_id: input.student_id,
+      completed_count: completedCount,
+      source: "inactivate",
+    },
+  });
 
   return {
     success: true,

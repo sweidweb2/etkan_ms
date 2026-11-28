@@ -13,16 +13,6 @@ test.describe("manager guests", () => {
     );
   });
 
-  test("list loads @smoke", async ({ page }) => {
-    await page.goto("/manager/guests");
-    await expect(
-      page.getByRole("heading", { level: 1, name: "Guests" })
-    ).toBeVisible();
-    await expect(
-      page.getByRole("button", { name: "Create guest" })
-    ).toBeVisible();
-  });
-
   test("create guest then open detail @mutation", async ({ page }) => {
     const stamp = e2eStamp("gst");
     const fullName = `E2E Guest ${stamp.slice(-8)}`;

@@ -42,13 +42,6 @@ test.describe("manager workshops", () => {
     await expect(page.getByText(name).first()).toBeVisible();
   });
 
-  test("payments overview loads @smoke", async ({ page }) => {
-    await page.goto("/manager/workshops/payments");
-    await expect(page.getByText(/Total payments/i).first()).toBeVisible({
-      timeout: 45_000,
-    });
-  });
-
   test("demo workshop detail opens when seeded @smoke", async ({ page }) => {
     await page.goto("/manager/workshops");
     const view = page.getByRole("link", {

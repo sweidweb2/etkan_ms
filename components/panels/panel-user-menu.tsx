@@ -1,10 +1,9 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useState } from "react";
 import Link from "next/link";
 import { Home, LogOut, Settings } from "lucide-react";
 import { logoutAction } from "@/app/(public)/auth/actions";
-import { InlineSpinner } from "@/components/loaders/inline-spinner";
 import { usePanelSessionAvatarUrl } from "@/components/panels/panel-session-avatar";
 import { Button } from "@/components/ui/button";
 import {
@@ -17,6 +16,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { broadcastSessionEnded } from "@/lib/auth/session-cross-tab";
 import { ROUTES } from "@/lib/constants/routes";
+import { getBrowserSupabaseClient } from "@/lib/supabase/client";
 import { getInitials } from "@/lib/utils/display-name";
 import { cn } from "@/lib/utils";
 
@@ -26,6 +26,8 @@ type PanelUserMenuProps = {
   /** Optional settings link (e.g. teacher settings). */
   settingsHref?: string;
 };
+
+const LOGOUT_FORM_ID = "panel-logout-form";
 
 function UserAvatarFace({
   displayName,
@@ -51,29 +53,22 @@ function UserAvatarFace({
   return getInitials(displayName);
 }
 
+function notifySignedOut() {
+  broadcastSessionEnded("signed_out");
+  // Clear the browser client session so it cannot refresh cookies after the
+  // server action redirect (which would bounce login → panel).
+  void getBrowserSupabaseClient().auth.signOut({ scope: "local" });
+}
+
 export function PanelUserMenu({
   displayName,
   className,
   settingsHref,
 }: PanelUserMenuProps) {
-  const [isPending, startTransition] = useTransition();
   const avatarUrl = usePanelSessionAvatarUrl();
   const avatarFace = (
     <UserAvatarFace displayName={displayName} avatarUrl={avatarUrl} />
   );
-
-  function handleSignOut() {
-    if (isPending) {
-      return;
-    }
-
-    startTransition(async () => {
-      broadcastSessionEnded("signed_out");
-      await logoutAction();
-    });
-  }
-
-  const avatarContent = isPending ? <InlineSpinner /> : avatarFace;
 
   const avatarClassName = cn(
     "flex size-9 shrink-0 items-center justify-center overflow-hidden rounded-full bg-primary text-sm font-semibold text-primary-foreground outline-none transition-opacity hover:opacity-90 focus-visible:ring-3 focus-visible:ring-ring/50",
@@ -82,6 +77,15 @@ export function PanelUserMenu({
 
   return (
     <>
+      {/* Progressive-enhancement form so redirect() from logoutAction is applied. */}
+      <form
+        id={LOGOUT_FORM_ID}
+        action={logoutAction}
+        onSubmit={notifySignedOut}
+        className="hidden"
+        aria-hidden
+      />
+
       <div className="flex items-center gap-1 md:hidden">
         <Button
           render={<Link href={ROUTES.HOME} />}
@@ -93,15 +97,13 @@ export function PanelUserMenu({
           <Home />
         </Button>
         <Button
-          type="button"
+          type="submit"
+          form={LOGOUT_FORM_ID}
           variant="ghost"
           size="icon"
-          disabled={isPending}
-          aria-label={isPending ? "Signing out" : "Log out"}
-          aria-busy={isPending}
-          onClick={handleSignOut}
+          aria-label="Log out"
         >
-          {isPending ? <InlineSpinner /> : <LogOut />}
+          <LogOut />
         </Button>
         {settingsHref ? (
           <DropdownMenu>
@@ -109,7 +111,7 @@ export function PanelUserMenu({
               className={avatarClassName}
               aria-label="Account menu"
             >
-              {avatarContent}
+              {avatarFace}
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-48">
               <DropdownMenuLabel className="truncate">
@@ -140,9 +142,8 @@ export function PanelUserMenu({
           <DropdownMenuTrigger
             className={avatarClassName}
             aria-label="Account menu"
-            aria-busy={isPending}
           >
-            {avatarContent}
+            {avatarFace}
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="w-48">
             <DropdownMenuLabel className="truncate">
@@ -163,17 +164,11 @@ export function PanelUserMenu({
                 Go to home
               </Link>
             </DropdownMenuItem>
-            <DropdownMenuItem
-              disabled={isPending}
-              aria-busy={isPending}
-              className={cn(isPending && "data-[disabled]:opacity-100")}
-              onSelect={(event) => {
-                event.preventDefault();
-                handleSignOut();
-              }}
-            >
-              {isPending ? <InlineSpinner /> : <LogOut />}
-              {isPending ? "Signing out…" : "Log out"}
+            <DropdownMenuItem asChild>
+              <button type="submit" form={LOGOUT_FORM_ID}>
+                <LogOut />
+                Log out
+              </button>
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>

@@ -80,6 +80,8 @@ export type CreateSemesterDropActionState = {
   fieldErrors?: Record<string, string[] | undefined>;
   completedImmediately?: boolean;
   removedStudentMembershipId?: string;
+  /** All memberships removed by semester leave (may include other classes). */
+  removedMembershipIds?: string[];
   membershipId?: string;
   requestId?: string;
 };

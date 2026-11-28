@@ -84,6 +84,8 @@ export async function dropAllSemestersAction(
           semester_name: target.semester_name,
           origin_class_id: target.origin_class_id,
           origin_membership_id: target.origin_membership_id,
+          // Only settleable SPPs constrain amount; NO_SPP paths ignore it in SQL.
+          final_amount_due: target.spp_id ? target.final_amount_due : undefined,
         })),
         restriction_mode: data.restriction_mode,
         required_percent: data.required_percent,

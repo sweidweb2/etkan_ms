@@ -70,4 +70,15 @@ describe("createSemesterDropSchema", () => {
       expect(parsed.data.required_percent).toBeNull();
     }
   });
+
+  it("rejects amount above known final_amount_due", () => {
+    const parsed = createSemesterDropSchema.safeParse({
+      student_id: studentId,
+      class_id: classId,
+      restriction_mode: SEMESTER_DROP_RESTRICTION_MODES.AMOUNT,
+      required_amount: 120,
+      final_amount_due: 100,
+    });
+    expect(parsed.success).toBe(false);
+  });
 });

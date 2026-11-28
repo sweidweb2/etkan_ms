@@ -1,6 +1,7 @@
 import "server-only";
 
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { collectAllPages } from "@/repositories/_shared/collect-all-pages";
 import type { Database } from "@/types/supabase";
 
 type Supabase = SupabaseClient<Database>;
@@ -50,7 +51,13 @@ export async function listSessionCountsByClassIds(
     return { data: [], error: null };
   }
 
-  return client.from("sessions").select("class_id").in("class_id", classIds);
+  return collectAllPages<{ class_id: string }>((offset, limit) =>
+    client
+      .from("sessions")
+      .select("class_id")
+      .in("class_id", classIds)
+      .range(offset, offset + limit - 1)
+  );
 }
 
 export async function listSessionsByClassId(client: Supabase, classId: string) {
@@ -69,11 +76,14 @@ export async function listSessionsByClassIds(
     return { data: [] as SessionRecord[], error: null };
   }
 
-  return client
-    .from("sessions")
-    .select(SESSION_COLUMNS)
-    .in("class_id", classIds)
-    .order("nb_order", { ascending: true });
+  return collectAllPages<SessionRecord>((offset, limit) =>
+    client
+      .from("sessions")
+      .select(SESSION_COLUMNS)
+      .in("class_id", classIds)
+      .order("nb_order", { ascending: true })
+      .range(offset, offset + limit - 1)
+  );
 }
 
 export async function findSessionById(client: Supabase, id: string) {

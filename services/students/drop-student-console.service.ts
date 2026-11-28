@@ -97,52 +97,85 @@ function buildDropTargets(
     });
   }
 
-  const openSppBySemester = new Map<
-    string,
-    {
-      spp_id: string;
-      payment_phase_name: string;
-      payment_count: number;
-      total_paid: number;
-      final_amount_due: number;
-    }
-  >();
+  // Align with SQL internal_resolve_semester_drop_spp: newest opened paid,
+  // else newest opened any, else newest closed, else highest-paid any.
+  type SppCandidate = {
+    spp_id: string;
+    payment_phase_name: string;
+    payment_count: number;
+    total_paid: number;
+    final_amount_due: number;
+    phase_status: string;
+    phase_created_at: string;
+  };
+
+  const candidatesBySemester = new Map<string, SppCandidate[]>();
 
   for (const spp of spps) {
     const semesterId = spp.payment_phases?.semester_id;
-    if (!semesterId) {
+    const phaseStatus = spp.payment_phases?.status;
+    if (!semesterId || !phaseStatus) {
       continue;
     }
-    if (spp.payment_phases?.status === PAYMENT_PHASE_STATUSES.CANCELLED) {
+    if (phaseStatus === PAYMENT_PHASE_STATUSES.CANCELLED) {
       continue;
     }
-    const paymentCount = paymentCounts.get(spp.id) ?? 0;
-    const existing = openSppBySemester.get(semesterId);
-    if (
-      existing &&
-      spp.payment_phases?.status !== PAYMENT_PHASE_STATUSES.OPENED
-    ) {
-      continue;
-    }
-    if (
-      existing &&
-      spp.payment_phases?.status === PAYMENT_PHASE_STATUSES.OPENED &&
-      existing.payment_count >= paymentCount
-    ) {
-      continue;
-    }
-    openSppBySemester.set(semesterId, {
+    const list = candidatesBySemester.get(semesterId) ?? [];
+    list.push({
       spp_id: spp.id,
       payment_phase_name: spp.payment_phases?.name ?? "Payment phase",
-      payment_count: paymentCount,
+      payment_count: paymentCounts.get(spp.id) ?? 0,
       total_paid: Number(spp.total_paid ?? 0),
       final_amount_due: Number(spp.final_amount_due ?? 0),
+      phase_status: phaseStatus,
+      phase_created_at: spp.payment_phases?.created_at ?? "",
     });
+    candidatesBySemester.set(semesterId, list);
+  }
+
+  function pickResolvedSpp(candidates: SppCandidate[]): SppCandidate | null {
+    const byNewestPhase = (a: SppCandidate, b: SppCandidate) =>
+      b.phase_created_at.localeCompare(a.phase_created_at);
+
+    const openedPaid = candidates
+      .filter(
+        (row) =>
+          row.phase_status === PAYMENT_PHASE_STATUSES.OPENED &&
+          row.payment_count > 0
+      )
+      .sort(byNewestPhase);
+    if (openedPaid[0]) {
+      return openedPaid[0];
+    }
+
+    const openedAny = candidates
+      .filter((row) => row.phase_status === PAYMENT_PHASE_STATUSES.OPENED)
+      .sort(byNewestPhase);
+    if (openedAny[0]) {
+      return openedAny[0];
+    }
+
+    const closed = candidates
+      .filter((row) => row.phase_status === PAYMENT_PHASE_STATUSES.CLOSED)
+      .sort(byNewestPhase);
+    if (closed[0]) {
+      return closed[0];
+    }
+
+    const paidAny = [...candidates]
+      .filter((row) => row.payment_count > 0)
+      .sort((a, b) => {
+        if (b.total_paid !== a.total_paid) {
+          return b.total_paid - a.total_paid;
+        }
+        return byNewestPhase(a, b);
+      });
+    return paidAny[0] ?? null;
   }
 
   return [...originBySemester.entries()]
     .map(([semesterId, origin]) => {
-      const spp = openSppBySemester.get(semesterId);
+      const spp = pickResolvedSpp(candidatesBySemester.get(semesterId) ?? []);
       const pendingId = pendingBySemester.get(semesterId) ?? null;
       return {
         semester_id: semesterId,

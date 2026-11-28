@@ -27,11 +27,22 @@ test.describe("manager class deep path", () => {
       page.getByRole("heading", { level: 1, name: "Manage classes" })
     ).toBeVisible();
 
-    await page.getByLabel("Search classes").fill(DEMO_CLASS);
-    // Panel debounces search before refetching.
-    await expect(
-      page.getByRole("button", { name: `View ${DEMO_CLASS}` }).first()
-    ).toBeVisible({ timeout: 30_000 });
+    // Manage classes is status-filtered only (no search box). Prefer In progress.
+    const statusFilter = page.getByLabel("Filter classes by status");
+    if ((await statusFilter.count()) > 0) {
+      await statusFilter.click();
+      const inProgress = page.getByRole("option", { name: /In progress/i });
+      if ((await inProgress.count()) > 0) {
+        await inProgress.click();
+      } else {
+        await page.keyboard.press("Escape");
+      }
+    }
+
+    const viewButton = page.getByRole("button", {
+      name: `View ${DEMO_CLASS}`,
+    });
+    await expect(viewButton.first()).toBeVisible({ timeout: 30_000 });
 
     // Prefer in-progress demo (has sessions/tasks); ignore duplicate Scheduled cards.
     const inProgressView = page
@@ -43,7 +54,7 @@ test.describe("manager class deep path", () => {
     const view =
       (await inProgressView.count()) > 0
         ? inProgressView.first()
-        : page.getByRole("button", { name: `View ${DEMO_CLASS}` }).first();
+        : viewButton.first();
 
     const href = await view.getAttribute("href");
     expect(href).toBeTruthy();

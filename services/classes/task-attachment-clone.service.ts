@@ -185,11 +185,6 @@ async function processOneCloneJob(
     ).map((row) => ({ storage_path: row.storage_path }));
 
     let remaining = TASK_ATTACHMENT_MAX_FILES - copiedPaths.length;
-    if (remaining <= 0) {
-      await cloneJobRepository.completeCloneJob(adminClient, job.id);
-      return;
-    }
-
     const sources = sourceAttachments.data ?? [];
     const pendingSources = sources.filter((source) => {
       const destPath = buildTaskAttachmentStoragePath(
@@ -206,12 +201,23 @@ async function processOneCloneJob(
       return;
     }
 
+    if (remaining <= 0) {
+      await cloneJobRepository.failCloneJob(
+        adminClient,
+        job.id,
+        `Class task already has the maximum of ${TASK_ATTACHMENT_MAX_FILES} attachments; cannot clone remaining subject files.`
+      );
+      return;
+    }
+
     let copiedCount = 0;
     let skippedMissing = 0;
     let lastError: string | null = null;
+    let stoppedForMax = false;
 
     for (const source of pendingSources) {
       if (remaining <= 0) {
+        stoppedForMax = true;
         break;
       }
 
@@ -312,6 +318,17 @@ async function processOneCloneJob(
         adminClient,
         job.id,
         "All source attachment files are missing from storage."
+      );
+      return;
+    }
+
+    if (stoppedForMax) {
+      await cloneJobRepository.failCloneJob(
+        adminClient,
+        job.id,
+        copiedCount > 0
+          ? `Copied ${copiedCount} file(s), then reached the maximum of ${TASK_ATTACHMENT_MAX_FILES} attachments; remaining subject files were not cloned.`
+          : `Class task reached the maximum of ${TASK_ATTACHMENT_MAX_FILES} attachments; remaining subject files were not cloned.`
       );
       return;
     }

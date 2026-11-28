@@ -97,7 +97,7 @@ describe("sendEmailsForManager", () => {
     } as never);
   });
 
-  it("persists all delivery rows in one batch after sequential sends", async () => {
+  it("persists pending rows before send, then final delivery rows", async () => {
     const result = await sendEmailsForManager(adminClient, actor.userId, actor, {
       templateId: "custom",
       userIds,
@@ -107,11 +107,20 @@ describe("sendEmailsForManager", () => {
 
     expect(result.success).toBe(true);
     expect(mailtrapSend).toHaveBeenCalledTimes(2);
-    expect(emailUsersRepository.insertEmailUsers).toHaveBeenCalledTimes(1);
+    expect(emailUsersRepository.insertEmailUsers).toHaveBeenCalledTimes(2);
 
-    const rows = vi.mocked(emailUsersRepository.insertEmailUsers).mock.calls[0][1];
-    expect(rows).toHaveLength(2);
-    expect(rows.every((row) => row.emailSentId === "sent-1")).toBe(true);
+    const pendingRows =
+      vi.mocked(emailUsersRepository.insertEmailUsers).mock.calls[0][1];
+    expect(pendingRows).toHaveLength(2);
+    expect(pendingRows.every((row) => row.deliveryStatus === "pending")).toBe(
+      true
+    );
+
+    const finalRows =
+      vi.mocked(emailUsersRepository.insertEmailUsers).mock.calls[1][1];
+    expect(finalRows).toHaveLength(2);
+    expect(finalRows.every((row) => row.emailSentId === "sent-1")).toBe(true);
+    expect(finalRows.every((row) => row.deliveryStatus === "sent")).toBe(true);
     expect(auditLogService.recordManagerAuditLog).toHaveBeenCalledWith(
       adminClient,
       actor,
@@ -125,6 +134,37 @@ describe("sendEmailsForManager", () => {
         }),
       })
     );
+  });
+
+  it("still succeeds when final ledger persist fails after sends", async () => {
+    vi.mocked(emailUsersRepository.insertEmailUsers)
+      .mockResolvedValueOnce({
+        error: null,
+        count: null,
+        status: 200,
+        statusText: "OK",
+        data: null,
+      } as never)
+      .mockResolvedValueOnce({
+        error: { message: "ledger write failed" },
+        count: null,
+        status: 500,
+        statusText: "Error",
+        data: null,
+      } as never);
+
+    const result = await sendEmailsForManager(adminClient, actor.userId, actor, {
+      templateId: "custom",
+      userIds,
+      subject: "Hello",
+      body: "Message body",
+    });
+
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.message).toMatch(/ledger is incomplete/i);
+    }
+    expect(mailtrapSend).toHaveBeenCalledTimes(2);
   });
 });
 
@@ -160,7 +200,17 @@ describe("resendSentEmailForManager", () => {
     } as never);
   });
 
-  it("persists all resend delivery rows in one batch", async () => {
+  it("persists pending rows before resend, then final delivery rows", async () => {
+    vi.mocked(emailUsersRepository.listEmailUsersByEmailSentId).mockResolvedValue(
+      {
+        data: [],
+        error: null,
+        count: null,
+        status: 200,
+        statusText: "OK",
+      } as never
+    );
+
     const result = await resendSentEmailForManager(
       adminClient,
       actor.userId,
@@ -174,10 +224,18 @@ describe("resendSentEmailForManager", () => {
 
     expect(result.success).toBe(true);
     expect(mailtrapSend).toHaveBeenCalledTimes(2);
-    expect(emailUsersRepository.insertEmailUsers).toHaveBeenCalledTimes(1);
+    expect(emailUsersRepository.insertEmailUsers).toHaveBeenCalledTimes(2);
 
-    const rows = vi.mocked(emailUsersRepository.insertEmailUsers).mock.calls[0][1];
-    expect(rows).toHaveLength(2);
+    const pendingRows =
+      vi.mocked(emailUsersRepository.insertEmailUsers).mock.calls[0][1];
+    expect(pendingRows.every((row) => row.deliveryStatus === "pending")).toBe(
+      true
+    );
+
+    const finalRows =
+      vi.mocked(emailUsersRepository.insertEmailUsers).mock.calls[1][1];
+    expect(finalRows).toHaveLength(2);
+    expect(finalRows.every((row) => row.deliveryStatus === "sent")).toBe(true);
     expect(auditLogService.recordManagerAuditLog).toHaveBeenCalledWith(
       adminClient,
       actor,
@@ -191,5 +249,96 @@ describe("resendSentEmailForManager", () => {
         }),
       })
     );
+  });
+
+  it("does not overwrite prior sent delivery rows with pending on resend", async () => {
+    vi.mocked(emailUsersRepository.listEmailUsersByEmailSentId).mockResolvedValue(
+      {
+        data: [
+          {
+            id: "eu-1",
+            email_sent_id: "sent-1",
+            email_address: "student1@school.test",
+            delivery_status: "sent",
+          },
+        ],
+        error: null,
+        count: null,
+        status: 200,
+        statusText: "OK",
+      } as never
+    );
+
+    const result = await resendSentEmailForManager(
+      adminClient,
+      actor.userId,
+      actor,
+      {
+        emailSentId: "sent-1",
+        userIds,
+        toEmails: [],
+      }
+    );
+
+    expect(result.success).toBe(true);
+    const pendingRows =
+      vi.mocked(emailUsersRepository.insertEmailUsers).mock.calls[0][1];
+    expect(pendingRows).toHaveLength(1);
+    expect(pendingRows[0]?.emailAddress).toBe("student2@school.test");
+    expect(pendingRows[0]?.deliveryStatus).toBe("pending");
+  });
+
+  it("does not overwrite prior sent with failed when resend send fails", async () => {
+    vi.mocked(emailUsersRepository.listEmailUsersByEmailSentId).mockResolvedValue(
+      {
+        data: [
+          {
+            id: "eu-1",
+            email_sent_id: "sent-1",
+            email_address: "student1@school.test",
+            delivery_status: "sent",
+          },
+        ],
+        error: null,
+        count: null,
+        status: 200,
+        statusText: "OK",
+      } as never
+    );
+    mailtrapSend
+      .mockRejectedValueOnce(new Error("boom"))
+      .mockResolvedValueOnce({ message_ids: ["msg-ok"] });
+
+    const result = await resendSentEmailForManager(
+      adminClient,
+      actor.userId,
+      actor,
+      {
+        emailSentId: "sent-1",
+        userIds,
+        toEmails: [],
+      }
+    );
+
+    expect(result.success).toBe(true);
+    const finalRows = vi
+      .mocked(emailUsersRepository.insertEmailUsers)
+      .mock.calls.map((call) => call[1])
+      .flat()
+      .filter((row) => row.deliveryStatus !== "pending");
+    expect(
+      finalRows.some(
+        (row) =>
+          row.emailAddress === "student1@school.test" &&
+          row.deliveryStatus === "failed"
+      )
+    ).toBe(false);
+    expect(
+      finalRows.some(
+        (row) =>
+          row.emailAddress === "student2@school.test" &&
+          row.deliveryStatus === "sent"
+      )
+    ).toBe(true);
   });
 });

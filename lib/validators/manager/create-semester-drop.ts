@@ -28,11 +28,14 @@ export const createSemesterDropSchema = z
     required_percent: restrictionValueSchema,
     required_amount: restrictionValueSchema,
     require_immediate: z.coerce.boolean().optional().default(false),
+    /** When known (preview/UI), reject amount above due before RPC. */
+    final_amount_due: restrictionValueSchema,
   })
   .superRefine((data, ctx) => {
     const mode = data.restriction_mode;
     const percent = data.required_percent;
     const amount = data.required_amount;
+    const due = data.final_amount_due;
 
     if (mode === SEMESTER_DROP_RESTRICTION_MODES.NONE) {
       return;
@@ -61,6 +64,13 @@ export const createSemesterDropSchema = z
           code: z.ZodIssueCode.custom,
           path: ["required_amount"],
           message: "Amount must be at least 0.",
+        });
+      }
+      if (due !== undefined && amount > due) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ["required_amount"],
+          message: `Amount cannot exceed the amount due (${due}).`,
         });
       }
     }

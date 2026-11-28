@@ -22,7 +22,7 @@ Mount **only** `<AppToasts />` in the root layout. Do not mount duplicate Toaste
 
 ## When
 
-- **Show a toast** after any user-initiated transaction completes: auth (login, signup, logout), admin creates, and future server actions.
+- **Show a toast** after any user-initiated transaction completes: auth (login, signup, logout), manager/panel mutations, and other server actions.
 - **Success**: operation succeeded (include server `message` when present).
 - **Error**: operation failed or validation failed at form level (`state.error`).
 - **Info**: redirect-only outcomes (e.g. confirm email) via URL params.
@@ -30,13 +30,15 @@ Mount **only** `<AppToasts />` in the root layout. Do not mount duplicate Toaste
 
 ## How
 
-### Forms with `useActionState`
+### Forms / dialogs (`useFormActionState`)
+
+Mutation dialogs and most panel forms use `useFormActionState` (see `.cursor/rules/form-dialogs.mdc`), not React `useActionState` alone:
 
 ```tsx
+import { useFormActionState } from "@/hooks/use-form-action-state";
 import { useActionStateToast } from "@/hooks/use-action-state-toast";
 
-const [state, formAction, isActionPending] = useActionState(action, initialState);
-const isPending = isActionPending || isTransitionPending;
+const [state, formAction, isPending] = useFormActionState(action, initialState);
 
 useActionStateToast(state, isPending);
 ```
@@ -60,7 +62,7 @@ showInfoToast("Check your email to confirm.");
 3. Use keys: `toast` (success), `error`, `message` (info). `SearchParamsToast` in `AppToasts` handles display.
 
 ```ts
-redirect(appendQueryParam(ROUTES.ADMIN_DASHBOARD, "toast", "signed_in"));
+redirect(appendQueryParam(ROUTES.MANAGER_ROOT, "toast", "signed_in"));
 // or: redirect(`${ROUTES.LOGIN}?toast=signed_out`);
 ```
 

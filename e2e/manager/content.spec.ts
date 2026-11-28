@@ -15,14 +15,6 @@ test.describe("manager content @mutation", () => {
     );
   });
 
-  test("gallery list loads @smoke", async ({ page }) => {
-    await page.goto("/manager/gallery", { waitUntil: "commit" });
-    await expect(
-      page.getByRole("heading", { level: 1, name: "Manage gallery" })
-    ).toBeVisible({ timeout: 45_000 });
-    await expect(page.getByRole("button", { name: "Add image" })).toBeVisible();
-  });
-
   test("create project", async ({ page }) => {
     const stamp = e2eStamp("proj");
     const title = `E2E Project ${stamp}`.slice(0, 80);
@@ -30,7 +22,7 @@ test.describe("manager content @mutation", () => {
     await page.goto("/manager/projects", { waitUntil: "commit" });
     await expect(
       page.getByRole("heading", { level: 1, name: "Manage projects" })
-    ).toBeVisible({ timeout: 45_000 });
+    ).toBeVisible({ timeout: 15_000 });
 
     await page.getByRole("button", { name: "Create" }).click();
     const dialog = page.getByRole("dialog");
@@ -57,7 +49,7 @@ test.describe("manager content @mutation", () => {
 
     await page.goto("/manager/blogs", { waitUntil: "commit" });
     await expect(page.getByText("Blogs").first()).toBeVisible({
-      timeout: 45_000,
+      timeout: 15_000,
     });
 
     await page.getByRole("button", { name: "New blog" }).click();

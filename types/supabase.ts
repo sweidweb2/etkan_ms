@@ -3395,6 +3395,26 @@ export type Database = {
         }
         Returns: Json
       }
+      create_immediate_semester_drops_batch: {
+        Args: {
+          p_student_id: string
+          p_class_ids: string[]
+          p_restriction_mode?: string
+          p_required_percent?: number | null
+          p_required_amount?: number | null
+          p_requested_by?: string | null
+          p_notes?: string | null
+        }
+        Returns: Json
+      }
+      leave_and_withdraw_semester_no_spp: {
+        Args: {
+          p_student_id: string
+          p_semester_id: string
+          p_also_class_id?: string | null
+        }
+        Returns: Json
+      }
       cancel_semester_drop_request: {
         Args: { p_request_id: string }
         Returns: Json

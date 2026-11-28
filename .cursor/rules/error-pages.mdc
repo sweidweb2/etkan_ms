@@ -19,11 +19,19 @@ Use the shared `ErrorPage` shell for consistent error UX.
 | `app/error.tsx` | Root route error boundary (`reset` + home) |
 | `app/global-error.tsx` | Root layout crash (must include `html`/`body`) |
 | `app/not-found.tsx` | 404 |
-| `app/admin/error.tsx` | Admin panel errors (reset + back to dashboard) |
+| `app/(panels)/admin/error.tsx` | Admin panel |
+| `app/(panels)/manager/error.tsx` | Manager panel |
+| `app/(panels)/co-manager/error.tsx` | Co-manager panel |
+| `app/(panels)/supervisor/error.tsx` | Supervisor panel |
+| `app/(panels)/crm/error.tsx` | CRM panel |
+| `app/(panels)/teacher/error.tsx` | Teacher panel |
+| `app/(panels)/student/error.tsx` | Student panel |
+
+CEO (and any new panel) should get the same `error.tsx` pattern when that segment needs a custom recovery path. Use the matching `ROUTES.*_ROOT` for `homeHref`.
 
 ## When
 
-- Add segment `error.tsx` when a route group needs custom recovery (e.g. admin vs public).
+- Add segment `error.tsx` when a route group needs custom recovery (panel vs public).
 - Use `reset()` for recoverable runtime errors.
 - Pass `homeHref` / `homeLabel` for panel-specific escape paths.
 
@@ -35,13 +43,18 @@ Use the shared `ErrorPage` shell for consistent error UX.
 import { ErrorPage } from "@/components/errors/error-page";
 import { ROUTES } from "@/lib/constants/routes";
 
-export default function SegmentError({ error, reset }) {
+export default function SegmentError({
+  reset,
+}: {
+  error: Error & { digest?: string };
+  reset: () => void;
+}) {
   return (
     <ErrorPage
       title="Something went wrong"
-      description={error.message || "Please try again."}
+      description="Please try again."
       reset={reset}
-      homeHref={ROUTES.ADMIN_DASHBOARD}
+      homeHref={ROUTES.MANAGER_ROOT}
       homeLabel="Back to dashboard"
     />
   );
@@ -53,3 +66,4 @@ export default function SegmentError({ error, reset }) {
 - Build one-off error UIs per page — extend `ErrorPage` props if needed.
 - Toast unhandled errors instead of showing the error page.
 - Use `global-error.tsx` for segment-level errors — use `error.tsx` instead.
+- Use stale route names like `ROUTES.ADMIN_DASHBOARD` — use `ROUTES.ADMIN_ROOT` / `ROUTES.MANAGER_ROOT` / etc.

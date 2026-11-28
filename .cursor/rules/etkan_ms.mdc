@@ -5,117 +5,86 @@ alwaysApply: false
 
 # Overview
 
-Etkan MS is a **school management system** built on a **bedrock scaffold** from a reusable Next.js template: **Next.js 16 + TypeScript + Tailwind CSS**, **Supabase**, **Zod**, **Radix UI / shadcn-style components**, and a clear split between **auth**, **admin panel**, and **infrastructure** layers.
+Etkan MS is a **school management system** on **Next.js 16 + TypeScript + Tailwind CSS**, **Supabase**, **Zod**, and **Radix UI / shadcn-style** components.
 
-Current bedrock scope (before domain features):
+It is a **multi-role product**, not an admin-only scaffold. Panels live under `app/(panels)/`:
 
-1. **Auth** — login, signup, logout, Supabase callback, middleware protection.
-2. **Admin panel shell** — sidebar layout, dashboard placeholder, panel search, theme toggle.
+| Role | Panel root |
+|------|------------|
+| admin, manager, co-manager, ceo, supervisor, crm, teacher, student | `/{role}` (see `lib/constants/roles.ts`) |
+
+**Manager** is the feature hub (users, students, classes, accounting, workshops, guests, emailing, RBAC, …). Other roles have thinner panels; some staff roles also enter shared `/manager/...` routes when allowed.
 
 Core goals:
 
-- **Correctness and safety first** (types, validation, RLS).
-- **Separation of concerns** (UI vs services vs infra).
-- **Production-ready** code (secure, maintainable, and performant).
+- **Correctness and safety first** (types, validation, RLS, permission asserts).
+- **Separation of concerns** (UI vs services vs repositories vs infra).
+- **Production-ready** code (secure, maintainable, performant).
 
 ## Code Style and Structure
 
-- Write concise, technical **TypeScript** with clear, production-ready examples.
-- Use **functional and declarative React**; avoid classes.
+- Write concise, technical **TypeScript**. Prefer functional React; avoid classes.
 - Prefer small, focused modules over duplication and “god” files.
-- Use descriptive names with auxiliary verbs (e.g. `isLoading`, `hasError`, `canEdit`).
-- In components, keep the top-level structure: **props/types → hooks/state → derived values → handlers → JSX**.
-- Favor **named exports**; default exports only when clearly beneficial (e.g. Next.js `page.tsx`).
+- Use descriptive names with auxiliary verbs (`isLoading`, `hasError`, `canEdit`).
+- In components: **props/types → hooks/state → derived → handlers → JSX**.
+- Prefer **named exports**; default exports mainly for Next.js `page.tsx` / layouts.
 
 ## Architecture and Responsibilities
 
-The app follows a **layered architecture** with strict separation of concerns.
+### Layers
 
-### Layer Responsibilities
+- `app/` — Routing, layouts, server components, server actions. Orchestrates; **no business logic**.
+- `components/` — UI only. **No** business logic. **No** direct Supabase/repository calls (rare exception: session cross-tab guard).
+- `services/` — Business logic, authz, validation, domain rules. Group by domain. Import as `@/services/<domain>/<name>.service`. Co-locate `*.test.ts` next to the service.
+- `repositories/` — **Only** place for Supabase table/storage query I/O. Flat `*.repository.ts` (+ `_shared/`). Stateless beyond data access; return typed data.
+- `lib/` — Infra and shared utilities (Supabase clients, auth, Zod, constants, cache helpers).
 
-- `app/`
-  - Routing, layouts, server components, and server actions.
-  - Orchestrates requests but contains no business logic.
+### Service domains
 
-- `components/`
-  - UI only (presentation).
-  - No business logic.
-  - No direct Supabase or repository calls.
+`academic`, `accounting`, `auth`, `backup`, `classes`, `communications`, `gallery`, `guests`, `instructors`, `ops`, `public`, `schedule`, `settings`, `shared`, `students`, `subjects`, `teams`, `workshops`.
 
-- `services/`
-  - **Business logic layer**.
-  - Orchestrates use cases (e.g. enroll student, record attendance).
-  - Combines multiple repositories when needed.
-  - Contains authorization checks, validation, and domain rules.
-  - **Never talks directly to Supabase**.
-  - Group by domain folder. Import as `@/services/<domain>/<name>.service`.
-    Folders: `accounting`, `academic`, `auth`, `backup`, `classes`, `communications`, `guests`, `instructors`, `ops`, `public`, `schedule`, `students`, `teams`, `workshops`.
-  - Co-locate `*.test.ts` in the same domain folder as the service under test.
+### Supabase access
 
-- `repositories/`
-  - **Data access layer**.
-  - Encapsulates all Supabase queries.
-  - One repository per aggregate or table (e.g. `user.repository.ts`).
-  - No business logic — only CRUD and query composition.
-  - Returns typed domain data.
+- **Table/query I/O** belongs in `repositories/` only. Services and components must not call `.from()` / storage APIs directly.
+- Services **may** create or obtain a client (`createSupabaseAdminClient`, `getRequestAdminClient`) and **pass it into repositories**. Prefer `getRequestAdminClient()` in RSC/Suspense trees for request-scoped dedupe (`lib/supabase/admin.ts`).
+- Inside `unstable_cache` bodies, create the admin client **inside** the cached function.
+- Browser Supabase is reserved for rare session/auth UX (e.g. cross-tab guard) — not for domain CRUD.
 
-- `lib/`
-  - Infrastructure and shared utilities:
-    - Supabase client
-    - Auth helpers
-    - Zod schemas
-    - Constants
-    - Low-level helpers
+### Authorization (three layers)
 
-- `stores/`
-  - Client-side state only (Zustand), when needed for UI toggles or client-only state.
+1. **Middleware / layouts** — role + path access (`canAccessPath`, role layouts, manager route permissions).
+2. **Supabase RLS** — data-level protection.
+3. **Services / action helpers** — permission + domain scope (`assertPermission`, teacher assignment, student self).
 
-### Supabase Access Rules
-
-- Supabase **may only be accessed inside `repositories/`**.
-- React components must **never** access Supabase directly.
-- Services must **never** access Supabase directly.
-- Repositories must remain stateless and side-effect free beyond data access.
-
-### Authorization Layers
-
-Always enforce authorization in **three places**:
-
-1. `middleware.ts` → route-level protection (admin routes require admin role)
-2. Supabase **RLS** → data-level protection
-3. Service layer → business-rule protection
-
-When you add or change a feature, or any action under a feature, update `docs/[11] RBAC/[02] permission-definitions.md` with the matching permission(s).
+UI `<Can>` is cosmetic only. See `.cursor/rules/rbac.mdc` and `.cursor/rules/panels-authz.mdc`.
 
 ## TypeScript, Zod, and Validation
 
-- Use **TypeScript everywhere**; prefer `interface` for object shapes and `type` for unions/utility types.
-- Use **Zod** schemas in `lib/validators` to validate form inputs, query params, and Supabase payloads.
-- Infer types from Zod with `z.infer` instead of duplicating types.
-- Avoid `enum`; use literal unions + mapped objects instead.
+- Prefer `interface` for object shapes; `type` for unions/utilities.
+- Zod schemas in `lib/validators`; infer with `z.infer`.
+- Avoid TypeScript `enum`; use literal unions + mapped objects.
 
 ## Data Fetching and State
 
-- Use **TanStack React Query** for async data fetching/caching on the client when domain features are added.
-- Use **Zustand** for client-only UI state when needed.
-- Minimize `useEffect`; prefer derived state and memoization where needed.
+- **Default:** RSC → service → repository → Supabase; pass props into client islands.
+- **Client lists / dialogs:** prefer RSC props + `useState` / local optimistic updates after server actions.
+- **TanStack Query** is wired (`QueryProvider`) but **not** the default — use only when a screen already needs shared/repeated client fetches (e.g. instructor capability matrix).
+- Do **not** add Zustand/`stores/` unless there is a clear client-only UI need shared across a tree. Prefer local state and URL/search params.
 
 ## UI, Styling, and Components
 
-- Use **Tailwind CSS** (v4) utilities.
-- Use **Radix UI / shadcn-derived components** from `components/ui` as building blocks.
-- Make all UI responsive and accessible.
-- Reuse existing loaders, toast helpers, panel shell, and auth form patterns.
+- Tailwind CSS (v4) + `components/ui` building blocks.
+- Responsive and accessible. Reuse loaders, toast helpers, panel shell, and form-dialog patterns (see sibling rules).
 
 ## Project Conventions
 
-- Keep **public/auth** pages and **admin panel** flows conceptually and physically separated.
-- Site branding lives in `lib/config/site.ts` (`SITE.name`, `SITE.description`).
-- Database schema is documented in `docs/database/database_explanation_v1.md`.
-- Use meaningful commit messages that describe _what_ and _why_, not only _how_.
+- Public/auth under `app/(public)/`; role panels under `app/(panels)/`.
+- Site branding: `lib/config/site.ts` (`SITE.name`, `SITE.description`).
+- Routes: `lib/constants/routes.ts` (e.g. `ROUTES.ADMIN_ROOT`, `ROUTES.MANAGER_ROOT` — there is no `ADMIN_DASHBOARD`).
+- Meaningful commits: _what_ and _why_.
 
 ## Documentation
 
-- When adding or changing behavior, update docs under `docs/` if it affects flows or contracts.
-- When adding or changing a feature or action, update `docs/[11] RBAC/[02] permission-definitions.md`.
-- Code examples should match the architecture rules above and reuse existing utilities.
+- Update `docs/` when flows or contracts change.
+- Features/actions → `docs/[11] RBAC/[02] permission-definitions.md` + `lib/constants/permissions.ts`.
+- Code examples must match these layers and existing helpers.

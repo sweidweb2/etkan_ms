@@ -211,6 +211,12 @@ describe("uploadStudentTaskFileForManager", () => {
   });
 
   it("uploads a file for a student task", async () => {
+    vi.mocked(
+      studentTaskUploadRepository.countStudentTaskUploadsByStudentTaskId
+    )
+      .mockResolvedValueOnce({ count: 0, error: null } as never)
+      .mockResolvedValueOnce({ count: 1, error: null } as never);
+
     const result = await uploadStudentTaskFileForManager(
       adminClient,
       actor.userId,
@@ -228,6 +234,82 @@ describe("uploadStudentTaskFileForManager", () => {
       expect(result.classId).toBe(classId);
       expect(result.message).toBe("File uploaded.");
     }
+  });
+
+  it("rolls back when a concurrent upload exceeds the max after insert", async () => {
+    vi.mocked(
+      studentTaskUploadRepository.countStudentTaskUploadsByStudentTaskId
+    )
+      .mockResolvedValueOnce({ count: 9, error: null } as never)
+      .mockResolvedValueOnce({ count: 11, error: null } as never);
+    vi.mocked(
+      studentTaskUploadRepository.deleteStudentTaskUploadById
+    ).mockResolvedValue({
+      data: uploadRecord,
+      error: null,
+    } as never);
+    vi.mocked(
+      studentTaskStorageRepository.removeStudentTaskStorageObjects
+    ).mockResolvedValue({ error: null });
+
+    const result = await uploadStudentTaskFileForManager(
+      adminClient,
+      actor.userId,
+      actor,
+      {
+        student_task_id: studentTaskId,
+        file: makePdfFile(),
+      }
+    );
+
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(result.error).toMatch(/at most 10/i);
+    }
+    expect(
+      studentTaskUploadRepository.deleteStudentTaskUploadById
+    ).toHaveBeenCalledWith(adminClient, uploadId);
+    expect(
+      studentTaskStorageRepository.removeStudentTaskStorageObjects
+    ).toHaveBeenCalled();
+  });
+
+  it("rolls back when post-insert recount fails", async () => {
+    vi.mocked(
+      studentTaskUploadRepository.countStudentTaskUploadsByStudentTaskId
+    )
+      .mockResolvedValueOnce({ count: 1, error: null } as never)
+      .mockResolvedValueOnce({
+        count: null,
+        error: { message: "count failed" },
+      } as never);
+    vi.mocked(
+      studentTaskUploadRepository.deleteStudentTaskUploadById
+    ).mockResolvedValue({
+      data: uploadRecord,
+      error: null,
+    } as never);
+    vi.mocked(
+      studentTaskStorageRepository.removeStudentTaskStorageObjects
+    ).mockResolvedValue({ error: null });
+
+    const result = await uploadStudentTaskFileForManager(
+      adminClient,
+      actor.userId,
+      actor,
+      {
+        student_task_id: studentTaskId,
+        file: makePdfFile(),
+      }
+    );
+
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(result.error).toMatch(/verify upload limit/i);
+    }
+    expect(
+      studentTaskUploadRepository.deleteStudentTaskUploadById
+    ).toHaveBeenCalledWith(adminClient, uploadId);
   });
 
   it("blocks upload when the student grade inputs are locked", async () => {

@@ -2,6 +2,7 @@ import "server-only";
 
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { chunkedIn } from "@/repositories/_shared/chunked-in";
+import { collectAllPages } from "@/repositories/_shared/collect-all-pages";
 import type { Database, Json } from "@/types/supabase";
 
 type Supabase = SupabaseClient<Database>;
@@ -29,10 +30,13 @@ export type UpdateSemesterRecordInput = {
 };
 
 export async function listSemesters(client: Supabase) {
-  return client
-    .from("semesters")
-    .select(SEMESTER_COLUMNS)
-    .order("created_at", { ascending: false });
+  return collectAllPages<SemesterRecord>((offset, limit) =>
+    client
+      .from("semesters")
+      .select(SEMESTER_COLUMNS)
+      .order("created_at", { ascending: false })
+      .range(offset, offset + limit - 1)
+  );
 }
 
 export async function findSemesterById(client: Supabase, id: string) {

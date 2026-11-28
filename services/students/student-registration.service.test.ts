@@ -371,6 +371,47 @@ describe("student-registration.service", () => {
     ).toHaveBeenCalledWith(adminClient, applicationId);
   });
 
+  it("rolls back already-moved docs when a later move in the chunk fails", async () => {
+    const secondDoc = {
+      ...validDoc,
+      storage_path: `registration/tmp/${uploadSessionId}/eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee-resume.pdf`,
+      file_name: "resume.pdf",
+    };
+    vi.mocked(
+      registrationRepository.createStudentRegistrationApplication
+    ).mockResolvedValue({
+      data: { id: applicationId },
+      error: null,
+    } as never);
+    vi.mocked(registrationStorage.moveRegistrationStorageObject)
+      .mockResolvedValueOnce({ error: null })
+      .mockResolvedValueOnce({ error: { message: "second move failed" } });
+    vi.mocked(
+      registrationStorage.removeRegistrationStorageObjects
+    ).mockResolvedValue({ error: null });
+    vi.mocked(
+      registrationRepository.deleteStudentRegistrationApplicationById
+    ).mockResolvedValue({ error: null } as never);
+
+    const result = await submitPublicRegistrationApplication(adminClient, {
+      ...validInput,
+      documents: [validDoc, secondDoc],
+    });
+
+    expect(result.success).toBe(false);
+    expect(
+      registrationStorage.removeRegistrationStorageObjects
+    ).toHaveBeenCalledWith(
+      adminClient,
+      expect.arrayContaining([
+        expect.stringContaining(applicationId),
+      ])
+    );
+    expect(
+      registrationRepository.deleteStudentRegistrationApplicationById
+    ).toHaveBeenCalledWith(adminClient, applicationId);
+  });
+
   it("lists applications for authorized managers", async () => {
     vi.mocked(
       registrationRepository.listStudentRegistrationApplicationsForList

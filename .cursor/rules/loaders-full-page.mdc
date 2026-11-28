@@ -6,7 +6,7 @@ alwaysApply: false
 
 # Page / Full-Page Loaders
 
-Use animated spinners for **larger loading surfaces** (route fallbacks, suspense boundaries, standalone waits).
+Use animated spinners for **larger loading surfaces** (root/auth route fallbacks, suspense boundaries, standalone waits). Prefer **skeletons** for panel feature routes (see `.cursor/rules/loaders-skeletons.mdc`).
 
 ## Components
 
@@ -14,12 +14,14 @@ Use animated spinners for **larger loading surfaces** (route fallbacks, suspense
 |-----------|------|-----|
 | `PageSpinner` | `@/components/loaders/page-spinner` | Centered animated spinner (`react-loader-spinner` Oval) |
 | `FullPageLoader` | `@/components/loaders/full-page-loader` | Full viewport wrapper around `PageSpinner` |
-| `PanelRouteLoading` | `@/components/loaders/panel-route-loading` | Panel content area (not full viewport) |
+| `RouteLoading` | `@/components/loaders/route-loading` | `loading.tsx` helper (`full-page` / `panel`) |
+| `PanelRouteLoading` | `@/components/loaders/panel-route-loading` | Legacy panel content spinner — **avoid for new feature routes** |
 
 ## When
 
-- `FullPageLoader` / `PageSpinner`: root `loading.tsx`, auth `loading.tsx`, custom suspense fallbacks.
-- `PanelRouteLoading`: admin `loading.tsx` only.
+- `FullPageLoader` / `PageSpinner`: root `loading.tsx`, auth `loading.tsx`, custom suspense fallbacks outside panel chrome.
+- Panel **feature** `loading.tsx`: use `Panel*PageSkeleton`, not `PanelRouteLoading`.
+- Panel **root** `loading.tsx`: `RouteLoading variant="panel"` is fine.
 
 ## Pattern
 
@@ -34,4 +36,5 @@ import { PageSpinner } from "@/components/loaders/page-spinner";
 ## Do not
 
 - Import `react-loader-spinner` directly in feature code — go through `PageSpinner`.
-- Use `FullPageLoader` inside panel content (use `PanelRouteLoading`).
+- Use `FullPageLoader` inside panel content (use a skeleton or `RouteLoading variant="panel"`).
+- Reach for `PanelRouteLoading` on new feature pages when a skeleton template fits.

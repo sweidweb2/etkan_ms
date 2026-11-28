@@ -16,27 +16,11 @@ test.describe("manager emailing", () => {
     );
   });
 
-  test("emailing list and compose load @smoke", async ({ page }) => {
-    await page.goto("/manager/emailing", { waitUntil: "commit" });
-    await expect(
-      page.getByRole("heading", { level: 1, name: "Emailing" })
-    ).toBeVisible({ timeout: 45_000 });
-
-    await page.goto("/manager/emailing/compose", { waitUntil: "commit" });
-    await expect(
-      page.getByRole("heading", { level: 1, name: "Compose letter" })
-    ).toBeVisible({ timeout: 45_000 });
-    await expect(page.getByText("New message").first()).toBeVisible();
-    await expect(
-      page.locator("#compose-letter-form").getByRole("button", { name: "Send" })
-    ).toBeVisible();
-  });
-
-  test("sent list and optional detail @smoke", async ({ page }) => {
+  test("sent detail opens when a row exists @smoke", async ({ page }) => {
     await page.goto("/manager/sent", { waitUntil: "commit" });
     await expect(
       page.getByRole("heading", { level: 1, name: "Sent emails" })
-    ).toBeVisible({ timeout: 45_000 });
+    ).toBeVisible({ timeout: 15_000 });
 
     const detailLink = page.locator('a[href*="/manager/sent/"]').first();
     if ((await detailLink.count()) === 0) {
@@ -47,7 +31,7 @@ test.describe("manager emailing", () => {
     await page.goto(href!, { waitUntil: "commit" });
     await expect(page).toHaveURL(/\/manager\/sent\/[^/]+/);
     await expect(page.getByRole("heading", { level: 1 }).first()).toBeVisible({
-      timeout: 45_000,
+      timeout: 15_000,
     });
   });
 

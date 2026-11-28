@@ -1,42 +1,53 @@
 ---
+description: When and how to cache manager lists, schedules, and public content
 alwaysApply: false
 ---
+
 # Caching
 
-Full reference: `docs/caching/[01] caching.md`.
+Helpers live under `lib/cache/` (`manager-list-cache.ts`, `instructor-schedule-cache.ts`, `public-content-cache.ts`). Prefer those revalidate helpers over raw `revalidateTag` calls.
 
 ## Defaults
 
 - **Do not cache by default.** RSC → service → repository → Supabase is the normal path.
 - **Never cache inside `repositories/`.**
 - **Never** use Next Data Cache (`unstable_cache` / shared tags) for auth/session or per-user secrets.
-- **Allowed for session only:** process-TTL shell + in-flight singleflight in `lib/auth/session-shell-cache.ts`, and process-TTL JWKS in `lib/auth/jwks-cache.ts` (not Data Cache). See `.cursor/rules/session-auth.mdc`.
+- **Allowed for session/auth only:** process-TTL caches in `lib/auth/` (session shell, JWKS, role permissions, claims-role override, auth emails, maintenance mode) — not Data Cache. See `.cursor/rules/session-auth.mdc`.
 
 ## Choose the type
 
 | Goal | Use |
 |------|-----|
 | Fewer DB hits for data shared by all managers | **Shared server cache** (`unstable_cache` + tags) |
-| Snappy back-nav / dialog refetches for one user | **Client cache** (panel state or TanStack Query) |
+| Snappy back-nav / dialog refetches for one user | **Client state** (RSC props + `useState`) or rare TanStack Query |
 | Both | Server cache + local panel update / Query invalidate |
 
 ## Shared server cache
 
-- Place cache in the **service** (or thin wrapper), create Supabase admin client **inside** the cached function.
-- Use stable tags: `manager-users`, `manager-students`, `manager-subjects`, `manager-classes`, `manager-semesters`, `manager-schedule-instructors`, `manager-schedule-eligible-workshops`, `manager-schedule-sessions`.
-- Set a `revalidate` TTL as a safety net (people lists: **3600** / 1 hour).
-- After every successful create/update/delete: `revalidateTag("…")` and usually `revalidatePath("…")`.
-- Keep **authorization** (`assertManagerRole` / equivalent) on the request path; do not serve cached lists to unauthorized roles.
+- Place cache in the **service** (or thin wrapper). Create Supabase admin client **inside** the cached function.
+- Keep **authorization** (`assertPermission` / equivalent) on the request path; do not serve cached lists to unauthorized roles.
+- After every successful create/update/delete: call the matching `revalidate*` helper from `lib/cache/*` (they use `revalidateTag(tag, "max")` + `revalidatePath`).
+- Set a `revalidate` TTL as a safety net (people lists: often **3600** / 1 hour).
+
+### Tags (keep in sync with `lib/cache/*`)
+
+| Module | Tags |
+|--------|------|
+| Manager people lists | `manager-users`, `manager-students`, `manager-instructors` |
+| Instructor schedule | `manager-schedule-instructors`, `manager-schedule-eligible-workshops`, `manager-schedule-sessions` |
+| Public marketing | `public-gallery`, `public-projects`, `public-blogs` |
+
+When adding a new shared list cache, add the tag constant + `revalidate*` helper next to these modules — do not invent one-off tag strings in feature code.
 
 ## Client cache
 
-- Prefer existing **RSC props + `useState`** for simple manager lists.
-- Use **TanStack Query** only when the screen is client-data-driven (repeated fetches, shared option queries).
-- On mutation: update local state and/or `invalidateQueries` for the matching key.
+- Prefer existing **RSC props + `useState`** for manager lists and dialog options.
+- Use **TanStack Query** only when the screen is already client-data-driven (repeated fetches, shared option queries across islands).
+- On mutation: update local state; if Query is in use, `invalidateQueries` for the matching key.
 
 ## Good fits (Etkan)
 
-- Server: users/subjects/classes/semesters lists; slow report aggregates.
+- Server: users / students / instructors lists; schedule catalogs; public gallery/projects/blogs; slow report aggregates.
 - Client: return to a list after detail; append row after create; reuse select options in dialogs.
 
 ## Bad fits
@@ -44,4 +55,4 @@ Full reference: `docs/caching/[01] caching.md`.
 - Write-heavy flows with no invalidation plan.
 - Personalized data under a global `unstable_cache` / tag key.
 - Using cache instead of fixing a slow query.
-- Session/auth in Data Cache. Process-TTL shell + singleflight + JWKS is the exception, not a new shared tag.
+- Session/auth in Data Cache. Process-TTL auth caches are the exception, not a new shared tag.

@@ -396,51 +396,45 @@ export async function submitPublicRegistrationApplication(
         index + REGISTRATION_DOCUMENT_MOVE_CONCURRENCY
       );
 
-      const movedChunk = await Promise.all(
-        chunk.map(async (doc, chunkIndex) => {
-          const sortIndex = index + chunkIndex;
+      // Sequential moves: parallel Promise.all can leave orphaned finals when
+      // one move fails while siblings are still in flight during catch cleanup.
+      for (let chunkIndex = 0; chunkIndex < chunk.length; chunkIndex += 1) {
+        const doc = chunk[chunkIndex];
+        const sortIndex = index + chunkIndex;
 
-          if (
-            !isRegistrationTempStoragePath(
-              doc.storage_path,
-              input.upload_session_id
-            )
-          ) {
-            throw new Error("Invalid document upload path.");
-          }
-
-          const finalPath = buildRegistrationDocumentStoragePath(
-            applicationId,
-            doc.file_name
-          );
-
-          const move = await registrationStorage.moveRegistrationStorageObject(
-            adminClient,
+        if (
+          !isRegistrationTempStoragePath(
             doc.storage_path,
-            finalPath
-          );
+            input.upload_session_id
+          )
+        ) {
+          throw new Error("Invalid document upload path.");
+        }
 
-          if (move.error) {
-            throw new Error(move.error.message ?? "Unable to finalize documents.");
-          }
+        const finalPath = buildRegistrationDocumentStoragePath(
+          applicationId,
+          doc.file_name
+        );
 
-          return {
-            finalPath,
-            row: {
-              application_id: applicationId,
-              storage_path: finalPath,
-              file_name: doc.file_name,
-              mime_type: doc.mime_type,
-              file_size: doc.file_size,
-              sort_order: sortIndex,
-            } satisfies documentRepository.CreateStudentRegistrationDocumentInput,
-          };
-        })
-      );
+        const move = await registrationStorage.moveRegistrationStorageObject(
+          adminClient,
+          doc.storage_path,
+          finalPath
+        );
 
-      for (const moved of movedChunk) {
-        movedFinalPaths.push(moved.finalPath);
-        documentRows.push(moved.row);
+        if (move.error) {
+          throw new Error(move.error.message ?? "Unable to finalize documents.");
+        }
+
+        movedFinalPaths.push(finalPath);
+        documentRows.push({
+          application_id: applicationId,
+          storage_path: finalPath,
+          file_name: doc.file_name,
+          mime_type: doc.mime_type,
+          file_size: doc.file_size,
+          sort_order: sortIndex,
+        });
       }
     }
 

@@ -474,5 +474,230 @@ describe("updateManagerUser", () => {
       "user-1",
       { email: "teacher@school.com", fullName: "Teacher Renamed" }
     );
+    expect(
+      vi.mocked(authRepository.updateAuthUserByAdmin).mock.invocationCallOrder[0]
+    ).toBeLessThan(
+      vi.mocked(clearInstructorWorkshopRelatedData).mock.invocationCallOrder[0]
+    );
+  });
+
+  it("reverts profile when auth email update fails before instructor clear", async () => {
+    vi.mocked(profileRepository.findProfileById).mockResolvedValue({
+      data: {
+        id: "user-1",
+        full_name: "Teacher One",
+        role: ROLES.TEACHER,
+        is_instructor: true,
+        created_at: "2026-01-01T00:00:00.000Z",
+      },
+      error: null,
+      count: null,
+      status: 200,
+      statusText: "OK",
+    });
+    vi.mocked(authRepository.findAuthUserByEmail).mockResolvedValue({
+      data: { user: authUser },
+      error: null,
+    });
+    vi.mocked(authRepository.getAuthUserById).mockResolvedValue({
+      data: { user: authUser },
+      error: null,
+    });
+    vi.mocked(profileRepository.updateProfileById).mockResolvedValue({
+      data: {
+        id: "user-1",
+        full_name: "Teacher Renamed",
+        role: ROLES.TEACHER,
+        is_instructor: false,
+        created_at: "2026-01-01T00:00:00.000Z",
+      },
+      error: null,
+      count: null,
+      status: 200,
+      statusText: "OK",
+    });
+    vi.mocked(authRepository.updateAuthUserByAdmin).mockResolvedValue({
+      data: { user: null },
+      error: { message: "email update failed", name: "AuthError", status: 400 },
+    } as never);
+
+    const result = await updateManagerUser(
+      adminClient,
+      actor.userId,
+      actor,
+      {
+        userId: "user-1",
+        fullName: "Teacher Renamed",
+        email: "new@school.com",
+        role: ROLES.TEACHER,
+        is_instructor: false,
+      }
+    );
+
+    expect(result.success).toBe(false);
+    expect(clearInstructorWorkshopRelatedData).not.toHaveBeenCalled();
+    expect(profileRepository.updateProfileById).toHaveBeenLastCalledWith(
+      adminClient,
+      "user-1",
+      {
+        full_name: "Teacher One",
+        role: ROLES.TEACHER,
+        is_instructor: true,
+      }
+    );
+  });
+
+  it("reverts is_instructor when clear-instructor fails after profile flip", async () => {
+    vi.mocked(profileRepository.findProfileById).mockResolvedValue({
+      data: {
+        id: "user-1",
+        full_name: "Teacher One",
+        role: ROLES.TEACHER,
+        is_instructor: true,
+        created_at: "2026-01-01T00:00:00.000Z",
+      },
+      error: null,
+      count: null,
+      status: 200,
+      statusText: "OK",
+    });
+    vi.mocked(authRepository.findAuthUserByEmail).mockResolvedValue({
+      data: { user: authUser },
+      error: null,
+    });
+    vi.mocked(authRepository.getAuthUserById).mockResolvedValue({
+      data: { user: authUser },
+      error: null,
+    });
+    vi.mocked(profileRepository.updateProfileById).mockResolvedValue({
+      data: {
+        id: "user-1",
+        full_name: "Teacher One",
+        role: ROLES.TEACHER,
+        is_instructor: false,
+        created_at: "2026-01-01T00:00:00.000Z",
+      },
+      error: null,
+      count: null,
+      status: 200,
+      statusText: "OK",
+    });
+    vi.mocked(authRepository.updateAuthUserByAdmin).mockResolvedValue({
+      data: { user: authUser },
+      error: null,
+    });
+    vi.mocked(
+      studentProfileRepository.findStudentProfileByUserId
+    ).mockResolvedValue({
+      data: null,
+      error: null,
+      count: null,
+      status: 200,
+      statusText: "OK",
+    });
+    vi.mocked(clearInstructorWorkshopRelatedData).mockResolvedValue({
+      error: "Related clear failed",
+    });
+
+    const result = await updateManagerUser(
+      adminClient,
+      actor.userId,
+      actor,
+      {
+        userId: "user-1",
+        fullName: "Teacher One",
+        email: "teacher@school.com",
+        role: ROLES.TEACHER,
+        is_instructor: false,
+      }
+    );
+
+    expect(result.success).toBe(false);
+    expect(profileRepository.updateProfileById).toHaveBeenLastCalledWith(
+      adminClient,
+      "user-1",
+      {
+        full_name: "Teacher One",
+        role: ROLES.TEACHER,
+        is_instructor: true,
+      }
+    );
+  });
+
+  it("reverts profile role when syncAuthUserRole fails", async () => {
+    vi.mocked(profileRepository.findProfileById).mockResolvedValue({
+      data: {
+        id: "user-1",
+        full_name: "Teacher One",
+        role: ROLES.TEACHER,
+        is_instructor: false,
+        created_at: "2026-01-01T00:00:00.000Z",
+      },
+      error: null,
+      count: null,
+      status: 200,
+      statusText: "OK",
+    });
+    vi.mocked(authRepository.findAuthUserByEmail).mockResolvedValue({
+      data: { user: authUser },
+      error: null,
+    });
+    vi.mocked(authRepository.getAuthUserById).mockResolvedValue({
+      data: { user: authUser },
+      error: null,
+    });
+    vi.mocked(profileRepository.updateProfileById).mockResolvedValue({
+      data: {
+        id: "user-1",
+        full_name: "Teacher One",
+        role: ROLES.MANAGER,
+        is_instructor: false,
+        created_at: "2026-01-01T00:00:00.000Z",
+      },
+      error: null,
+      count: null,
+      status: 200,
+      statusText: "OK",
+    });
+    vi.mocked(authRepository.updateAuthUserByAdmin).mockResolvedValue({
+      data: { user: authUser },
+      error: null,
+    });
+    vi.mocked(
+      studentProfileRepository.findStudentProfileByUserId
+    ).mockResolvedValue({
+      data: null,
+      error: null,
+      count: null,
+      status: 200,
+      statusText: "OK",
+    });
+    vi.mocked(roleService.syncAuthUserRole).mockRejectedValue(
+      new Error("sync failed")
+    );
+
+    const result = await updateManagerUser(
+      adminClient,
+      actor.userId,
+      actor,
+      {
+        userId: "user-1",
+        fullName: "Teacher One",
+        email: "teacher@school.com",
+        role: ROLES.MANAGER,
+        is_instructor: false,
+      }
+    );
+
+    expect(result.success).toBe(false);
+    expect(profileRepository.updateProfileById).toHaveBeenCalledWith(
+      adminClient,
+      "user-1",
+      expect.objectContaining({
+        full_name: "Teacher One",
+        role: ROLES.TEACHER,
+        is_instructor: false,
+      })
+    );
   });
 });

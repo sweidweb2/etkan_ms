@@ -8,6 +8,7 @@ import * as authRepository from "@/repositories/auth.repository";
 import * as classRepository from "@/repositories/class.repository";
 import * as studentClassRepository from "@/repositories/student-class.repository";
 import * as studentProfileRepository from "@/repositories/student-profile.repository";
+import * as studentSemesterRepository from "@/repositories/student-semester.repository";
 import type { ManagerStudentRow } from "@/types/manager-student";
 import type { Supabase } from "@/services/classes/class-shared";
 
@@ -111,7 +112,7 @@ export async function resolveActiveStudentDiff(
 
   const emailById = emailsResult.data;
 
-  const students: ManagerStudentRow[] = (profilesResult.data ?? [])
+  let students: ManagerStudentRow[] = (profilesResult.data ?? [])
     .filter((row) => row.status !== STUDENT_STATUSES.INACTIVE)
     .map((row) => ({
       user_id: row.user_id,
@@ -124,6 +125,24 @@ export async function resolveActiveStudentDiff(
       created_at: row.created_at ?? "",
     }))
     .sort((a, b) => a.full_name.localeCompare(b.full_name));
+
+  if (students.length > 0) {
+    const withdrawnResult =
+      await studentSemesterRepository.listWithdrawnStudentProfileIdsBySemester(
+        adminClient,
+        targetSemesterId,
+        students.map((student) => student.student_profile_id)
+      );
+    if (withdrawnResult.error) {
+      return { success: false, error: withdrawnResult.error.message };
+    }
+    const withdrawnIds = new Set(withdrawnResult.data ?? []);
+    students = students.map((student) =>
+      withdrawnIds.has(student.student_profile_id)
+        ? { ...student, semester_dropped: true }
+        : student
+    );
+  }
 
   return { success: true, students };
 }

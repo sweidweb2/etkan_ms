@@ -435,6 +435,7 @@ export function ActivateInactivateStudentDialog({
               isPending ||
               (!isActivate &&
                 (isPreviewPending ||
+                  preview === null ||
                   Boolean(previewError) ||
                   !canInactivate))
             }

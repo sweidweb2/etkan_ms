@@ -18,3 +18,14 @@ When you add or change a feature, or any action under a feature:
 - Services still assert for domain scope (teacher assignment, student self, etc.).
 - Do not call `createSupabaseAdminClient` from an action and mutate without going through
   `runManagerAction` / `runManagerMutation` (or an explicit `assertPermission` first).
+
+## Read / load actions
+
+- Loaders that use an admin client may call services that `assertPermission` without `runManagerAction`.
+- Still assert before returning sensitive data — never treat “user reached the page” as enough.
+
+## Teacher / student
+
+- Prefer role-scoped services (`*ForSelf`, assigned-teacher asserts) over copying manager `runManagerAction` flows.
+- If a teacher re-exports or calls a manager service, the service must enforce assignment/scope — do not rely on UI alone.
+- Panel route gates and shared `/manager` entry: see `.cursor/rules/panels-authz.mdc`.

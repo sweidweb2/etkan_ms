@@ -1,0 +1,41 @@
+---
+description: Multi-role panels, shared manager routes, and deep-link permission gates
+alwaysApply: true
+---
+
+# Panels and route authz
+
+Etkan is **multi-role**. Do not scaffold features as “admin-only” unless the feature truly lives under `/admin`.
+
+## Roles and panels
+
+Roles: `admin`, `manager`, `co-manager`, `ceo`, `supervisor`, `crm`, `teacher`, `student` (`lib/constants/roles.ts`).
+
+Panel trees: `app/(panels)/{role}/…`. Role layouts use `createRoleLayout` (`lib/auth/create-role-layout.tsx`) or a custom layout (manager).
+
+**Manager** hosts most product features. Other panels are thinner (home, settings, role-specific classes, etc.).
+
+## Path access
+
+- Middleware / `canAccessPath` (`lib/auth/path-access.ts`) gates by role and path.
+- Manager deep links also run `requireManagerRoutePermission` (`lib/auth/require-manager-route-permission.ts`) against `manager-route-permissions.ts` — permission beyond “has manager-ish role”.
+- Some staff roles enter **shared** `/manager/...` paths via `shared-manager-routes.ts` + attribute checks (`workshop-attribute-access.ts`, supervisor helpers). Do not assume only the `manager` role may hit `/manager`.
+
+When adding a manager feature route:
+
+1. Add the route constant in `lib/constants/routes.ts`.
+2. Map the path → required permission(s) in `manager-route-permissions.ts`.
+3. Wire nav only for roles/permissions that may see it.
+4. Keep mutation authz via `runManagerAction` / service asserts (see `.cursor/rules/rbac.mdc`).
+
+## Admin client in RSC / actions
+
+- Prefer `getRequestAdminClient()` for request-scoped dedupe in RSC/Suspense.
+- `createSupabaseAdminClient()` is fine when you need a fresh client (e.g. inside `unstable_cache`, or outside a React request cache).
+- Creating a client is **not** authorization — always `assertPermission` / `runManagerAction` / role-scoped service checks before sensitive work.
+
+## Teacher / student mutations
+
+- Manager-centric helpers (`runManagerAction`) are for manager (and shared-manager) mutations.
+- Teacher/student actions often use dedicated `*ForSelf` / assigned-teacher services that assert domain scope in the service layer.
+- Do not “fix” teacher/student writes by skipping service asserts or by copying manager actions without scope checks.

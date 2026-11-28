@@ -18,11 +18,30 @@ export const E2E_ROLES = [
 
 export type E2eRole = (typeof E2E_ROLES)[number];
 
-/** Roles required for Phase 1 exit (setup fails if these cannot log in). */
-export const REQUIRED_AUTH_ROLES: readonly E2eRole[] = [
+/**
+ * Roles that must authenticate or the suite aborts.
+ * Teacher/student stay in DEFAULT_SETUP_ROLES but skip when demo seed is missing
+ * so a bad demo password cannot burn ~90s of false waits before manager tests.
+ */
+export const REQUIRED_AUTH_ROLES: readonly E2eRole[] = ["manager"];
+
+/** Roles attempted in auth.setup when E2E_SETUP_ALL_ROLES is unset. */
+export const DEFAULT_SETUP_ROLES: readonly E2eRole[] = [
   "manager",
   "teacher",
   "student",
+];
+
+/**
+ * Staff panel smokes (ceo/crm/…) — attempted unless E2E_SETUP_STAFF=0.
+ * Still optional: missing demo seed skips instead of aborting the suite.
+ */
+export const STAFF_SETUP_ROLES: readonly E2eRole[] = [
+  "ceo",
+  "crm",
+  "supervisor",
+  "co-manager",
+  "admin",
 ];
 
 export type E2eCredentials = {
@@ -133,6 +152,7 @@ export async function loginViaUi(
   expectedPath?: string
 ): Promise<void> {
   // Local Next (esp. after Docker/cache churn) can abort the first navigation.
+  // Fail fast — long polls turn bad credentials into multi-minute suite stalls.
   await expect
     .poll(
       async () => {
@@ -141,7 +161,7 @@ export async function loginViaUi(
         });
         return response?.ok() ?? false;
       },
-      { timeout: 60_000, intervals: [1_000, 2_000, 5_000] }
+      { timeout: 20_000, intervals: [500, 1_000, 2_000] }
     )
     .toBeTruthy();
 
@@ -155,7 +175,7 @@ export async function loginViaUi(
   await expect(page.getByTestId("login-form")).toHaveAttribute(
     "data-hydrated",
     "true",
-    { timeout: 60_000 }
+    { timeout: 20_000 }
   );
 
   await email.click();
@@ -172,7 +192,7 @@ export async function loginViaUi(
         !url.pathname.startsWith("/auth/login") ||
         url.searchParams.has("toast") ||
         url.searchParams.has("error"),
-      { timeout: 45_000, waitUntil: "commit" }
+      { timeout: 15_000, waitUntil: "commit" }
     );
   } catch (error) {
     const toastText = (
@@ -198,11 +218,11 @@ export async function loginViaUi(
 
   if (expectedPath) {
     await expect(page).toHaveURL(new RegExp(escapeRegExp(expectedPath)), {
-      timeout: 45_000,
+      timeout: 15_000,
     });
   } else {
     await expect(page).not.toHaveURL(/\/auth\/login(?:\?|$)/, {
-      timeout: 45_000,
+      timeout: 15_000,
     });
   }
 }
@@ -212,9 +232,14 @@ export async function loginAs(page: Page, role: E2eRole): Promise<void> {
 }
 
 export async function logoutViaUi(page: Page): Promise<void> {
+  await page.setViewportSize({ width: 1280, height: 720 });
   await page.getByRole("button", { name: "Account menu" }).click();
-  await page.getByRole("menuitem", { name: "Log out" }).click();
-  await expect(page).toHaveURL(/\/auth\/login/);
+  const logoutItem = page.getByRole("menuitem", { name: "Log out" });
+  await expect(logoutItem).toBeVisible();
+  await Promise.all([
+    page.waitForURL(/\/auth\/login/, { timeout: 30_000, waitUntil: "commit" }),
+    logoutItem.click(),
+  ]);
 }
 
 function escapeRegExp(value: string): string {

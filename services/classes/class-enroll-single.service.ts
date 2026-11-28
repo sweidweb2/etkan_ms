@@ -20,6 +20,8 @@ import type { StudentFinalExamGradeRecord } from "@/repositories/final-exam.repo
 import * as sessionRepository from "@/repositories/session.repository";
 import * as studentClassRepository from "@/repositories/student-class.repository";
 import * as studentProfileRepository from "@/repositories/student-profile.repository";
+import * as studentSemesterRepository from "@/repositories/student-semester.repository";
+import { STUDENT_SEMESTER_STATUSES } from "@/lib/constants/manager-student-semester-status";
 import {
   recordManagerAuditLog,
   type AuditActor,
@@ -148,14 +150,41 @@ export async function addStudentToClassForManager(
       };
     }
 
-    if (studentProfileResult.data.status === STUDENT_STATUSES.INACTIVE) {
+    if (studentProfileResult.data.status !== STUDENT_STATUSES.ACTIVE) {
       return {
         success: false,
         error: "Please fix the errors below.",
         fieldErrors: {
-          studentProfileId: ["Inactive students cannot be added to a class."],
+          studentProfileId: [
+            "Only active students can be added to a class.",
+          ],
         },
       };
+    }
+
+    if (classRecord.semester_id) {
+      const semesterEnrollment =
+        await studentSemesterRepository.findEnrollmentByStudentAndSemester(
+          adminClient,
+          studentProfileResult.data.id,
+          classRecord.semester_id
+        );
+      if (semesterEnrollment.error) {
+        return { success: false, error: semesterEnrollment.error.message };
+      }
+      if (
+        semesterEnrollment.data?.status === STUDENT_SEMESTER_STATUSES.WITHDRAWN
+      ) {
+        return {
+          success: false,
+          error: "Please fix the errors below.",
+          fieldErrors: {
+            studentProfileId: [
+              "Student already dropped from this semester.",
+            ],
+          },
+        };
+      }
     }
 
     if (enrollmentResult.error) {
@@ -307,21 +336,7 @@ export async function addStudentToClassForManager(
       })
     );
 
-    const semesterId = classRecord.semester_id;
-    const reactivatePromise = semesterId
-      ? import("@/services/classes/drop-semester.service")
-          .then(({ reactivateSemesterAfterRejoin }) =>
-            reactivateSemesterAfterRejoin(
-              adminClient,
-              userId,
-              semesterId,
-              studentProfile.id
-            )
-          )
-          .catch(() => {
-            // Non-fatal: membership already created.
-          })
-      : Promise.resolve();
+    // Rejoin after semester withdraw is deferred — enroll is blocked above.
 
     if (!options?.skipPaymentSync) {
       const sync = await withPaymentSync(
@@ -342,8 +357,6 @@ export async function addStudentToClassForManager(
       );
       warning = coalesceWarning(warning, sync.warning);
     }
-
-    await reactivatePromise;
 
     return {
       success: true,

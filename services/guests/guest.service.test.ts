@@ -356,13 +356,20 @@ describe("deleteGuestForManager", () => {
       success: true,
       message: "Guest deleted.",
     });
-    expect(
-      registrationStorage.removeRegistrationStorageObjects
-    ).toHaveBeenCalledWith(adminClient, ["registration/app-1/id.pdf"]);
     expect(guestRepository.deleteGuestById).toHaveBeenCalledWith(
       adminClient,
       guestId
     );
+    expect(
+      registrationStorage.removeRegistrationStorageObjects
+    ).toHaveBeenCalledWith(adminClient, ["registration/app-1/id.pdf"]);
+    // Guest row first, then storage cleanup.
+    const deleteOrder = vi.mocked(guestRepository.deleteGuestById).mock
+      .invocationCallOrder[0];
+    const storageOrder = vi.mocked(
+      registrationStorage.removeRegistrationStorageObjects
+    ).mock.invocationCallOrder[0];
+    expect(deleteOrder).toBeLessThan(storageOrder);
   });
 });
 
@@ -508,6 +515,15 @@ describe("setGuestStatusForManager", () => {
       guestId,
       "finished"
     );
+    expect(
+      guestStatusEventRepository.createGuestStatusEvent
+    ).toHaveBeenCalled();
+    const finishOrder = vi.mocked(guestRepository.updateGuestStatus).mock
+      .invocationCallOrder[0];
+    const eventOrder = vi.mocked(
+      guestStatusEventRepository.createGuestStatusEvent
+    ).mock.invocationCallOrder[0];
+    expect(finishOrder).toBeLessThan(eventOrder);
     expect(releaseGuestFromTeamIfBecameClosed).toHaveBeenCalledWith(
       adminClient,
       actor,
@@ -518,6 +534,82 @@ describe("setGuestStatusForManager", () => {
         guestName: "Ada Lovelace",
       }
     );
+    const releaseOrder = vi.mocked(releaseGuestFromTeamIfBecameClosed).mock
+      .invocationCallOrder[0];
+    expect(eventOrder).toBeLessThan(releaseOrder);
+  });
+
+  it("does not insert FINISHED event when profile finish fails", async () => {
+    vi.mocked(guestRepository.findGuestById).mockResolvedValue({
+      data: { ...guestRecord, status: "pending" },
+      ...okResult,
+    });
+    mockGuestStatusEvents([]);
+    vi.mocked(guestRepository.updateGuestStatus).mockResolvedValue({
+      data: null,
+      error: { message: "finish failed" } as never,
+      count: null,
+      status: 500,
+      statusText: "Error",
+    });
+
+    const result = await setGuestStatusForManager(
+      adminClient,
+      actor.userId,
+      actor,
+      { id: guestId, status: "finished", note: null }
+    );
+
+    expect(result.success).toBe(false);
+    expect(
+      guestStatusEventRepository.createGuestStatusEvent
+    ).not.toHaveBeenCalled();
+  });
+
+  it("reopens finished profile when FINISHED event insert fails without releasing team", async () => {
+    vi.mocked(guestRepository.findGuestById).mockResolvedValue({
+      data: { ...guestRecord, status: "pending" },
+      ...okResult,
+    });
+    mockGuestStatusEvents([]);
+    vi.mocked(guestRepository.updateGuestStatus)
+      .mockResolvedValueOnce({
+        data: { ...guestRecord, status: "finished" },
+        ...okResult,
+      })
+      .mockResolvedValueOnce({
+        data: { ...guestRecord, status: "pending" },
+        ...okResult,
+      });
+    vi.mocked(
+      guestStatusEventRepository.createGuestStatusEvent
+    ).mockResolvedValue({
+      data: null,
+      error: { message: "event failed" } as never,
+      count: null,
+      status: 500,
+      statusText: "Error",
+    });
+
+    const result = await setGuestStatusForManager(
+      adminClient,
+      actor.userId,
+      actor,
+      { id: guestId, status: "finished", note: null }
+    );
+
+    expect(result.success).toBe(false);
+    expect(guestRepository.updateGuestStatus).toHaveBeenCalledWith(
+      adminClient,
+      guestId,
+      "finished"
+    );
+    expect(guestRepository.updateGuestStatus).toHaveBeenCalledWith(
+      adminClient,
+      guestId,
+      "pending"
+    );
+    expect(releaseGuestFromTeamIfBecameClosed).not.toHaveBeenCalled();
   });
 
   it("rejects profile outcomes as pipeline events", async () => {
@@ -1074,7 +1166,7 @@ describe("removeGuestStatusForManager", () => {
     expect(guestRepository.updateGuestStatus).not.toHaveBeenCalled();
   });
 
-  it("reopens a finished guest to pending when a pipeline status is removed", async () => {
+  it("reopens a finished guest to pending when FINISHED is removed", async () => {
     const finishedGuest = { ...guestRecord, status: "finished" };
     const pendingGuest = { ...guestRecord, status: "pending" };
     vi.mocked(guestRepository.findGuestById).mockResolvedValue({
@@ -1142,6 +1234,66 @@ describe("removeGuestStatusForManager", () => {
       guestId,
       "pending"
     );
+  });
+
+  it("does not reopen finished guest when FINISHED event still remains", async () => {
+    const finishedGuest = { ...guestRecord, status: "finished" };
+    vi.mocked(guestRepository.findGuestById).mockResolvedValue({
+      data: finishedGuest,
+      ...okResult,
+    });
+    vi.mocked(
+      guestStatusEventRepository.listGuestStatusEventsByGuestId
+    ).mockResolvedValue({
+      data: [
+        {
+          id: "event-finished",
+          guest_id: guestId,
+          status: "finished",
+          note: null,
+          created_by: actor.userId,
+          created_at: "2026-01-04T00:00:00.000Z",
+        },
+        {
+          id: "event-1",
+          guest_id: guestId,
+          status: "started",
+          note: null,
+          created_by: actor.userId,
+          created_at: "2026-01-01T00:00:00.000Z",
+        },
+      ],
+      ...okResult,
+    });
+    vi.mocked(
+      guestStatusEventRepository.deleteGuestStatusEventsByGuestIdAndStatus
+    ).mockResolvedValue({
+      data: [
+        {
+          id: "event-1",
+          guest_id: guestId,
+          status: "started",
+          note: null,
+          created_by: actor.userId,
+          created_at: "2026-01-01T00:00:00.000Z",
+        },
+      ],
+      ...okResult,
+    });
+
+    const result = await removeGuestStatusForManager(
+      adminClient,
+      actor.userId,
+      actor,
+      { id: guestId, status: "started" }
+    );
+
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.guest.status).toBe("finished");
+      expect(result.message).toBe("Status removed from history.");
+    }
+    expect(guestRepository.updateGuestStatus).not.toHaveBeenCalled();
   });
 
   it("keeps cancelled guests locked from pipeline deletes", async () => {

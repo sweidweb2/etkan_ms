@@ -1,9 +1,12 @@
 import { expect, type Page } from "@playwright/test";
 
-/** Sonner toasts are role=status / listitem-ish; match visible text. */
+/** Assert a Sonner toast is visible (scoped — avoids matching page body text). */
 export async function expectToastVisible(
   page: Page,
   text: string | RegExp
 ): Promise<void> {
-  await expect(page.getByText(text).first()).toBeVisible({ timeout: 15_000 });
+  const toast = page
+    .locator("[data-sonner-toast], [data-sonner-toaster] li")
+    .filter({ hasText: text });
+  await expect(toast.first()).toBeVisible({ timeout: 15_000 });
 }

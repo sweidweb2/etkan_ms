@@ -404,16 +404,25 @@ export function ClassStudentsSection({
         classId={classId}
         className={className}
         student={droppingStudent}
-        onCompleted={({ membershipId, removedMembershipId, pendingRequestId }) => {
-          if (removedMembershipId) {
+        onCompleted={({
+          membershipId,
+          removedMembershipId,
+          removedMembershipIds,
+          pendingRequestId,
+        }) => {
+          const removeIds = new Set(
+            [
+              ...(removedMembershipIds ?? []),
+              removedMembershipId,
+            ].filter((id): id is string => Boolean(id))
+          );
+          if (removeIds.size > 0) {
             setStudents((prev) => {
-              const nextStudents = prev.filter(
-                (row) => row.id !== removedMembershipId
-              );
+              const nextStudents = prev.filter((row) => !removeIds.has(row.id));
               onStudentsChange(nextStudents);
               return nextStudents;
             });
-            setTotalCount((count) => Math.max(0, count - 1));
+            setTotalCount((count) => Math.max(0, count - removeIds.size));
           } else if (pendingRequestId) {
             setStudents((prev) => {
               const nextStudents = prev.map((row) =>

@@ -49,6 +49,13 @@ export async function createSemesterDropAction(
       removedStudentMembershipId: result.removedFromClass
         ? data.membership_id
         : undefined,
+      removedMembershipIds: result.removedFromClass
+        ? result.removedMembershipIds.length > 0
+          ? result.removedMembershipIds
+          : data.membership_id
+            ? [data.membership_id]
+            : []
+        : [],
       requestId: result.request?.id,
     }),
   });

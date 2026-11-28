@@ -8,3 +8,11 @@ export async function assertNoErrorOverlay(page: Page): Promise<void> {
   await expect(page.getByText(/Unhandled Runtime Error/i)).toHaveCount(0);
   await expect(page.locator("[data-nextjs-dialog]")).toHaveCount(0);
 }
+
+/** True when the manager segment error boundary is showing. */
+export async function hasManagerPanelError(page: Page): Promise<boolean> {
+  return page
+    .getByRole("heading", { name: "Manager panel error" })
+    .isVisible()
+    .catch(() => false);
+}

@@ -101,45 +101,61 @@ export async function removeStudentFromClassForManager(
     }
 
     const semesterId = classResult.data.semester_id;
-    let sppIdToMaybeDelete: string | null = null;
+    const unpaidSppIdsToMaybeDelete: string[] = [];
 
     if (semesterId) {
-      const phaseResult =
-        await paymentPhaseRepository.findCurrentSyncPhaseBySemesterId(
+      const openedPhasesResult =
+        await paymentPhaseRepository.listOpenedPaymentPhasesBySemesterId(
           adminClient,
           semesterId
         );
-      if (phaseResult.error) {
-        return { success: false, error: phaseResult.error.message };
+      if (openedPhasesResult.error) {
+        return { success: false, error: openedPhasesResult.error.message };
       }
-      if (phaseResult.data?.id) {
+      let phases = openedPhasesResult.data ?? [];
+      if (phases.length === 0) {
+        const syncPhase =
+          await paymentPhaseRepository.findCurrentSyncPhaseBySemesterId(
+            adminClient,
+            semesterId
+          );
+        if (syncPhase.error) {
+          return { success: false, error: syncPhase.error.message };
+        }
+        if (syncPhase.data) {
+          phases = [syncPhase.data];
+        }
+      }
+
+      for (const phase of phases) {
         const sppResult =
           await studentPaymentPhaseRepository.findSppByStudentAndPhase(
             adminClient,
             studentUserId,
-            phaseResult.data.id
+            phase.id
           );
         if (sppResult.error) {
           return { success: false, error: sppResult.error.message };
         }
-        if (sppResult.data?.id) {
-          const paymentsResult =
-            await studentPaymentRepository.listPaymentSppIdsBySppIds(
-              adminClient,
-              [sppResult.data.id]
-            );
-          if (paymentsResult.error) {
-            return { success: false, error: paymentsResult.error.message };
-          }
-          if ((paymentsResult.data ?? []).length > 0) {
-            return {
-              success: false,
-              error:
-                "Cannot remove: this student has payments on the semester SPP. Use Drop semester instead.",
-            };
-          }
-          sppIdToMaybeDelete = sppResult.data.id;
+        if (!sppResult.data?.id) {
+          continue;
         }
+        const paymentsResult =
+          await studentPaymentRepository.listPaymentSppIdsBySppIds(
+            adminClient,
+            [sppResult.data.id]
+          );
+        if (paymentsResult.error) {
+          return { success: false, error: paymentsResult.error.message };
+        }
+        if ((paymentsResult.data ?? []).length > 0) {
+          return {
+            success: false,
+            error:
+              "Cannot remove: this student has payments on the semester SPP. Use Drop semester instead.",
+          };
+        }
+        unpaidSppIdsToMaybeDelete.push(sppResult.data.id);
       }
 
       const pendingDrop =
@@ -197,7 +213,7 @@ export async function removeStudentFromClassForManager(
 
     let deletedSpp = false;
     let warning = sync.warning;
-    if (semesterId && sppIdToMaybeDelete) {
+    if (semesterId && unpaidSppIdsToMaybeDelete.length > 0) {
       const semesterClassesResult =
         await classRepository.listClassesBySemesterId(adminClient, semesterId);
       if (semesterClassesResult.error) {
@@ -250,32 +266,36 @@ export async function removeStudentFromClassForManager(
             (row) => row.user_id === deleted.user_id
           );
           if (!stillInSemester) {
-            const sppDelete =
-              await studentPaymentPhaseRepository.deleteStudentPaymentPhaseWithRecalc(
-                adminClient,
-                sppIdToMaybeDelete
-              );
-            if (sppDelete.error) {
-              warning = coalesceWarning(
-                warning,
-                warnSoftFailure(
-                  "removeStudentFromClass.deleteSpp",
-                  sppDelete.error,
-                  "Student removed, but unpaid semester SPP could not be deleted.",
-                  {
-                    classId: parsed.data.class_id,
-                    studentId: deleted.user_id,
-                    sppId: sppIdToMaybeDelete,
-                  },
-                  {
-                    userMessage:
-                      "Student removed, but unpaid semester SPP could not be deleted.",
-                  }
-                )
-              );
-            } else {
-              deletedSpp = true;
+            let deletedAnySpp = false;
+            for (const sppId of unpaidSppIdsToMaybeDelete) {
+              const sppDelete =
+                await studentPaymentPhaseRepository.deleteStudentPaymentPhaseWithRecalc(
+                  adminClient,
+                  sppId
+                );
+              if (sppDelete.error) {
+                warning = coalesceWarning(
+                  warning,
+                  warnSoftFailure(
+                    "removeStudentFromClass.deleteSpp",
+                    sppDelete.error,
+                    "Student removed, but unpaid semester SPP could not be deleted.",
+                    {
+                      classId: parsed.data.class_id,
+                      studentId: deleted.user_id,
+                      sppId,
+                    },
+                    {
+                      userMessage:
+                        "Student removed, but unpaid semester SPP could not be deleted.",
+                    }
+                  )
+                );
+              } else {
+                deletedAnySpp = true;
+              }
             }
+            deletedSpp = deletedAnySpp;
           }
         }
       }

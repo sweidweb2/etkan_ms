@@ -64,7 +64,10 @@ export async function verifyPassword(
 }
 
 export async function signOut(client: Supabase) {
-  return client.auth.signOut({ scope: "global" });
+  // `local` clears the SSR auth cookies on this response. `global` can succeed
+  // at the IdP while leaving cookies set, so middleware still treats the user
+  // as signed in and bounces /auth/login → panel.
+  return client.auth.signOut({ scope: "local" });
 }
 
 export async function getUser(client: Supabase) {

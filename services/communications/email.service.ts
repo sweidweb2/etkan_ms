@@ -423,6 +423,33 @@ export async function sendEmailsForManager(
 
     let sentCount = 0;
     let failedCount = 0;
+    const pendingDeliveries: UpsertEmailUserInput[] = recipients.map(
+      (recipient) => ({
+        emailSentId: emailSent.id,
+        studentId: recipient.studentId,
+        emailAddress: recipient.email,
+        deliveryStatus: "pending",
+        sentAt: null,
+        mailtrapMessageId: null,
+      })
+    );
+
+    try {
+      await persistEmailUserDeliveries(adminClient, pendingDeliveries);
+    } catch (persistError) {
+      return {
+        success: false,
+        error:
+          persistError instanceof Error
+            ? persistError.message
+            : "Unable to prepare delivery ledger. Please try again.",
+        sentCount: 0,
+        skippedCount,
+        failedCount: 0,
+        referenceCode: emailSent.reference_code,
+      };
+    }
+
     const deliveries: UpsertEmailUserInput[] = [];
 
     for (const recipient of recipients) {
@@ -463,7 +490,22 @@ export async function sendEmailsForManager(
       }
     }
 
-    await persistEmailUserDeliveries(adminClient, deliveries);
+    let ledgerIncomplete = false;
+    try {
+      await persistEmailUserDeliveries(adminClient, deliveries);
+    } catch {
+      ledgerIncomplete = true;
+      if (sentCount === 0) {
+        return {
+          success: false,
+          error: "Unable to update delivery ledger.",
+          sentCount,
+          skippedCount,
+          failedCount,
+          referenceCode: emailSent.reference_code,
+        };
+      }
+    }
 
     if (sentCount === 0) {
       return {
@@ -485,6 +527,9 @@ export async function sendEmailsForManager(
     if (failedCount > 0) {
       parts.push(`Failed ${failedCount}.`);
     }
+    if (ledgerIncomplete) {
+      parts.push("Delivery ledger is incomplete — check Sent.");
+    }
 
     await recordManagerAuditLog(adminClient, actor, {
       action: "other",
@@ -496,6 +541,7 @@ export async function sendEmailsForManager(
         recipient_count: sentCount,
         skipped_count: skippedCount,
         failed_count: failedCount,
+        ledger_incomplete: ledgerIncomplete,
         subject: snapshot.title,
         reference_code: emailSent.reference_code,
         template_id: input.templateId,
@@ -831,6 +877,60 @@ export async function resendSentEmailForManager(
 
     let sentCount = 0;
     let failedCount = 0;
+
+    // Do not overwrite prior successful delivery rows with pending — a crash
+    // between pending upsert and final ledger would leave stuck pending.
+    const existingDeliveriesResult =
+      await emailUsersRepository.listEmailUsersByEmailSentId(
+        adminClient,
+        emailSent.id
+      );
+    if (existingDeliveriesResult.error) {
+      return {
+        success: false,
+        error: existingDeliveriesResult.error.message,
+        sentCount: 0,
+        skippedCount,
+        failedCount: 0,
+        referenceCode: emailSent.reference_code,
+      };
+    }
+    const alreadySentEmails = new Set(
+      (existingDeliveriesResult.data ?? [])
+        .filter((row) => row.delivery_status === "sent")
+        .map((row) => row.email_address.toLowerCase())
+    );
+    const pendingDeliveries: UpsertEmailUserInput[] = recipients
+      .filter(
+        (recipient) => !alreadySentEmails.has(recipient.email.toLowerCase())
+      )
+      .map((recipient) => ({
+        emailSentId: emailSent.id,
+        studentId: recipient.studentId,
+        emailAddress: recipient.email,
+        deliveryStatus: "pending",
+        sentAt: null,
+        mailtrapMessageId: null,
+      }));
+
+    if (pendingDeliveries.length > 0) {
+      try {
+        await persistEmailUserDeliveries(adminClient, pendingDeliveries);
+      } catch (persistError) {
+        return {
+          success: false,
+          error:
+            persistError instanceof Error
+              ? persistError.message
+              : "Unable to prepare delivery ledger. Please try again.",
+          sentCount: 0,
+          skippedCount,
+          failedCount: 0,
+          referenceCode: emailSent.reference_code,
+        };
+      }
+    }
+
     const deliveries: UpsertEmailUserInput[] = [];
 
     for (const recipient of recipients) {
@@ -864,18 +964,38 @@ export async function resendSentEmailForManager(
         });
       } else {
         failedCount += 1;
-        deliveries.push({
-          emailSentId: emailSent.id,
-          studentId: recipient.studentId,
-          emailAddress: recipient.email,
-          deliveryStatus: "failed",
-          sentAt: null,
-          mailtrapMessageId: null,
-        });
+        // Never overwrite a prior successful delivery with failed on resend.
+        if (!alreadySentEmails.has(recipient.email.toLowerCase())) {
+          deliveries.push({
+            emailSentId: emailSent.id,
+            studentId: recipient.studentId,
+            emailAddress: recipient.email,
+            deliveryStatus: "failed",
+            sentAt: null,
+            mailtrapMessageId: null,
+          });
+        }
       }
     }
 
-    await persistEmailUserDeliveries(adminClient, deliveries);
+    let ledgerIncomplete = false;
+    if (deliveries.length > 0) {
+      try {
+        await persistEmailUserDeliveries(adminClient, deliveries);
+      } catch {
+        ledgerIncomplete = true;
+        if (sentCount === 0) {
+          return {
+            success: false,
+            error: "Unable to update delivery ledger.",
+            sentCount,
+            skippedCount,
+            failedCount,
+            referenceCode: emailSent.reference_code,
+          };
+        }
+      }
+    }
 
     if (sentCount === 0) {
       return {
@@ -897,6 +1017,9 @@ export async function resendSentEmailForManager(
     if (failedCount > 0) {
       parts.push(`Failed ${failedCount}.`);
     }
+    if (ledgerIncomplete) {
+      parts.push("Delivery ledger is incomplete — check Sent.");
+    }
 
     await recordManagerAuditLog(adminClient, actor, {
       action: "other",
@@ -908,6 +1031,7 @@ export async function resendSentEmailForManager(
         recipient_count: sentCount,
         skipped_count: skippedCount,
         failed_count: failedCount,
+        ledger_incomplete: ledgerIncomplete,
         subject: emailSent.title,
         reference_code: emailSent.reference_code,
         resent: true,

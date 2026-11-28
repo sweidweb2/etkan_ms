@@ -14,7 +14,7 @@ Use this pattern for user actions where the UI should update immediately without
 - Favorites/bookmarks
 - Assign/unassign relationships
 - Status changes
-- Inline CRUD actions
+- Inline CRUD / kanban moves
 - Other small, atomic mutations
 
 ## Core Behavior
@@ -22,15 +22,15 @@ Use this pattern for user actions where the UI should update immediately without
 When the user performs an atomic action:
 
 1. Update the UI optimistically immediately.
-2. Send the corresponding API mutation in the background.
+2. Send the corresponding **server action** (or API mutation) in the background.
 3. Show a subtle pending/loading state while the request is in progress.
 4. If the request succeeds:
    - Keep the optimistic state.
-   - Show a success toast when appropriate.
+   - Show a success toast when appropriate (`@/lib/toast`).
 5. If the request fails:
    - Roll back to the previous state.
    - Show an error toast.
-6. After the mutation settles, synchronize with the server when necessary.
+6. After the mutation settles, synchronize with the server when necessary (`router.refresh()`, local list patch, or Query invalidate if Query is in use).
 
 ## No Save Button
 
@@ -44,7 +44,7 @@ UI:
     unchecked → checked immediately
 
 Backend:
-    PATCH/POST/DELETE request
+    server action / mutation
 
 Success:
     checked remains
@@ -53,22 +53,18 @@ Failure:
     checked → unchecked
     error toast
 
-## State Management
+## State Management (Etkan default)
 
-Use the project's existing server-state/mutation solution.
+**Prefer:**
 
-If TanStack Query is used:
+- RSC props + local `useState` / React `useOptimistic`
+- Server actions for the mutation
+- Toast helpers from `@/lib/toast`
+- Targeted local list/row updates; `router.refresh()` only when the RSC tree must resync
 
-- Use `useMutation` for mutations.
-- Use `onMutate` for optimistic updates.
-- Preserve the previous state for rollback.
-- Use `onError` to rollback.
-- Use `onSuccess` for successful feedback.
-- Use `onSettled` to synchronize/invalidate related queries when appropriate.
+**TanStack Query** is optional and rare in this repo. Use `useMutation` / cache updates only when the screen already keeps that data in Query (e.g. shared capability matrix). Do not introduce Query solely to get optimistic UI.
 
-Do not duplicate server state unnecessarily in local React state.
-
-Prefer updating the TanStack Query cache when the affected data is already represented there.
+Do not duplicate server state unnecessarily in local React state beyond the optimistic window.
 
 ## Concurrency & Race Conditions
 
@@ -77,17 +73,16 @@ Handle rapid or repeated user interactions safely.
 Consider:
 
 - Multiple mutations on the same resource.
-- Out-of-order API responses.
+- Out-of-order responses.
 - Duplicate clicks.
-- Stale cache data.
-- Conflicting mutations.
+- Stale UI after a later action.
 - Whether a control should be temporarily disabled while its mutation is pending.
 
-Do not allow an older API response to overwrite a newer user action.
+Do not allow an older response to overwrite a newer user action.
 
-For operations where ordering matters, use an appropriate serialization/queuing strategy or server-side conflict handling.
+For operations where ordering matters, serialize on the client or rely on server-side conflict handling.
 
-## API Design
+## API / Action Design
 
 Each optimistic action must have a reliable backend mutation.
 
@@ -96,7 +91,7 @@ The backend remains the source of truth.
 Always perform:
 
 - Authentication
-- Authorization
+- Authorization (`runManagerAction` / `assertPermission` / role-scoped services)
 - Input validation
 - Resource existence validation
 - Business-rule validation
@@ -113,7 +108,7 @@ On failure:
 1. Roll back the affected UI state.
 2. Keep the UI consistent with the known server state.
 3. Show a clear error toast.
-4. Log/handle the actual API error according to project conventions.
+4. Log/handle the actual error according to project conventions.
 
 Do not leave the UI showing a successful state when the backend rejected the operation.
 
@@ -139,16 +134,13 @@ Avoid:
 
 ## Performance
 
-Optimize mutations without sacrificing correctness.
-
 Prefer:
 
-- Targeted cache updates.
-- Targeted query invalidation.
-- Small API payloads.
+- Targeted local updates.
+- Targeted invalidation / refresh of the affected view.
+- Small payloads.
 - Debouncing only when appropriate.
 - Batching when the user interaction naturally represents a batch.
-- Avoiding unnecessary full-page/full-list refetches.
 
 Do not introduce a queue merely because optimistic UI is being used. Queues are only required when mutation ordering or serialization genuinely matters.
 
@@ -163,9 +155,9 @@ Before implementing an optimistic interaction, verify:
 - How is the state rolled back?
 - What happens if the request fails?
 - What happens if the user clicks repeatedly?
-- Can requests arrive out of order?
-- Does the cache need to be updated?
-- Does the related query need invalidation/refetching?
+- Can responses arrive out of order?
+- Does local state / Query cache need a patch?
+- Does the related view need refresh/invalidation?
 - Does the backend enforce all required validation and authorization?
 
 ## Principle
@@ -176,4 +168,3 @@ The backend remains authoritative.
 
 Optimistic state is temporary until the mutation succeeds.
 On failure, always recover to a consistent state.
-:::

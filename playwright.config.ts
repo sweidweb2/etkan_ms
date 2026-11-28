@@ -16,26 +16,31 @@ loadLocalEnv();
  *   E2E_BASE_URL=http://host.docker.internal:3000
  *
  * Maintenance mode must stay **off** in the E2E env (auth tests need login).
+ *
+ * No E2E in CI for now — local-first. Mutations stay serial (shared DB).
  */
 const baseURL = process.env.E2E_BASE_URL ?? "http://127.0.0.1:3000";
 const skipWebServer = process.env.E2E_SKIP_WEBSERVER === "1";
+const isCi = !!process.env.CI;
+const localWorkers = Number(process.env.E2E_WORKERS ?? 3);
 
 export default defineConfig({
   testDir: "./e2e",
   globalSetup: "./e2e/global-setup.ts",
   fullyParallel: true,
-  forbidOnly: !!process.env.CI,
-  retries: process.env.CI ? 1 : 1,
-  workers: process.env.CI ? 1 : 1,
-  reporter: process.env.CI ? [["list"], ["html", { open: "never" }]] : "list",
-  timeout: 90_000,
-  expect: { timeout: 20_000 },
+  forbidOnly: isCi,
+  // Local: fail once (false waits must not double). CI pattern kept if E2E returns later.
+  retries: isCi ? 1 : 0,
+  workers: isCi ? 1 : localWorkers,
+  reporter: isCi ? [["list"], ["html", { open: "never" }]] : "list",
+  timeout: 60_000,
+  expect: { timeout: 15_000 },
   use: {
     baseURL,
     trace: "on-first-retry",
     screenshot: "only-on-failure",
     video: "retain-on-failure",
-    navigationTimeout: 60_000,
+    navigationTimeout: 30_000,
   },
   projects: [
     {
@@ -45,9 +50,10 @@ export default defineConfig({
       workers: 1,
     },
     {
-      // Public Phase 0–2: no auth dependency (survives seed/setup issues).
       name: "public",
       testMatch: /e2e[\\/]public[\\/].*\.spec\.ts/,
+      fullyParallel: true,
+      workers: isCi ? 1 : localWorkers,
       use: { ...devices["Desktop Chrome"] },
     },
     {
@@ -60,12 +66,30 @@ export default defineConfig({
       use: { ...devices["Desktop Chrome"] },
     },
     {
-      // Phase 3–4 manager panel (requires manager storageState from setup).
+      // Read-only manager route matrix — safe to parallelize.
+      name: "manager-smoke",
+      dependencies: ["setup"],
+      testMatch: /e2e[\\/]manager[\\/]smoke-nav\.spec\.ts/,
+      fullyParallel: true,
+      workers: isCi ? 1 : localWorkers,
+      use: { ...devices["Desktop Chrome"] },
+    },
+    {
+      // Mutations + deep paths share local DB — keep serial.
       name: "manager",
       dependencies: ["setup"],
       testMatch: /e2e[\\/]manager[\\/].*\.spec\.ts/,
+      testIgnore: /smoke-nav\.spec\.ts/,
       fullyParallel: false,
       workers: 1,
+      use: { ...devices["Desktop Chrome"] },
+    },
+    {
+      name: "panels",
+      dependencies: ["setup"],
+      testMatch: /e2e[\\/](teacher|student|staff)[\\/].*\.spec\.ts/,
+      fullyParallel: true,
+      workers: isCi ? 1 : Math.min(2, localWorkers),
       use: { ...devices["Desktop Chrome"] },
     },
   ],
@@ -74,7 +98,7 @@ export default defineConfig({
     : {
         command: "npm run dev",
         url: baseURL,
-        reuseExistingServer: !process.env.CI,
+        reuseExistingServer: !isCi,
         timeout: 180_000,
       },
 });

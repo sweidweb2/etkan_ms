@@ -97,6 +97,53 @@ export async function updateEnrollmentStatus(
     .maybeSingle();
 }
 
+/** Insert or update semester enrollment status (unique on profile+semester). */
+export async function upsertEnrollmentStatus(
+  client: Supabase,
+  studentProfileId: string,
+  semesterId: string,
+  status: string
+) {
+  return client
+    .from("student_semester")
+    .upsert(
+      {
+        student_profile_id: studentProfileId,
+        semester_id: semesterId,
+        status,
+      },
+      { onConflict: "student_profile_id,semester_id" }
+    )
+    .select(ENROLLMENT_COLUMNS)
+    .single();
+}
+
+export async function listWithdrawnStudentProfileIdsBySemester(
+  client: Supabase,
+  semesterId: string,
+  studentProfileIds: string[]
+) {
+  if (studentProfileIds.length === 0) {
+    return { data: [] as string[], error: null };
+  }
+
+  const { data, error } = await client
+    .from("student_semester")
+    .select("student_profile_id")
+    .eq("semester_id", semesterId)
+    .eq("status", "withdrawn")
+    .in("student_profile_id", studentProfileIds);
+
+  if (error) {
+    return { data: null as string[] | null, error };
+  }
+
+  return {
+    data: (data ?? []).map((row) => row.student_profile_id),
+    error: null,
+  };
+}
+
 /** One UPDATE for many students in the same semester. */
 export async function updateEnrollmentStatusForProfiles(
   client: Supabase,

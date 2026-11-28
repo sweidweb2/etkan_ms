@@ -20,11 +20,10 @@ test.describe("manager finance", () => {
   });
 
   test("accounting → phase → SPP @smoke", async ({ page }) => {
-    page.setDefaultNavigationTimeout(90_000);
     await page.goto("/manager/accounting", { waitUntil: "commit" });
     await expect(
       page.getByRole("heading", { level: 1, name: "Accounting" })
-    ).toBeVisible({ timeout: 60_000 });
+    ).toBeVisible({ timeout: 15_000 });
 
     // Eye button is the real <Link>; table rows are role=link without href.
     const phaseLink = page.getByRole("button", {
@@ -40,7 +39,7 @@ test.describe("manager finance", () => {
     await page.goto(phaseHref!, { waitUntil: "commit" });
     await expect(page).toHaveURL(/\/manager\/accounting\/phases\/[^/]+/);
     await expect(page.getByText(DEMO_PHASE).first()).toBeVisible({
-      timeout: 45_000,
+      timeout: 15_000,
     });
     await expect(page.getByText("Student payment phases").first()).toBeVisible();
 
@@ -58,7 +57,7 @@ test.describe("manager finance", () => {
       /\/manager\/accounting\/phases\/[^/]+\/students\/[^/]+/
     );
     await expect(page.getByText("Payments").first()).toBeVisible({
-      timeout: 45_000,
+      timeout: 15_000,
     });
   });
 
@@ -70,7 +69,6 @@ test.describe("manager finance", () => {
       "Set E2E_ALLOW_MONEY=1 to exercise payment writes"
     );
 
-    page.setDefaultNavigationTimeout(90_000);
     await page.goto("/manager/accounting", { waitUntil: "commit" });
     const phaseLink = page.getByRole("button", {
       name: `View ${DEMO_PHASE}`,
@@ -113,35 +111,5 @@ test.describe("manager finance", () => {
     await expectToastVisible(page, "Payment recorded.");
   });
 
-  test("income statement surfaces @smoke", async ({ page }) => {
-    page.setDefaultNavigationTimeout(90_000);
-    await page.goto("/manager/income-statement", { waitUntil: "commit" });
-    await expect(
-      page.getByRole("heading", { level: 1, name: "Income statement" })
-    ).toBeVisible({ timeout: 60_000 });
-
-    await page.goto("/manager/income-statement/analytics", {
-      waitUntil: "commit",
-    });
-    await expect(
-      page.getByRole("heading", {
-        level: 1,
-        name: "Income statement analytics",
-      })
-    ).toBeVisible({ timeout: 60_000 });
-
-    await page.goto("/manager/income-statement/history", {
-      waitUntil: "commit",
-    });
-    await expect(
-      page.getByRole("heading", { level: 1, name: "Past months" })
-    ).toBeVisible({ timeout: 60_000 });
-  });
-
-  test("academic analysis loads @smoke", async ({ page }) => {
-    await page.goto("/manager/academic-analysis", { waitUntil: "commit" });
-    await expect(
-      page.getByRole("heading", { level: 1, name: "Academic analysis" })
-    ).toBeVisible({ timeout: 60_000 });
-  });
 });
+

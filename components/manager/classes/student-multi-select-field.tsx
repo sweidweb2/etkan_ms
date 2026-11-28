@@ -98,6 +98,9 @@ export function StudentMultiSelectField({
   }, [isServerSearch, query, selectedKeys, students]);
 
   const addStudent = (student: ManagerStudentRow) => {
+    if (student.semester_dropped) {
+      return;
+    }
     if (selectedKeys.has(studentKey(student))) {
       return;
     }
@@ -118,6 +121,9 @@ export function StudentMultiSelectField({
     const merged = [...selected];
     const keys = new Set(selected.map(studentKey));
     for (const student of students) {
+      if (student.semester_dropped) {
+        continue;
+      }
       if (!keys.has(studentKey(student))) {
         merged.push(student);
         keys.add(studentKey(student));
@@ -126,6 +132,10 @@ export function StudentMultiSelectField({
     onChange(merged);
     setQuery("");
   };
+
+  const selectableLoadedCount = students.filter(
+    (student) => !student.semester_dropped
+  ).length;
 
   return (
     <div className="flex flex-col gap-2">
@@ -180,8 +190,11 @@ export function StudentMultiSelectField({
             onKeyDown={(event) => {
               if (event.key === "Enter") {
                 event.preventDefault();
-                if (suggestions[0]) {
-                  addStudent(suggestions[0]);
+                const firstSelectable = suggestions.find(
+                  (student) => !student.semester_dropped
+                );
+                if (firstSelectable) {
+                  addStudent(firstSelectable);
                 }
               }
               if (
@@ -220,22 +233,41 @@ export function StudentMultiSelectField({
 
       {isFocused && (suggestions.length > 0 || isLoading || hasMore) ? (
         <div className="max-h-56 overflow-y-auto rounded-lg border border-border bg-popover p-1 shadow-md">
-          {suggestions.map((student) => (
-            <button
-              key={student.student_profile_id}
-              type="button"
-              className="flex w-full flex-col rounded-md px-2 py-1.5 text-left text-sm hover:bg-muted"
-              onMouseDown={(event) => {
-                event.preventDefault();
-                addStudent(student);
-              }}
-            >
-              <span className="font-medium">{student.full_name}</span>
-              <span className="text-xs text-muted-foreground">
-                {student.email}
-              </span>
-            </button>
-          ))}
+          {suggestions.map((student) => {
+            const isDropped = Boolean(student.semester_dropped);
+            return (
+              <button
+                key={student.student_profile_id}
+                type="button"
+                disabled={isDropped}
+                aria-disabled={isDropped || undefined}
+                className={cn(
+                  "flex w-full flex-col rounded-md px-2 py-1.5 text-left text-sm",
+                  isDropped
+                    ? "cursor-not-allowed opacity-50"
+                    : "hover:bg-muted"
+                )}
+                onMouseDown={(event) => {
+                  event.preventDefault();
+                  if (!isDropped) {
+                    addStudent(student);
+                  }
+                }}
+              >
+                <span className="flex items-center gap-2 font-medium">
+                  <span className="truncate">{student.full_name}</span>
+                  {isDropped ? (
+                    <span className="shrink-0 rounded-md bg-rose-500/15 px-1.5 py-0.5 text-[10px] font-medium text-rose-700 dark:text-rose-400">
+                      Already dropped
+                    </span>
+                  ) : null}
+                </span>
+                <span className="text-xs text-muted-foreground">
+                  {student.email}
+                </span>
+              </button>
+            );
+          })}
           {isLoading ? (
             <div className="flex items-center gap-2 px-2 py-1.5 text-xs text-muted-foreground">
               <InlineSpinner />
@@ -266,7 +298,11 @@ export function StudentMultiSelectField({
             type="button"
             size="sm"
             variant="outline"
-            disabled={disabled || selected.length === students.length}
+            disabled={
+              disabled ||
+              selectableLoadedCount === 0 ||
+              selected.length >= selectableLoadedCount
+            }
             onClick={selectAllLoaded}
           >
             Select all loaded

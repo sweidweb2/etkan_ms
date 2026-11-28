@@ -12,6 +12,7 @@ import * as studentClassRepository from "@/repositories/student-class.repository
 import * as studentPaymentPhaseRepository from "@/repositories/student-payment-phase.repository";
 import * as studentPaymentRepository from "@/repositories/student-payment.repository";
 import * as studentProfileRepository from "@/repositories/student-profile.repository";
+import * as studentSemesterRepository from "@/repositories/student-semester.repository";
 import * as studentTaskRepository from "@/repositories/student-task.repository";
 import * as accountingSync from "@/services/accounting/accounting-sync.service";
 import * as authorizationService from "@/services/auth/authorization.service";
@@ -35,6 +36,7 @@ vi.mock("@/repositories/student-class.repository");
 vi.mock("@/repositories/student-payment-phase.repository");
 vi.mock("@/repositories/student-payment.repository");
 vi.mock("@/repositories/student-profile.repository");
+vi.mock("@/repositories/student-semester.repository");
 vi.mock("@/repositories/student-task.repository");
 vi.mock("@/services/accounting/accounting-sync.service");
 vi.mock("@/services/students/student.service", () => ({
@@ -136,6 +138,12 @@ describe("addStudentsToClassForManager", () => {
       error: null,
     });
     vi.mocked(accountingSync.onStudentsJoinedClass).mockResolvedValue([]);
+    vi.mocked(
+      studentSemesterRepository.listWithdrawnStudentProfileIdsBySemester
+    ).mockResolvedValue({
+      data: [],
+      error: null,
+    });
   });
 
   it("enrolls eligible students in one batch and reports partial failures", async () => {
@@ -261,15 +269,62 @@ describe("addStudentsToClassForManager", () => {
 
     expect(result).toEqual({
       success: false,
-      error: "Inactive students cannot be added to a class.",
+      error: "Only active students can be added to a class.",
       fieldErrors: {
-        studentProfileIds: ["Inactive students cannot be added to a class."],
+        studentProfileIds: ["Only active students can be added to a class."],
       },
     });
     expect(
       attendeeRepository.seedLateJoinAttendeesForStudents
     ).not.toHaveBeenCalled();
     expect(accountingSync.onStudentsJoinedClass).not.toHaveBeenCalled();
+  });
+
+  it("rejects students already dropped from the semester", async () => {
+    vi.mocked(
+      studentProfileRepository.listStudentProfilesByIds
+    ).mockResolvedValue({
+      data: [
+        {
+          id: aliceProfileId,
+          user_id: aliceUserId,
+          full_name: "Alice",
+          phone: null,
+          status: "active",
+        },
+      ],
+      error: null,
+    } as never);
+    vi.mocked(
+      studentSemesterRepository.listWithdrawnStudentProfileIdsBySemester
+    ).mockResolvedValue({
+      data: [aliceProfileId],
+      error: null,
+    });
+    vi.mocked(studentClassRepository.enrollStudentsInClass).mockResolvedValue({
+      data: { inserted: [], already_enrolled: [] },
+      error: null,
+    } as never);
+
+    const result = await addStudentsToClassForManager(
+      adminClient,
+      actor.userId,
+      actor,
+      {
+        class_id: classId,
+        studentProfileIds: [aliceProfileId],
+      }
+    );
+
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(result.error).toMatch(/already dropped/i);
+    }
+    expect(studentClassRepository.enrollStudentsInClass).toHaveBeenCalledWith(
+      adminClient,
+      classId,
+      []
+    );
   });
 });
 
@@ -296,6 +351,12 @@ describe("removeStudentFromClassForManager", () => {
         class_id: classId,
         joined_at: "2026-01-01T00:00:00.000Z",
       },
+      error: null,
+    } as never);
+    vi.mocked(
+      paymentPhaseRepository.listOpenedPaymentPhasesBySemesterId
+    ).mockResolvedValue({
+      data: [],
       error: null,
     } as never);
     vi.mocked(
@@ -372,9 +433,9 @@ describe("removeStudentFromClassForManager", () => {
 
   it("rejects remove when the semester SPP has payments", async () => {
     vi.mocked(
-      paymentPhaseRepository.findCurrentSyncPhaseBySemesterId
+      paymentPhaseRepository.listOpenedPaymentPhasesBySemesterId
     ).mockResolvedValue({
-      data: { id: "phase-1", semester_id: "semester-1" },
+      data: [{ id: "phase-1", semester_id: "semester-1" }],
       error: null,
     } as never);
     vi.mocked(

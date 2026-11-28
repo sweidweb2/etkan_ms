@@ -233,6 +233,41 @@ export async function uploadStudentTaskFileForManager(
     };
   }
 
+  // Concurrent uploads can race the pre-insert count; enforce max after insert.
+  const postCount =
+    await studentTaskUploadRepository.countStudentTaskUploadsByStudentTaskId(
+      adminClient,
+      dataInput.student_task_id
+    );
+  if (postCount.error) {
+    await studentTaskUploadRepository.deleteStudentTaskUploadById(
+      adminClient,
+      data.id
+    );
+    await studentTaskStorageRepository.removeStudentTaskStorageObjects(
+      adminClient,
+      [storagePath]
+    );
+    return {
+      success: false,
+      error: "Unable to verify upload limit. Please try again.",
+    };
+  }
+  if ((postCount.count ?? 0) > STUDENT_TASK_UPLOAD_MAX_FILES) {
+    await studentTaskUploadRepository.deleteStudentTaskUploadById(
+      adminClient,
+      data.id
+    );
+    await studentTaskStorageRepository.removeStudentTaskStorageObjects(
+      adminClient,
+      [storagePath]
+    );
+    return {
+      success: false,
+      error: `Each student task can have at most ${STUDENT_TASK_UPLOAD_MAX_FILES} uploads.`,
+    };
+  }
+
   const upload = mapStudentTaskUploadRecord(data as StudentTaskUploadRecord);
 
   await recordManagerAuditLog(adminClient, actor, {

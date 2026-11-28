@@ -412,6 +412,7 @@ export type StudentPaymentPhaseWithPhaseRecord = StudentPaymentPhaseRecord & {
     name: string;
     status: string;
     semester_id: string | null;
+    created_at: string;
   } | null;
 };
 
@@ -422,7 +423,7 @@ export async function listSppsWithPhaseByStudentId(
   return client
     .from("student_payment_phases")
     .select(
-      `${SPP_COLUMNS}, payment_phases ( id, name, status, semester_id )`
+      `${SPP_COLUMNS}, payment_phases ( id, name, status, semester_id, created_at )`
     )
     .eq("student_id", studentId)
     .order("created_at", { ascending: false });

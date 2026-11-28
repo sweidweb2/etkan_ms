@@ -696,6 +696,14 @@ export async function updateManagerUser(
   const previousIsInstructor = existingProfile.data.is_instructor;
   const previousEmail = authUserResult.data.user.email ?? null;
 
+  const revertProfile = async () => {
+    await profileRepository.updateProfileById(adminClient, userId, {
+      full_name: existingProfile.data.full_name,
+      role: previousRole,
+      is_instructor: previousIsInstructor,
+    });
+  };
+
   const { data: updatedProfile, error: profileError } =
     await profileRepository.updateProfileById(adminClient, userId, {
       full_name: normalizedFullName,
@@ -712,19 +720,6 @@ export async function updateManagerUser(
     };
   }
 
-  if (previousIsInstructor && !is_instructor) {
-    const relatedClear = await clearInstructorWorkshopRelatedData(
-      adminClient,
-      userId
-    );
-    if (relatedClear.error) {
-      return {
-        success: false,
-        error: mapUpdateManagerUserError(relatedClear.error),
-      };
-    }
-  }
-
   const { error: authError } = await authRepository.updateAuthUserByAdmin(
     adminClient,
     userId,
@@ -735,6 +730,7 @@ export async function updateManagerUser(
   );
 
   if (authError) {
+    await revertProfile();
     return {
       success: false,
       error: mapUpdateManagerUserError(authError.message),
@@ -751,6 +747,7 @@ export async function updateManagerUser(
       );
 
     if (passwordError) {
+      await revertProfile();
       return {
         success: false,
         error: mapUpdateManagerUserError(passwordError.message),
@@ -865,11 +862,32 @@ export async function updateManagerUser(
       // JWT may still carry previousRole until refresh — force panel gates now.
       markClaimsRoleOverride(userId, role);
     } catch (err) {
+      await revertProfile();
       return {
         success: false,
         error: mapUpdateManagerUserError(
           err instanceof Error ? err.message : "Failed to sync role."
         ),
+      };
+    }
+  }
+
+  // Clear instructor data only after auth/role commits succeed so a later
+  // failure never leaves is_instructor=true with workshops already wiped.
+  if (previousIsInstructor && !is_instructor) {
+    const relatedClear = await clearInstructorWorkshopRelatedData(
+      adminClient,
+      userId
+    );
+    if (relatedClear.error) {
+      await profileRepository.updateProfileById(adminClient, userId, {
+        full_name: normalizedFullName,
+        role,
+        is_instructor: previousIsInstructor,
+      });
+      return {
+        success: false,
+        error: mapUpdateManagerUserError(relatedClear.error),
       };
     }
   }

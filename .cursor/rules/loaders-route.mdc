@@ -8,13 +8,17 @@ alwaysApply: false
 
 Use Next.js `loading.tsx` + shared loader components for **segment suspense** while server content loads.
 
+## Prefer skeletons for feature routes
+
+Panel **feature** routes (lists, details, calendars, forms) should use **layout-shaped skeletons** from `@/components/loaders/skeletons` — see `.cursor/rules/loaders-skeletons.mdc`. Do not add a new centered “Loading page…” spinner when a `Panel*PageSkeleton` fits.
+
 ## Components
 
 | Component | Path | Use in |
 |-----------|------|--------|
-| `RouteLoading` | `@/components/loaders/route-loading` | `loading.tsx` files |
-| `PanelRouteLoading` | `@/components/loaders/panel-route-loading` | Admin panel segments |
-| `FullPageLoader` | `@/components/loaders/full-page-loader` | Root/auth full viewport |
+| `RouteLoading` | `@/components/loaders/route-loading` | Auth/root full-page; panel **root** `loading.tsx` only |
+| Skeleton templates | `@/components/loaders/skeletons` | Manager (and other) feature `loading.tsx` |
+| `FullPageLoader` | `@/components/loaders/full-page-loader` | Full viewport waits outside panel content |
 
 ## Variants
 
@@ -24,21 +28,29 @@ export default function Loading() {
   return <RouteLoading variant="full-page" label="Loading…" />;
 }
 
-// Admin panel — centered in content area below header
-export default function AdminLoading() {
+// Panel root only (e.g. app/(panels)/manager/loading.tsx) — until a root skeleton exists
+export default function PanelRootLoading() {
   return <RouteLoading variant="panel" label="Loading page…" />;
+}
+
+// Feature route — skeleton template
+import { PanelListPageSkeleton } from "@/components/loaders/skeletons";
+
+export default function Loading() {
+  return <PanelListPageSkeleton />;
 }
 ```
 
 ## When
 
 - Add `loading.tsx` next to `page.tsx` when the page has async server work and should show a fallback.
-- **Panel routes:** prefer shared **skeletons** from `@/components/loaders/skeletons` (see `.cursor/rules/loaders-skeletons.mdc`) instead of a centered spinner.
-- Use `variant="panel"` only for legacy fallbacks; new work should use `Panel*PageSkeleton`.
-- Use `variant="full-page"` for public/auth/root segments.
+- **Feature panel routes:** `Panel*PageSkeleton` templates.
+- **Panel roots** (`admin` / `manager` / `teacher` / … `loading.tsx`): `RouteLoading variant="panel"` is acceptable.
+- **Public/auth/root:** `variant="full-page"`.
 
 ## Do not
 
 - Put business logic in `loading.tsx`.
 - Use route loading for button/action pending states — use `InlineSpinner` instead.
 - Add a new panel center spinner when a skeleton template fits.
+- Import `PanelRouteLoading` for new feature fallbacks — prefer skeletons.

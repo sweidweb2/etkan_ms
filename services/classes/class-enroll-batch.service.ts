@@ -22,6 +22,7 @@ import * as paymentPhaseRepository from "@/repositories/payment-phase.repository
 import * as sessionRepository from "@/repositories/session.repository";
 import * as studentClassRepository from "@/repositories/student-class.repository";
 import * as studentProfileRepository from "@/repositories/student-profile.repository";
+import * as studentSemesterRepository from "@/repositories/student-semester.repository";
 import {
   recordManagerAuditLog,
   type AuditActor,
@@ -133,11 +134,30 @@ async function enrollStudentsInClassCore(
       (studentProfilesResult.data ?? []).map((row) => [row.id, row])
     );
 
+    const withdrawnProfileIds = new Set<string>();
+    if (classRecord.semester_id) {
+      const withdrawnResult =
+        await studentSemesterRepository.listWithdrawnStudentProfileIdsBySemester(
+          adminClient,
+          classRecord.semester_id,
+          uniqueIds
+        );
+      if (withdrawnResult.error) {
+        return { success: false, error: withdrawnResult.error.message };
+      }
+      for (const id of withdrawnResult.data ?? []) {
+        withdrawnProfileIds.add(id);
+      }
+    }
+
     const eligibleUserIds: string[] = [];
     const seenUserIds = new Set<string>();
     for (const studentProfileId of uniqueIds) {
       const profile = profileById.get(studentProfileId);
-      if (!profile || profile.status === STUDENT_STATUSES.INACTIVE) {
+      if (!profile || profile.status !== STUDENT_STATUSES.ACTIVE) {
+        continue;
+      }
+      if (withdrawnProfileIds.has(studentProfileId)) {
         continue;
       }
       if (seenUserIds.has(profile.user_id)) {
@@ -175,8 +195,12 @@ async function enrollStudentsInClassCore(
         failures.push("Student not found.");
         continue;
       }
-      if (profile.status === STUDENT_STATUSES.INACTIVE) {
-        failures.push("Inactive students cannot be added to a class.");
+      if (profile.status !== STUDENT_STATUSES.ACTIVE) {
+        failures.push("Only active students can be added to a class.");
+        continue;
+      }
+      if (withdrawnProfileIds.has(studentProfileId)) {
+        failures.push("Student already dropped from this semester.");
         continue;
       }
       if (alreadyEnrolled.has(profile.user_id)) {
@@ -335,20 +359,7 @@ async function enrollStudentsInClassCore(
 
     let joinItems: StudentJoinSyncItem[] = [];
 
-    const semesterId = classRecord.semester_id;
-    const reactivatePromise = semesterId
-      ? import("@/services/classes/drop-semester.service")
-          .then(({ reactivateSemestersAfterRejoin }) =>
-            reactivateSemestersAfterRejoin(
-              adminClient,
-              students.map((student) => student.student_profile_id),
-              semesterId
-            )
-          )
-          .catch(() => {
-            // Non-fatal: memberships already created.
-          })
-      : Promise.resolve();
+    // Rejoin after semester withdraw is deferred — withdrawn students are filtered above.
 
     try {
       joinItems = await timer.step("paymentSync", () =>
@@ -385,8 +396,6 @@ async function enrollStudentsInClassCore(
       );
       warning = coalesceWarning(warning, PAYMENT_SYNC_FAILURE_WARNING);
     }
-
-    await reactivatePromise;
 
     let autoAssignedPhase: { id: string; name: string } | undefined;
     let optionalPaymentPhases: Array<{ id: string; name: string }> | undefined;
@@ -560,7 +569,9 @@ export async function copyStudentsFromClassForManager(
     }
 
     const eligibleIds = new Set(
-      diffResult.students.map((student) => student.student_profile_id)
+      diffResult.students
+        .filter((student) => !student.semester_dropped)
+        .map((student) => student.student_profile_id)
     );
     const selectedIds = [
       ...new Set(

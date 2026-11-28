@@ -460,7 +460,7 @@ async function finishGuestProfileFromPipeline(
   adminClient: Supabase,
   actor: AuditActor,
   guest: ManagerGuestRow
-): Promise<{ guest: ManagerGuestRow; error?: string; warning?: string }> {
+): Promise<{ guest: ManagerGuestRow; error?: string }> {
   if (guest.status === GUEST_CURRENT_STATUSES.FINISHED) {
     return { guest };
   }
@@ -488,19 +488,26 @@ async function finishGuestProfileFromPipeline(
     metadata: { note: "Guest profile set to finished from pipeline." },
   });
 
-  const release = await releaseGuestFromTeamIfBecameClosed(adminClient, actor, {
-    guestId: guest.id,
-    previousStatus: guest.status,
-    nextStatus: data.status,
-    guestName: data.full_name,
-  });
+  // Team release is deferred until the FINISHED pipeline event is persisted so
+  // event-insert failure + reopen does not leave the guest off-team.
+  return { guest: mapGuestRecordToRow(data) };
+}
 
-  return {
-    guest: mapGuestRecordToRow(data),
-    warning: release?.error
-      ? `Guest marked finished, but team release failed: ${release.error}`
-      : undefined,
-  };
+async function releaseFinishedGuestFromTeam(
+  adminClient: Supabase,
+  actor: AuditActor,
+  previousGuest: ManagerGuestRow,
+  finishedGuest: ManagerGuestRow
+): Promise<string | undefined> {
+  const release = await releaseGuestFromTeamIfBecameClosed(adminClient, actor, {
+    guestId: finishedGuest.id,
+    previousStatus: previousGuest.status,
+    nextStatus: finishedGuest.status,
+    guestName: finishedGuest.full_name,
+  });
+  return release?.error
+    ? `Guest marked finished, but team release failed: ${release.error}`
+    : undefined;
 }
 
 async function reopenFinishedGuestToPending(
@@ -599,6 +606,24 @@ export async function setGuestStatusForManager(
     };
   }
 
+  let guest = current;
+  let warning: string | undefined;
+  let didFinishProfile = false;
+  if (status === GUEST_PIPELINE_STATUSES.FINISHED) {
+    const finished = await finishGuestProfileFromPipeline(
+      adminClient,
+      actor,
+      current
+    );
+    if (finished.error) {
+      return { success: false, error: finished.error };
+    }
+    didFinishProfile =
+      current.status !== GUEST_CURRENT_STATUSES.FINISHED &&
+      finished.guest.status === GUEST_CURRENT_STATUSES.FINISHED;
+    guest = finished.guest;
+  }
+
   const eventResult = await guestStatusEventRepository.createGuestStatusEvent(
     adminClient,
     {
@@ -610,10 +635,22 @@ export async function setGuestStatusForManager(
   );
 
   if (eventResult.error || !eventResult.data) {
+    if (didFinishProfile) {
+      await reopenFinishedGuestToPending(adminClient, actor, guest);
+    }
     return {
       success: false,
       error: "Unable to record guest status change. Please try again.",
     };
+  }
+
+  if (didFinishProfile) {
+    warning = await releaseFinishedGuestFromTeam(
+      adminClient,
+      actor,
+      current,
+      guest
+    );
   }
 
   await recordManagerAuditLog(adminClient, actor, {
@@ -624,21 +661,6 @@ export async function setGuestStatusForManager(
     new_data: { guest_id: id, status, note },
     metadata: { note: "Guest pipeline status recorded." },
   });
-
-  let guest = current;
-  let warning: string | undefined;
-  if (status === GUEST_PIPELINE_STATUSES.FINISHED) {
-    const finished = await finishGuestProfileFromPipeline(
-      adminClient,
-      actor,
-      current
-    );
-    if (finished.error) {
-      return { success: false, error: finished.error };
-    }
-    guest = finished.guest;
-    warning = finished.warning;
-  }
 
   return {
     success: true,
@@ -827,6 +849,25 @@ export async function recordGuestPipelineStatusesForGuest(
     };
   }
 
+  let guest = current;
+  let warning: string | undefined;
+  let didFinishProfile = false;
+  const recordedFinished = toRecord.includes(GUEST_PIPELINE_STATUSES.FINISHED);
+  if (recordedFinished && finishProfileOnPipelineFinished) {
+    const finished = await finishGuestProfileFromPipeline(
+      adminClient,
+      actor,
+      current
+    );
+    if (finished.error) {
+      return { success: false, error: finished.error };
+    }
+    didFinishProfile =
+      current.status !== GUEST_CURRENT_STATUSES.FINISHED &&
+      finished.guest.status === GUEST_CURRENT_STATUSES.FINISHED;
+    guest = finished.guest;
+  }
+
   const batchResult = await guestStatusEventRepository.createGuestStatusEvents(
     adminClient,
     toRecord.map((status) => ({
@@ -838,10 +879,22 @@ export async function recordGuestPipelineStatusesForGuest(
   );
 
   if (batchResult.error || !batchResult.data) {
+    if (didFinishProfile) {
+      await reopenFinishedGuestToPending(adminClient, actor, guest);
+    }
     return {
       success: false,
       error: "Unable to record guest status change. Please try again.",
     };
+  }
+
+  if (didFinishProfile) {
+    warning = await releaseFinishedGuestFromTeam(
+      adminClient,
+      actor,
+      current,
+      guest
+    );
   }
 
   await recordManagerAuditLog(adminClient, actor, {
@@ -852,22 +905,6 @@ export async function recordGuestPipelineStatusesForGuest(
     new_data: { guest_id: id, statuses: toRecord, note },
     metadata: { note: "Guest pipeline statuses recorded." },
   });
-
-  let guest = current;
-  let warning: string | undefined;
-  const recordedFinished = toRecord.includes(GUEST_PIPELINE_STATUSES.FINISHED);
-  if (recordedFinished && finishProfileOnPipelineFinished) {
-    const finished = await finishGuestProfileFromPipeline(
-      adminClient,
-      actor,
-      current
-    );
-    if (finished.error) {
-      return { success: false, error: finished.error };
-    }
-    guest = finished.guest;
-    warning = finished.warning;
-  }
 
   return {
     success: true,
@@ -1015,21 +1052,30 @@ export async function removeGuestStatusForManager(
   const remainingEvents = (listedEvents.data ?? []).filter(
     (event) => event.status !== status
   );
-
-  const reopened = await reopenFinishedGuestToPending(
-    adminClient,
-    actor,
-    guest
+  const finishedStillRecorded = remainingEvents.some(
+    (event) => event.status === GUEST_PIPELINE_STATUSES.FINISHED
   );
-  if (reopened.error) {
-    return { success: false, error: reopened.error };
-  }
+  const shouldReopen =
+    status === GUEST_PIPELINE_STATUSES.FINISHED || !finishedStillRecorded;
 
-  const didReopen = reopened.guest.status !== guest.status;
+  let nextGuest = guest;
+  let didReopen = false;
+  if (shouldReopen) {
+    const reopened = await reopenFinishedGuestToPending(
+      adminClient,
+      actor,
+      guest
+    );
+    if (reopened.error) {
+      return { success: false, error: reopened.error };
+    }
+    nextGuest = reopened.guest;
+    didReopen = reopened.guest.status !== guest.status;
+  }
 
   return {
     success: true,
-    guest: reopened.guest,
+    guest: nextGuest,
     message: didReopen
       ? "Status removed. Guest moved back to pending."
       : "Status removed from history.",
@@ -1278,6 +1324,16 @@ export async function deleteGuestForManager(
   }
 
   const storagePaths = (docsResult.data ?? []).map((doc) => doc.storage_path);
+
+  // Delete guest row first so document refs cannot point at wiped blobs.
+  const { error } = await guestRepository.deleteGuestById(adminClient, guestId);
+  if (error) {
+    return {
+      success: false,
+      error: error.message || "Unable to delete guest. Please try again.",
+    };
+  }
+
   if (storagePaths.length > 0) {
     const storageResult =
       await registrationStorage.removeRegistrationStorageObjects(
@@ -1285,21 +1341,12 @@ export async function deleteGuestForManager(
         storagePaths
       );
     if (storageResult.error) {
-      return {
-        success: false,
-        error:
-          storageResult.error.message ||
-          "Unable to delete registration documents. Please try again.",
-      };
+      // Guest already deleted; surface as soft warning via audit note only.
+      console.error(
+        "[deleteGuestForManager] storage cleanup failed after guest delete:",
+        storageResult.error.message
+      );
     }
-  }
-
-  const { error } = await guestRepository.deleteGuestById(adminClient, guestId);
-  if (error) {
-    return {
-      success: false,
-      error: error.message || "Unable to delete guest. Please try again.",
-    };
   }
 
   await recordManagerAuditLog(adminClient, actor, {

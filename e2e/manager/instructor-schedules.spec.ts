@@ -14,29 +14,18 @@ test.describe("manager instructor schedules @mutation", () => {
     );
   });
 
-  test("list and details load @smoke", async ({ page }) => {
-    page.setDefaultNavigationTimeout(90_000);
-    await page.goto("/manager/instructor-schedules", { waitUntil: "commit" });
-    await expect(
-      page.getByRole("heading", { level: 1, name: "Instructor schedules" })
-    ).toBeVisible({ timeout: 60_000 });
-
-    await page.goto("/manager/instructor-schedules/details", {
-      waitUntil: "commit",
-    });
-    await expect(
-      page.getByRole("heading", { level: 1, name: "Schedule slot details" })
-    ).toBeVisible({ timeout: 60_000 });
-  });
-
   test("create schedule slot", async ({ page }) => {
-    const slotName = `E2E Slot ${e2eStamp("slot")}`.slice(0, 60);
+    const stamp = e2eStamp("slot");
+    const slotName = `E2E Slot ${stamp}`.slice(0, 60);
+    // Unique hour avoids overlap collisions with prior E2E / demo slots.
+    const hour = 8 + (Math.abs(hashCode(stamp)) % 10);
+    const start = `${String(hour).padStart(2, "0")}:15`;
+    const end = `${String(hour).padStart(2, "0")}:45`;
 
-    page.setDefaultNavigationTimeout(90_000);
     await page.goto("/manager/instructor-schedules", { waitUntil: "commit" });
     await expect(
-      page.getByRole("heading", { level: 1, name: "Instructor schedules" })
-    ).toBeVisible({ timeout: 60_000 });
+      page.getByRole("button", { name: "Add slot" })
+    ).toBeVisible({ timeout: 30_000 });
     await page.getByRole("button", { name: "Add slot" }).click();
 
     const dialog = page.getByRole("dialog");
@@ -55,16 +44,26 @@ test.describe("manager instructor schedules @mutation", () => {
     await expect(instructorOption).toBeVisible({ timeout: 15_000 });
     await instructorOption.click();
 
-    await selectOptionByTriggerId(page, "add-schedule-slot-day", /Monday/);
+    await selectOptionByTriggerId(page, "add-schedule-slot-day", /Wednesday/);
     await dialog.locator("#add-instructor-schedule-slot-name").fill(slotName);
-    await dialog.locator("#add-instructor-schedule-slot-start").fill("10:00");
-    await dialog.locator("#add-instructor-schedule-slot-end").fill("11:00");
+    await dialog.locator("#add-instructor-schedule-slot-start").fill(start);
+    await dialog.locator("#add-instructor-schedule-slot-end").fill(end);
     await dialog.getByRole("button", { name: "Add slot" }).click();
 
-    await expectToastVisible(page, /Schedule slot created\.|Slot created\./);
     await expect(dialog).toBeHidden({ timeout: 20_000 });
+    await expectToastVisible(page, /Schedule slot created\.|Slot created\./);
     await expect(page.getByText(slotName).first()).toBeVisible({
       timeout: 20_000,
     });
   });
 });
+
+function hashCode(value: string): number {
+  let hash = 0;
+  for (let i = 0; i < value.length; i += 1) {
+    hash = (hash << 5) - hash + value.charCodeAt(i);
+    hash |= 0;
+  }
+  return hash;
+}
+

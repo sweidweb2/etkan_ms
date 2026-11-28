@@ -378,26 +378,7 @@ export async function deleteStudentClassMembership(
   return { data: asStudentClassRecord(data), error: null };
 }
 
-/** Leave scheduled/in_progress classes in a semester (semester drop). */
-export async function leaveStudentSemesterDropClasses(
-  client: Supabase,
-  studentId: string,
-  semesterId: string,
-  alsoClassId?: string | null
-) {
-  const { data, error } = await client.rpc(
-    "leave_student_semester_drop_classes",
-    {
-      p_student_id: studentId,
-      p_semester_id: semesterId,
-      p_also_class_id: alsoClassId ?? null,
-    }
-  );
-
-  if (error) {
-    return { data: null, error };
-  }
-
+function mapLeaveDropResult(data: unknown) {
   const row =
     data && typeof data === "object" ? (data as Record<string, unknown>) : null;
   const removedRaw = row?.removed;
@@ -424,13 +405,62 @@ export async function leaveStudentSemesterDropClasses(
     : [];
 
   return {
-    data: {
-      removed,
-      removedCount:
-        typeof row?.removedCount === "number"
-          ? row.removedCount
-          : removed.length,
-    },
+    removed,
+    removedCount:
+      typeof row?.removedCount === "number"
+        ? row.removedCount
+        : removed.length,
+  };
+}
+
+/** Leave scheduled/in_progress/paused classes in a semester (semester drop). */
+export async function leaveStudentSemesterDropClasses(
+  client: Supabase,
+  studentId: string,
+  semesterId: string,
+  alsoClassId?: string | null
+) {
+  const { data, error } = await client.rpc(
+    "leave_student_semester_drop_classes",
+    {
+      p_student_id: studentId,
+      p_semester_id: semesterId,
+      p_also_class_id: alsoClassId ?? null,
+    }
+  );
+
+  if (error) {
+    return { data: null, error };
+  }
+
+  return {
+    data: mapLeaveDropResult(data),
+    error: null,
+  };
+}
+
+/** Atomic no-SPP drop: leave classes + upsert withdrawn in one transaction. */
+export async function leaveAndWithdrawSemesterNoSpp(
+  client: Supabase,
+  studentId: string,
+  semesterId: string,
+  alsoClassId?: string | null
+) {
+  const { data, error } = await client.rpc(
+    "leave_and_withdraw_semester_no_spp",
+    {
+      p_student_id: studentId,
+      p_semester_id: semesterId,
+      p_also_class_id: alsoClassId ?? null,
+    }
+  );
+
+  if (error) {
+    return { data: null, error };
+  }
+
+  return {
+    data: mapLeaveDropResult(data),
     error: null,
   };
 }

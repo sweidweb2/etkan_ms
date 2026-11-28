@@ -1,47 +1,56 @@
 import { expect, test } from "@playwright/test";
 import {
+  DEFAULT_SETUP_ROLES,
   E2E_ROLES,
-  getCredentials,
   hasStorageState,
-  loginViaUi,
   REQUIRED_AUTH_ROLES,
   ROLE_HOME,
+  storageStatePath,
   type E2eRole,
 } from "../fixtures/auth";
 
 const setupAllRoles = process.env.E2E_SETUP_ALL_ROLES === "1";
 const rolesToCheck: readonly E2eRole[] = setupAllRoles
   ? E2E_ROLES
-  : REQUIRED_AUTH_ROLES;
+  : DEFAULT_SETUP_ROLES;
 
+/**
+ * Validates each role home using storageState from setup (no second UI login).
+ * Skips optional roles when demo seed did not produce a session.
+ */
 test.describe("auth redirect by role", () => {
-  test.describe.configure({ mode: "serial" });
-
   for (const role of rolesToCheck) {
-    test(`${role} lands on ${ROLE_HOME[role]}`, async ({ page }) => {
+    test(`${role} session opens ${ROLE_HOME[role]}`, async ({ browser }) => {
       const required = (REQUIRED_AUTH_ROLES as readonly E2eRole[]).includes(
         role
       );
-      if (!required && !hasStorageState(role)) {
+
+      if (!hasStorageState(role)) {
         test.skip(
-          true,
-          `No storageState for optional role "${role}" — seed or set E2E_SETUP_ALL_ROLES=1`
+          !required,
+          `No storageState for optional role "${role}" — run npm run seed:demo or set E2E_* credentials`
+        );
+        throw new Error(
+          `Required role "${role}" missing storageState — auth setup failed`
         );
       }
 
-      try {
-        await loginViaUi(page, getCredentials(role), ROLE_HOME[role]);
-      } catch (error) {
-        if (!required) {
-          test.skip(
-            true,
-            `Optional role "${role}" login failed: ${String(error)}`
-          );
-        }
-        throw error;
-      }
-
-      await expect(page).toHaveURL(new RegExp(ROLE_HOME[role]));
+      const context = await browser.newContext({
+        storageState: storageStatePath(role),
+      });
+      const page = await context.newPage();
+      await page.goto(ROLE_HOME[role], { waitUntil: "commit" });
+      await expect(page).toHaveURL(new RegExp(escapeRegExp(ROLE_HOME[role])), {
+        timeout: 15_000,
+      });
+      await expect(
+        page.getByRole("button", { name: "Account menu" })
+      ).toBeVisible({ timeout: 15_000 });
+      await context.close();
     });
   }
 });
+
+function escapeRegExp(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}

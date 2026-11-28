@@ -19,6 +19,11 @@ export interface ManagerStudentRow {
   avatar_url?: string | null;
   /** True when the student has any pending semester drop. */
   has_pending_drop?: boolean;
+  /**
+   * Class/semester add-student pickers only: withdrawn from this class's semester.
+   * Shown in list but not selectable until rejoin is implemented.
+   */
+  semester_dropped?: boolean;
 }
 
 export type ManagerStudentsListQuery = {

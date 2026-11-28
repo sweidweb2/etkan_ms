@@ -1,6 +1,7 @@
 import "server-only";
 
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { collectAllPages } from "@/repositories/_shared/collect-all-pages";
 import type { Database, Json } from "@/types/supabase";
 
 type Supabase = SupabaseClient<Database>;
@@ -39,11 +40,14 @@ export type UpdateSubjectRecordInput = {
 };
 
 export async function listSubjects(client: Supabase) {
-  return client
-    .from("subjects")
-    .select(SUBJECT_COLUMNS)
-    .order("sort_order", { ascending: true })
-    .order("name", { ascending: true });
+  return collectAllPages<SubjectRecord>((offset, limit) =>
+    client
+      .from("subjects")
+      .select(SUBJECT_COLUMNS)
+      .order("sort_order", { ascending: true })
+      .order("name", { ascending: true })
+      .range(offset, offset + limit - 1)
+  );
 }
 
 export async function listSubjectIds(client: Supabase) {

@@ -223,6 +223,28 @@ export async function listNeedRefundDropRequestsByStudentId(
     .order("completed_at", { ascending: false });
 }
 
+function mapRemovedDropClasses(value: unknown): Array<{
+  classId: string;
+  membershipId: string;
+}> {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+  return value.flatMap((item) => {
+    if (!item || typeof item !== "object") {
+      return [];
+    }
+    const row = item as Record<string, unknown>;
+    if (
+      typeof row.classId !== "string" ||
+      typeof row.membershipId !== "string"
+    ) {
+      return [];
+    }
+    return [{ classId: row.classId, membershipId: row.membershipId }];
+  });
+}
+
 export async function createSemesterDropRequest(
   client: Supabase,
   input: {
@@ -261,6 +283,69 @@ export async function createSemesterDropRequest(
       request: mapSemesterDropRequestRecord(row.request),
       completedImmediately: row.completedImmediately === true,
       spp: row.spp ?? null,
+      removedClasses: mapRemovedDropClasses(row.removedClasses),
+    },
+    error: null,
+  };
+}
+
+export async function createImmediateSemesterDropsBatch(
+  client: Supabase,
+  input: {
+    student_id: string;
+    class_ids: string[];
+    restriction_mode: string;
+    required_percent?: number | null;
+    required_amount?: number | null;
+    requested_by: string | null;
+    notes?: string | null;
+  }
+) {
+  const { data, error } = await client.rpc(
+    "create_immediate_semester_drops_batch",
+    {
+      p_student_id: input.student_id,
+      p_class_ids: input.class_ids,
+      p_restriction_mode: input.restriction_mode,
+      p_required_percent: input.required_percent ?? null,
+      p_required_amount: input.required_amount ?? null,
+      p_requested_by: input.requested_by,
+      p_notes: input.notes ?? null,
+    }
+  );
+
+  if (error) {
+    return { data: null, error };
+  }
+
+  if (!data || typeof data !== "object") {
+    return { data: null, error: null };
+  }
+
+  const row = data as Record<string, unknown>;
+  const completedCount =
+    typeof row.completedCount === "number" ? row.completedCount : 0;
+  const results = Array.isArray(row.results)
+    ? row.results.map((item) => {
+        if (!item || typeof item !== "object") {
+          return null;
+        }
+        const one = item as Record<string, unknown>;
+        return {
+          request: mapSemesterDropRequestRecord(one.request),
+          completedImmediately: one.completedImmediately === true,
+          spp: one.spp ?? null,
+          removedClasses: mapRemovedDropClasses(one.removedClasses),
+        };
+      })
+    : [];
+
+  return {
+    data: {
+      completedCount,
+      results: results.filter((item): item is NonNullable<typeof item> =>
+        Boolean(item)
+      ),
     },
     error: null,
   };

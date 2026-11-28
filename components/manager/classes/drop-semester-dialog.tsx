@@ -36,6 +36,7 @@ type DropSemesterActionState = {
   fieldErrors?: Record<string, string[] | undefined>;
   completedImmediately?: boolean;
   removedStudentMembershipId?: string;
+  removedMembershipIds?: string[];
   membershipId?: string;
   requestId?: string;
 };
@@ -51,6 +52,7 @@ type DropSemesterDialogProps = {
   onCompleted: (result: {
     membershipId: string;
     removedMembershipId?: string;
+    removedMembershipIds?: string[];
     pendingRequestId?: string;
   }) => void;
 };
@@ -95,6 +97,7 @@ export function DropSemesterDialog({
           onCompleted({
             membershipId,
             removedMembershipId: next.removedStudentMembershipId,
+            removedMembershipIds: next.removedMembershipIds,
             pendingRequestId: next.requestId,
           });
         }

@@ -15,6 +15,20 @@ Authentication should be **cheap and local** on every request (`getClaims` / JWT
 - `Promise.all(profile, permissions)` on session_pack MISS when `claimsRole` is set — time each promise independently.
 - Process-TTL session shell HIT (must stay cheap: claims + map lookup).
 - Process-global JWKS (`lib/auth/jwks-cache.ts` on `globalThis`) passed into `getClaims({ jwks })`. Warm at login. Middleware and RSC must share this cache — do not let each bundle HTTP-fetch `jwks.json` on the first authenticated hop.
+- **Claims-role override** (`lib/auth/claims-role-override-cache.ts`) so a demoted role wins over a stale JWT claim until refresh — do not remove or bypass when changing role writes.
+
+## Process-TTL auth caches (not Data Cache)
+
+These live under `lib/auth/` on `globalThis` / process memory. Do **not** replace them with `unstable_cache` tags:
+
+| Cache | File |
+|-------|------|
+| Session shell | `session-shell-cache.ts` |
+| JWKS | `jwks-cache.ts` |
+| Role → permissions | `role-permissions-cache.ts` |
+| Claims role override | `claims-role-override-cache.ts` |
+| Auth emails | `auth-emails-cache.ts` |
+| Maintenance mode | `maintenance-mode-cache.ts` |
 
 ## Session pack logs
 
@@ -32,3 +46,5 @@ Use `getClaimsWithSharedJwks` (not a bare `client.auth.getClaims()`) on middlewa
 ## Panel links
 
 One navigator per target. Table/detail `<Link>`s use `prefetch={false}` unless prefetch is intentional.
+
+Multi-role panels, shared `/manager` routes, and deep-link permissions: `.cursor/rules/panels-authz.mdc`.

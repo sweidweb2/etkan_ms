@@ -116,6 +116,7 @@ describe("getStudentStatusSideEffectsPreview", () => {
             name: "Phase 1",
             status: PAYMENT_PHASE_STATUSES.OPENED,
             semester_id: semesterId,
+            created_at: "2026-01-02T00:00:00.000Z",
           },
         },
       ],
@@ -153,6 +154,196 @@ describe("getStudentStatusSideEffectsPreview", () => {
     expect(preview.needs_immediate_drop).toBe(true);
     expect(preview.droppable_semesters).toHaveLength(1);
     expect(preview.can_inactivate).toBe(true);
+  });
+
+  it("allows deleting unpaid open SPPs when paid ones also exist", async () => {
+    const unpaidSppId = "99999999-9999-4999-8999-999999999999";
+    const unpaidPhaseId = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
+    vi.mocked(
+      studentProfileRepository.findStudentProfileByUserId
+    ).mockResolvedValue({
+      data: activeProfile,
+      error: null,
+      count: null,
+      status: 200,
+      statusText: "OK",
+    });
+    vi.mocked(
+      studentClassRepository.listStudentClassesWithClassByUserId
+    ).mockResolvedValue({
+      data: [
+        {
+          id: studentClassId,
+          user_id: studentUserId,
+          class_id: classId,
+          joined_at: "2026-01-02T00:00:00.000Z",
+          classes: {
+            id: classId,
+            name: "Math A",
+            status: CLASS_STATUSES.IN_PROGRESS,
+            semester_id: semesterId,
+          },
+        },
+      ],
+      error: null,
+      count: null,
+      status: 200,
+      statusText: "OK",
+    } as never);
+    vi.mocked(
+      studentPaymentPhaseRepository.listSppsWithPhaseByStudentId
+    ).mockResolvedValue({
+      data: [
+        {
+          id: sppId,
+          student_id: studentUserId,
+          payment_phase_id: phaseId,
+          assigned_at: "2026-01-02T00:00:00.000Z",
+          status: "pending",
+          original_amount: 100,
+          adjustment_amount: 0,
+          final_amount_due: 100,
+          total_paid: 20,
+          remaining_amount: 80,
+          created_at: "2026-01-02T00:00:00.000Z",
+          updated_at: "2026-01-02T00:00:00.000Z",
+          payment_phases: {
+            id: phaseId,
+            name: "Phase paid",
+            status: PAYMENT_PHASE_STATUSES.OPENED,
+            semester_id: semesterId,
+            created_at: "2026-01-03T00:00:00.000Z",
+          },
+        },
+        {
+          id: unpaidSppId,
+          student_id: studentUserId,
+          payment_phase_id: unpaidPhaseId,
+          assigned_at: "2026-01-02T00:00:00.000Z",
+          status: "pending",
+          original_amount: 50,
+          adjustment_amount: 0,
+          final_amount_due: 50,
+          total_paid: 0,
+          remaining_amount: 50,
+          created_at: "2026-01-02T00:00:00.000Z",
+          updated_at: "2026-01-02T00:00:00.000Z",
+          payment_phases: {
+            id: unpaidPhaseId,
+            name: "Phase unpaid",
+            status: PAYMENT_PHASE_STATUSES.OPENED,
+            semester_id: "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb",
+            created_at: "2026-01-01T00:00:00.000Z",
+          },
+        },
+      ],
+      error: null,
+      count: null,
+      status: 200,
+      statusText: "OK",
+    } as never);
+    vi.mocked(
+      studentPaymentRepository.listPaymentSppIdsBySppIds
+    ).mockResolvedValue({
+      data: [{ student_payment_phase_id: sppId }],
+      error: null,
+      count: null,
+      status: 200,
+      statusText: "OK",
+    } as never);
+    vi.mocked(
+      semesterDropRequestRepository.listPendingDropsByStudentIds
+    ).mockResolvedValue({
+      data: [],
+      error: null,
+    } as never);
+
+    const preview = await getStudentStatusSideEffectsPreview(
+      adminClient,
+      actor.userId,
+      studentUserId
+    );
+
+    expect(preview.can_remove_open_spps).toBe(true);
+    expect(preview.open_spps_blocked_reason).toMatch(/unpaid/i);
+    expect(preview.needs_immediate_drop).toBe(true);
+  });
+
+  it("blocks inactivate when paid open SPP has no class membership", async () => {
+    vi.mocked(
+      studentProfileRepository.findStudentProfileByUserId
+    ).mockResolvedValue({
+      data: activeProfile,
+      error: null,
+      count: null,
+      status: 200,
+      statusText: "OK",
+    });
+    vi.mocked(
+      studentClassRepository.listStudentClassesWithClassByUserId
+    ).mockResolvedValue({
+      data: [],
+      error: null,
+      count: null,
+      status: 200,
+      statusText: "OK",
+    } as never);
+    vi.mocked(
+      studentPaymentPhaseRepository.listSppsWithPhaseByStudentId
+    ).mockResolvedValue({
+      data: [
+        {
+          id: sppId,
+          student_id: studentUserId,
+          payment_phase_id: phaseId,
+          assigned_at: "2026-01-02T00:00:00.000Z",
+          status: "pending",
+          original_amount: 100,
+          adjustment_amount: 0,
+          final_amount_due: 100,
+          total_paid: 20,
+          remaining_amount: 80,
+          created_at: "2026-01-02T00:00:00.000Z",
+          updated_at: "2026-01-02T00:00:00.000Z",
+          payment_phases: {
+            id: phaseId,
+            name: "Phase 1",
+            status: PAYMENT_PHASE_STATUSES.OPENED,
+            semester_id: semesterId,
+            created_at: "2026-01-02T00:00:00.000Z",
+          },
+        },
+      ],
+      error: null,
+      count: null,
+      status: 200,
+      statusText: "OK",
+    } as never);
+    vi.mocked(
+      studentPaymentRepository.listPaymentSppIdsBySppIds
+    ).mockResolvedValue({
+      data: [{ student_payment_phase_id: sppId }],
+      error: null,
+      count: null,
+      status: 200,
+      statusText: "OK",
+    } as never);
+    vi.mocked(
+      semesterDropRequestRepository.listPendingDropsByStudentIds
+    ).mockResolvedValue({
+      data: [],
+      error: null,
+    } as never);
+
+    const preview = await getStudentStatusSideEffectsPreview(
+      adminClient,
+      actor.userId,
+      studentUserId
+    );
+
+    expect(preview.can_inactivate).toBe(false);
+    expect(preview.inactivate_blocked_reason).toMatch(/no class membership/i);
+    expect(preview.needs_immediate_drop).toBe(false);
   });
 
   it("blocks inactivate preview when a pending drop exists", async () => {

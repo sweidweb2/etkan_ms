@@ -1,15 +1,19 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { ROLES } from "@/lib/constants/roles";
+import * as classRepository from "@/repositories/class.repository";
 import * as studentClassRepository from "@/repositories/student-class.repository";
 import * as studentProfileRepository from "@/repositories/student-profile.repository";
+import * as studentSemesterRepository from "@/repositories/student-semester.repository";
 import type { AuditActor } from "@/services/ops/audit-log.service";
 import { listAvailableStudentsForClass } from "@/services/classes/class.service";
 import { computeAllStudentCourseGradesForManager } from "@/services/classes/student-course-grade.service";
 import * as classService from "@/services/classes/class.service";
 import * as studentService from "@/services/students/student.service";
 
+vi.mock("@/repositories/class.repository");
 vi.mock("@/repositories/student-class.repository");
 vi.mock("@/repositories/student-profile.repository");
+vi.mock("@/repositories/student-semester.repository");
 vi.mock("@/repositories/student-course-grade.repository");
 vi.mock("@/repositories/attendee.repository");
 vi.mock("@/repositories/final-exam.repository");
@@ -63,6 +67,13 @@ describe("listAvailableStudentsForClass enrollment membership", () => {
   });
 
   it("excludes any current class members from available list", async () => {
+    vi.mocked(classRepository.findClassById).mockResolvedValue({
+      data: {
+        id: classId,
+        semester_id: "eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee",
+      },
+      error: null,
+    } as never);
     vi.mocked(
       studentClassRepository.listStudentUserIdsByClassId
     ).mockResolvedValue({
@@ -98,6 +109,12 @@ describe("listAvailableStudentsForClass enrollment membership", () => {
         created_at: "2026-01-01T00:00:00.000Z",
       },
     ] as never);
+    vi.mocked(
+      studentSemesterRepository.listWithdrawnStudentProfileIdsBySemester
+    ).mockResolvedValue({
+      data: [],
+      error: null,
+    });
 
     const result = await listAvailableStudentsForClass(
       adminClient,
@@ -120,6 +137,68 @@ describe("listAvailableStudentsForClass enrollment membership", () => {
     );
     expect(result.students.map((row) => row.user_id)).toEqual([outsideUserId]);
     expect(result.totalCount).toBe(1);
+    expect(result.students[0]?.semester_dropped).toBeUndefined();
+  });
+
+  it("annotates semester_dropped for withdrawn semester students", async () => {
+    const semesterId = "eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee";
+    vi.mocked(classRepository.findClassById).mockResolvedValue({
+      data: { id: classId, semester_id: semesterId },
+      error: null,
+    } as never);
+    vi.mocked(
+      studentClassRepository.listStudentUserIdsByClassId
+    ).mockResolvedValue({
+      data: [],
+      error: null,
+    } as never);
+    vi.mocked(
+      studentProfileRepository.listStudentProfilesPage
+    ).mockResolvedValue({
+      data: [
+        {
+          id: "sp-dropped",
+          user_id: outsideUserId,
+          full_name: "Dropped",
+          birth_date: null,
+          phone: null,
+          status: "active",
+          created_at: "2026-01-01T00:00:00.000Z",
+        },
+      ],
+      count: 1,
+      error: null,
+    } as never);
+    vi.mocked(studentService.hydrateStudentRows).mockResolvedValue([
+      {
+        student_profile_id: "sp-dropped",
+        user_id: outsideUserId,
+        full_name: "Dropped",
+        email: "d@example.com",
+        phone: null,
+        birth_date: null,
+        status: "active",
+        created_at: "2026-01-01T00:00:00.000Z",
+      },
+    ] as never);
+    vi.mocked(
+      studentSemesterRepository.listWithdrawnStudentProfileIdsBySemester
+    ).mockResolvedValue({
+      data: ["sp-dropped"],
+      error: null,
+    });
+
+    const result = await listAvailableStudentsForClass(
+      adminClient,
+      actor.userId,
+      classId
+    );
+
+    expect(result.students).toHaveLength(1);
+    expect(result.students[0]?.semester_dropped).toBe(true);
+    expect(
+      studentSemesterRepository.listWithdrawnStudentProfileIdsBySemester
+    ).toHaveBeenCalledWith(adminClient, semesterId, ["sp-dropped"]);
   });
 });
 
