@@ -140,6 +140,10 @@ export async function removeStudentFromClassForManager(
         if (!sppResult.data?.id) {
           continue;
         }
+        // Cancelled SPPs are not drop/settlement targets — ignore for remove gates.
+        if (sppResult.data.status === "cancelled") {
+          continue;
+        }
         const paymentsResult =
           await studentPaymentRepository.listPaymentSppIdsBySppIds(
             adminClient,

@@ -692,16 +692,40 @@ export async function updateManagerUser(
     return { success: false, error: "User not found." };
   }
 
+  // Fail closed before any mutation when student profile preload failed.
+  if (role === ROLES.STUDENT && existingStudentResult?.error) {
+    return {
+      success: false,
+      error: mapUpdateManagerUserError(existingStudentResult.error.message),
+    };
+  }
+
   const previousRole = existingProfile.data.role as RoleValue;
   const previousIsInstructor = existingProfile.data.is_instructor;
   const previousEmail = authUserResult.data.user.email ?? null;
+  const previousFullName = existingProfile.data.full_name;
 
   const revertProfile = async () => {
     await profileRepository.updateProfileById(adminClient, userId, {
-      full_name: existingProfile.data.full_name,
+      full_name: previousFullName,
       role: previousRole,
       is_instructor: previousIsInstructor,
     });
+  };
+
+  const revertAuthIdentity = async () => {
+    if (!previousEmail) {
+      return;
+    }
+    await authRepository.updateAuthUserByAdmin(adminClient, userId, {
+      email: previousEmail,
+      fullName: previousFullName,
+    });
+  };
+
+  const revertAfterAuthChange = async () => {
+    await revertProfile();
+    await revertAuthIdentity();
   };
 
   const { data: updatedProfile, error: profileError } =
@@ -737,24 +761,6 @@ export async function updateManagerUser(
     };
   }
 
-  const nextPassword = (parsed.data.password ?? "").trim();
-  if (nextPassword) {
-    const { error: passwordError } =
-      await authRepository.updateAuthUserPasswordByAdmin(
-        adminClient,
-        userId,
-        nextPassword
-      );
-
-    if (passwordError) {
-      await revertProfile();
-      return {
-        success: false,
-        error: mapUpdateManagerUserError(passwordError.message),
-      };
-    }
-  }
-
   let studentProfileId: string | null = null;
   let studentFullName: string | null = null;
   let studentBirthDate: string | null = null;
@@ -765,12 +771,6 @@ export async function updateManagerUser(
   // Student profile before Auth role sync so a profile write failure does not
   // leave JWT/app_metadata already demoted/promoted with a hard failure.
   if (role === ROLES.STUDENT) {
-    if (existingStudentResult?.error) {
-      return {
-        success: false,
-        error: mapUpdateManagerUserError(existingStudentResult.error.message),
-      };
-    }
 
     if (existingStudentResult?.data) {
       const { data: updatedStudent, error: studentProfileError } =
@@ -862,7 +862,7 @@ export async function updateManagerUser(
       // JWT may still carry previousRole until refresh — force panel gates now.
       markClaimsRoleOverride(userId, role);
     } catch (err) {
-      await revertProfile();
+      await revertAfterAuthChange();
       return {
         success: false,
         error: mapUpdateManagerUserError(
@@ -872,19 +872,49 @@ export async function updateManagerUser(
     }
   }
 
-  // Clear instructor data only after auth/role commits succeed so a later
-  // failure never leaves is_instructor=true with workshops already wiped.
+  const revertRoleIfNeeded = async () => {
+    if (previousRole === role) {
+      return;
+    }
+    try {
+      await syncAuthUserRole(adminClient, userId, previousRole);
+      markClaimsRoleOverride(userId, previousRole);
+    } catch {
+      // Profile/email already reverted; JWT may still need a refresh.
+    }
+  };
+
+  // Password before instructor-clear: password cannot be restored, but clear
+  // must stay last so a password failure never leaves workshops wiped.
+  const nextPassword = (parsed.data.password ?? "").trim();
+  if (nextPassword) {
+    const { error: passwordError } =
+      await authRepository.updateAuthUserPasswordByAdmin(
+        adminClient,
+        userId,
+        nextPassword
+      );
+
+    if (passwordError) {
+      await revertAfterAuthChange();
+      await revertRoleIfNeeded();
+      return {
+        success: false,
+        error: mapUpdateManagerUserError(passwordError.message),
+      };
+    }
+  }
+
+  // Clear instructor data last so earlier failures never wipe workshops while
+  // leaving is_instructor=true (or after a full identity revert).
   if (previousIsInstructor && !is_instructor) {
     const relatedClear = await clearInstructorWorkshopRelatedData(
       adminClient,
       userId
     );
     if (relatedClear.error) {
-      await profileRepository.updateProfileById(adminClient, userId, {
-        full_name: normalizedFullName,
-        role,
-        is_instructor: previousIsInstructor,
-      });
+      await revertAfterAuthChange();
+      await revertRoleIfNeeded();
       return {
         success: false,
         error: mapUpdateManagerUserError(relatedClear.error),

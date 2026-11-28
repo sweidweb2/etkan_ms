@@ -488,8 +488,7 @@ async function finishGuestProfileFromPipeline(
     metadata: { note: "Guest profile set to finished from pipeline." },
   });
 
-  // Team release is deferred until the FINISHED pipeline event is persisted so
-  // event-insert failure + reopen does not leave the guest off-team.
+  // Caller persists the FINISHED event first, then finishes, then releases team.
   return { guest: mapGuestRecordToRow(data) };
 }
 
@@ -606,24 +605,6 @@ export async function setGuestStatusForManager(
     };
   }
 
-  let guest = current;
-  let warning: string | undefined;
-  let didFinishProfile = false;
-  if (status === GUEST_PIPELINE_STATUSES.FINISHED) {
-    const finished = await finishGuestProfileFromPipeline(
-      adminClient,
-      actor,
-      current
-    );
-    if (finished.error) {
-      return { success: false, error: finished.error };
-    }
-    didFinishProfile =
-      current.status !== GUEST_CURRENT_STATUSES.FINISHED &&
-      finished.guest.status === GUEST_CURRENT_STATUSES.FINISHED;
-    guest = finished.guest;
-  }
-
   const eventResult = await guestStatusEventRepository.createGuestStatusEvent(
     adminClient,
     {
@@ -635,22 +616,43 @@ export async function setGuestStatusForManager(
   );
 
   if (eventResult.error || !eventResult.data) {
-    if (didFinishProfile) {
-      await reopenFinishedGuestToPending(adminClient, actor, guest);
-    }
     return {
       success: false,
       error: "Unable to record guest status change. Please try again.",
     };
   }
 
-  if (didFinishProfile) {
-    warning = await releaseFinishedGuestFromTeam(
+  let guest = current;
+  let warning: string | undefined;
+
+  // Event first, then finish: if finish fails, delete the new event so retry
+  // does not hit "already recorded" with a still-pending profile.
+  if (status === GUEST_PIPELINE_STATUSES.FINISHED) {
+    const finished = await finishGuestProfileFromPipeline(
       adminClient,
       actor,
-      current,
-      guest
+      current
     );
+    if (finished.error) {
+      await guestStatusEventRepository.deleteGuestStatusEventsByGuestIdAndStatus(
+        adminClient,
+        id,
+        GUEST_PIPELINE_STATUSES.FINISHED
+      );
+      return { success: false, error: finished.error };
+    }
+    guest = finished.guest;
+    if (
+      current.status !== GUEST_CURRENT_STATUSES.FINISHED &&
+      finished.guest.status === GUEST_CURRENT_STATUSES.FINISHED
+    ) {
+      warning = await releaseFinishedGuestFromTeam(
+        adminClient,
+        actor,
+        current,
+        guest
+      );
+    }
   }
 
   await recordManagerAuditLog(adminClient, actor, {
@@ -849,25 +851,7 @@ export async function recordGuestPipelineStatusesForGuest(
     };
   }
 
-  let guest = current;
-  let warning: string | undefined;
-  let didFinishProfile = false;
   const recordedFinished = toRecord.includes(GUEST_PIPELINE_STATUSES.FINISHED);
-  if (recordedFinished && finishProfileOnPipelineFinished) {
-    const finished = await finishGuestProfileFromPipeline(
-      adminClient,
-      actor,
-      current
-    );
-    if (finished.error) {
-      return { success: false, error: finished.error };
-    }
-    didFinishProfile =
-      current.status !== GUEST_CURRENT_STATUSES.FINISHED &&
-      finished.guest.status === GUEST_CURRENT_STATUSES.FINISHED;
-    guest = finished.guest;
-  }
-
   const batchResult = await guestStatusEventRepository.createGuestStatusEvents(
     adminClient,
     toRecord.map((status) => ({
@@ -879,22 +863,44 @@ export async function recordGuestPipelineStatusesForGuest(
   );
 
   if (batchResult.error || !batchResult.data) {
-    if (didFinishProfile) {
-      await reopenFinishedGuestToPending(adminClient, actor, guest);
-    }
     return {
       success: false,
       error: "Unable to record guest status change. Please try again.",
     };
   }
 
-  if (didFinishProfile) {
-    warning = await releaseFinishedGuestFromTeam(
+  let guest = current;
+  let warning: string | undefined;
+
+  if (recordedFinished && finishProfileOnPipelineFinished) {
+    const finished = await finishGuestProfileFromPipeline(
       adminClient,
       actor,
-      current,
-      guest
+      current
     );
+    if (finished.error) {
+      // Roll back only the statuses we just inserted so retry is clean.
+      for (const status of toRecord) {
+        await guestStatusEventRepository.deleteGuestStatusEventsByGuestIdAndStatus(
+          adminClient,
+          id,
+          status
+        );
+      }
+      return { success: false, error: finished.error };
+    }
+    guest = finished.guest;
+    if (
+      current.status !== GUEST_CURRENT_STATUSES.FINISHED &&
+      finished.guest.status === GUEST_CURRENT_STATUSES.FINISHED
+    ) {
+      warning = await releaseFinishedGuestFromTeam(
+        adminClient,
+        actor,
+        current,
+        guest
+      );
+    }
   }
 
   await recordManagerAuditLog(adminClient, actor, {

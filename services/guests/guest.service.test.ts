@@ -510,20 +510,20 @@ describe("setGuestStatusForManager", () => {
       expect(result.guest.status).toBe("finished");
       expect(result.message).toMatch(/marked finished/i);
     }
+    expect(
+      guestStatusEventRepository.createGuestStatusEvent
+    ).toHaveBeenCalled();
     expect(guestRepository.updateGuestStatus).toHaveBeenCalledWith(
       adminClient,
       guestId,
       "finished"
     );
-    expect(
-      guestStatusEventRepository.createGuestStatusEvent
-    ).toHaveBeenCalled();
-    const finishOrder = vi.mocked(guestRepository.updateGuestStatus).mock
-      .invocationCallOrder[0];
     const eventOrder = vi.mocked(
       guestStatusEventRepository.createGuestStatusEvent
     ).mock.invocationCallOrder[0];
-    expect(finishOrder).toBeLessThan(eventOrder);
+    const finishOrder = vi.mocked(guestRepository.updateGuestStatus).mock
+      .invocationCallOrder[0];
+    expect(eventOrder).toBeLessThan(finishOrder);
     expect(releaseGuestFromTeamIfBecameClosed).toHaveBeenCalledWith(
       adminClient,
       actor,
@@ -536,21 +536,40 @@ describe("setGuestStatusForManager", () => {
     );
     const releaseOrder = vi.mocked(releaseGuestFromTeamIfBecameClosed).mock
       .invocationCallOrder[0];
-    expect(eventOrder).toBeLessThan(releaseOrder);
+    expect(finishOrder).toBeLessThan(releaseOrder);
   });
 
-  it("does not insert FINISHED event when profile finish fails", async () => {
+  it("deletes FINISHED event when profile finish fails after insert", async () => {
     vi.mocked(guestRepository.findGuestById).mockResolvedValue({
       data: { ...guestRecord, status: "pending" },
       ...okResult,
     });
     mockGuestStatusEvents([]);
+    vi.mocked(
+      guestStatusEventRepository.createGuestStatusEvent
+    ).mockResolvedValue({
+      data: {
+        id: "event-finished",
+        guest_id: guestId,
+        status: "finished",
+        note: null,
+        created_by: actor.userId,
+        created_at: "2026-01-03T00:00:00.000Z",
+      },
+      ...okResult,
+    });
     vi.mocked(guestRepository.updateGuestStatus).mockResolvedValue({
       data: null,
       error: { message: "finish failed" } as never,
       count: null,
       status: 500,
       statusText: "Error",
+    });
+    vi.mocked(
+      guestStatusEventRepository.deleteGuestStatusEventsByGuestIdAndStatus
+    ).mockResolvedValue({
+      data: [],
+      ...okResult,
     });
 
     const result = await setGuestStatusForManager(
@@ -562,25 +581,17 @@ describe("setGuestStatusForManager", () => {
 
     expect(result.success).toBe(false);
     expect(
-      guestStatusEventRepository.createGuestStatusEvent
-    ).not.toHaveBeenCalled();
+      guestStatusEventRepository.deleteGuestStatusEventsByGuestIdAndStatus
+    ).toHaveBeenCalledWith(adminClient, guestId, "finished");
+    expect(releaseGuestFromTeamIfBecameClosed).not.toHaveBeenCalled();
   });
 
-  it("reopens finished profile when FINISHED event insert fails without releasing team", async () => {
+  it("does not finish profile when FINISHED event insert fails", async () => {
     vi.mocked(guestRepository.findGuestById).mockResolvedValue({
       data: { ...guestRecord, status: "pending" },
       ...okResult,
     });
     mockGuestStatusEvents([]);
-    vi.mocked(guestRepository.updateGuestStatus)
-      .mockResolvedValueOnce({
-        data: { ...guestRecord, status: "finished" },
-        ...okResult,
-      })
-      .mockResolvedValueOnce({
-        data: { ...guestRecord, status: "pending" },
-        ...okResult,
-      });
     vi.mocked(
       guestStatusEventRepository.createGuestStatusEvent
     ).mockResolvedValue({
@@ -599,16 +610,7 @@ describe("setGuestStatusForManager", () => {
     );
 
     expect(result.success).toBe(false);
-    expect(guestRepository.updateGuestStatus).toHaveBeenCalledWith(
-      adminClient,
-      guestId,
-      "finished"
-    );
-    expect(guestRepository.updateGuestStatus).toHaveBeenCalledWith(
-      adminClient,
-      guestId,
-      "pending"
-    );
+    expect(guestRepository.updateGuestStatus).not.toHaveBeenCalled();
     expect(releaseGuestFromTeamIfBecameClosed).not.toHaveBeenCalled();
   });
 

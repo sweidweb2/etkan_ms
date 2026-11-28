@@ -7,6 +7,7 @@ import {
 } from "@/lib/constants/manager-student-status";
 import {
   PAYMENT_PHASE_STATUSES,
+  STUDENT_PAYMENT_PHASE_STATUSES,
 } from "@/lib/manager/accounting/constants";
 import { PERMISSIONS } from "@/lib/constants/permissions";
 import { createNavStepTimer } from "@/lib/debug/nav-timing";
@@ -83,7 +84,9 @@ function buildOpenSpps(
 ): StudentStatusOpenSpp[] {
   return rows
     .filter(
-      (row) => row.payment_phases?.status === PAYMENT_PHASE_STATUSES.OPENED
+      (row) =>
+        row.payment_phases?.status === PAYMENT_PHASE_STATUSES.OPENED &&
+        row.status !== STUDENT_PAYMENT_PHASE_STATUSES.CANCELLED
     )
     .map((row) => ({
       spp_id: row.id,

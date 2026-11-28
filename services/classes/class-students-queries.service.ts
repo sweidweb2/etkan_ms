@@ -212,6 +212,9 @@ async function hydrateClassStudentEnrollments(
             )
           );
           for (const spp of sppsForRoster) {
+            if (spp.status === "cancelled") {
+              continue;
+            }
             if (paidSppIds.has(spp.id)) {
               studentsWithSppPayments.add(spp.student_id);
             }

@@ -6,7 +6,10 @@ import {
   type StudentStatusValue,
 } from "@/lib/constants/manager-student-status";
 import { PERMISSIONS } from "@/lib/constants/permissions";
-import { PAYMENT_PHASE_STATUSES } from "@/lib/manager/accounting/constants";
+import {
+  PAYMENT_PHASE_STATUSES,
+  STUDENT_PAYMENT_PHASE_STATUSES,
+} from "@/lib/manager/accounting/constants";
 import {
   remainingDropRefund,
   toManagerSemesterDropRow,
@@ -107,6 +110,7 @@ function buildDropTargets(
     final_amount_due: number;
     phase_status: string;
     phase_created_at: string;
+    spp_created_at: string;
   };
 
   const candidatesBySemester = new Map<string, SppCandidate[]>();
@@ -120,6 +124,10 @@ function buildDropTargets(
     if (phaseStatus === PAYMENT_PHASE_STATUSES.CANCELLED) {
       continue;
     }
+    // Match SQL: cancelled SPPs are never drop settlement targets.
+    if (spp.status === STUDENT_PAYMENT_PHASE_STATUSES.CANCELLED) {
+      continue;
+    }
     const list = candidatesBySemester.get(semesterId) ?? [];
     list.push({
       spp_id: spp.id,
@@ -129,6 +137,7 @@ function buildDropTargets(
       final_amount_due: Number(spp.final_amount_due ?? 0),
       phase_status: phaseStatus,
       phase_created_at: spp.payment_phases?.created_at ?? "",
+      spp_created_at: spp.created_at ?? "",
     });
     candidatesBySemester.set(semesterId, list);
   }
@@ -162,13 +171,14 @@ function buildDropTargets(
       return closed[0];
     }
 
+    // SQL: order by total_paid desc, spp.created_at desc
     const paidAny = [...candidates]
       .filter((row) => row.payment_count > 0)
       .sort((a, b) => {
         if (b.total_paid !== a.total_paid) {
           return b.total_paid - a.total_paid;
         }
-        return byNewestPhase(a, b);
+        return b.spp_created_at.localeCompare(a.spp_created_at);
       });
     return paidAny[0] ?? null;
   }
