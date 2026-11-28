@@ -94,6 +94,7 @@ const nextConfig: NextConfig = {
     ];
   },
   experimental: {
+    agentUpgrade: "security",
     staleTimes: {
       dynamic: 0,
       static: 300,
