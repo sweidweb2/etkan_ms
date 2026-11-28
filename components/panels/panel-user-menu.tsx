@@ -15,6 +15,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { broadcastSessionEnded } from "@/lib/auth/session-cross-tab";
 import { ROUTES } from "@/lib/constants/routes";
 import { getInitials } from "@/lib/utils/display-name";
 import { cn } from "@/lib/utils";
@@ -67,6 +68,7 @@ export function PanelUserMenu({
     }
 
     startTransition(async () => {
+      broadcastSessionEnded("signed_out");
       await logoutAction();
     });
   }

@@ -7,6 +7,7 @@ import * as inviteRepository from "@/repositories/student-financial-form-invite.
 import * as formRepository from "@/repositories/student-financial-form.repository";
 import * as profileRepository from "@/repositories/profile.repository";
 import * as studentProfileRepository from "@/repositories/student-profile.repository";
+import { recordManagerAuditLog } from "@/services/ops/audit-log.service";
 import type { PublicFinancialFormInviteContext } from "@/types/manager-financial-adjustment";
 import type { MutationFailure, Supabase } from "@/services/shared/mutation";
 import {
@@ -213,6 +214,30 @@ export async function submitFinancialFormByToken(
     invite_id: invite.id,
     student_payment_phase_id: loaded.spp.id,
   });
+
+  await recordManagerAuditLog(
+    adminClient,
+    {
+      userId: null,
+      userLabel: parsed.data.full_name.trim() || "Public",
+    },
+    {
+      action: "insert",
+      severity: "info",
+      table_name: "student_financial_forms",
+      record_id: created.id,
+      new_data: {
+        invite_id: invite.id,
+        student_payment_phase_id: loaded.spp.id,
+        full_name: parsed.data.full_name,
+      },
+      metadata: {
+        note: "Public financial form submitted by invite token.",
+        invite_id: invite.id,
+        student_payment_phase_id: loaded.spp.id,
+      },
+    }
+  );
 
   return {
     success: true,

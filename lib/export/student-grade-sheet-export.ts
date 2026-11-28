@@ -538,13 +538,25 @@ export function buildStudentGradeSheetPdfDocument(
   return doc;
 }
 
+/** Raw PDF bytes — safe in Node (API/ZIP) and in the browser. */
+export function buildStudentGradeSheetPdfBytes(
+  model: StudentClassGradeSheetModel,
+  totalLabel: string,
+  orientation: StudentGradeSheetOrientation = "horizontal"
+): Uint8Array {
+  const doc = buildStudentGradeSheetPdfDocument(model, totalLabel, orientation);
+  return new Uint8Array(doc.output("arraybuffer"));
+}
+
 export function buildStudentGradeSheetPdfBlob(
   model: StudentClassGradeSheetModel,
   totalLabel: string,
   orientation: StudentGradeSheetOrientation = "horizontal"
 ): Blob {
-  const doc = buildStudentGradeSheetPdfDocument(model, totalLabel, orientation);
-  return doc.output("blob");
+  const bytes = buildStudentGradeSheetPdfBytes(model, totalLabel, orientation);
+  return new Blob([Uint8Array.from(bytes)], {
+    type: "application/pdf",
+  });
 }
 
 export function downloadStudentGradeSheetPdf(

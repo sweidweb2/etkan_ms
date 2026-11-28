@@ -6,6 +6,7 @@ import {
   ensureActionTransitionFlushOnFetch,
   flushStuckActionTransition,
 } from "@/lib/navigation/flush-stuck-action-transition";
+import { usePendingNavigationGuard } from "@/hooks/use-pending-navigation-guard";
 
 type FormAction<TState, TPayload> = (
   prevState: TState,
@@ -46,6 +47,8 @@ export function useFormActionState<TState, TPayload = FormData>(
     stateRef.current = state;
     actionRef.current = action;
   }, [state, action]);
+
+  usePendingNavigationGuard(isPending);
 
   const formAction = useCallback((payload: TPayload) => {
     const requestId = ++requestIdRef.current;

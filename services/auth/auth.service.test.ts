@@ -16,6 +16,12 @@ vi.mock("@/repositories/app-settings.repository");
 vi.mock("@/repositories/auth.repository");
 vi.mock("@/repositories/profile.repository");
 vi.mock("@/services/auth/profile.service");
+vi.mock("@/lib/supabase/admin", () => ({
+  createSupabaseAdminClient: vi.fn(() => ({})),
+}));
+vi.mock("@/services/ops/audit-log.service", () => ({
+  recordManagerAuditLog: vi.fn().mockResolvedValue(null),
+}));
 vi.mock("@/lib/auth/session-shell-cache", () => ({
   setCachedSessionShell: vi.fn(),
 }));
@@ -228,6 +234,10 @@ describe("login", () => {
 describe("logout", () => {
   beforeEach(() => {
     vi.resetAllMocks();
+    vi.mocked(authRepository.getUser).mockResolvedValue({
+      data: { user: authUser },
+      error: null,
+    } as never);
   });
 
   it("throws when sign out fails", async () => {

@@ -1,5 +1,9 @@
 import Link from "next/link";
 import { ArrowUpRightIcon } from "lucide-react";
+import {
+  BlogPublicImage,
+  BLOG_IMAGE_SIZES,
+} from "@/components/public/blogs/blog-public-image";
 import { getBlogDetailRoute } from "@/lib/constants/routes";
 import { cn } from "@/lib/utils";
 import type { PublicBlogCard } from "@/types/public-blog";
@@ -34,12 +38,14 @@ type BlogCardLinkProps = {
   post: PublicBlogCard;
   readingLabel: string;
   className?: string;
+  priority?: boolean;
 };
 
 export function BlogCardLink({
   post,
   readingLabel,
   className,
+  priority = false,
 }: BlogCardLinkProps) {
   const primaryCategory = post.categories[0] ?? null;
   const published = formatBlogPublishedDate(post.published_at, "en");
@@ -52,11 +58,11 @@ export function BlogCardLink({
     >
       <div className="relative aspect-[1.5] w-full overflow-hidden rounded-2xl bg-muted">
         {post.thumbnail_url ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img
+          <BlogPublicImage
             src={post.thumbnail_url}
-            alt=""
-            className="absolute inset-0 h-full w-full object-cover transition-transform duration-300 group-hover:scale-[1.02]"
+            sizes={BLOG_IMAGE_SIZES.card}
+            priority={priority}
+            className="transition-transform duration-300 group-hover:scale-[1.02]"
           />
         ) : null}
       </div>
@@ -76,12 +82,13 @@ export function BlogCardLink({
       </div>
       <div className="flex items-center gap-2">
         {post.author_avatar_url ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img
-            src={post.author_avatar_url}
-            alt=""
-            className="size-8 rounded-full object-cover"
-          />
+          <span className="relative size-8 shrink-0 overflow-hidden rounded-full">
+            <BlogPublicImage
+              src={post.author_avatar_url}
+              sizes={BLOG_IMAGE_SIZES.avatar}
+              rounded="full"
+            />
+          </span>
         ) : (
           <span className="inline-flex size-8 items-center justify-center rounded-full bg-muted text-xs font-semibold">
             {authorInitials(post.author_name)}

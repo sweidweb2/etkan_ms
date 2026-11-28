@@ -9,6 +9,9 @@ import { setSubjectCapabilityForManager } from "@/services/subjects/subject-cata
 vi.mock("@/repositories/instructor-subject-capability.repository");
 vi.mock("@/repositories/profile.repository");
 vi.mock("@/repositories/subject.repository");
+vi.mock("@/services/ops/audit-log.service", () => ({
+  recordManagerAuditLog: vi.fn().mockResolvedValue(null),
+}));
 vi.mock("@/services/auth/authorization.service", () => ({
   UNAUTHORIZED_MESSAGE: "Unauthorized.",
   assertPermission: vi.fn().mockResolvedValue(undefined),
@@ -17,6 +20,7 @@ vi.mock("@/services/auth/authorization.service", () => ({
 
 const adminClient = {} as never;
 const actorUserId = "11111111-1111-4111-8111-111111111111";
+const actor = { userId: actorUserId, userLabel: "manager@school.com" };
 const userId = "22222222-2222-4222-8222-222222222222";
 const subjectId = "33333333-3333-4333-8333-333333333333";
 
@@ -58,6 +62,7 @@ describe("setSubjectCapabilityForManager", () => {
     const result = await setSubjectCapabilityForManager(
       adminClient,
       actorUserId,
+      actor,
       SUBJECT_SCOPES.INSTRUCTOR,
       { user_id: userId, subject_id: subjectId, enabled: true }
     );
@@ -97,6 +102,7 @@ describe("setSubjectCapabilityForManager", () => {
     const result = await setSubjectCapabilityForManager(
       adminClient,
       actorUserId,
+      actor,
       SUBJECT_SCOPES.INSTRUCTOR,
       { user_id: userId, subject_id: subjectId, enabled: true }
     );

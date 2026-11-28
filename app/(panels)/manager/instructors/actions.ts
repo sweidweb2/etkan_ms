@@ -81,6 +81,7 @@ export async function setSubjectCapabilityAction(
   const result = await setSubjectCapabilityForManager(
     adminClient,
     actor.userId,
+    actor,
     scope,
     capability
   );

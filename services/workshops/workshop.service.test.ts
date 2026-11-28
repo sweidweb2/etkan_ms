@@ -155,7 +155,10 @@ const transactionRecord = {
 };
 
 function makePdfFile(name = "syllabus.pdf", sizeBytes = 1024) {
-  return new File([new Uint8Array(sizeBytes)], name, {
+  const header = Buffer.from("%PDF-1.4\n%");
+  const paddingLength = Math.max(0, sizeBytes - header.length);
+  const body = Buffer.concat([header, Buffer.alloc(paddingLength)]);
+  return new File([body], name, {
     type: "application/pdf",
   });
 }
@@ -804,6 +807,37 @@ describe("uploadWorkshopDocumentForManager", () => {
     if (!result.success) {
       expect(result.fieldErrors?.file?.[0]).toMatch(/not allowed/i);
     }
+  });
+
+  it("rejects spoofed PDF content that fails magic-byte sniff", async () => {
+    vi.mocked(workshopRepository.findWorkshopById).mockResolvedValue({
+      data: workshopRecord,
+      error: null,
+      count: null,
+      status: 200,
+      statusText: "OK",
+    });
+
+    const result = await uploadWorkshopDocumentForManager(
+      adminClient,
+      actor.userId,
+      actor,
+      {
+        workshop_id: workshopId,
+        file: new File([new Uint8Array([0x00, 0x01, 0x02, 0xff])], "fake.pdf", {
+          type: "application/pdf",
+        }),
+        name: "Fake",
+      }
+    );
+
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(result.fieldErrors?.file?.[0]).toMatch(/not allowed/i);
+    }
+    expect(
+      workshopStorageRepository.uploadWorkshopStorageObject
+    ).not.toHaveBeenCalled();
   });
 
   it("uploads to storage then inserts a document row", async () => {

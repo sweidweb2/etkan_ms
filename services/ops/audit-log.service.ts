@@ -14,6 +14,7 @@ import {
 } from "@/lib/constants/manager-audit-log-display";
 import * as auditLogRepository from "@/repositories/audit-log.repository";
 import type { AuditLogRecord } from "@/repositories/audit-log.repository";
+import * as authRepository from "@/repositories/auth.repository";
 import type {
   AuditLogJsonValue,
   ManagerAuditLogRow,
@@ -61,12 +62,18 @@ function toJsonObject(value: Json | null): AuditLogJsonValue | null {
 }
 
 function mapAuditLogListRecordToRow(
-  record: auditLogRepository.AuditLogListRecord
+  record: auditLogRepository.AuditLogListRecord,
+  emailByUserId?: Map<string, string>
 ): ManagerAuditLogRow {
+  const email =
+    record.user_id && emailByUserId
+      ? emailByUserId.get(record.user_id)?.trim()
+      : null;
+
   return {
     id: record.id,
     user_id: record.user_id,
-    user_label: record.user_label,
+    user_label: email || record.user_label,
     action: isAuditLogAction(record.action) ? record.action : "other",
     severity: isAuditLogSeverity(record.severity) ? record.severity : "info",
     table_name: record.table_name,
@@ -78,11 +85,19 @@ function mapAuditLogListRecordToRow(
   };
 }
 
-function mapAuditLogRecordToRow(record: AuditLogRecord): ManagerAuditLogRow {
+function mapAuditLogRecordToRow(
+  record: AuditLogRecord,
+  emailByUserId?: Map<string, string>
+): ManagerAuditLogRow {
+  const email =
+    record.user_id && emailByUserId
+      ? emailByUserId.get(record.user_id)?.trim()
+      : null;
+
   return {
     id: record.id,
     user_id: record.user_id,
-    user_label: record.user_label,
+    user_label: email || record.user_label,
     action: isAuditLogAction(record.action) ? record.action : "other",
     severity: isAuditLogSeverity(record.severity) ? record.severity : "info",
     table_name: record.table_name,
@@ -92,6 +107,33 @@ function mapAuditLogRecordToRow(record: AuditLogRecord): ManagerAuditLogRow {
     metadata: toJsonObject(record.metadata),
     created_at: record.created_at,
   };
+}
+
+async function resolveActorEmailsByUserId(
+  adminClient: Supabase,
+  userIds: Array<string | null>
+): Promise<Map<string, string>> {
+  const uniqueIds = [...new Set(userIds.filter((id): id is string => !!id))];
+  if (uniqueIds.length === 0) {
+    return new Map();
+  }
+
+  const { data, error } = await authRepository.listAuthEmailsByIds(
+    adminClient,
+    uniqueIds
+  );
+  if (error || !data) {
+    return new Map();
+  }
+
+  const emailByUserId = new Map<string, string>();
+  for (const [userId, email] of data) {
+    const trimmed = email.trim();
+    if (trimmed) {
+      emailByUserId.set(userId, trimmed);
+    }
+  }
+  return emailByUserId;
 }
 
 export type ManagerAuditLogsPage = {
@@ -125,7 +167,11 @@ export async function listAuditLogsForManager(
   }
 
   const rows = (data ?? []) as auditLogRepository.AuditLogListRecord[];
-  const logs = rows.map(mapAuditLogListRecordToRow);
+  const emailByUserId = await resolveActorEmailsByUserId(
+    adminClient,
+    rows.map((row) => row.user_id)
+  );
+  const logs = rows.map((row) => mapAuditLogListRecordToRow(row, emailByUserId));
   const last = rows.at(-1);
 
   return {
@@ -162,7 +208,10 @@ export async function getAuditLogByIdForManager(
     return null;
   }
 
-  return mapAuditLogRecordToRow(data);
+  const emailByUserId = await resolveActorEmailsByUserId(adminClient, [
+    data.user_id,
+  ]);
+  return mapAuditLogRecordToRow(data, emailByUserId);
 }
 
 export type DeleteAuditLogsResult =

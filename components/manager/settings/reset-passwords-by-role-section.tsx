@@ -40,6 +40,7 @@ import {
   type PasswordResetByRoleValue,
 } from "@/lib/constants/password-reset-roles";
 import { PERMISSIONS } from "@/lib/constants/permissions";
+import { base64ToBlob } from "@/lib/export/base64-to-blob";
 import { downloadBlob } from "@/lib/export/download-blob";
 
 const initialState: ResetPasswordsByRoleActionState = {};
@@ -66,25 +67,40 @@ export function ResetPasswordsByRoleSection() {
       return;
     }
 
-    const binary = atob(next.downloadBase64);
-    const bytes = new Uint8Array(binary.length);
-    for (let i = 0; i < binary.length; i += 1) {
-      bytes[i] = binary.charCodeAt(i);
-    }
-    downloadBlob({
-      blob: new Blob([bytes], {
-        type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-      }),
-      filename: next.downloadFilename,
-    });
-    setConfirmOpen(false);
-    setRole("");
-    // Drop plaintext credentials from React action state after download.
-    startTransition(() => {
-      const ack = new FormData();
-      ack.set("ackDownload", "1");
-      formAction(ack);
-    });
+    const filename = next.downloadFilename;
+    const base64 = next.downloadBase64;
+
+    void (async () => {
+      try {
+        const blob = await base64ToBlob(
+          base64,
+          "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+        );
+        downloadBlob({ blob, filename });
+      } catch {
+        // Fallback keeps download working if data-URL decode fails.
+        const binary = atob(base64);
+        const bytes = new Uint8Array(binary.length);
+        for (let i = 0; i < binary.length; i += 1) {
+          bytes[i] = binary.charCodeAt(i);
+        }
+        downloadBlob({
+          blob: new Blob([bytes], {
+            type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+          }),
+          filename,
+        });
+      }
+
+      setConfirmOpen(false);
+      setRole("");
+      // Drop plaintext credentials from React action state after download.
+      startTransition(() => {
+        const ack = new FormData();
+        ack.set("ackDownload", "1");
+        formAction(ack);
+      });
+    })();
   });
 
   const roleError = state.fieldErrors?.role?.[0];

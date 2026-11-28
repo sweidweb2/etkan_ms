@@ -1,9 +1,9 @@
 "use client";
 
 import {
-  useEffect,
   useMemo,
   useState,
+  useSyncExternalStore,
   type CSSProperties,
 } from "react";
 import { motion, useReducedMotion } from "motion/react";
@@ -16,6 +16,10 @@ import type { ManagerGalleryImageRow } from "@/types/manager-gallery-image";
 
 const EASE = [0.22, 1, 0.36, 1] as const;
 const VIEWPORT = { once: true, amount: 0.12, margin: "0px 0px -6% 0px" } as const;
+/** Matches Tailwind `sm` / `lg` breakpoints used by `getColumnCount`. */
+const GALLERY_COLUMN_MQ_SM = "(max-width: 639px)";
+const GALLERY_COLUMN_MQ_LG = "(max-width: 1023px)";
+const GALLERY_COLUMN_COUNT_SSR = 3;
 
 const ASPECT_CLASSES = [
   "aspect-[3/4]",
@@ -40,17 +44,32 @@ function getColumnCount(width: number) {
   return 4;
 }
 
+function subscribeGalleryColumnCount(onStoreChange: () => void) {
+  const mqlSm = window.matchMedia(GALLERY_COLUMN_MQ_SM);
+  const mqlLg = window.matchMedia(GALLERY_COLUMN_MQ_LG);
+  mqlSm.addEventListener("change", onStoreChange);
+  mqlLg.addEventListener("change", onStoreChange);
+  return () => {
+    mqlSm.removeEventListener("change", onStoreChange);
+    mqlLg.removeEventListener("change", onStoreChange);
+  };
+}
+
+function getGalleryColumnCountSnapshot() {
+  return getColumnCount(window.innerWidth);
+}
+
+function getGalleryColumnCountServerSnapshot() {
+  return GALLERY_COLUMN_COUNT_SSR;
+}
+
+/** Updates only when the column breakpoint crosses — not on every resize pixel. */
 function useGalleryColumnCount() {
-  const [columnCount, setColumnCount] = useState(3);
-
-  useEffect(() => {
-    const update = () => setColumnCount(getColumnCount(window.innerWidth));
-    update();
-    window.addEventListener("resize", update);
-    return () => window.removeEventListener("resize", update);
-  }, []);
-
-  return columnCount;
+  return useSyncExternalStore(
+    subscribeGalleryColumnCount,
+    getGalleryColumnCountSnapshot,
+    getGalleryColumnCountServerSnapshot
+  );
 }
 
 function splitIntoColumns(

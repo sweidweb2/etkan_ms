@@ -7,6 +7,7 @@ import {
   renameWorkshopDocumentSchema,
   uploadWorkshopDocumentSchema,
 } from "@/lib/validators/manager/workshop-document";
+import { inspectWorkshopDocumentBytes } from "@/lib/manager/workshops/inspect-upload-bytes";
 import { buildWorkshopDocumentStoragePath } from "@/lib/manager/workshops/storage-path";
 import * as workshopDocumentRepository from "@/repositories/workshop-document.repository";
 import * as workshopRepository from "@/repositories/workshop.repository";
@@ -76,15 +77,22 @@ export async function uploadWorkshopDocumentForManager(
     dataInput.workshop_id,
     dataInput.file.name
   );
-  const contentType = dataInput.file.type.trim();
-  const fileBytes = await dataInput.file.arrayBuffer();
+  const fileBytes = Buffer.from(await dataInput.file.arrayBuffer());
+  const inspected = await inspectWorkshopDocumentBytes(fileBytes);
+  if (!inspected.ok) {
+    return {
+      success: false,
+      error: "Please fix the errors below.",
+      fieldErrors: { file: [inspected.error] },
+    };
+  }
 
   const uploadResult =
     await workshopStorageRepository.uploadWorkshopStorageObject(
       adminClient,
       storagePath,
       fileBytes,
-      contentType
+      inspected.mime
     );
 
   if (uploadResult.error) {
@@ -100,7 +108,7 @@ export async function uploadWorkshopDocumentForManager(
       name: dataInput.name,
       storage_path: storagePath,
       file_size: dataInput.file.size,
-      mime_type: contentType,
+      mime_type: inspected.mime,
       uploaded_by: actorUserId,
     });
 

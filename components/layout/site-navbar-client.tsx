@@ -238,7 +238,7 @@ export function SiteNavbarClient() {
               aria-label={t("brand.name")}
               className="min-w-0 justify-self-start rounded-md transition-opacity hover:opacity-80"
             >
-              <AppLogo height={26} priority />
+              <AppLogo height={26} />
             </Link>
             <PrimaryNavLinks className="min-w-0 justify-self-center" />
             <div className="justify-self-end">
@@ -258,7 +258,7 @@ export function SiteNavbarClient() {
             aria-label={t("brand.name")}
             className="flex size-10 shrink-0 items-center justify-center rounded-xl border border-border bg-white shadow-sm"
           >
-            <AppLogo shape="mark" height={22} priority />
+            <AppLogo shape="mark" height={22} />
           </Link>
           <div className="flex min-w-0 items-center gap-1.5">
             <LanguageToggle className="bg-white shadow-sm" />

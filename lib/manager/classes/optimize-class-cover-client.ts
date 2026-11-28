@@ -1,3 +1,4 @@
+import { yieldToMain } from "@/lib/browser/yield-to-main";
 import {
   CLASS_COVER_INCOMING_MAX_BYTES,
   CLASS_COVER_MAX_EDGE,
@@ -55,6 +56,8 @@ export async function optimizeClassCoverInBrowser(
     return { ok: false, error: invalid };
   }
 
+  await yieldToMain();
+
   let bitmap: ImageBitmap;
   try {
     bitmap = await createImageBitmap(file);
@@ -63,6 +66,7 @@ export async function optimizeClassCoverInBrowser(
   }
 
   try {
+    await yieldToMain();
     const size = scaledSize(bitmap.width, bitmap.height);
     const canvas = document.createElement("canvas");
     canvas.width = size.width;
@@ -77,6 +81,7 @@ export async function optimizeClassCoverInBrowser(
     let blob: Blob | null = null;
 
     for (const quality of QUALITY_STEPS) {
+      await yieldToMain();
       blob = await exportCanvas(canvas, type, quality);
       if (blob && blob.size <= CLASS_COVER_TARGET_BYTES) {
         break;

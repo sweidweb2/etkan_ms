@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Suspense } from "react";
 import { Inter, Geist_Mono, Tajawal } from "next/font/google";
 import { RouteTopLoader } from "@/components/loaders/route-top-loader";
+import { OfflineBanner } from "@/components/network/offline-banner";
 import { QueryProvider } from "@/components/providers/query-provider";
 import { AppToasts } from "@/components/toast/app-toasts";
 import { ThemeProvider } from "@/components/theme-provider";
@@ -24,7 +25,7 @@ const geistMono = Geist_Mono({
 /** Self-hosted via next/font — avoids render-blocking Google Fonts CSS for AR. */
 const tajawal = Tajawal({
   subsets: ["arabic", "latin"],
-  weight: ["300", "400", "500", "700", "800"],
+  weight: ["400", "500", "700"],
   variable: "--font-tajawal",
   display: "swap",
 });
@@ -82,6 +83,7 @@ export default function RootLayout({
               <Suspense fallback={null}>
                 <RouteTopLoader />
               </Suspense>
+              <OfflineBanner />
               {children}
               <AppToasts />
             </QueryProvider>

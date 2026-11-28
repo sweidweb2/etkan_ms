@@ -1,7 +1,7 @@
 import { formatCourseGradeValue } from "@/lib/constants/manager-student-course-grade-display";
 import { downloadBlob } from "@/lib/export/download-blob";
 import {
-  buildStudentGradeSheetPdfBlob,
+  buildStudentGradeSheetPdfBytes,
   getStudentGradeSheetFilename,
 } from "@/lib/export/student-grade-sheet-export";
 import type { StudentGradeSheetOrientation } from "@/lib/export/student-grade-sheet-orientation";
@@ -10,7 +10,7 @@ import type { ManagerClassRow } from "@/types/manager-class-list";
 import type { ComputedStudentGradeSheetBundle } from "@/types/manager-student-course-grade";
 import JSZip from "jszip";
 
-type DownloadComputedGradeCertificatesZipInput = {
+type BuildComputedGradeCertificatesZipInput = {
   classRow: ManagerClassRow;
   bundles: ComputedStudentGradeSheetBundle[];
   orientation?: StudentGradeSheetOrientation;
@@ -31,12 +31,17 @@ function getTotalLabel(bundle: ComputedStudentGradeSheetBundle): string {
   return formatCourseGradeValue(bundle.gradeRow.total_grade);
 }
 
-export async function buildComputedGradeCertificatesZipBlob({
+/**
+ * Builds one PDF per computed student into a ZIP.
+ * Safe on Node (API route) and in the browser; prefer the server export path
+ * so the UI thread is not blocked for full-class runs.
+ */
+export async function buildComputedGradeCertificatesZipBytes({
   classRow,
   bundles,
   orientation = "horizontal",
-}: DownloadComputedGradeCertificatesZipInput): Promise<{
-  blob: Blob;
+}: BuildComputedGradeCertificatesZipInput): Promise<{
+  bytes: Uint8Array;
   count: number;
 }> {
   const zip = new JSZip();
@@ -52,29 +57,39 @@ export async function buildComputedGradeCertificatesZipBlob({
       detail: bundle.detail,
       finalExam: bundle.finalExam,
     });
-    const pdfBlob = buildStudentGradeSheetPdfBlob(
+    const pdfBytes = buildStudentGradeSheetPdfBytes(
       model,
       getTotalLabel(bundle),
       orientation
     );
-    const pdfBuffer = await pdfBlob.arrayBuffer();
 
     zip.file(
       getStudentGradeSheetFilename(bundle.student.full_name, "pdf"),
-      pdfBuffer
+      pdfBytes
     );
   }
 
-  const blob = await zip.generateAsync({ type: "blob" });
+  const bytes = await zip.generateAsync({ type: "uint8array" });
 
   return {
-    blob,
+    bytes,
     count: sortedBundles.length,
   };
 }
 
+export async function buildComputedGradeCertificatesZipBlob(
+  input: BuildComputedGradeCertificatesZipInput
+): Promise<{ blob: Blob; count: number }> {
+  const { bytes, count } = await buildComputedGradeCertificatesZipBytes(input);
+  return {
+    blob: new Blob([Uint8Array.from(bytes)], { type: "application/zip" }),
+    count,
+  };
+}
+
+/** @deprecated Prefer server `/api/classes/[classId]/grade-certificates/zip`. */
 export async function downloadComputedGradeCertificatesZip(
-  input: DownloadComputedGradeCertificatesZipInput
+  input: BuildComputedGradeCertificatesZipInput
 ): Promise<number> {
   const { blob, count } = await buildComputedGradeCertificatesZipBlob(input);
 

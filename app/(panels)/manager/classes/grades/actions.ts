@@ -1,21 +1,19 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { getSessionAuditActor } from "@/lib/auth/session";
+import { runManagerMutation } from "@/lib/actions/run-manager-action";
 import {
   DEFAULT_CLASS_GRADE_FINAL_EXAM_WEIGHT,
   DEFAULT_CLASS_GRADE_TASKS_WEIGHT,
 } from "@/lib/constants/manager-class-grade-defaults";
+import { PERMISSIONS } from "@/lib/constants/permissions";
 import {
   getManagerClassGradesRoute,
   getManagerClassStudentGradesDetailRoute,
 } from "@/lib/constants/routes";
 import type { FactorWeightsValues } from "@/lib/compute/custom-compute-form-utils";
 import { resolveClassRosterOptions } from "@/lib/manager/class-roster-mode";
-import { createSupabaseAdminClient } from "@/lib/supabase/admin";
-import { PERMISSIONS } from "@/lib/constants/permissions";
 import { updateClassWeightsSchema } from "@/lib/validators/manager/update-class-weights";
-import { getUnauthorizedError } from "@/services/auth/authorization.service";
 import { getClassForManager, listClassStudentsForManager } from "@/services/classes/class.service";
 import {
   computeAllStudentCourseGradesForManager,
@@ -111,33 +109,35 @@ export async function computeStudentGradeAction(
     return { success: false, error: resolved.error };
   }
 
-  const actor = await getSessionAuditActor();
-  const adminClient = createSupabaseAdminClient();
-  const result = await computeStudentCourseGradeForManager(
-    adminClient,
-    actor.userId,
-    actor,
-    classId,
-    userId,
-    {
-      factorWeights: resolved.factorWeights,
-      computeType: resolved.computeType,
-      computeLabel: resolved.computeLabel,
-    }
-  );
-
-  if (!result.success) {
-    return { success: false, error: result.error };
-  }
-
-  revalidateClassGrades(classId);
-  revalidateStudentGradeDetail(classId, result.row.student_profile_id);
-
-  return {
-    success: true,
-    message: result.message,
-    row: result.row,
-  };
+  return runManagerMutation({
+    permission:
+      resolved.computeType === "custom"
+        ? PERMISSIONS.GRADES_COMPUTE_CUSTOM
+        : PERMISSIONS.GRADES_COMPUTE,
+    data: { classId, userId, resolved },
+    mutate: ({ adminClient, actor, data }) =>
+      computeStudentCourseGradeForManager(
+        adminClient,
+        actor.userId,
+        actor,
+        data.classId,
+        data.userId,
+        {
+          factorWeights: data.resolved.factorWeights,
+          computeType: data.resolved.computeType,
+          computeLabel: data.resolved.computeLabel,
+        }
+      ),
+    revalidate: (result, data) => {
+      revalidateClassGrades(data.classId);
+      revalidateStudentGradeDetail(data.classId, result.row.student_profile_id);
+    },
+    mapSuccess: (result) => ({
+      success: true,
+      message: result.message,
+      row: result.row,
+    }),
+  });
 }
 
 export async function computeAllStudentGradesAction(
@@ -149,69 +149,81 @@ export async function computeAllStudentGradesAction(
     computeLabel?: string;
   }
 ): Promise<ClassGradesActionState> {
-  const actor = await getSessionAuditActor();
-  const adminClient = createSupabaseAdminClient();
-  const result = await computeAllStudentCourseGradesForManager(
-    adminClient,
-    actor.userId,
-    actor,
-    classId,
-    studentUserIds,
-    {
-      factorWeights: options?.factorWeights,
-      taskWeights: options?.taskWeights,
-      computeType: options?.factorWeights ? "custom" : "final",
-      computeLabel: options?.computeLabel,
-    }
-  );
+  const isCustom = Boolean(options?.factorWeights);
 
-  if (!result.success) {
-    return { success: false, error: result.error };
-  }
-
-  revalidateClassGrades(classId);
-
-  return {
-    success: true,
-    message: result.message,
-    rows: result.rows,
-  };
+  return runManagerMutation({
+    permission: isCustom
+      ? PERMISSIONS.GRADES_COMPUTE_CUSTOM
+      : PERMISSIONS.GRADES_COMPUTE_ALL,
+    data: { classId, studentUserIds, options, isCustom },
+    mutate: ({ adminClient, actor, data }) =>
+      computeAllStudentCourseGradesForManager(
+        adminClient,
+        actor.userId,
+        actor,
+        data.classId,
+        data.studentUserIds,
+        {
+          factorWeights: data.options?.factorWeights,
+          taskWeights: data.options?.taskWeights,
+          computeType: data.isCustom ? "custom" : "final",
+          computeLabel: data.options?.computeLabel,
+        }
+      ),
+    revalidate: (_result, data) => {
+      revalidateClassGrades(data.classId);
+    },
+    mapSuccess: (result) => ({
+      success: true,
+      message: result.message,
+      rows: result.rows,
+    }),
+  });
 }
 
 export async function deleteComputedGradeAction(
   classId: string,
   userId: string
 ): Promise<ClassGradesActionState> {
-  const actor = await getSessionAuditActor();
-  const adminClient = createSupabaseAdminClient();
-  const students = await listClassStudentsForManager(
-    adminClient,
-    actor.userId,
-    classId,
-    resolveClassRosterOptions({ mode: "grades" })
-  );
-  const student = students.find((row) => row.user_id === userId);
-  const result = await deleteStudentCourseGradeForManager(
-    adminClient,
-    actor.userId,
-    actor,
-    classId,
-    userId
-  );
+  return runManagerMutation({
+    permission: PERMISSIONS.GRADES_DELETE,
+    data: { classId, userId },
+    mutate: async ({ adminClient, actor, data }) => {
+      const students = await listClassStudentsForManager(
+        adminClient,
+        actor.userId,
+        data.classId,
+        resolveClassRosterOptions({ mode: "grades" })
+      );
+      const student = students.find((row) => row.user_id === data.userId);
+      const result = await deleteStudentCourseGradeForManager(
+        adminClient,
+        actor.userId,
+        actor,
+        data.classId,
+        data.userId
+      );
 
-  if (!result.success) {
-    return { success: false, error: result.error };
-  }
+      if (!result.success) {
+        return result;
+      }
 
-  revalidateClassGrades(classId);
-  if (student) {
-    revalidateStudentGradeDetail(classId, student.student_profile_id);
-  }
-
-  return {
-    success: true,
-    message: result.message,
-  };
+      return {
+        ...result,
+        studentProfileId: student?.student_profile_id ?? null,
+      };
+    },
+    revalidate: (result, data) => {
+      revalidateClassGrades(data.classId);
+      if (result.studentProfileId) {
+        revalidateStudentGradeDetail(data.classId, result.studentProfileId);
+      }
+    },
+    mapSuccess: (result) => ({
+      success: true,
+      message: result.message,
+    }),
+  });
 }
 
 export async function computeStudentGradeAloneAction(
@@ -222,34 +234,33 @@ export async function computeStudentGradeAloneAction(
     taskWeights: Record<string, string>;
   }
 ): Promise<ClassGradesActionState> {
-  const actor = await getSessionAuditActor();
-  const adminClient = createSupabaseAdminClient();
-  const result = await computeStudentCourseGradeForManager(
-    adminClient,
-    actor.userId,
-    actor,
-    classId,
-    userId,
-    {
-      factorWeights: options.factorWeights,
-      taskWeights: options.taskWeights,
-      computeType: "custom",
-      computeLabel: "custom weights",
-    }
-  );
-
-  if (!result.success) {
-    return { success: false, error: result.error };
-  }
-
-  revalidateClassGrades(classId);
-  revalidateStudentGradeDetail(classId, result.row.student_profile_id);
-
-  return {
-    success: true,
-    message: result.message,
-    row: result.row,
-  };
+  return runManagerMutation({
+    permission: PERMISSIONS.GRADES_COMPUTE_CUSTOM,
+    data: { classId, userId, options },
+    mutate: ({ adminClient, actor, data }) =>
+      computeStudentCourseGradeForManager(
+        adminClient,
+        actor.userId,
+        actor,
+        data.classId,
+        data.userId,
+        {
+          factorWeights: data.options.factorWeights,
+          taskWeights: data.options.taskWeights,
+          computeType: "custom",
+          computeLabel: "custom weights",
+        }
+      ),
+    revalidate: (result, data) => {
+      revalidateClassGrades(data.classId);
+      revalidateStudentGradeDetail(data.classId, result.row.student_profile_id);
+    },
+    mapSuccess: (result) => ({
+      success: true,
+      message: result.message,
+      row: result.row,
+    }),
+  });
 }
 
 export type FetchComputedGradeSheetBundlesActionState = {
@@ -279,94 +290,84 @@ export async function fetchStudentFastCertificateBundleAction(
   classId: string,
   studentProfileId: string
 ): Promise<FetchStudentFastCertificateBundleActionState> {
-  const actor = await getSessionAuditActor();
-  const adminClient = createSupabaseAdminClient();
+  return runManagerMutation({
+    permission: PERMISSIONS.GRADES_EXPORT_FAST_CERTIFICATE,
+    data: { classId, studentProfileId },
+    mutate: async ({ adminClient, actor, data }) => {
+      const [classRow, detailBundle] = await Promise.all([
+        getClassForManager(adminClient, actor.userId, data.classId, {
+          includeCounts: false,
+        }),
+        getStudentClassGradeDetailForManager(
+          adminClient,
+          actor.userId,
+          data.classId,
+          data.studentProfileId
+        ),
+      ]);
 
-  const unauthorized = await getUnauthorizedError(
-    adminClient,
-    actor.userId,
-    PERMISSIONS.GRADES_EXPORT_FAST_CERTIFICATE
-  );
-  if (unauthorized) {
-    return { success: false, error: unauthorized };
-  }
+      if (!classRow) {
+        return { success: false as const, error: "Class not found." };
+      }
 
-  try {
-    const [classRow, detailBundle] = await Promise.all([
-      getClassForManager(adminClient, actor.userId, classId, {
-        includeCounts: false,
-      }),
-      getStudentClassGradeDetailForManager(
-        adminClient,
-        actor.userId,
-        classId,
-        studentProfileId
-      ),
-    ]);
+      if (!detailBundle) {
+        return {
+          success: false as const,
+          error: "Student not found in this class.",
+        };
+      }
 
-    if (!classRow) {
-      return { success: false, error: "Class not found." };
-    }
-
-    if (!detailBundle) {
-      return { success: false, error: "Student not found in this class." };
-    }
-
-    return {
+      return {
+        success: true as const,
+        classRow,
+        bundle: {
+          student: detailBundle.student,
+          gradeRow: detailBundle.gradeRow,
+          detail: detailBundle.detail,
+          classTasks: detailBundle.classTasks,
+          finalExam: detailBundle.finalExam,
+          finalExamGrade: detailBundle.gradeRow.final_exam_grade,
+        },
+      };
+    },
+    mapSuccess: (result) => ({
       success: true,
-      classRow,
-      bundle: {
-        student: detailBundle.student,
-        gradeRow: detailBundle.gradeRow,
-        detail: detailBundle.detail,
-        classTasks: detailBundle.classTasks,
-        finalExam: detailBundle.finalExam,
-        finalExamGrade: detailBundle.gradeRow.final_exam_grade,
-      },
-    };
-  } catch (error) {
-    return {
-      success: false,
-      error:
-        error instanceof Error
-          ? error.message
-          : "Unable to load student certificate data.",
-    };
-  }
+      classRow: result.classRow,
+      bundle: result.bundle,
+    }),
+  });
 }
 
 export async function fetchComputedGradeSheetBundlesAction(
   classId: string
 ): Promise<FetchComputedGradeSheetBundlesActionState> {
-  const actor = await getSessionAuditActor();
-  const adminClient = createSupabaseAdminClient();
+  return runManagerMutation({
+    permission: PERMISSIONS.GRADES_EXPORT_CERTIFICATES,
+    data: { classId },
+    mutate: async ({ adminClient, actor, data }) => {
+      const result = await listComputedStudentGradeSheetBundlesForManager(
+        adminClient,
+        actor.userId,
+        data.classId
+      );
 
-  try {
-    const result = await listComputedStudentGradeSheetBundlesForManager(
-      adminClient,
-      actor.userId,
-      classId
-    );
+      if (result.bundles.length === 0) {
+        return {
+          success: false as const,
+          error: "No computed students are available to export.",
+        };
+      }
 
-    if (result.bundles.length === 0) {
       return {
-        success: false,
-        error: "No computed students are available to export.",
+        success: true as const,
+        classRow: result.classRow,
+        bundles: result.bundles,
       };
-    }
-
-    return {
+    },
+    mapSuccess: (result) => ({
       success: true,
       classRow: result.classRow,
       bundles: result.bundles,
-    };
-  } catch (error) {
-    return {
-      success: false,
-      error:
-        error instanceof Error
-          ? error.message
-          : "Unable to load grade certificates.",
-    };
-  }
+    }),
+  });
 }

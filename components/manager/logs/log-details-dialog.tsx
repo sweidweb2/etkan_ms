@@ -107,7 +107,7 @@ export function LogDetailsDialog({ log, onOpenChange }: LogDetailsDialogProps) {
 
               <div className="flex flex-col gap-1">
                 <dt className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                  Actor
+                  Actor email
                 </dt>
                 <dd className="text-sm text-foreground">{display.user_label}</dd>
               </div>

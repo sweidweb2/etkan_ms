@@ -8,6 +8,7 @@ type CourseCardImageProps = {
   alt?: string;
   className?: string;
   priority?: boolean;
+  sizes?: string;
 };
 
 export function CourseCardImage({
@@ -15,12 +16,13 @@ export function CourseCardImage({
   alt = "",
   className,
   priority = false,
+  sizes = "(max-width: 640px) 100vw, 280px",
 }: CourseCardImageProps) {
   return (
     <PublicCoverImage
       src={src}
       alt={alt}
-      sizes="(max-width: 640px) 100vw, 280px"
+      sizes={sizes}
       priority={priority}
       className={cn("aspect-[16/10] rounded-lg", className)}
       imageClassName="transition-transform duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] group-hover:scale-[1.04]"

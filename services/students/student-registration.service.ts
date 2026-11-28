@@ -15,6 +15,7 @@ import type {
   RegistrationSkill,
   RegistrationWeekday,
 } from "@/lib/constants/public-registration";
+import { inspectRegistrationDocumentBytes } from "@/lib/public/registration/inspect-upload-bytes";
 import {
   buildRegistrationDocumentStoragePath,
   buildRegistrationTempStoragePath,
@@ -249,11 +250,21 @@ export async function tempUploadRegistrationDocument(
     input.file.name
   );
 
+  const fileBytes = Buffer.from(await input.file.arrayBuffer());
+  const inspected = await inspectRegistrationDocumentBytes(fileBytes);
+  if (!inspected.ok) {
+    return {
+      success: false,
+      error: "Please fix the errors below.",
+      fieldErrors: { file: [inspected.error] },
+    };
+  }
+
   const upload = await registrationStorage.uploadRegistrationStorageObject(
     adminClient,
     storagePath,
-    input.file,
-    input.file.type
+    fileBytes,
+    inspected.mime
   );
 
   if (upload.error) {
@@ -269,7 +280,7 @@ export async function tempUploadRegistrationDocument(
     document: {
       storage_path: storagePath,
       file_name: input.file.name,
-      mime_type: input.file.type,
+      mime_type: inspected.mime,
       file_size: input.file.size,
     },
   };
@@ -498,6 +509,30 @@ export async function submitPublicRegistrationApplication(
       applicationId,
       guest_id: options?.guest_id ?? null,
     });
+    await recordManagerAuditLog(
+      adminClient,
+      {
+        userId: null,
+        userLabel: input.email.trim() || "Public",
+      },
+      {
+        action: "insert",
+        severity: "info",
+        table_name: "student_registration_applications",
+        record_id: applicationId,
+        new_data: {
+          guest_id: options?.guest_id ?? null,
+          full_name: input.full_name,
+          email: input.email,
+        },
+        metadata: {
+          note: options?.guest_id
+            ? "Guest registration submitted by invite token."
+            : "Public registration application submitted.",
+          guest_id: options?.guest_id ?? null,
+        },
+      }
+    );
   }
 
   return {

@@ -3,6 +3,7 @@ import "server-only";
 import { PERMISSIONS } from "@/lib/constants/permissions";
 import * as backupHistoryRepository from "@/repositories/backup-history.repository";
 import { assertPermission } from "@/services/auth/authorization.service";
+import { recordManagerAuditLog } from "@/services/ops/audit-log.service";
 import type { BackupHistoryEntry, BackupHistoryScope } from "@/types/backup-history";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/types/supabase";
@@ -40,6 +41,37 @@ export async function recordBackupHistory(
   if (error) {
     throw new Error("Unable to record backup history.");
   }
+
+  await recordManagerAuditLog(
+    client as AuthClient,
+    {
+      userId: input.createdBy,
+      userLabel: input.createdByLabel.trim() || "System",
+    },
+    {
+      action: "export",
+      severity: "warning",
+      table_name: "backup_history",
+      new_data: {
+        file_name: input.fileName,
+        scope: input.scope,
+        table_name: input.tableName ?? null,
+        row_count: input.rowCount,
+        table_count: input.tableCount,
+      },
+      metadata: {
+        note:
+          input.scope === "all"
+            ? "Full database backup exported."
+            : `Backup exported (${input.scope}).`,
+        scope: input.scope,
+        table_name: input.tableName ?? null,
+        file_name: input.fileName,
+        row_count: input.rowCount,
+        table_count: input.tableCount,
+      },
+    }
+  );
 }
 
 /** How many recent export rows the Backup page loads for client filters/paging. */

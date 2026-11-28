@@ -19,7 +19,7 @@ export default function AuthLayout({
   children: React.ReactNode;
 }) {
   return (
-    <main className="flex flex-1 items-center justify-center bg-muted/40 px-4 pt-24 pb-8">
+    <main className="flex flex-1 items-center justify-center bg-muted/40 px-4 py-12">
       <div className="mx-auto flex w-full max-w-md flex-col items-center gap-6">
         <Link href={ROUTES.HOME} aria-label={SITE.name}>
           <AppLogo height={44} priority />

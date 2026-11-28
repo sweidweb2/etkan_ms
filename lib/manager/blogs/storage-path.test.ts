@@ -36,3 +36,4 @@ describe("blog helpers", () => {
     expect(clean).not.toMatch(/<img/i);
   });
 });
+

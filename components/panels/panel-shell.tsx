@@ -2,6 +2,7 @@
 
 import { usePathname } from "next/navigation";
 import { PermissionsProvider } from "@/components/auth/permissions-provider";
+import { SessionCrossTabGuard } from "@/components/auth/session-cross-tab-guard";
 import { SessionIdleMonitor } from "@/components/auth/session-idle-monitor";
 import {
   SidebarInset,
@@ -62,6 +63,7 @@ export function PanelShell({
         <PanelSessionAvatarProvider avatarUrl={avatarUrl}>
           <div className="flex h-svh w-full flex-col overflow-hidden bg-background">
             <SessionIdleMonitor />
+            <SessionCrossTabGuard />
             <StudentPanelNavbar
               navigation={navigation}
               displayName={displayName}
@@ -98,6 +100,7 @@ export function PanelShell({
       <PanelSessionAvatarProvider avatarUrl={avatarUrl}>
         <SidebarProvider>
           <SessionIdleMonitor />
+          <SessionCrossTabGuard />
           <PanelSidebar
             variant={variant}
             label={label}

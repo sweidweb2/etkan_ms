@@ -2,7 +2,7 @@ import { sanitize } from "isomorphic-dompurify";
 import { isHttpUrl } from "@/lib/security/http-url";
 
 /** Tags TipTap StarterKit + underline emit for blogs/emails. */
-const RICH_HTML_TAGS = [
+export const RICH_HTML_TAGS = [
   "a",
   "p",
   "br",
@@ -24,7 +24,27 @@ const RICH_HTML_TAGS = [
   "span",
 ] as const;
 
-const RICH_HTML_ATTR = ["href", "target", "rel", "class"] as const;
+export const RICH_HTML_ATTR = ["href", "target", "rel", "class"] as const;
+
+/** Defense in depth: drop non-http(s)/mailto hrefs DOMPurify might keep. */
+export function sanitizeRichHtmlHrefs(html: string): string {
+  return html.replace(
+    /\shref\s*=\s*(["'])(.*?)\1/gi,
+    (match, quote: string, href: string) => {
+      const value = href.trim();
+      if (!value) {
+        return match;
+      }
+      if (value.toLowerCase().startsWith("mailto:")) {
+        return match;
+      }
+      if (isHttpUrl(value)) {
+        return match;
+      }
+      return ` href=${quote}#${quote}`;
+    }
+  );
+}
 
 /**
  * Allowlisted HTML sanitizer for manager-authored rich text that reaches
@@ -43,21 +63,5 @@ export function sanitizeRichHtml(html: string): string {
       /^(?:(?:https?|mailto):|[^a-z]|[a-z+.-]+(?:[^a-z+.\-:]|$))/i,
   });
 
-  // Defense in depth: drop non-http(s)/mailto hrefs DOMPurify might keep.
-  return cleaned.replace(
-    /\shref\s*=\s*(["'])(.*?)\1/gi,
-    (match, quote: string, href: string) => {
-      const value = href.trim();
-      if (!value) {
-        return match;
-      }
-      if (value.toLowerCase().startsWith("mailto:")) {
-        return match;
-      }
-      if (isHttpUrl(value)) {
-        return match;
-      }
-      return ` href=${quote}#${quote}`;
-    }
-  );
+  return sanitizeRichHtmlHrefs(cleaned);
 }

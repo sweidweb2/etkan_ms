@@ -7,6 +7,10 @@ import {
   authorInitials,
   formatBlogPublishedDate,
 } from "@/components/public/blogs/blog-card";
+import {
+  BlogPublicImage,
+  BLOG_IMAGE_SIZES,
+} from "@/components/public/blogs/blog-public-image";
 import { ROUTES } from "@/lib/constants/routes";
 import { usePublicI18n } from "@/lib/i18n/public-i18n-provider";
 import type { PublicBlogCard, PublicBlogDetail } from "@/types/public-blog";
@@ -69,12 +73,14 @@ export function BlogDetailSection({
         <div className="mt-6 flex flex-wrap items-center gap-6 sm:gap-8">
           <div className="flex items-center gap-2.5">
             {post.author_avatar_url ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img
-                src={post.author_avatar_url}
-                alt=""
-                className="size-10 rounded-full object-cover"
-              />
+              <span className="relative size-10 shrink-0 overflow-hidden rounded-full">
+                <BlogPublicImage
+                  src={post.author_avatar_url}
+                  sizes={BLOG_IMAGE_SIZES.avatar}
+                  priority
+                  rounded="full"
+                />
+              </span>
             ) : (
               <span className="flex size-10 shrink-0 items-center justify-center rounded-full bg-muted text-xs font-semibold tracking-wide">
                 {authorInitials(post.author_name)}
@@ -117,17 +123,16 @@ export function BlogDetailSection({
 
         {post.thumbnail_url ? (
           <div className="relative mt-10 aspect-[1.6] w-full overflow-hidden rounded-2xl bg-muted">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
+            <BlogPublicImage
               src={post.thumbnail_url}
-              alt=""
-              className="absolute inset-0 h-full w-full object-cover"
+              sizes={BLOG_IMAGE_SIZES.hero}
+              priority
             />
           </div>
         ) : null}
 
         <div
-          className="prose prose-neutral mt-10 max-w-none dark:prose-invert [&_a]:text-primary [&_h2]:mt-8 [&_h2]:mb-3 [&_h2]:text-xl [&_h2]:font-semibold [&_ol]:my-4 [&_ol]:list-decimal [&_ol]:ps-5 [&_p]:my-3 [&_p]:leading-relaxed [&_ul]:my-4 [&_ul]:list-disc [&_ul]:ps-5"
+          className="prose prose-neutral mt-10 max-w-none dark:prose-invert [&_a]:text-primary [&_h2]:mt-8 [&_h2]:mb-3 [&_h2]:text-xl [&_h2]:font-semibold [&_img]:h-auto [&_img]:max-w-full [&_img]:rounded-xl [&_img.blog-body-img--reserve]:aspect-[16/10] [&_img.blog-body-img--reserve]:w-full [&_img.blog-body-img--reserve]:bg-muted [&_img.blog-body-img--reserve]:object-cover [&_ol]:my-4 [&_ol]:list-decimal [&_ol]:ps-5 [&_p]:my-3 [&_p]:leading-relaxed [&_ul]:my-4 [&_ul]:list-disc [&_ul]:ps-5"
           dangerouslySetInnerHTML={{ __html: post.body_html }}
         />
 

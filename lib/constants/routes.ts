@@ -157,10 +157,11 @@ export function getRegisterGuestRoute(token: string): string {
   return `/register/guest/${token}`;
 }
 
-/** Invite-only public forms: no site navbar or footer. */
+/** Invite-only / auth surfaces: no site navbar or footer (own chrome). */
 export function hidesPublicSiteChrome(pathname: string): boolean {
   return (
     pathname.startsWith("/f/") ||
+    pathname.startsWith("/auth") ||
     pathname.startsWith(`${ROUTES.REGISTER}/guest/`)
   );
 }
@@ -272,6 +273,11 @@ export function getManagerEmailSentDetailRoute(emailSentId: string): string {
 
 export function getManagerClassGradesRoute(classId: string): string {
   return `/manager/classes/${classId}/grades`;
+}
+
+/** Server ZIP of computed grade certificates for a class. */
+export function getClassGradeCertificatesZipApiRoute(classId: string): string {
+  return `/api/classes/${classId}/grade-certificates/zip`;
 }
 
 export function getManagerClassStudentGradesDetailRoute(

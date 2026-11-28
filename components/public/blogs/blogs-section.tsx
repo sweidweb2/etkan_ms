@@ -9,6 +9,10 @@ import {
   authorInitials,
   formatBlogPublishedDate,
 } from "@/components/public/blogs/blog-card";
+import {
+  BlogPublicImage,
+  BLOG_IMAGE_SIZES,
+} from "@/components/public/blogs/blog-public-image";
 import { Button } from "@/components/ui/button";
 import { PUBLIC_BLOGS_PAGE_SIZE } from "@/lib/constants/manager-blog";
 import { getBlogDetailRoute } from "@/lib/constants/routes";
@@ -107,11 +111,10 @@ export function BlogsSection({ posts }: BlogsSectionProps) {
               className="relative hidden w-full overflow-hidden rounded-2xl focus-visible:outline-none md:block md:h-[28rem] lg:h-[36rem]"
             >
               {featured.thumbnail_url ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img
+                <BlogPublicImage
                   src={featured.thumbnail_url}
-                  alt=""
-                  className="absolute inset-0 h-full w-full object-cover"
+                  sizes={BLOG_IMAGE_SIZES.featured}
+                  priority
                 />
               ) : (
                 <div className="absolute inset-0 bg-muted" />
@@ -137,12 +140,14 @@ export function BlogsSection({ posts }: BlogsSectionProps) {
                         </p>
                         <div className="flex items-center gap-2">
                           {featured.author_avatar_url ? (
-                            // eslint-disable-next-line @next/next/no-img-element
-                            <img
-                              src={featured.author_avatar_url}
-                              alt=""
-                              className="size-10 rounded-full object-cover ring-1 ring-white/40"
-                            />
+                            <span className="relative size-10 shrink-0 overflow-hidden rounded-full ring-1 ring-white/40">
+                              <BlogPublicImage
+                                src={featured.author_avatar_url}
+                                sizes={BLOG_IMAGE_SIZES.avatar}
+                                priority
+                                rounded="full"
+                              />
+                            </span>
                           ) : (
                             <span className="inline-flex size-10 items-center justify-center rounded-full bg-white/20 text-xs font-semibold text-white ring-1 ring-white/40">
                               {authorInitials(featured.author_name)}
@@ -193,6 +198,7 @@ export function BlogsSection({ posts }: BlogsSectionProps) {
               <BlogCardLink
                 post={featured}
                 readingLabel={formatReading(featured.reading_time_minutes)}
+                priority
               />
             </div>
           </>
@@ -244,11 +250,12 @@ export function BlogsSection({ posts }: BlogsSectionProps) {
             <p className="text-muted-foreground">{t("blogs.empty")}</p>
           ) : (
             <ul className="grid w-full gap-10 sm:grid-cols-2 lg:grid-cols-3 lg:gap-x-8 lg:gap-y-12">
-              {pagePosts.map((post) => (
+              {pagePosts.map((post, index) => (
                 <li key={post.id}>
                   <BlogCardLink
                     post={post}
                     readingLabel={formatReading(post.reading_time_minutes)}
+                    priority={index < 3}
                   />
                 </li>
               ))}

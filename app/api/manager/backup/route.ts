@@ -80,7 +80,8 @@ export async function GET(request: Request) {
     return NextResponse.json({ message: "Forbidden." }, { status: 403 });
   }
 
-  const createdByLabel = await resolveDisplayName(sessionClient, user);
+  const createdByLabel =
+    user.email?.trim() || (await resolveDisplayName(sessionClient, user));
 
   try {
     if (tableName) {

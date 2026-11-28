@@ -22,6 +22,14 @@ export const BLOG_FIELD_LIMITS = {
 
 export const BLOG_IMAGE_MAX_BYTES = 5 * 1024 * 1024;
 
+/** Longest edge for cover/thumbnail WebP after server optimize. */
+export const BLOG_IMAGE_THUMBNAIL_MAX_EDGE = 2048;
+
+/** Square edge for author avatar WebP after server optimize. */
+export const BLOG_IMAGE_AVATAR_MAX_EDGE = 512;
+
+export const BLOG_IMAGE_WEBP_QUALITY = 82;
+
 export const BLOG_IMAGE_ALLOWED_MIME_TYPES = [
   "image/jpeg",
   "image/png",

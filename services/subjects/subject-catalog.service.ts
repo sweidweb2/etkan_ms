@@ -8,6 +8,10 @@ import {
   assertPermission,
   getUnauthorizedError,
 } from "@/services/auth/authorization.service";
+import {
+  recordManagerAuditLog,
+  type AuditActor,
+} from "@/services/ops/audit-log.service";
 import { getSubjectScopeAdapter } from "@/services/subjects/subject-scope";
 import type {
   ManagerSubjectCapabilityPair,
@@ -16,6 +20,10 @@ import type {
 } from "@/types/manager-capability-subject";
 import type { Database } from "@/types/supabase";
 import type { SupabaseClient } from "@supabase/supabase-js";
+
+const CAPABILITY_TABLE_BY_SCOPE: Record<SubjectScope, string> = {
+  instructor: "instructor_subject_capability",
+};
 
 type Supabase = SupabaseClient<Database>;
 
@@ -137,6 +145,7 @@ export type SaveSubjectCapabilitiesResult =
 export async function saveSubjectCapabilitiesForManager(
   adminClient: Supabase,
   actorUserId: string | null,
+  actor: AuditActor,
   scope: SubjectScope,
   input: { capabilities: ManagerSubjectCapabilityPair[] }
 ): Promise<SaveSubjectCapabilitiesResult> {
@@ -214,6 +223,22 @@ export async function saveSubjectCapabilitiesForManager(
     return { success: false, error: insertError.message };
   }
 
+  if (toInsert.length > 0 || toDelete.length > 0) {
+    await recordManagerAuditLog(adminClient, actor, {
+      action: "update",
+      severity: "info",
+      table_name: CAPABILITY_TABLE_BY_SCOPE[scope],
+      metadata: {
+        note: `${adapter.copy.personSingular} capabilities saved.`,
+        scope,
+        added_count: toInsert.length,
+        removed_count: toDelete.length,
+        added: toInsert,
+        removed: toDelete,
+      },
+    });
+  }
+
   return {
     success: true,
     message: `${adapter.copy.personSingular} capabilities saved.`,
@@ -234,6 +259,7 @@ export type SetSubjectCapabilityServiceResult =
 export async function setSubjectCapabilityForManager(
   adminClient: Supabase,
   actorUserId: string | null,
+  actor: AuditActor,
   scope: SubjectScope,
   input: { user_id: string; subject_id: string; enabled: boolean }
 ): Promise<SetSubjectCapabilityServiceResult> {
@@ -313,6 +339,25 @@ export async function setSubjectCapabilityForManager(
       return { success: false, error: error.message };
     }
   }
+
+  await recordManagerAuditLog(adminClient, actor, {
+    action: enabled ? "insert" : "delete",
+    severity: "info",
+    table_name: CAPABILITY_TABLE_BY_SCOPE[scope],
+    record_id: user_id,
+    old_data: enabled ? null : { user_id, subject_id, enabled: true },
+    new_data: enabled ? { user_id, subject_id, enabled: true } : null,
+    metadata: {
+      note: enabled
+        ? `${adapter.copy.subjectSingular} capability enabled.`
+        : `${adapter.copy.subjectSingular} capability removed.`,
+      scope,
+      user_id,
+      subject_id,
+      subject_name: subjectResult.data.name,
+      enabled,
+    },
+  });
 
   return {
     success: true,

@@ -40,7 +40,8 @@ export async function GET() {
     return NextResponse.json({ message: "Forbidden." }, { status: 403 });
   }
 
-  const createdByLabel = await resolveDisplayName(sessionClient, user);
+  const createdByLabel =
+    user.email?.trim() || (await resolveDisplayName(sessionClient, user));
 
   try {
     const result = await buildStorageFilesZipForBackup(adminClient);

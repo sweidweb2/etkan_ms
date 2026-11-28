@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useState, useTransition } from "react";
-import { loadDropStudentConsoleSnapshotAction } from "@/app/manager/students/actions";
+import { loadDropStudentConsoleSnapshotAction } from "@/app/manager/students/actions/drop-student-console";
 import { DeleteDropRefundPaymentDialog } from "@/components/manager/accounting/delete-drop-refund-payment-dialog";
 import { ProcessDropRefundDialog } from "@/components/manager/accounting/process-drop-refund-dialog";
 import { WaiveDropRefundDialog } from "@/components/manager/accounting/waive-drop-refund-dialog";

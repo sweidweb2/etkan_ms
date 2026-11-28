@@ -51,7 +51,7 @@ export function DropStudentActionBar({
       ) : (
         <>
           <Select
-            value={selectedId || undefined}
+            value={selectedId || null}
             onValueChange={(value) => setSelectedId(value ?? "")}
           >
             <SelectTrigger className="w-full">

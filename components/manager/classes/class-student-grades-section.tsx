@@ -19,7 +19,10 @@ import { StudentGradeMissingDataDialog } from "@/components/manager/classes/stud
 import { ClassTabCollapsibleSection } from "@/components/manager/students/class-tab-collapsible-section";
 import { InlineSpinner } from "@/components/loaders/inline-spinner";
 import { Button, buttonVariants } from "@/components/ui/button";
+import { ClientTablePagination } from "@/components/ui/client-table-pagination";
 import { EmptyState } from "@/components/ui/empty-state";
+import { useClientPagedRows } from "@/hooks/use-client-paged-rows";
+import { usePendingNavigationGuard } from "@/hooks/use-pending-navigation-guard";
 import { PERMISSIONS } from "@/lib/constants/permissions";
 
 import {
@@ -55,8 +58,10 @@ import {
   computeAllStudentGradesAction,
   computeStudentGradeAction,
   deleteComputedGradeAction,
-  fetchComputedGradeSheetBundlesAction,
 } from "@/app/manager/classes/grades/actions";
+import { getClassGradeCertificatesZipApiRoute } from "@/lib/constants/routes";
+import { downloadBlob } from "@/lib/export/download-blob";
+import { getGradeCertificatesZipFilename } from "@/lib/export/student-grade-certificates-zip-export";
 
 type ClassStudentGradesSectionProps = {
   classId: string;
@@ -73,6 +78,10 @@ type ComputeBatch = {
   factorWeights: FactorWeightsValues;
   taskWeights: Record<string, string>;
 };
+
+/** Cap DOM rows for large class rosters (matches other manager list pagers). */
+const GRADES_TABLE_PAGE_SIZE = 25;
+const GRADES_TABLE_MAX_PAGES = 20;
 
 function formatGrade(value: number | null) {
   return value === null ? "—" : value.toFixed(1);
@@ -483,22 +492,36 @@ export function ClassStudentGradesSection({
     setIsExportingCertificates(true);
 
     try {
-      const result = await fetchComputedGradeSheetBundlesAction(classId);
+      const response = await fetch(
+        getClassGradeCertificatesZipApiRoute(classId)
+      );
 
-      if (!result.success || !result.classRow || !result.bundles) {
-        showErrorToast(result.error ?? "Unable to export grade certificates.");
+      if (!response.ok) {
+        let message = "Unable to export grade certificates.";
+        try {
+          const body = (await response.json()) as { message?: string };
+          if (body.message) {
+            message = body.message;
+          }
+        } catch {
+          // keep fallback
+        }
+        showErrorToast(message);
         return;
       }
 
-      const { downloadComputedGradeCertificatesZip } = await import(
-        "@/lib/export/student-grade-certificates-zip-export"
+      const count = Number(
+        response.headers.get("X-Export-Certificate-Count") ?? "0"
       );
-      const count = await downloadComputedGradeCertificatesZip({
-        classRow: result.classRow,
-        bundles: result.bundles,
+      const zipBlob = await response.blob();
+      downloadBlob({
+        blob: zipBlob,
+        filename: getGradeCertificatesZipFilename(classRow.name),
       });
 
-      showSuccessToast(`Exported ${count} grade certificate${count === 1 ? "" : "s"}.`);
+      showSuccessToast(
+        `Exported ${count} grade certificate${count === 1 ? "" : "s"}.`
+      );
     } catch {
       showErrorToast("Unable to export grade certificates.");
     } finally {

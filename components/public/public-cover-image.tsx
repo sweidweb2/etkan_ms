@@ -67,6 +67,7 @@ export function PublicCoverImage({
         fill
         sizes={sizes}
         priority={priority}
+        quality={priority ? 70 : 75}
         className={cn("object-cover", imageClassName)}
         onError={() => {
           if (isPlaceholder) {

@@ -17,9 +17,11 @@ describe("isGuestOnlyAuthRoute", () => {
 });
 
 describe("hidesPublicSiteChrome", () => {
-  it("hides navbar on financial and guest invite forms", () => {
+  it("hides navbar on financial, guest invite, and auth forms", () => {
     expect(hidesPublicSiteChrome("/f/token")).toBe(true);
     expect(hidesPublicSiteChrome("/register/guest/token")).toBe(true);
+    expect(hidesPublicSiteChrome(ROUTES.LOGIN)).toBe(true);
+    expect(hidesPublicSiteChrome(ROUTES.SIGNUP)).toBe(true);
     expect(hidesPublicSiteChrome(ROUTES.REGISTER)).toBe(false);
     expect(hidesPublicSiteChrome(ROUTES.HOME)).toBe(false);
   });

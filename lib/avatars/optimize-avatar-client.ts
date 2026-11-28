@@ -3,6 +3,7 @@ import {
   AVATAR_TARGET_BYTES,
   avatarFileError,
 } from "@/lib/avatars/avatar-file";
+import { yieldToMain } from "@/lib/browser/yield-to-main";
 
 const QUALITY_STEPS = [0.86, 0.78, 0.7, 0.6, 0.5];
 
@@ -41,6 +42,8 @@ export async function optimizeAvatarInBrowser(
     return { ok: false, error: invalid };
   }
 
+  await yieldToMain();
+
   let bitmap: ImageBitmap;
   try {
     bitmap = await createImageBitmap(file, { imageOrientation: "from-image" });
@@ -49,6 +52,7 @@ export async function optimizeAvatarInBrowser(
   }
 
   try {
+    await yieldToMain();
     const side = Math.min(bitmap.width, bitmap.height);
     const sourceX = Math.round((bitmap.width - side) / 2);
     const sourceY = Math.round((bitmap.height - side) / 2);
@@ -67,6 +71,7 @@ export async function optimizeAvatarInBrowser(
     let blob: Blob | null = null;
 
     for (const quality of QUALITY_STEPS) {
+      await yieldToMain();
       blob = await exportCanvas(canvas, type, quality);
       if (blob && blob.size <= AVATAR_TARGET_BYTES) {
         break;

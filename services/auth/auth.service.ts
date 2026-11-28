@@ -6,6 +6,7 @@ import { warmJwks } from "@/lib/auth/jwks-cache";
 import { clearCachedRolePermissionKeys } from "@/lib/auth/role-permissions-cache";
 import { setCachedSessionShell } from "@/lib/auth/session-shell-cache";
 import { ROUTES } from "@/lib/constants/routes";
+import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { appendQueryParam } from "@/lib/url/append-query-param";
 import { loginSchema, signupSchema } from "@/lib/validators/auth/auth";
 import { roleSchema } from "@/lib/validators/role";
@@ -23,6 +24,7 @@ import {
   syncAuthUserRole,
 } from "@/services/auth/role.service";
 import { displayNameFromAuthUser } from "@/services/auth/user-display.service";
+import { recordManagerAuditLog } from "@/services/ops/audit-log.service";
 import type { LoginResult, SignupResult } from "@/types/auth";
 import type { SupabaseClient, User } from "@supabase/supabase-js";
 import type { Database } from "@/types/supabase";
@@ -191,6 +193,21 @@ export async function login(
     });
   }
 
+  await recordManagerAuditLog(createSupabaseAdminClient(), {
+    userId: user.id,
+    userLabel: parsed.data.email,
+    role,
+  }, {
+    action: "login",
+    severity: "info",
+    table_name: "auth.users",
+    record_id: user.id,
+    metadata: {
+      note: "User signed in.",
+      role,
+    },
+  });
+
   return {
     success: true,
     redirectTo: getPostLoginRedirect(role, input.next),
@@ -198,10 +215,29 @@ export async function login(
 }
 
 export async function logout(client: Supabase): Promise<void> {
+  const { data } = await authRepository.getUser(client);
+  const user = data?.user ?? null;
+
   const { error } = await authRepository.signOut(client);
 
   if (error) {
     throw new Error(error.message);
+  }
+
+  if (user) {
+    await recordManagerAuditLog(createSupabaseAdminClient(), {
+      userId: user.id,
+      userLabel: user.email?.trim() || "User",
+      role: roleFromAuthMetadata(user),
+    }, {
+      action: "logout",
+      severity: "info",
+      table_name: "auth.users",
+      record_id: user.id,
+      metadata: {
+        note: "User signed out.",
+      },
+    });
   }
 }
 

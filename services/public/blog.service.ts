@@ -9,6 +9,7 @@ import {
 } from "@/lib/constants/manager-blog";
 import { PERMISSIONS } from "@/lib/constants/permissions";
 import { estimateReadingTimeMinutes } from "@/lib/manager/blogs/reading-time";
+import { optimizeBlogImage } from "@/lib/manager/blogs/optimize-image";
 import { sanitizeBlogHtml } from "@/lib/manager/blogs/sanitize-blog-html";
 import {
   AUTHOR_STORAGE_BUCKET,
@@ -182,16 +183,25 @@ async function uploadBlogBucketImage(
   | { success: true; publicUrl: string; storagePath: string }
   | { success: false; error: string }
 > {
-  const storagePath = buildBlogImageStoragePath(bucket, file.name);
-  const contentType = file.type.trim();
-  const fileBytes = await file.arrayBuffer();
+  const kind = bucket === AUTHOR_STORAGE_BUCKET ? "avatar" : "thumbnail";
+  const optimized = await optimizeBlogImage({
+    bytes: await file.arrayBuffer(),
+    originalFileName: file.name,
+    kind,
+    byteLength: file.size,
+  });
+  if (!optimized.success) {
+    return { success: false, error: optimized.error };
+  }
+
+  const storagePath = buildBlogImageStoragePath(bucket, optimized.fileName);
 
   const uploadResult = await blogStorageRepository.uploadBlogImage(
     adminClient,
     bucket,
     storagePath,
-    fileBytes,
-    contentType
+    optimized.buffer,
+    optimized.contentType
   );
 
   if (uploadResult.error) {

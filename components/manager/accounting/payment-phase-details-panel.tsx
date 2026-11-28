@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
   useActionState,
+  useDeferredValue,
   useMemo,
   useState,
   useTransition,
@@ -521,6 +522,8 @@ export function PaymentPhaseDetailsPanel({
     null
   );
   const [searchQuery, setSearchQuery] = useState("");
+  /** Keep input snappy; filter heavy SPP lists off the deferred value. */
+  const deferredSearchQuery = useDeferredValue(searchQuery);
   const [statusFilter, setStatusFilter] = useState(STATUS_FILTER_ALL);
   const [currentPage, setCurrentPage] = useState(1);
   const [viewMode, setViewMode] = usePersistedListViewMode(
@@ -600,9 +603,9 @@ export function PaymentPhaseDetailsPanel({
     return spps.filter((spp) => {
       const matchesStatus =
         statusFilter === STATUS_FILTER_ALL || spp.status === statusFilter;
-      return matchesStatus && matchesSppSearch(spp, searchQuery);
+      return matchesStatus && matchesSppSearch(spp, deferredSearchQuery);
     });
-  }, [spps, searchQuery, statusFilter]);
+  }, [spps, deferredSearchQuery, statusFilter]);
 
   const visibleCount = Math.min(filteredSpps.length, SPP_MAX_VISIBLE);
   const isOverPageCap = filteredSpps.length > SPP_MAX_VISIBLE;

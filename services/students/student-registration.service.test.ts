@@ -160,7 +160,9 @@ describe("student-registration.service", () => {
       registrationStorage.uploadRegistrationStorageObject
     ).mockResolvedValue({ error: null });
 
-    const file = new File(["hello"], "id.pdf", { type: "application/pdf" });
+    const file = new File([Buffer.from("%PDF-1.4\n%")], "id.pdf", {
+      type: "application/pdf",
+    });
     const result = await tempUploadRegistrationDocument(adminClient, {
       upload_session_id: uploadSessionId,
       file,
@@ -169,6 +171,7 @@ describe("student-registration.service", () => {
     expect(result.success).toBe(true);
     if (result.success) {
       expect(result.document.file_name).toBe("id.pdf");
+      expect(result.document.mime_type).toBe("application/pdf");
       expect(result.document.storage_path).toContain(
         `registration/tmp/${uploadSessionId}/`
       );
@@ -176,6 +179,32 @@ describe("student-registration.service", () => {
     expect(
       registrationStorage.uploadRegistrationStorageObject
     ).toHaveBeenCalledOnce();
+    expect(
+      registrationStorage.uploadRegistrationStorageObject
+    ).toHaveBeenCalledWith(
+      adminClient,
+      expect.stringContaining(`registration/tmp/${uploadSessionId}/`),
+      expect.any(Buffer),
+      "application/pdf"
+    );
+  });
+
+  it("rejects spoofed registration document content", async () => {
+    const file = new File([Buffer.from("not-a-pdf")], "id.pdf", {
+      type: "application/pdf",
+    });
+    const result = await tempUploadRegistrationDocument(adminClient, {
+      upload_session_id: uploadSessionId,
+      file,
+    });
+
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(result.fieldErrors?.file?.[0]).toMatch(/not allowed/i);
+    }
+    expect(
+      registrationStorage.uploadRegistrationStorageObject
+    ).not.toHaveBeenCalled();
   });
 
   it("skips the public upload rate limit when requested", async () => {
@@ -183,7 +212,9 @@ describe("student-registration.service", () => {
       registrationStorage.uploadRegistrationStorageObject
     ).mockResolvedValue({ error: null });
 
-    const file = new File(["hello"], "id.pdf", { type: "application/pdf" });
+    const file = new File([Buffer.from("%PDF-1.4\n%")], "id.pdf", {
+      type: "application/pdf",
+    });
     const result = await tempUploadRegistrationDocument(
       adminClient,
       {
@@ -254,7 +285,15 @@ describe("student-registration.service", () => {
       "Registration application submitted",
       expect.objectContaining({ applicationId })
     );
-    expect(auditLogService.recordManagerAuditLog).not.toHaveBeenCalled();
+    expect(auditLogService.recordManagerAuditLog).toHaveBeenCalledWith(
+      adminClient,
+      expect.objectContaining({ userId: null, userLabel: validInput.email }),
+      expect.objectContaining({
+        action: "insert",
+        table_name: "student_registration_applications",
+        record_id: applicationId,
+      })
+    );
   });
 
   it("suppresses live toast when staff fills the registration", async () => {

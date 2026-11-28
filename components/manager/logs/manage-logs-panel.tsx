@@ -75,7 +75,7 @@ const SEVEN_DAYS_MS = 7 * TWENTY_FOUR_HOURS_MS;
 const THIRTY_DAYS_MS = 30 * TWENTY_FOUR_HOURS_MS;
 
 const COLUMN_LIMITS = {
-  userLabel: 24,
+  userLabel: 36,
   tableName: 20,
   changeSummary: 40,
 } as const;
@@ -655,18 +655,18 @@ export function ManageLogsPanel({
           <Select value={actorFilter} onValueChange={handleActorFilterChange}>
             <SelectTrigger
               className="w-full @lg/panel:w-44"
-              aria-label="Filter by actor name"
+              aria-label="Filter by actor email"
             >
-              <SelectValue placeholder="Actor name">
+              <SelectValue placeholder="Actor email">
                 {(value) =>
                   !value || value === ACTOR_FILTER_ALL
-                    ? "Actor name"
+                    ? "Actor email"
                     : String(value)
                 }
               </SelectValue>
             </SelectTrigger>
             <SelectContent align="start">
-              <SelectItem value={ACTOR_FILTER_ALL}>Actor name</SelectItem>
+              <SelectItem value={ACTOR_FILTER_ALL}>Actor email</SelectItem>
               {actorOptions.map((actor) => (
                 <SelectItem key={actor} value={actor}>
                   {actor}
@@ -782,7 +782,7 @@ export function ManageLogsPanel({
                       ) : null}
                       <th className="w-12 px-4 py-3 font-medium">#</th>
                       <th className="px-4 py-3 font-medium">When</th>
-                      <th className="px-4 py-3 font-medium">Actor</th>
+                      <th className="px-4 py-3 font-medium">Actor email</th>
                       <th className="px-4 py-3 font-medium">Action</th>
                       <th className="px-4 py-3 font-medium">Table</th>
                       <th className="px-4 py-3 font-medium">Summary</th>
