@@ -231,7 +231,7 @@ async function loadSideEffectData(adminClient: Supabase, userId: string) {
   });
   const hasOrphanedPaidBilling = orphanedPaidOpenSpps.length > 0;
 
-  let canInactivate = !hasPendingDrop && !hasOrphanedPaidBilling;
+  const canInactivate = !hasPendingDrop && !hasOrphanedPaidBilling;
   let inactivateBlockedReason: string | null = null;
   if (hasPendingDrop) {
     inactivateBlockedReason =
