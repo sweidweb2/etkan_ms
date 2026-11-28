@@ -36,7 +36,7 @@ vi.mock("@/services/students/student.service", () => ({
   hydrateStudentRows: vi.fn(),
   listStudentsForManager: vi.fn(),
 }));
-vi.mock("@/services/classes/class-enrollment.service", () => ({
+vi.mock("@/services/classes/class-enrollment-diff.service", () => ({
   resolveActiveStudentDiff: vi.fn(),
 }));
 vi.mock("@/lib/supabase/admin", () => ({

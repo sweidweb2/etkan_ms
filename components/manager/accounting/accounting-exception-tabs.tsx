@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import { BanknoteIcon, EyeIcon, Trash2Icon, UsersIcon } from "lucide-react";
 import { Can } from "@/components/auth/can";
 import {
@@ -20,7 +20,9 @@ import { PaymentPhaseStatusBadge } from "@/components/manager/accounting/payment
 import { SppStatusBadge } from "@/components/manager/accounting/spp-status-badge";
 import { StudentStatusBadge } from "@/components/manager/students/student-status-badge";
 import { Button } from "@/components/ui/button";
+import { ClientTablePagination } from "@/components/ui/client-table-pagination";
 import { EmptyState } from "@/components/ui/empty-state";
+import { useClientPagedRows } from "@/hooks/use-client-paged-rows";
 import { useHasMounted } from "@/hooks/use-has-mounted";
 import {
   MANAGER_ACCOUNTING_EXCEPTION_TABS,
@@ -91,6 +93,42 @@ function CountBadge({ count }: { count: number }) {
     <span className="ml-1.5 rounded-md bg-muted px-1.5 py-0.5 text-[11px] tabular-nums text-muted-foreground data-[state=active]:bg-background">
       {count}
     </span>
+  );
+}
+
+const EXCEPTION_TABLE_PAGE_SIZE = 25;
+const EXCEPTION_TABLE_MAX_PAGES = 20;
+
+function ExceptionTableShell<T>({
+  rows,
+  children,
+}: {
+  rows: readonly T[];
+  children: (pageRows: T[]) => ReactNode;
+}) {
+  const pager = useClientPagedRows(rows, {
+    pageSize: EXCEPTION_TABLE_PAGE_SIZE,
+    maxPages: EXCEPTION_TABLE_MAX_PAGES,
+  });
+
+  return (
+    <div className="overflow-hidden rounded-xl border">
+      {children(pager.pageRows)}
+      {pager.showPagination ? (
+        <ClientTablePagination
+          rangeStart={pager.rangeStart}
+          rangeEnd={pager.rangeEnd}
+          totalCount={pager.totalCount}
+          visibleCount={pager.visibleCount}
+          isOverPageCap={pager.isOverPageCap}
+          maxVisible={pager.maxVisible}
+          currentPage={pager.currentPage}
+          totalPages={pager.totalPages}
+          pageNumbers={pager.pageNumbers}
+          onPageChange={pager.setCurrentPage}
+        />
+      ) : null}
+    </div>
   );
 }
 
@@ -178,19 +216,21 @@ export function AccountingExceptionTabs({
                 description="Everyone currently billed is also in an in-progress class."
               />
             ) : (
-              <div className="overflow-x-auto overflow-hidden rounded-xl border">
-                <table className="w-full min-w-[800px] text-sm">
-                  <thead>
-                    <tr className="border-b bg-muted/40 text-left">
-                      <th className="px-4 py-3 font-medium">Student</th>
-                      <th className="px-4 py-3 font-medium">Status</th>
-                      <th className="px-4 py-3 font-medium">Phase / semester</th>
-                      <th className="px-4 py-3 font-medium">SPP</th>
-                      <th className="px-4 py-3 font-medium text-right">Links</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {billedWithoutClass.map((row) => (
+              <ExceptionTableShell rows={billedWithoutClass}>
+                {(pageRows) => (
+                  <div className="overflow-x-auto">
+                    <table className="w-full min-w-[800px] text-sm">
+                      <thead>
+                        <tr className="border-b bg-muted/40 text-left">
+                          <th className="px-4 py-3 font-medium">Student</th>
+                          <th className="px-4 py-3 font-medium">Status</th>
+                          <th className="px-4 py-3 font-medium">Phase / semester</th>
+                          <th className="px-4 py-3 font-medium">SPP</th>
+                          <th className="px-4 py-3 font-medium text-right">Links</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {pageRows.map((row) => (
                       <tr
                         key={row.spp_id}
                         className="border-b last:border-b-0 hover:bg-muted/30"
@@ -280,9 +320,11 @@ export function AccountingExceptionTabs({
                         </td>
                       </tr>
                     ))}
-                  </tbody>
-                </table>
-              </div>
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </ExceptionTableShell>
             )}
           </TabsContentPrimitive>
 
@@ -295,20 +337,22 @@ export function AccountingExceptionTabs({
                 description="Every student is in a class or on a payment phase."
               />
             ) : (
-              <div className="overflow-x-auto overflow-hidden rounded-xl border">
-                <table className="w-full min-w-[640px] text-sm">
-                  <thead>
-                    <tr className="border-b bg-muted/40 text-left">
-                      <th className="px-4 py-3 font-medium">Student</th>
-                      <th className="px-4 py-3 font-medium">Status</th>
-                      <th className="px-4 py-3 font-medium">Phone</th>
-                      <th className="px-4 py-3 font-medium text-right">
-                        Action
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {withoutClassOrPhase.map((row) => (
+              <ExceptionTableShell rows={withoutClassOrPhase}>
+                {(pageRows) => (
+                  <div className="overflow-x-auto">
+                    <table className="w-full min-w-[640px] text-sm">
+                      <thead>
+                        <tr className="border-b bg-muted/40 text-left">
+                          <th className="px-4 py-3 font-medium">Student</th>
+                          <th className="px-4 py-3 font-medium">Status</th>
+                          <th className="px-4 py-3 font-medium">Phone</th>
+                          <th className="px-4 py-3 font-medium text-right">
+                            Action
+                          </th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {pageRows.map((row) => (
                       <tr
                         key={row.user_id}
                         className="border-b last:border-b-0 hover:bg-muted/30"
@@ -347,9 +391,11 @@ export function AccountingExceptionTabs({
                         </td>
                       </tr>
                     ))}
-                  </tbody>
-                </table>
-              </div>
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </ExceptionTableShell>
             )}
           </TabsContentPrimitive>
 
@@ -362,22 +408,24 @@ export function AccountingExceptionTabs({
                 description="Active SPPs and current classes share the same semester."
               />
             ) : (
-              <div className="overflow-x-auto overflow-hidden rounded-xl border">
-                <table className="w-full min-w-[800px] text-sm">
-                  <thead>
-                    <tr className="border-b bg-muted/40 text-left">
-                      <th className="px-4 py-3 font-medium">Student</th>
-                      <th className="px-4 py-3 font-medium">
-                        SPP phase / semester
-                      </th>
-                      <th className="px-4 py-3 font-medium">
-                        Current class / semester
-                      </th>
-                      <th className="px-4 py-3 font-medium text-right">Links</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {semesterMismatches.map((row) => (
+              <ExceptionTableShell rows={semesterMismatches}>
+                {(pageRows) => (
+                  <div className="overflow-x-auto">
+                    <table className="w-full min-w-[800px] text-sm">
+                      <thead>
+                        <tr className="border-b bg-muted/40 text-left">
+                          <th className="px-4 py-3 font-medium">Student</th>
+                          <th className="px-4 py-3 font-medium">
+                            SPP phase / semester
+                          </th>
+                          <th className="px-4 py-3 font-medium">
+                            Current class / semester
+                          </th>
+                          <th className="px-4 py-3 font-medium text-right">Links</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {pageRows.map((row) => (
                       <tr
                         key={row.spp_id}
                         className="border-b last:border-b-0 hover:bg-muted/30"
@@ -480,9 +528,11 @@ export function AccountingExceptionTabs({
                         </td>
                       </tr>
                     ))}
-                  </tbody>
-                </table>
-              </div>
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </ExceptionTableShell>
             )}
           </TabsContentPrimitive>
 
@@ -495,21 +545,23 @@ export function AccountingExceptionTabs({
                 description="All members of billing classes on opened phases have an assignment."
               />
             ) : (
-              <div className="overflow-x-auto overflow-hidden rounded-xl border">
-                <table className="w-full min-w-[720px] text-sm">
-                  <thead>
-                    <tr className="border-b bg-muted/40 text-left">
-                      <th className="px-4 py-3 font-medium">Student</th>
-                      <th className="px-4 py-3 font-medium">Semester</th>
-                      <th className="px-4 py-3 font-medium">Billing class</th>
-                      <th className="px-4 py-3 font-medium">Phase</th>
-                      <th className="px-4 py-3 font-medium text-right">
-                        Action
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {missingSpp.map((row) => (
+              <ExceptionTableShell rows={missingSpp}>
+                {(pageRows) => (
+                  <div className="overflow-x-auto">
+                    <table className="w-full min-w-[720px] text-sm">
+                      <thead>
+                        <tr className="border-b bg-muted/40 text-left">
+                          <th className="px-4 py-3 font-medium">Student</th>
+                          <th className="px-4 py-3 font-medium">Semester</th>
+                          <th className="px-4 py-3 font-medium">Billing class</th>
+                          <th className="px-4 py-3 font-medium">Phase</th>
+                          <th className="px-4 py-3 font-medium text-right">
+                            Action
+                          </th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {pageRows.map((row) => (
                       <tr
                         key={`${row.payment_phase_id}:${row.student_id}`}
                         className="border-b last:border-b-0 hover:bg-muted/30"
@@ -558,9 +610,11 @@ export function AccountingExceptionTabs({
                         </td>
                       </tr>
                     ))}
-                  </tbody>
-                </table>
-              </div>
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </ExceptionTableShell>
             )}
           </TabsContentPrimitive>
 
@@ -573,23 +627,25 @@ export function AccountingExceptionTabs({
                 description="Completed semester drops with excess payment will appear here."
               />
             ) : (
-              <div className="overflow-x-auto overflow-hidden rounded-xl border">
-                <table className="w-full min-w-[720px] text-sm">
-                  <thead>
-                    <tr className="border-b bg-muted/40 text-left">
-                      <th className="px-4 py-3 font-medium">Student</th>
-                      <th className="px-4 py-3 font-medium">Phase</th>
-                      <th className="px-4 py-3 font-medium text-right">Owed</th>
-                      <th className="px-4 py-3 font-medium text-right">
-                        Refunded
-                      </th>
-                      <th className="px-4 py-3 font-medium text-right">
-                        Action
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {needRefund.map((row) => (
+              <ExceptionTableShell rows={needRefund}>
+                {(pageRows) => (
+                  <div className="overflow-x-auto">
+                    <table className="w-full min-w-[720px] text-sm">
+                      <thead>
+                        <tr className="border-b bg-muted/40 text-left">
+                          <th className="px-4 py-3 font-medium">Student</th>
+                          <th className="px-4 py-3 font-medium">Phase</th>
+                          <th className="px-4 py-3 font-medium text-right">Owed</th>
+                          <th className="px-4 py-3 font-medium text-right">
+                            Refunded
+                          </th>
+                          <th className="px-4 py-3 font-medium text-right">
+                            Action
+                          </th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {pageRows.map((row) => (
                       <tr
                         key={row.id}
                         className="border-b last:border-b-0 hover:bg-muted/30"
@@ -654,9 +710,11 @@ export function AccountingExceptionTabs({
                         </td>
                       </tr>
                     ))}
-                  </tbody>
-                </table>
-              </div>
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </ExceptionTableShell>
             )}
           </TabsContentPrimitive>
       </TabsContentsPrimitive>

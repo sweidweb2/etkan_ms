@@ -218,6 +218,364 @@ function mergeGradeRow(
   return rows.map((row) => (row.user_id === updated.user_id ? updated : row));
 }
 
+function PendingGradesTable({
+  classId,
+  rows,
+  onCompute,
+}: {
+  classId: string;
+  rows: ManagerClassStudentGradeRow[];
+  onCompute: (row: ManagerClassStudentGradeRow) => void;
+}) {
+  const pager = useClientPagedRows(rows, {
+    pageSize: GRADES_TABLE_PAGE_SIZE,
+    maxPages: GRADES_TABLE_MAX_PAGES,
+  });
+
+  return (
+    <div>
+      <div className="overflow-x-auto">
+        <table className="w-full min-w-[900px] text-sm">
+          <thead>
+            <tr className="border-b bg-muted/40 text-left">
+              <th className="px-4 py-3 font-medium">Student</th>
+              <th className="px-4 py-3 font-medium">Email</th>
+              <th className="px-4 py-3 font-medium">Phone</th>
+              <th className="px-4 py-3 font-medium">Total grade</th>
+              <th className="px-4 py-3 font-medium">Tasks grade</th>
+              <th className="px-4 py-3 font-medium">Final exam grade</th>
+              <th className="px-4 py-3 text-center font-medium">Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {pager.pageRows.map((row) => (
+              <tr
+                key={classStudentRowKey(row)}
+                className="border-b last:border-b-0 hover:bg-muted/20"
+              >
+                <td className="px-4 py-3">
+                  <div className="flex flex-col">
+                    <StudentGradeNameLink
+                      classId={classId}
+                      studentProfileId={row.student_profile_id}
+                      fullName={row.full_name}
+                    />
+                    <span className="text-xs text-muted-foreground">
+                      Member
+                    </span>
+                  </div>
+                </td>
+                <td className="px-4 py-3 text-muted-foreground">{row.email}</td>
+                <td className="px-4 py-3 text-muted-foreground">
+                  {row.phone ?? "—"}
+                </td>
+                <td className="px-4 py-3 tabular-nums">
+                  {formatGrade(row.total_grade)}
+                </td>
+                <td className="px-4 py-3 tabular-nums">
+                  {formatGrade(row.task_total_grade)}
+                </td>
+                <td className="px-4 py-3 tabular-nums">
+                  {formatGrade(row.final_exam_grade)}
+                </td>
+                <td className="px-4 py-3">
+                  <div className="flex justify-center gap-2">
+                    {hasLinkedStudentProfile(row.student_profile_id) ? (
+                      <Can permission={PERMISSIONS.GRADES_COMPUTE}>
+                        <Button
+                          type="button"
+                          size="sm"
+                          className="bg-orange-500 text-white hover:bg-orange-500/90"
+                          onClick={() => onCompute(row)}
+                        >
+                          Compute
+                        </Button>
+                      </Can>
+                    ) : null}
+                    <StudentGradeDetailsLink
+                      classId={classId}
+                      studentProfileId={row.student_profile_id}
+                    />
+                  </div>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      {pager.showPagination ? (
+        <ClientTablePagination
+          rangeStart={pager.rangeStart}
+          rangeEnd={pager.rangeEnd}
+          totalCount={pager.totalCount}
+          visibleCount={pager.visibleCount}
+          isOverPageCap={pager.isOverPageCap}
+          maxVisible={pager.maxVisible}
+          currentPage={pager.currentPage}
+          totalPages={pager.totalPages}
+          pageNumbers={pager.pageNumbers}
+          onPageChange={pager.setCurrentPage}
+        />
+      ) : null}
+    </div>
+  );
+}
+
+function UnreadyGradesTable({
+  classId,
+  rows,
+  onViewMissing,
+}: {
+  classId: string;
+  rows: ManagerClassStudentGradeRow[];
+  onViewMissing: (row: ManagerClassStudentGradeRow) => void;
+}) {
+  const pager = useClientPagedRows(rows, {
+    pageSize: GRADES_TABLE_PAGE_SIZE,
+    maxPages: GRADES_TABLE_MAX_PAGES,
+  });
+
+  return (
+    <div>
+      <div className="overflow-x-auto">
+        <table className="w-full min-w-[860px] text-sm">
+          <thead>
+            <tr className="border-b bg-muted/40 text-left">
+              <th className="px-4 py-3 font-medium">Student</th>
+              <th className="px-4 py-3 font-medium">Email</th>
+              <th className="px-4 py-3 font-medium">Missing data</th>
+              <th className="px-4 py-3 font-medium">Tasks</th>
+              <th className="px-4 py-3 font-medium">Final exam</th>
+              <th className="px-4 py-3 text-center font-medium">Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {pager.pageRows.map((row) => (
+              <tr
+                key={`unready-${classStudentRowKey(row)}`}
+                className="border-b last:border-b-0 hover:bg-muted/20"
+              >
+                <td className="px-4 py-3">
+                  <div className="flex flex-col">
+                    <StudentGradeNameLink
+                      classId={classId}
+                      studentProfileId={row.student_profile_id}
+                      fullName={row.full_name}
+                    />
+                    <span className="text-xs text-muted-foreground">
+                      Member
+                    </span>
+                  </div>
+                </td>
+                <td className="px-4 py-3 text-muted-foreground">{row.email}</td>
+                <td className="px-4 py-3">
+                  <div className="flex items-center gap-2">
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon-sm"
+                      aria-label={`View missing grade data for ${row.full_name}`}
+                      onClick={() => onViewMissing(row)}
+                    >
+                      <MessageSquareTextIcon />
+                    </Button>
+                    {row.missing_items.length > 0 ? (
+                      <span className="text-xs text-muted-foreground">
+                        ({row.missing_items.length})
+                      </span>
+                    ) : null}
+                  </div>
+                </td>
+                <td className="px-4 py-3 tabular-nums">
+                  {formatGrade(row.task_total_grade)}
+                </td>
+                <td className="px-4 py-3 tabular-nums">
+                  {formatGrade(row.final_exam_grade)}
+                </td>
+                <td className="px-4 py-3">
+                  <div className="flex justify-center">
+                    <StudentGradeDetailsLink
+                      classId={classId}
+                      studentProfileId={row.student_profile_id}
+                      label="View"
+                    />
+                  </div>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      {pager.showPagination ? (
+        <ClientTablePagination
+          rangeStart={pager.rangeStart}
+          rangeEnd={pager.rangeEnd}
+          totalCount={pager.totalCount}
+          visibleCount={pager.visibleCount}
+          isOverPageCap={pager.isOverPageCap}
+          maxVisible={pager.maxVisible}
+          currentPage={pager.currentPage}
+          totalPages={pager.totalPages}
+          pageNumbers={pager.pageNumbers}
+          onPageChange={pager.setCurrentPage}
+        />
+      ) : null}
+    </div>
+  );
+}
+
+function ComputedBatchGradesTable({
+  classId,
+  batch,
+  batchRows,
+  classTasks,
+  onDelete,
+}: {
+  classId: string;
+  batch: ComputeBatch;
+  batchRows: ManagerClassStudentGradeRow[];
+  classTasks: ManagerClassTaskForGradesRow[];
+  onDelete: (row: ManagerClassStudentGradeRow) => void;
+}) {
+  const pager = useClientPagedRows(batchRows, {
+    pageSize: GRADES_TABLE_PAGE_SIZE,
+    maxPages: GRADES_TABLE_MAX_PAGES,
+  });
+
+  return (
+    <div className="overflow-hidden rounded-xl border bg-background">
+      <div className="border-b bg-muted/30 px-4 py-3">
+        <div className="flex flex-col gap-3 @2xl/panel:flex-row @2xl/panel:items-start @2xl/panel:justify-between">
+          <div>
+            <h4 className="text-sm font-semibold">{batch.label}</h4>
+            <p className="text-xs text-muted-foreground">
+              {batchRows.length} computed student
+              {batchRows.length === 1 ? "" : "s"} in this batch
+            </p>
+          </div>
+          <div className="grid gap-2 text-xs text-muted-foreground @lg/panel:grid-cols-2">
+            <div className="rounded-lg border bg-background px-3 py-2">
+              <span className="block">Tasks weight</span>
+              <span className="font-medium text-foreground">
+                {formatWeight(batch.factorWeights.tasks_weight)}
+              </span>
+            </div>
+            <div className="rounded-lg border bg-background px-3 py-2">
+              <span className="block">Final exam weight</span>
+              <span className="font-medium text-foreground">
+                {formatWeight(batch.factorWeights.final_exam_weight)}
+              </span>
+            </div>
+          </div>
+        </div>
+
+        <div className="mt-3">
+          <p className="text-xs text-muted-foreground">Task weights</p>
+          {Object.keys(batch.taskWeights).length === 0 ? (
+            <p className="mt-1 text-xs text-muted-foreground">
+              No task-specific weights were applied.
+            </p>
+          ) : (
+            <div className="mt-2 flex flex-wrap gap-2">
+              {classTasks.map((task) => (
+                <span
+                  key={`${batch.id}-${task.id}`}
+                  className="rounded-full border bg-background px-2.5 py-1 text-xs text-muted-foreground"
+                >
+                  {task.session_label} {task.title}:{" "}
+                  <span className="font-medium text-foreground">
+                    {batch.taskWeights[task.id] ?? "0"}%
+                  </span>
+                </span>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+
+      <div className="overflow-x-auto">
+        <table className="w-full min-w-[820px] text-sm">
+          <thead>
+            <tr className="border-b bg-muted/40 text-left">
+              <th className="px-4 py-3 font-medium">Student</th>
+              <th className="px-4 py-3 font-medium">Email</th>
+              <th className="px-4 py-3 font-medium">Total grade</th>
+              <th className="px-4 py-3 font-medium">Tasks</th>
+              <th className="px-4 py-3 font-medium">Final exam</th>
+              <th className="px-4 py-3 text-center font-medium">Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {pager.pageRows.map((row) => (
+              <tr
+                key={`computed-${batch.id}-${classStudentRowKey(row)}`}
+                className="border-b last:border-b-0 hover:bg-muted/20"
+              >
+                <td className="px-4 py-3">
+                  <div className="flex flex-col">
+                    <StudentGradeNameLink
+                      classId={classId}
+                      studentProfileId={row.student_profile_id}
+                      fullName={row.full_name}
+                    />
+                    <span className="text-xs text-muted-foreground">
+                      Member
+                    </span>
+                  </div>
+                </td>
+                <td className="px-4 py-3 text-muted-foreground">{row.email}</td>
+                <td className="px-4 py-3 tabular-nums font-medium">
+                  {formatGrade(row.total_grade)}
+                </td>
+                <td className="px-4 py-3 tabular-nums">
+                  {formatGrade(row.task_total_grade)}
+                </td>
+                <td className="px-4 py-3 tabular-nums">
+                  {formatGrade(row.final_exam_grade)}
+                </td>
+                <td className="px-4 py-3">
+                  <div className="flex justify-center gap-2">
+                    <StudentGradeDetailsLink
+                      classId={classId}
+                      studentProfileId={row.student_profile_id}
+                    />
+                    {hasLinkedStudentProfile(row.student_profile_id) ? (
+                      <Can permission={PERMISSIONS.GRADES_DELETE}>
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="destructive"
+                          onClick={() => onDelete(row)}
+                        >
+                          Delete grade
+                        </Button>
+                      </Can>
+                    ) : null}
+                  </div>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      {pager.showPagination ? (
+        <ClientTablePagination
+          rangeStart={pager.rangeStart}
+          rangeEnd={pager.rangeEnd}
+          totalCount={pager.totalCount}
+          visibleCount={pager.visibleCount}
+          isOverPageCap={pager.isOverPageCap}
+          maxVisible={pager.maxVisible}
+          currentPage={pager.currentPage}
+          totalPages={pager.totalPages}
+          pageNumbers={pager.pageNumbers}
+          onPageChange={pager.setCurrentPage}
+        />
+      ) : null}
+    </div>
+  );
+}
+
 export function ClassStudentGradesSection({
   classId,
   classRow,
@@ -315,6 +673,14 @@ export function ClassStudentGradesSection({
     useState(false);
   const [isDeleteGradePending, setIsDeleteGradePending] = useState(false);
   const [isExportingCertificates, setIsExportingCertificates] = useState(false);
+
+  usePendingNavigationGuard(
+    isStudentComputePending ||
+      isComputeAllPending ||
+      isCustomizeComputeAllPending ||
+      isDeleteGradePending ||
+      isExportingCertificates
+  );
 
   const computeFactorTotal = useMemo(
     () =>
@@ -775,77 +1141,11 @@ export function ClassStudentGradesSection({
               />
             </div>
           ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full min-w-[900px] text-sm">
-                <thead>
-                  <tr className="border-b bg-muted/40 text-left">
-                    <th className="px-4 py-3 font-medium">Student</th>
-                    <th className="px-4 py-3 font-medium">Email</th>
-                    <th className="px-4 py-3 font-medium">Phone</th>
-                    <th className="px-4 py-3 font-medium">Total grade</th>
-                    <th className="px-4 py-3 font-medium">Tasks grade</th>
-                    <th className="px-4 py-3 font-medium">Final exam grade</th>
-                    <th className="px-4 py-3 text-center font-medium">Actions</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {pendingRows.map((row) => (
-                    <tr
-                      key={classStudentRowKey(row)}
-                      className="border-b last:border-b-0 hover:bg-muted/20"
-                    >
-                      <td className="px-4 py-3">
-                        <div className="flex flex-col">
-                          <StudentGradeNameLink
-                            classId={classId}
-                            studentProfileId={row.student_profile_id}
-                            fullName={row.full_name}
-                          />
-                          <span className="text-xs text-muted-foreground">
-                            Member
-                          </span>
-                        </div>
-                      </td>
-                      <td className="px-4 py-3 text-muted-foreground">
-                        {row.email}
-                      </td>
-                      <td className="px-4 py-3 text-muted-foreground">
-                        {row.phone ?? "—"}
-                      </td>
-                      <td className="px-4 py-3 tabular-nums">
-                        {formatGrade(row.total_grade)}
-                      </td>
-                      <td className="px-4 py-3 tabular-nums">
-                        {formatGrade(row.task_total_grade)}
-                      </td>
-                      <td className="px-4 py-3 tabular-nums">
-                        {formatGrade(row.final_exam_grade)}
-                      </td>
-                      <td className="px-4 py-3">
-                        <div className="flex justify-center gap-2">
-                          {hasLinkedStudentProfile(row.student_profile_id) ? (
-                            <Can permission={PERMISSIONS.GRADES_COMPUTE}>
-                              <Button
-                                type="button"
-                                size="sm"
-                                className="bg-orange-500 text-white hover:bg-orange-500/90"
-                                onClick={() => openComputeDialog(row)}
-                              >
-                                Compute
-                              </Button>
-                            </Can>
-                          ) : null}
-                          <StudentGradeDetailsLink
-                            classId={classId}
-                            studentProfileId={row.student_profile_id}
-                          />
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+            <PendingGradesTable
+              classId={classId}
+              rows={pendingRows}
+              onCompute={openComputeDialog}
+            />
           )}
         </ClassTabCollapsibleSection>
 
@@ -884,129 +1184,14 @@ export function ClassStudentGradesSection({
                   </Can>
                 </div>
               {groupedComputedRows.map(({ batch, rows: batchRows }) => (
-                <div
+                <ComputedBatchGradesTable
                   key={batch.id}
-                  className="overflow-hidden rounded-xl border bg-background"
-                >
-                  <div className="border-b bg-muted/30 px-4 py-3">
-                    <div className="flex flex-col gap-3 @2xl/panel:flex-row @2xl/panel:items-start @2xl/panel:justify-between">
-                      <div>
-                        <h4 className="text-sm font-semibold">{batch.label}</h4>
-                        <p className="text-xs text-muted-foreground">
-                          {batchRows.length} computed student
-                          {batchRows.length === 1 ? "" : "s"} in this batch
-                        </p>
-                      </div>
-                      <div className="grid gap-2 text-xs text-muted-foreground @lg/panel:grid-cols-2">
-                        <div className="rounded-lg border bg-background px-3 py-2">
-                          <span className="block">Tasks weight</span>
-                          <span className="font-medium text-foreground">
-                            {formatWeight(batch.factorWeights.tasks_weight)}
-                          </span>
-                        </div>
-                        <div className="rounded-lg border bg-background px-3 py-2">
-                          <span className="block">Final exam weight</span>
-                          <span className="font-medium text-foreground">
-                            {formatWeight(batch.factorWeights.final_exam_weight)}
-                          </span>
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="mt-3">
-                      <p className="text-xs text-muted-foreground">Task weights</p>
-                      {Object.keys(batch.taskWeights).length === 0 ? (
-                        <p className="mt-1 text-xs text-muted-foreground">
-                          No task-specific weights were applied.
-                        </p>
-                      ) : (
-                        <div className="mt-2 flex flex-wrap gap-2">
-                          {classTasks.map((task) => (
-                            <span
-                              key={`${batch.id}-${task.id}`}
-                              className="rounded-full border bg-background px-2.5 py-1 text-xs text-muted-foreground"
-                            >
-                              {task.session_label} {task.title}:{" "}
-                              <span className="font-medium text-foreground">
-                                {batch.taskWeights[task.id] ?? "0"}%
-                              </span>
-                            </span>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-                  </div>
-
-                  <div className="overflow-x-auto">
-                    <table className="w-full min-w-[820px] text-sm">
-                      <thead>
-                        <tr className="border-b bg-muted/40 text-left">
-                          <th className="px-4 py-3 font-medium">Student</th>
-                          <th className="px-4 py-3 font-medium">Email</th>
-                          <th className="px-4 py-3 font-medium">Total grade</th>
-                          <th className="px-4 py-3 font-medium">Tasks</th>
-                          <th className="px-4 py-3 font-medium">Final exam</th>
-                          <th className="px-4 py-3 text-center font-medium">Actions</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {batchRows.map((row) => (
-                          <tr
-                            key={`computed-${batch.id}-${classStudentRowKey(row)}`}
-                            className="border-b last:border-b-0 hover:bg-muted/20"
-                          >
-                            <td className="px-4 py-3">
-                              <div className="flex flex-col">
-                                <StudentGradeNameLink
-                                  classId={classId}
-                                  studentProfileId={row.student_profile_id}
-                                  fullName={row.full_name}
-                                />
-                                <span className="text-xs text-muted-foreground">
-                                  Member
-                                </span>
-                              </div>
-                            </td>
-                            <td className="px-4 py-3 text-muted-foreground">
-                              {row.email}
-                            </td>
-                            <td className="px-4 py-3 tabular-nums font-medium">
-                              {formatGrade(row.total_grade)}
-                            </td>
-                            <td className="px-4 py-3 tabular-nums">
-                              {formatGrade(row.task_total_grade)}
-                            </td>
-                            <td className="px-4 py-3 tabular-nums">
-                              {formatGrade(row.final_exam_grade)}
-                            </td>
-                            <td className="px-4 py-3">
-                              <div className="flex justify-center gap-2">
-                                <StudentGradeDetailsLink
-                                  classId={classId}
-                                  studentProfileId={row.student_profile_id}
-                                />
-                                {hasLinkedStudentProfile(
-                                  row.student_profile_id
-                                ) ? (
-                                  <Can permission={PERMISSIONS.GRADES_DELETE}>
-                                    <Button
-                                      type="button"
-                                      size="sm"
-                                      variant="destructive"
-                                      onClick={() => openDeleteGradeDialog(row)}
-                                    >
-                                      Delete grade
-                                    </Button>
-                                  </Can>
-                                ) : null}
-                              </div>
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                </div>
+                  classId={classId}
+                  batch={batch}
+                  batchRows={batchRows}
+                  classTasks={classTasks}
+                  onDelete={openDeleteGradeDialog}
+                />
               ))}
               </div>
             )}
@@ -1027,77 +1212,11 @@ export function ClassStudentGradesSection({
               />
             </div>
           ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full min-w-[860px] text-sm">
-                <thead>
-                  <tr className="border-b bg-muted/40 text-left">
-                    <th className="px-4 py-3 font-medium">Student</th>
-                    <th className="px-4 py-3 font-medium">Email</th>
-                    <th className="px-4 py-3 font-medium">Missing data</th>
-                    <th className="px-4 py-3 font-medium">Tasks</th>
-                    <th className="px-4 py-3 font-medium">Final exam</th>
-                    <th className="px-4 py-3 text-center font-medium">Actions</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {unreadyRows.map((row) => (
-                    <tr
-                      key={`unready-${classStudentRowKey(row)}`}
-                      className="border-b last:border-b-0 hover:bg-muted/20"
-                    >
-                      <td className="px-4 py-3">
-                        <div className="flex flex-col">
-                          <StudentGradeNameLink
-                            classId={classId}
-                            studentProfileId={row.student_profile_id}
-                            fullName={row.full_name}
-                          />
-                          <span className="text-xs text-muted-foreground">
-                            Member
-                          </span>
-                        </div>
-                      </td>
-                      <td className="px-4 py-3 text-muted-foreground">
-                        {row.email}
-                      </td>
-                      <td className="px-4 py-3">
-                        <div className="flex items-center gap-2">
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="icon-sm"
-                            aria-label={`View missing grade data for ${row.full_name}`}
-                            onClick={() => openMissingDataDialog(row)}
-                          >
-                            <MessageSquareTextIcon />
-                          </Button>
-                          {row.missing_items.length > 0 ? (
-                            <span className="text-xs text-muted-foreground">
-                              ({row.missing_items.length})
-                            </span>
-                          ) : null}
-                        </div>
-                      </td>
-                      <td className="px-4 py-3 tabular-nums">
-                        {formatGrade(row.task_total_grade)}
-                      </td>
-                      <td className="px-4 py-3 tabular-nums">
-                        {formatGrade(row.final_exam_grade)}
-                      </td>
-                      <td className="px-4 py-3">
-                        <div className="flex justify-center">
-                          <StudentGradeDetailsLink
-                            classId={classId}
-                            studentProfileId={row.student_profile_id}
-                            label="View"
-                          />
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+            <UnreadyGradesTable
+              classId={classId}
+              rows={unreadyRows}
+              onViewMissing={openMissingDataDialog}
+            />
           )}
         </ClassTabCollapsibleSection>
 

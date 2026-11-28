@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { PERMISSIONS } from "@/lib/constants/permissions";
 import * as classRepository from "@/repositories/class.repository";
 import * as paymentPhaseRepository from "@/repositories/payment-phase.repository";
 import * as profileRepository from "@/repositories/profile.repository";
@@ -7,9 +8,11 @@ import * as studentClassRepository from "@/repositories/student-class.repository
 import * as studentPaymentPhaseRepository from "@/repositories/student-payment-phase.repository";
 import * as studentPaymentRepository from "@/repositories/student-payment.repository";
 import * as studentProfileRepository from "@/repositories/student-profile.repository";
+import * as authorizationService from "@/services/auth/authorization.service";
 import * as auditLogService from "@/services/ops/audit-log.service";
 import type { AuditActor } from "@/services/ops/audit-log.service";
 import {
+  assignOptionalEnrollPaymentPhasesForManager,
   cancelPaymentPhaseForManager,
   createPaymentPhaseForManager,
   listMissingSppForOpenedPhases,
@@ -127,6 +130,9 @@ function mockBillingClass(data: typeof billingClass | null = billingClass) {
 describe("createPaymentPhaseForManager", () => {
   beforeEach(() => {
     vi.resetAllMocks();
+    vi.mocked(authorizationService.getUnauthorizedError).mockImplementation(
+      async (_c, userId) => (userId ? null : "Unauthorized.")
+    );
     vi.mocked(auditLogService.recordManagerAuditLog).mockResolvedValue(null);
   });
 
@@ -249,6 +255,200 @@ describe("createPaymentPhaseForManager", () => {
     ).not.toHaveBeenCalled();
     expect(
       studentPaymentPhaseRepository.createStudentPaymentPhases
+    ).not.toHaveBeenCalled();
+  });
+
+  it("denies create without actor and checks CREATE permission", async () => {
+    const result = await createPaymentPhaseForManager(
+      adminClient,
+      null,
+      actor,
+      validCreateInput
+    );
+
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(result.error).toBe("Unauthorized.");
+    }
+    expect(authorizationService.getUnauthorizedError).toHaveBeenCalledWith(
+      adminClient,
+      null,
+      PERMISSIONS.ACCOUNTING_PAYMENT_PHASES_CREATE
+    );
+    expect(
+      paymentPhaseRepository.createPaymentPhaseWithSpps
+    ).not.toHaveBeenCalled();
+  });
+});
+
+describe("assignOptionalEnrollPaymentPhasesForManager", () => {
+  const phaseIdB = "cccccccc-cccc-4ccc-8ccc-cccccccccccc";
+
+  beforeEach(() => {
+    vi.resetAllMocks();
+    vi.mocked(authorizationService.getUnauthorizedError).mockImplementation(
+      async (_c, userId) => (userId ? null : "Unauthorized.")
+    );
+    vi.mocked(auditLogService.recordManagerAuditLog).mockResolvedValue(null);
+  });
+
+  it("assigns unique payment phases and returns assignedCount", async () => {
+    vi.mocked(studentPaymentPhaseRepository.repairMissingSpp)
+      .mockResolvedValueOnce({
+        data: {
+          alreadyExisted: false,
+          created: true,
+          reactivated: false,
+          phaseReopened: false,
+          spp: {
+            id: "spp-1",
+            student_id: studentA,
+            payment_phase_id: phaseId,
+            assigned_at: "2026-07-01T00:00:00.000Z",
+            status: "pending",
+            original_amount: 1000,
+            adjustment_amount: 0,
+            final_amount_due: 1000,
+            total_paid: 0,
+            remaining_amount: 1000,
+            created_at: "2026-07-01T00:00:00.000Z",
+            updated_at: "2026-07-01T00:00:00.000Z",
+          },
+        },
+        error: null,
+      } as never)
+      .mockResolvedValueOnce({
+        data: {
+          alreadyExisted: false,
+          created: true,
+          reactivated: false,
+          phaseReopened: false,
+          spp: {
+            id: "spp-2",
+            student_id: studentA,
+            payment_phase_id: phaseIdB,
+            assigned_at: "2026-07-01T00:00:00.000Z",
+            status: "pending",
+            original_amount: 1000,
+            adjustment_amount: 0,
+            final_amount_due: 1000,
+            total_paid: 0,
+            remaining_amount: 1000,
+            created_at: "2026-07-01T00:00:00.000Z",
+            updated_at: "2026-07-01T00:00:00.000Z",
+          },
+        },
+        error: null,
+      } as never);
+
+    const result = await assignOptionalEnrollPaymentPhasesForManager(
+      adminClient,
+      actor.userId,
+      actor,
+      { student_id: studentA, payment_phase_ids: [phaseId, phaseIdB] }
+    );
+
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.assignedCount).toBe(2);
+      expect(result.message).toMatch(/2 student payment phases assigned/i);
+    }
+    expect(studentPaymentPhaseRepository.repairMissingSpp).toHaveBeenCalledTimes(
+      2
+    );
+  });
+
+  it("dedupes duplicate payment phase ids before assigning", async () => {
+    vi.mocked(studentPaymentPhaseRepository.repairMissingSpp).mockResolvedValue({
+      data: {
+        alreadyExisted: true,
+        created: false,
+        reactivated: false,
+        phaseReopened: false,
+        spp: {
+          id: "spp-1",
+          student_id: studentA,
+          payment_phase_id: phaseId,
+          assigned_at: "2026-07-01T00:00:00.000Z",
+          status: "pending",
+          original_amount: 1000,
+          adjustment_amount: 0,
+          final_amount_due: 1000,
+          total_paid: 0,
+          remaining_amount: 1000,
+          created_at: "2026-07-01T00:00:00.000Z",
+          updated_at: "2026-07-01T00:00:00.000Z",
+        },
+      },
+      error: null,
+    } as never);
+
+    const result = await assignOptionalEnrollPaymentPhasesForManager(
+      adminClient,
+      actor.userId,
+      actor,
+      { student_id: studentA, payment_phase_ids: [phaseId, phaseId, phaseId] }
+    );
+
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.assignedCount).toBe(1);
+    }
+    expect(studentPaymentPhaseRepository.repairMissingSpp).toHaveBeenCalledTimes(
+      1
+    );
+    expect(studentPaymentPhaseRepository.repairMissingSpp).toHaveBeenCalledWith(
+      adminClient,
+      phaseId,
+      studentA
+    );
+  });
+
+  it("short-circuits on the first repair failure", async () => {
+    vi.mocked(studentPaymentPhaseRepository.repairMissingSpp)
+      .mockResolvedValueOnce({
+        data: null,
+        error: {
+          message:
+            "Only opened or closed payment phases can receive assignments.",
+        },
+      } as never);
+
+    const result = await assignOptionalEnrollPaymentPhasesForManager(
+      adminClient,
+      actor.userId,
+      actor,
+      { student_id: studentA, payment_phase_ids: [phaseId, phaseIdB] }
+    );
+
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(result.error).toMatch(/opened or closed/i);
+    }
+    expect(studentPaymentPhaseRepository.repairMissingSpp).toHaveBeenCalledTimes(
+      1
+    );
+  });
+
+  it("denies assign without actor and checks CREATE permission", async () => {
+    const result = await assignOptionalEnrollPaymentPhasesForManager(
+      adminClient,
+      null,
+      actor,
+      { student_id: studentA, payment_phase_ids: [phaseId] }
+    );
+
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(result.error).toBe("Unauthorized.");
+    }
+    expect(authorizationService.getUnauthorizedError).toHaveBeenCalledWith(
+      adminClient,
+      null,
+      PERMISSIONS.ACCOUNTING_PAYMENT_PHASES_CREATE
+    );
+    expect(
+      studentPaymentPhaseRepository.repairMissingSpp
     ).not.toHaveBeenCalled();
   });
 });
@@ -402,6 +602,9 @@ describe("listMissingSppForOpenedPhases", () => {
 describe("repairMissingSppForManager", () => {
   beforeEach(() => {
     vi.resetAllMocks();
+    vi.mocked(authorizationService.getUnauthorizedError).mockImplementation(
+      async (_c, userId) => (userId ? null : "Unauthorized.")
+    );
     vi.mocked(auditLogService.recordManagerAuditLog).mockResolvedValue(null);
   });
 

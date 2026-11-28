@@ -10,7 +10,7 @@ import * as accountingSync from "@/services/accounting/accounting-sync.service";
 import * as auditLogService from "@/services/ops/audit-log.service";
 import type { AuditActor } from "@/services/ops/audit-log.service";
 import { transferStudentBetweenClassesForManager } from "@/services/classes/class.service";
-import * as sessionService from "@/services/classes/session.service";
+import * as sessionSeedService from "@/services/classes/session-seed.service";
 
 vi.mock("@/repositories/auth.repository");
 vi.mock("@/repositories/class.repository");
@@ -25,7 +25,7 @@ vi.mock("@/services/accounting/accounting-sync.service");
 vi.mock("@/services/students/student.service", () => ({
   listStudentsForManager: vi.fn(),
 }));
-vi.mock("@/services/classes/session.service", () => ({
+vi.mock("@/services/classes/session-seed.service", () => ({
   seedLateJoinAttendeesForStudent: vi.fn().mockResolvedValue(undefined),
   seedLateJoinStudentTasksForStudent: vi.fn().mockResolvedValue(undefined),
   ensureSessionAttendeesForMembers: vi.fn(),
@@ -99,11 +99,11 @@ describe("transferStudentBetweenClassesForManager accounting (E7)", () => {
       created: false,
       phaseReopened: false,
     } as never);
-    vi.mocked(sessionService.seedLateJoinAttendeesForStudent).mockResolvedValue(
-      undefined as never
-    );
     vi.mocked(
-      sessionService.seedLateJoinStudentTasksForStudent
+      sessionSeedService.seedLateJoinAttendeesForStudent
+    ).mockResolvedValue(undefined as never);
+    vi.mocked(
+      sessionSeedService.seedLateJoinStudentTasksForStudent
     ).mockResolvedValue(undefined as never);
   });
 
@@ -221,13 +221,11 @@ describe("transferStudentBetweenClassesForManager accounting (E7)", () => {
     expect(
       studentClassRepository.findStudentClassByUserAndClass
     ).not.toHaveBeenCalled();
-    expect(sessionService.seedLateJoinAttendeesForStudent).toHaveBeenCalledWith(
-      adminClient,
-      toClassId,
-      userId
-    );
     expect(
-      sessionService.seedLateJoinStudentTasksForStudent
+      sessionSeedService.seedLateJoinAttendeesForStudent
+    ).toHaveBeenCalledWith(adminClient, toClassId, userId);
+    expect(
+      sessionSeedService.seedLateJoinStudentTasksForStudent
     ).toHaveBeenCalledWith(adminClient, toClassId, userId);
   });
 });
